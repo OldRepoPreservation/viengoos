@@ -23,6 +23,7 @@ $ install -s wortel/wortel /l4/boot
 $ install -s physmem/physmem /l4/boot
 $ install -s task/task /l4/boot
 $ install -s deva/deva /l4/boot
+$ install -s ruth/ruth /l4/boot
 
 You need at least automake 1.7 and autoconf 2.53.  Note that the
 binaries MUST be stripped, otherwise they will overlap in memory (or
@@ -70,7 +71,7 @@ module /boot/physmem
 module /boot/task
 module /boot/deva
 module /boot/task
-module /boot/task
+module /boot/ruth
 
 
 Pistachio Patch

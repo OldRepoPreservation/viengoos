@@ -163,5 +163,6 @@ AC_CONFIG_FILES([Makefile
                  physmem/Makefile
                  task/Makefile
                  deva/Makefile
+                 ruth/Makefile
 		 doc/Makefile])
 AC_OUTPUT

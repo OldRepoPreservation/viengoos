@@ -3,5 +3,5 @@ SUBDIRS = libl4 platform				\
 	libhurd-cap libhurd-cap-server			\
 	libhurd-mm					\
 	libpthread					\
-	libc-parts laden wortel physmem task deva	\
+	libc-parts laden wortel physmem task deva ruth  \
 	doc

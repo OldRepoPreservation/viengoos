@@ -1,0 +1,10 @@
+The root server ruth
+--------------------
+
+Ruth is a root server, but it is not _the_ root server.  It is only intended for
+testing and playing with the system.  Feel free to hack it to your liking.
+
+The real root server will actually be a bootstrapping filesystem server, like
+ext2fs.
+
+Until that is available, this cheesy stub is all you get.
