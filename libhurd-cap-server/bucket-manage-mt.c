@@ -29,7 +29,17 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#include <l4.h>
+
 #include "cap-server-intern.h"
+
+
+/* When using propagation, the from thread ID returned can differ from
+   the one we used for the closed receive.  */
+#define l4_xreceive_timeout(from,timeout,fromp) \
+  (l4_ipc (l4_nilthread, from, timeout,fromp))
+#define l4_xreceive(from,fromp) \
+  l4_xreceive_timeout (from, l4_timeouts (L4_ZERO_TIME, L4_NEVER), fromp)
 
 
 /* FIXME: Throughout this file, for debugging the behaviour could be
@@ -357,8 +367,7 @@ manage_mt_worker (void *arg)
   /* When we are started up, we are supposed to listen as soon as
      possible to the next incoming message.  The first time, we do
      this without a timeout.  */
-  from = manager;
-  msg_tag = l4_wait (&from);
+  msg_tag = l4_xreceive (manager, &from);
 
   while (1)
     {
@@ -390,8 +399,7 @@ manage_mt_worker (void *arg)
 
 	  /* If we are the current worker, we should wait here for the
 	     next message without a timeout.  */
-	  from = manager;
-	  msg_tag = l4_wait (&from);
+	  msg_tag = l4_xreceive (manager, &from);
 	  /* From here, we will loop all over to the beginning of the
 	     while(1) block.  */
 	}
@@ -628,7 +636,7 @@ manage_mt_worker (void *arg)
 	      
 	      /* Now listen for the next message, with a timeout.  */
 	      from = manager;
-	      msg_tag = l4_wait_timeout (timeout, &from);
+	      msg_tag = l4_xreceive_timeout (manager, timeout, &from);
 
 	      /* From here, we will loop all over to the beginning of
 		 the while(1) block.  */
@@ -688,7 +696,7 @@ manage_mt_get_next_worker (struct worker_info *info, pthread_t *worker_thread)
       else
 	err = pthread_create_from_l4_tid_np (worker_thread, NULL,
 					     worker, manage_mt_worker, info);
-      
+
       if (!err)
 	{
 	  pthread_detach (*worker_thread);

@@ -1,3 +1,10 @@
+2004-10-23  Marcus Brinkmann  <marcus@gnu.org>
+
+	* bucket-manage-mt.c: Include <l4.h>.
+	(l4_xreceive, l4_xreceive_timeout): New macros.
+	(manage_mt_worker): Use l4_xreceive and l4_xreceive_timeout
+	instead l4_wait and l4_wait_timeout.
+
 2004-10-19  Marcus Brinkmann  <marcus@gnu.org>
 
 	* client-inhibit.c (_hurd_cap_client_resume): Lock CLIENT->lock,
