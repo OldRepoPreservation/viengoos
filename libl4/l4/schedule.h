@@ -51,6 +51,7 @@ typedef _L4_RAW
 #define _L4_TIME_M_BITS		(10)
 #define _L4_TIME_PERIOD_E_BITS	(5)
 #define _L4_TIME_PERIOD_E_MAX	((1 << _L4_TIME_PERIOD_E_BITS) - 1)
+#define _L4_TIME_PERIOD_M_MAX	((1 << _L4_TIME_M_BITS) - 1)
 
 /* The maximum time period that can be specified has all mantisse and
    all exponent bits set.  */
@@ -61,21 +62,55 @@ typedef _L4_RAW
 #define _L4_zero_time	((_L4_time_t) (1 << _L4_TIME_M_BITS))
 
 
-static inline _L4_time_t
+/* Alter TIME1 and TIME2 so that they both have the same exponent.  */
+static inline void
 _L4_attribute_always_inline
-_L4_time_add_usec (_L4_time_t time, _L4_word_t usec)
+_L4_time_alter_exps (__L4_time_t *time1, __L4_time_t *time2)
 {
-  /* FIXME: Implement me.  */
-  return 0;
+  /* Before trying to level the exponents, minimize the mantisses.
+     This will hopefully minimize the risk of overflow.  */
+  while (time1->period.m && !(time1->period.m & 1))
+    time1->period.e++, time1->period.m /= 2;
+
+  while (time2->period.m && !(time2->period.m & 1))
+    time2->period.e ++, time2->period.m /= 2;
+  
+  if (time1->period.e < time2->period.e)
+    {
+      __L4_time_t *time_tmp = time1;
+      time1 = time2, time2 = time_tmp;
+    }
+
+  while (time1->period.e != time2->period.e)
+    {
+      time1->period.m *= 2;
+      time1->period.e --;
+    }
 }
 
 
 static inline _L4_time_t
 _L4_attribute_always_inline
-_L4_time_sub_usec (_L4_time_t time, _L4_word_t usec)
+_L4_time_make (_L4_word_t val)
 {
-  /* FIXME: Implement me.  */
-  return 0;
+  __L4_time_t t = { 0, };
+
+  if (val != 0)
+    {
+      while (!(val & 1))
+	{
+	  val >>= 1;
+	  t.period.e ++;
+	}
+      t.period.m = val;
+    }
+  else
+    {
+      /* Zero time is specified as mantisse 0 and exponent 1.  */
+      t.period.e = 1;
+    }
+
+  return t.raw;
 }
 
 
@@ -83,8 +118,34 @@ static inline _L4_time_t
 _L4_attribute_always_inline
 _L4_time_add (_L4_time_t time1, _L4_time_t time2)
 {
-  /* FIXME: Implement me.  */
-  return 0;
+  __L4_time_t _time1 = { .raw = time1 };
+  __L4_time_t _time2 = { .raw = time2 };
+  int res;
+
+  _L4_time_alter_exps (&_time1, &_time2);
+  res = _time1.period.m + _time2.period.m;
+
+  if (res > _L4_TIME_PERIOD_M_MAX)
+    /* Overflow in the mantisse, try to see if it is possible to shift
+       down the result, and increase the exponent.  */
+    {
+      while (!(res & 1))
+	{
+	  res >>= 1;
+	  _time1.period.e ++;
+	}
+    }
+
+  _time1.period.m = res;
+  return _time1.raw;
+}
+
+
+static inline _L4_time_t
+_L4_attribute_always_inline
+_L4_time_add_usec (_L4_time_t time, _L4_word_t usec)
+{
+  return _L4_time_add (time, _L4_time_make (usec));
 }
 
 
@@ -92,8 +153,35 @@ static inline _L4_time_t
 _L4_attribute_always_inline
 _L4_time_sub (_L4_time_t time1, _L4_time_t time2)
 {
-  /* FIXME: Implement me.  */
-  return 0;
+  __L4_time_t _time1 = { .raw = time1 };
+  __L4_time_t _time2 = { .raw = time2 };
+
+  _L4_time_alter_exps (&_time1, &_time2);
+
+  /* If this underflows (b's mantisse is greater than a's) there is
+     really nothing to do, since negative time is not supported.  */
+  _time1.period.m = _time1.period.m - _time2.period.m;
+  return _time1.raw;
+}
+
+
+static inline _L4_time_t
+_L4_attribute_always_inline
+_L4_time_sub_usec (_L4_time_t time, _L4_word_t usec)
+{
+  return _L4_time_sub (time, _L4_time_make (usec));
+}
+
+
+static inline int
+_L4_attribute_always_inline
+_L4_time_cmp (_L4_time_t time1, _L4_time_t time2)
+{
+  __L4_time_t _time1 = { .raw = time1 };
+  __L4_time_t _time2 = { .raw = time2 };
+  
+  _L4_time_alter_exps (&_time1, &_time2);
+  return (_time1.period.m - _time2.period.m);
 }
 
 
@@ -101,8 +189,7 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_is_time_longer (_L4_time_t time1, _L4_time_t time2)
 {
-  /* FIXME: Implement me.  */
-  return 0;
+  return (_L4_time_cmp (time1, time2) > 0 ? 1 : 0);
 }
 
 
@@ -110,8 +197,7 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_is_time_shorter (_L4_time_t time1, _L4_time_t time2)
 {
-  /* FIXME: Implement me.  */
-  return 0;
+  return (_L4_time_cmp (time1, time2) < 0 ? 1 : 0);
 }
 
 
@@ -119,8 +205,7 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_is_time_equal (_L4_time_t time1, _L4_time_t time2)
 {
-  /* FIXME: Implement me.  */
-  return 0;
+  return (_L4_time_cmp (time1, time2) == 0);
 }
 
 
@@ -128,8 +213,7 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_is_time_not_equal (_L4_time_t time1, _L4_time_t time2)
 {
-  /* FIXME: Implement me.  */
-  return 0;
+  return (_L4_time_cmp (time1, time2) != 0);
 }
 
 

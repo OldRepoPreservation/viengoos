@@ -1,3 +1,13 @@
+2005-02-07  Johan Rydberg  <jrydberg@gnu.org>
+
+	* l4/schedule.h (_L4_time_add): Implement.
+	(_L4_time_sub): Likewise.
+	(_L4_time_add_usec): Likewise.
+	(_L4_time_sub_usec): Likewise.
+	(_L4_time_make): New function.
+	(_L4_time_alter_exps): Likewise.
+	(_L4_TIME_PERIOD_M_MAX): Define.
+
 2005-01-30  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/ipc.h: Replace l4_word_t with _L4_word_t.
