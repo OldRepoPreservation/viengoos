@@ -1,5 +1,8 @@
 2004-03-21  Marcus Brinkmann  <marcus@gnu.org>
 
+	* Makefile.am (AM_CPPFLAGS): Add -I$(top_srcdir)/libc-parts for
+	now.
+
 	* slab.h (hurd_slab_destroy): New prototype.
 	* slab.c (hurd_slab_destroy): Dummy implementation.
 
