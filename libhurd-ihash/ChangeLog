@@ -1,3 +1,43 @@
+2003-08-26  Marcus Brinkmann  <marcus@g10code.de>
+
+	* ihash.h: Include <limits.h>.
+	(HURD_IHASH_NO_LOCP): New macro.
+	(HURD_IHASH_INITIALIZER): Take locp offset as argument.
+	Initialize HT->nr_items, HT->max_load and HT->locp_offset.
+	(HURD_IHASH_MAX_LOAD_DEFAULT): New macro.
+	(struct _hurd_ihash_item): New structure.
+	(_hurd_ihash_item_t): New type.
+	(struct hurd_ihash): New fields NR_ITEMS, ITEMS, LOCP_OFFSET and
+	MAX_LOAD.  Remove KEYS, TABLE and LOCPS.
+	(hurd_ihash_set_max_load): New function.
+	(HURD_IHASH_ITERATE): Rewrite to use ITEMS instead TABLE and KEYS.
+	(hurd_ihash_init): Take locp_offs argument in prototype.
+	(hurd_ihash_create): Likewise.
+	(hurd_ihash_add): Don't take locp argument in prototype.
+	(hurd_ihash_set_max_load): New prototype.
+	* ihash.c (HASH, REHASH): Macros removed.
+	(ihash_sizes): Change table to list prime numbers that are 3
+	modulo 4.
+	(index_empty): Use HT->items instead HT->table.
+	(index_valid): Likewise.
+	(find_index): Use quadratic probing.
+	(locp_remove): New helper function.
+	(hurd_ihash_init): Take locp_offs as argument.  Initialize
+	HT->locp_offset, HT->nr_items and HT->max_load.
+	(hurd_ihash_destroy): Free HT->items, but not anything else.
+	(hurd_ihash_create): Take locp_offs as argument and pass it to
+	hurd_ihash_init.
+	(hurd_ihash_set_max_load): New function.
+	(add_one): Don't take a locp argument anymore.  Use quadratic
+	probing.  Call locp_remove instead duplicating the code.
+	Increment HT->nr_items.
+	(hurd_ihash_add): Don't take a locp argument anymore.  Check
+	maximum load factor before adding element.  Use ITEMS and not KEYS
+	and TABLE.  Don't allocate memory for locp.  Use calloc instead of
+	malloc and initialization.
+	(hurd_ihash_remove): Call locp_remove instead hurd_ihash_locp_remove.
+	(hurd_ihash_locp_remove): Call locp_remove.
+	
 2003-08-17  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ihash.h (HURD_IHASH_INITIALIZER): New macro.
