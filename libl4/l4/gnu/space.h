@@ -240,7 +240,7 @@ l4_space_control (l4_thread_id_t space, l4_word_t control,
    while END must be the address of the last byte in the area.  FPAGES
    must be an array of at least
 
-   L4_FPAGE_SPAN_MAX - (l4_min_page_size () - L4_MIN_PAGE_SIZE_LOG2)
+   L4_FPAGE_SPAN_MAX - 2 * (l4_min_page_size_log2 () - L4_MIN_PAGE_SIZE_LOG2)
 
    fpages (you can just use L4_FPAGE_SPAN_MAX if you need a constant
    expression).  The function returns the number of fpages returned in
