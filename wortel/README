@@ -1,0 +1,9 @@
+wortel
+======
+
+wortel is the rootserver of the Hurd on L4.  It is responsible for
+booting up the system and wrapping privileged L4 operations.
+
+For now, only a rudimentary part of the loader is written, and the
+only useful thing wortel can do is to start the dummy physmem server
+for a small demonstration.

@@ -1,4 +1,4 @@
-/* wortel.h - Generic definitions.
+/* ia32-cmain.c - Startup code for the ia32.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -18,28 +18,38 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#include <l4.h>
-#include "string.h"
-#include "output.h"
-#include "shutdown.h"
-#include "loader.h"
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <alloca.h>
+#include <stdint.h>
+
+#include <l4/globals.h>
+#include <l4/stubs.h>
+#include <l4/stubs-init.h>
+
+#include "physmem.h"
 
 
-/* The program name.  */
-extern char *program_name;
+/* Initialize libl4, setup the argument vector, and pass control over
+   to the main function.  */
+void
+cmain (void)
+{
+  int argc = 0;
+  char **argv = 0;
 
-#define BUG_ADDRESS	"<bug-hurd@gnu.org>"
+  l4_init ();
+  l4_init_stubs ();
 
-
-typedef __l4_rootserver_t rootserver_t;
+  argc = 1;
+  argv = alloca (sizeof (char *) * 2);
+  argv[0] = program_name;
+  argv[1] = 0;
 
-/* For the boot components, find_components() must fill in the start
-   and end address of the ELF images in memory.  The end address is
-   one more than the last byte in the image.  */
-extern rootserver_t physmem;
+  /* Now invoke the main function.  */
+  main (argc, argv);
 
-/* Find the kernel, the initial servers and the other information
-   required for booting.  */
-void find_components (void);
-
-int main (int argc, char *argv[]);
+  /* Never reached.  */
+}

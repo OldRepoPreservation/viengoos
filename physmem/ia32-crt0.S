@@ -1,4 +1,4 @@
-/* wortel.h - Generic definitions.
+/* ia32-crt0.S - Startup code for ia32.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -18,28 +18,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#include <l4.h>
-#include "string.h"
-#include "output.h"
-#include "shutdown.h"
-#include "loader.h"
+#define ASM	1
+#include "multiboot.h"
 
-
-/* The program name.  */
-extern char *program_name;
+/* The size of our stack (4KB).  */
+#define STACK_SIZE			0x1000
+	
+	.text
 
-#define BUG_ADDRESS	"<bug-hurd@gnu.org>"
+	.globl	start, _start
+start:
+_start:
+	/* Initialize the stack pointer.  */
+	movl	$(stack + STACK_SIZE), %esp
 
-
-typedef __l4_rootserver_t rootserver_t;
+	/* Reset EFLAGS.  */
+	pushl	$0
+	popf
 
-/* For the boot components, find_components() must fill in the start
-   and end address of the ELF images in memory.  The end address is
-   one more than the last byte in the image.  */
-extern rootserver_t physmem;
+	/* Now enter the cmain function.  */
+	call	cmain
 
-/* Find the kernel, the initial servers and the other information
-   required for booting.  */
-void find_components (void);
+	/* Not reached.  */
+loop:	hlt
+	jmp	loop
 
-int main (int argc, char *argv[]);
+	/* Our stack area.  */
+	.comm	stack, STACK_SIZE

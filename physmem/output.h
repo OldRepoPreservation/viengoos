@@ -1,4 +1,4 @@
-/* wortel.h - Generic definitions.
+/* output.h - Output routines interfaces.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -18,28 +18,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#include <l4.h>
-#include "string.h"
-#include "output.h"
-#include "shutdown.h"
-#include "loader.h"
+#ifndef _OUTPUT_H
+#define _OUTPUT_H	1
 
-
-/* The program name.  */
-extern char *program_name;
+/* Print the single character CHR on the output device.  */
+void putchar (int chr);
 
-#define BUG_ADDRESS	"<bug-hurd@gnu.org>"
+void printf (const char *fmt, ...);
 
-
-typedef __l4_rootserver_t rootserver_t;
+/* True if debug mode is enabled.  */
+extern int output_debug;
 
-/* For the boot components, find_components() must fill in the start
-   and end address of the ELF images in memory.  The end address is
-   one more than the last byte in the image.  */
-extern rootserver_t physmem;
+/* Print a debug message.  */
+#define debug(...) do { if (output_debug) printf (__VA_ARGS__); } while (0)
 
-/* Find the kernel, the initial servers and the other information
-   required for booting.  */
-void find_components (void);
-
-int main (int argc, char *argv[]);
+#endif	/* _OUTPUT_H */

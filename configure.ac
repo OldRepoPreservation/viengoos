@@ -76,9 +76,10 @@ fi
 
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
-                 laden/Makefile
-		 wortel/Makefile
 		 libl4/ia32/Makefile libl4/Makefile
+                 laden/Makefile
+                 wortel/Makefile
+                 physmem/Makefile
 		 libhurd-slab/Makefile
 		 libhurd-ihash/Makefile
 		 doc/Makefile])

@@ -1,4 +1,4 @@
-/* wortel.h - Generic definitions.
+/* physmem.h - Generic definitions.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -21,25 +21,11 @@
 #include <l4.h>
 #include "string.h"
 #include "output.h"
-#include "shutdown.h"
-#include "loader.h"
 
 
 /* The program name.  */
 extern char *program_name;
 
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
-
-
-typedef __l4_rootserver_t rootserver_t;
-
-/* For the boot components, find_components() must fill in the start
-   and end address of the ELF images in memory.  The end address is
-   one more than the last byte in the image.  */
-extern rootserver_t physmem;
-
-/* Find the kernel, the initial servers and the other information
-   required for booting.  */
-void find_components (void);
 
 int main (int argc, char *argv[]);

@@ -124,3 +124,79 @@ cmain (void)
 
   /* Never reached.  */
 }
+
+
+/* The following must be defined and are used to calculate the extents
+   of the laden binary itself.  */
+extern char _start;
+extern char _end;
+
+
+/* Find the kernel, the initial servers and the other information
+   required for booting.  */
+void
+find_components (void)
+{
+  multiboot_info_t *mbi = (multiboot_info_t *) l4_boot_info ();
+  l4_word_t start;
+  l4_word_t end;
+
+#if 0
+  debug_dump ();
+#endif
+
+  /* Load the module information.  */
+  if (CHECK_FLAG (mbi->flags, 3))
+    {
+      module_t *mod = (module_t *) mbi->mods_addr;
+      
+      if (mbi->mods_count > 0)
+	{
+	  /* Skip the entry for the rootserver.  */
+	  mod++;
+	}
+
+      if (mbi->mods_count > 1)
+	{
+	  physmem.low = mod->mod_start;
+	  physmem.high = mod->mod_end;
+	  mod++;
+	}
+    }
+
+  /* Now protect ourselves and the mulitboot info (at least the module
+     configuration.  */
+  loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end);
+
+  start = (l4_word_t) mbi;
+  end = start + sizeof (*mbi) - 1;
+  loader_add_region ("grub-mbi", start, end);
+  
+  if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count)
+    {
+      module_t *mod = (module_t *) mbi->mods_addr;
+      int nr;
+
+      start = (l4_word_t) mod;
+      end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
+      loader_add_region ("grub-mods", start, end);
+
+      start = (l4_word_t) mod[0].string;
+      end = start;
+      for (nr = 0; nr < mbi->mods_count; nr++)
+	{
+	  char *str = (char *) mod[nr].string;
+
+	  if (str)
+	    {
+	      if (((l4_word_t) str) < start)
+		start = (l4_word_t) str;
+	      while (*str)
+		str++;
+	      if (((l4_word_t) str) > end)
+		end = (l4_word_t) str;
+	    }
+	}
+      loader_add_region ("grub-mods-cmdlines", start, end);
+    }
+}

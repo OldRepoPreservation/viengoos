@@ -27,6 +27,8 @@
 /* The program name.  */
 char *program_name = "wortel";
 
+rootserver_t physmem;
+
 
 /* Return the number of memory descriptors.  */
 l4_word_t
@@ -45,10 +47,178 @@ loader_get_memory_desc (l4_word_t nr)
 }
 
 
-/* True if debug mode is enabled.  */
-int debug;
+static void
+load_components (void)
+{
+  if (!physmem.low)
+    panic ("No physical memory server found");
+  loader_add_region ("physmem-mod", physmem.low, physmem.high);
+
+  loader_elf_load ("physmem-server", physmem.low, physmem.high,
+		   &physmem.low, &physmem.high, &physmem.ip);
+  loader_remove_region ("physmem-mod");
+}
 
 
+static void
+start_components (void)
+{
+  l4_word_t ret;
+  l4_word_t control;
+  l4_msg_t msg;
+  l4_msg_tag_t msg_tag;
+  unsigned int io_map = 0;
+
+  /* Thread nr is next available after rootserver thread nr,
+     version part is 2 (rootserver is 1).  */
+  l4_thread_id_t physmem_server
+    = l4_global_id (l4_thread_no (l4_myself ()) + 2,
+		    2);
+  /* The UTCB location below is only a hack.  We also need a way to
+     specify the maximum number of threads (ie the size of the UTCB
+     area), for example via ELF symbols, or via the command line.
+     This can also be used to actually create these threads up
+     front.  */
+  ret = l4_thread_control (physmem_server, physmem_server, l4_myself (),
+			   l4_nilthread, (void *) 0x2000000);
+  if (!ret)
+    panic ("Creation of initial physmem thread failed");
+
+  /* The UTCB area must be controllable in some way, see above.  Same
+     for KIP area.  */
+  ret = l4_space_control (physmem_server, 0,
+			  l4_fpage_log2 (0x2400000, l4_kip_area_size_log2 ()),
+			  l4_fpage_log2 (0x2000000, 14),
+			  l4_anythread, &control);
+  if (!ret)
+    panic ("Creation of physmem address space failed");
+
+  ret = l4_thread_control (physmem_server, physmem_server, l4_nilthread,
+			   l4_myself (), (void *) -1);
+  if (!ret)
+    panic ("Activation of initial physmem thread failed");
+
+  l4_msg_clear (&msg);
+  l4_set_msg_label (&msg, 0);
+  l4_msg_append_word (&msg, physmem.ip);
+  l4_msg_append_word (&msg, 0);
+  l4_msg_load (&msg);
+  msg_tag = l4_send (physmem_server);
+  if (l4_ipc_failed (msg_tag))
+    panic ("Sending startup message to physmemserver thread failed: %u",
+	   l4_error_code ());
+
+  do
+    {
+      l4_word_t label;
+
+      msg_tag = l4_receive (physmem_server);
+      if (l4_ipc_failed (msg_tag))
+	panic ("Receiving messages from physmemserver thread failed: %u",
+	       (l4_error_code () >> 1) & 0x7);
+
+      /* FIXME: Check sender, etc.  */
+
+      label = l4_label (msg_tag);
+      l4_msg_store (msg_tag, &msg);
+      if ((label >> 4) == 0xffe)
+	{
+	  l4_grant_item_t grant_item;
+	  l4_fpage_t fpage;
+	  l4_word_t addr;
+
+	  /* This is a page fault.  */
+	  if (l4_untyped_words (msg_tag) != 2
+	      || l4_typed_words (msg_tag) != 0)
+	    panic ("Invalid format of page fault msg");
+
+	  if (!io_map)
+	    {
+	      l4_map_item_t map_item;
+
+	      /* FIXME: This is a hack.  The first time we map the I/O
+		 ports into the task.  The kernel will repeat the page
+		 fault.  */
+	      io_map = 1;
+
+	      /* Now we can grant the mapping to the physmem server.
+		 FIXME: Should use the fpage returned by sigma0.  */
+	      l4_msg_clear (&msg);
+	      l4_set_msg_label (&msg, 0);
+	      /* FIXME: Try to use largest fpage possible for the image.
+		 Keep track of mappings already provided.  Possibly map
+		 text section rx and data rw.  */
+	      map_item = l4_map_item (l4_fpage_add_rights
+					  (l4_io_fpage (0, 10),
+					   l4_fully_accessible), 0);
+	      l4_msg_append_map_item (&msg, map_item);
+	      l4_msg_load (&msg);
+	      l4_reply (physmem_server);
+	      continue;
+	    }
+
+	  addr = l4_msg_word (&msg, 0) & ~((1 << 12) - 1);
+	  fpage = l4_fpage_add_rights (l4_fpage_log2 (addr, 12),
+				       l4_fully_accessible);
+	  debug ("Serving Page Fault: %c%c%c at 0x%x (IP: 0x%x)\n",
+		 label & 4 ? 'x' : '-', label & 2 ? 'w' : '-',
+		 label & 1 ? 'r' : '-', addr,
+		 l4_msg_word (&msg, 1));
+
+	  /* First we have to request the fpage from sigma0.  */
+	  l4_accept (l4_map_grant_items (l4_complete_address_space));
+	  l4_msg_clear (&msg);
+	  l4_set_msg_label (&msg, 0xffa0);
+	  l4_msg_append_word (&msg, fpage.raw);
+	  l4_msg_append_word (&msg, L4_DEFAULT_MEMORY);
+	  l4_msg_load (&msg);
+	  msg_tag = l4_call (l4_global_id (l4_thread_user_base (), 1));
+	  if (l4_ipc_failed (msg_tag))
+	    panic ("sigma0 request failed during %s: %u",
+		   l4_error_code () & 1 ? "receive" : "send",
+		   (l4_error_code () >> 1) & 0x7);
+	  if (l4_untyped_words (msg_tag) != 0
+	      || l4_typed_words (msg_tag) != 2)
+	    panic ("Invalid format of sigma0 reply");
+	  l4_msg_store (msg_tag, &msg);
+	  if (l4_msg_word (&msg, 1) == l4_nilpage.raw)
+	    panic ("sigma0 rejected mapping");
+
+	  /* Now we can grant the mapping to the physmem server.
+	     FIXME: Should use the fpage returned by sigma0.  */
+	  l4_msg_clear (&msg);
+	  l4_set_msg_label (&msg, 0);
+	  /* FIXME: Try to use largest fpage possible for the image.
+	     Keep track of mappings already provided.  Possibly map
+	     text section rx and data rw.  */
+	  grant_item = l4_grant_item (fpage, addr);
+	  l4_msg_append_grant_item (&msg, grant_item);
+	  l4_msg_load (&msg);
+	}
+#define WORTEL_MSG_PUTCHAR 1
+      else if (label == WORTEL_MSG_PUTCHAR)
+	{
+	  int chr;
+
+	  /* This is a putchar() message.  */
+	  if (l4_untyped_words (msg_tag) != 1
+	      || l4_typed_words (msg_tag) != 0)
+	    panic ("Invalid format of putchar msg");
+
+	  chr = (int) l4_msg_word (&msg, 0);
+	  putchar (chr);
+	  /* No reply needed.  */
+	  continue;
+	}
+      else
+	panic ("Invalid message with tag 0x%x", msg_tag);
+
+      l4_reply (physmem_server);
+    }
+  while (1);
+}
+
+
 static void
 parse_args (int argc, char *argv[])
 {
@@ -126,7 +296,7 @@ parse_args (int argc, char *argv[])
       else if (!strcmp (argv[i], "-D") || !strcmp (argv[i], "--debug"))
 	{
 	  i++;
-	  debug = 1;
+	  output_debug = 1;
 	}
       else if (argv[i][0] == '-')
 	panic ("Unsupported option %s", argv[i]);
@@ -137,12 +307,92 @@ parse_args (int argc, char *argv[])
 
 
 
+#define STACK_SIZE 4096
+char exception_handler_stack[STACK_SIZE];
+
+void
+exception_handler (void)
+{
+  int count = 0;
+
+  while (count < 10)
+    {
+      l4_msg_tag_t tag;
+      l4_thread_id_t from;
+      l4_word_t mr[12];
+
+      tag = l4_wait (&from);
+      debug ("EXCEPTION HANDLER: Received message from: ");
+      debug ("0x%x", from);
+      debug ("\n");
+      debug ("Tag: 0x%x", tag.raw);
+      debug ("Label: %u  Untyped: %u  Typed: %u\n",
+	      l4_label (tag), l4_untyped_words (tag), l4_typed_words (tag));
+
+      l4_store_mrs (1, 12, mr);
+      debug ("Succeeded: %u  Propagated: %u  Redirected: %u  Xcpu: %u\n",
+	      l4_ipc_succeeded (tag), l4_ipc_propagated (tag),
+	      l4_ipc_redirected (tag), l4_ipc_xcpu (tag));
+      debug ("Error Code: 0x%x\n", l4_error_code ());
+      debug ("EIP: 0x%x  EFLAGS: 0x%x  Exception: %u  ErrCode: %u\n",
+	      mr[0], mr[1], mr[2], mr[3]);
+      debug ("EDI: 0x%x  ESI: 0x%x  EBP: 0x%x  ESP: 0x%x\n",
+	      mr[4], mr[5], mr[6], mr[7]);
+      debug ("EAX: 0x%x  EBX: 0x%x  ECX: 0x%x  EDX: 0x%x\n",
+	      mr[11], mr[8], mr[10], mr[9]);
+    }
+  
+  debug ("EXCEPTION HANDLER: Too many exceptions.\n");
+
+  while (1)
+    l4_yield ();
+}
+
+
+static void
+setup (void)
+{
+  l4_thread_id_t thread;
+  l4_word_t result;
+  void *utcb;
+
+  /* FIXME: This is not specified by the standard.  We don't know
+     where and how much space we have for other thread's UTCB
+     areas in the root server.  */
+  utcb = (void *) ((l4_my_local_id ().raw & ~(l4_utcb_size () - 1))
+		   + l4_utcb_size ());
+  thread = l4_global_id (l4_thread_no (l4_myself ()) + 1, 1);
+  debug ("Creating exception handler thread at utcb 0x%x: ",
+	  (l4_word_t) utcb);
+  result = l4_thread_control (thread, l4_myself (), l4_myself (),
+			      l4_global_id (l4_thread_no (l4_myself()) - 2, 1),
+			      utcb);
+  debug ("%s\n", result ? "successful" : "failed");
+  /* Set the priority of the other thread to our priority.  Otherwise
+     it is 100 and will never be scheduled as long as we are not in a
+     blocking receive.  */
+  l4_set_priority (thread, 255);
+  l4_start_sp_ip (thread, ((l4_word_t) exception_handler_stack)
+		  + sizeof (exception_handler_stack),
+		  (l4_word_t) exception_handler);
+  l4_set_exception_handler (thread);
+}
+
+
 int
 main (int argc, char *argv[])
 {
   parse_args (argc, argv);
 
   debug ("%s " PACKAGE_VERSION "\n", program_name);
+
+  setup ();
+
+  find_components ();
+
+  load_components ();
+
+  start_components ();
 
   while (1)
     l4_yield ();
