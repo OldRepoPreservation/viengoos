@@ -23,6 +23,7 @@
 #define _HURD_TYPES_H	1
 
 #include <l4/types.h>
+#include <l4/thread.h>
 
 
 /* The number of bits that are valid for the task ID.  */

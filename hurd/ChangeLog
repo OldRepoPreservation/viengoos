@@ -1,3 +1,7 @@
+2004-04-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* types.h: Include <l4/thread.h>.
+
 2004-03-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* types.h: Protect inclusion with _HURD_TYPES_H.
