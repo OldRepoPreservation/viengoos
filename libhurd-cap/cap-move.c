@@ -151,13 +151,22 @@ cap_receive (l4_thread_id_t sender_thread,
 
 /* The server side.  */
 
-/* Containers are created in both the sender and receiver user list,
-   so that at look up time (when the messages come in), only one of
-   the both lists (the right one) is locked and verified.  Otherwise
-   there could be DoS attacks where a malicious receiver constantly
-   claims it wants to accept a container from another client and keeps
-   the user list of that client locked during the verification
-   attempts.
+/* Containers are created in the sender's user list, but hold a
+   reference for the receiver user list.  The receiver user list also
+   has a section with backreferences to all containers for this
+   receiver.
+
+   At look up time, the receiver user list can be looked up.  Then the
+   small list can be searched to verify the request.  If it is
+   verified, the entry can be removed.  Then the sender can be looked
+   up to access the real reference container item.  The reference for
+   the receiver user list should not be released because it will
+   usually be consumed for the capability.
+
+   Without the small list on the receiver user list side there could
+   be DoS attacks where a malicious receiver constantly claims it
+   wants to accept a container from another client and keeps the user
+   list of that client locked during the verification attempts.
 
    First the sender container is created.
 
@@ -184,15 +193,18 @@ hurd_cap_server_create_ref_cont_S (l4_thread_id_t sender_thread,
   1. Check if a user list for dest exists, if not, create one.  Use
   the senders task ID as a constraint to the task_info_create call, to
   ensure we don't create a task info cap if the sender dies in the
-  meantime.  Implemention note: Split the container ID in two fields,
-  each 16 bit, one for the sender cont id and one for the receiver
-  cont id.
+  meantime.
 
   Note: Order matters in the following two steps:
 
   2. Register the container as a sending container with the sender user list.
 
-  3. Register the container as a receiving container with the dest user list.
+  3. Register the container as a receiving container with the dest
+  user list.  The user dest list should have its own small list just
+  with containers, and this list should have its own lock.  There is
+  no precondition for this lock.  A non-empty list implies one
+  reference to the task info cap (no explicit reference is taken to
+  avoid locking problems).
 
   This is how task death notifications should be handled:
 
@@ -238,16 +250,5 @@ hurd_cap_server_accept_ref_cont (l4_thread_id_t sender_thread,
 error_t
 hurd_cap_server_destroy_ref_cont (hurd_cap_t cap, hurd_cap_scid_t cont_id)
 {
-  /* 1. Look up the container in the sender user list.  Verify the
-     request.  Then unlock the sender user list.
-
-     The order matters! in the following two steps (the reason is that
-     otherwise a sender container id could be reused while
-     concurrently a receiver tries to accept the handle, and get the
-     wrong one.  This is a robustness issue for the case of a canceled
-     RPC, for example):
-
-     2. Remove the container from the receiver user list.
-     
-     3. Remove the container from the sender user list.  */
+  /* To be written */
 }
