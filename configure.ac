@@ -33,6 +33,10 @@ AC_GNU_SOURCE
 AC_PROG_CC
 AM_PROG_AS
 AC_PROG_RANLIB
+AC_CHECK_TOOL([AR], [ar], :)
+AC_CHECK_TOOL([NM], [nm], :)
+AC_PATH_PROG([SED], [sed], :)
+AC_PATH_PROG([SORT], [sort], :)
 
 # Required for building the documentation
 AC_PATH_PROG([LATEX], [latex], no)
@@ -49,6 +53,16 @@ if test "x$PS2PDF" = xno; then
 fi
 
 # Checks for libraries.
+AC_MSG_CHECKING([for static GNU C library])
+STATIC_GLIBC=`$CC -print-file-name=libc.a`
+if test "x$STATIC_GLIBC" = xlibc.a; then
+  AC_MSG_RESULT([none])
+  AC_MSG_ERROR([Could not find static version of the GNU C library])
+else
+  AC_MSG_RESULT([$STATIC_GLIBC])
+fi
+AC_SUBST(STATIC_GLIBC)
+
 
 # Checks for header files.
 
@@ -79,6 +93,7 @@ fi
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
 		 libl4/ia32/Makefile libl4/Makefile
+		 libc-parts/Makefile
                  laden/Makefile
                  wortel/Makefile
                  physmem/Makefile

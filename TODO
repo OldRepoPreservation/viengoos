@@ -1,3 +1,6 @@
+* configure.ac
+** Allow user to specify libc.a.
+
 * laden
 ** Overlaps between modules and destination regions should be resolved
    intelligently.

@@ -1,0 +1,20 @@
+libc-parts
+==========
+
+libc-parts is a convenience library that is built by taking functions
+from the statically linked GNU C library of the host system.
+
+Even if you can not link to the whole of the C library, you can often
+link to specific functions to it, which don't have a lot of
+dependencies.  This includes memory and string operations, as well as
+many other low level operations (byte swap routines, bit search
+functions, etc).
+
+These functions are usually cleverly optimized for the host processor,
+and well tested.  So taking the standard implementations gives best
+over-all performance, avoids code duplications, and is the least error
+prone solution.
+
+There is obviously a boot strap issue in this approach.  However, this
+is not a serious problem as the functions are not OS dependent, and
+thus any static GNU C library for the host CPU will do.

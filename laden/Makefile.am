@@ -27,7 +27,7 @@ noinst_PROGRAMS = laden
 
 laden_CFLAGS = -I$(srcdir) -I$(top_srcdir)/include $(AM_CFLAGS)
 
-laden_SOURCES =  $(ARCH_SOURCES) string.h string.c		\
+laden_SOURCES =  $(ARCH_SOURCES)				\
 	output.h output.c output-none.c				\
 	shutdown.h shutdown.c					\
 	elf.h loader.h loader.c					\
@@ -36,4 +36,4 @@ laden_SOURCES =  $(ARCH_SOURCES) string.h string.c		\
 /* FIXME: Make linkbase configurable.  */
 laden_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x180000
 
-laden_LDADD = -lgcc
+laden_LDADD = -lgcc ../libc-parts/libc-parts.a
