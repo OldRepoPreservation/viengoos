@@ -91,25 +91,27 @@ unsigned int
 make_fpages (l4_word_t start, l4_word_t size, l4_fpage_t *fpages)
 {
   l4_word_t min_page_size = getpagesize ();
-  l4_word_t end = (start + size + min_page_size - 1) & ~(min_page_size - 1);
+  l4_word_t end = start + size;
   unsigned int nr_fpages = 0;
-
   if (!size)
     return 0;
 
-  if (start & ~(min_page_size - 1))    
+  if (start & (min_page_size - 1))
     panic ("make_fpages: START is not aligned to minimum page size");
-  if (end & ~(min_page_size - 1))    
-    panic ("make_fpages: START is not aligned to minimum page size");
+  if (size & (min_page_size - 1))
+    panic ("make_fpages: SIZE is not aligned to minimum page size");
 
+  debug ("Make fpages from 0x%x (size 0x%x): ", start, size);
   /* END is at least one MIN_PAGE_SIZE larger than START.  */
   nr_fpages = 0;
   while (start < end)
     {
       fpages[nr_fpages] = l4_fpage (start, end - start);
+      debug ("0x%x/%u ", start, l4_size_log2 (fpages[nr_fpages]));
       start += l4_size (fpages[nr_fpages]);
       nr_fpages++;
     }
+  debug ("\n");
   return nr_fpages;
 }
 
@@ -216,8 +218,8 @@ start_components (void)
 	  panic ("Could not find suitable fpage");
 
 	fpage = l4_fpage_add_rights (fpages[i], l4_fully_accessible);
-	debug ("Granting Fpage: 0x%x - 0x%x\n", l4_address (fpage),
-	       l4_address (fpage) + l4_size (fpage));
+	debug ("Granting Fpage: 0x%x/%u\n", l4_address (fpage),
+	       l4_size_log2 (fpage));
 
 	if (i != 0)
 	  fpages[i] = fpages[nr_fpages - 1];

@@ -131,7 +131,6 @@ find_components (void)
   if (CHECK_FLAG (mbi->flags, 3))
     {
       module_t *mod = (module_t *) mbi->mods_addr;
-      unsigned int nr_mods;
       unsigned int i;
 
       mods_count = mbi->mods_count - 1;
@@ -140,7 +139,7 @@ find_components (void)
       /* Skip the entry for the rootserver.  */
       mod++;
 
-      for (i = 0; i < nr_mods; i++)
+      for (i = 0; i < mods_count; i++)
 	{
 	  mods[i].name = mod_names[i];
 	  mods[i].start = mod[i].mod_start;
