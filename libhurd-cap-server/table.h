@@ -64,9 +64,14 @@
    not immediate.  */
 
 
+/* Because the first element in each table entry is a pointer, the
+   table entry should be naturally aligned.  */
+#define _HURD_TABLE_ALIGN(x) \
+  (((x) + sizeof (void *) - 1) & ~(sizeof (void *) - 1))
+
+
 /* The value used for empty table entries.  */
 #define HURD_TABLE_EMPTY	(NULL)
-
 
 struct hurd_table
 {
@@ -98,8 +103,9 @@ typedef struct hurd_table *hurd_table_t;
 
 
 #define HURD_TABLE_INITIALIZER(size_of_one)				\
-  { .entry_size = size_of_one, .size = 0, .init_size = 0, .used = 0,	\
-    .first_free = 0, .last_used = 0, .data = NULL }
+  { .entry_size = _HURD_TABLE_ALIGN (size_of_one), .size = 0,		\
+    .init_size = 0, .used = 0, .first_free = 0, .last_used = 0,		\
+    .data = NULL }
 
 /* Fast accessor without range check.  */
 #define HURD_TABLE_LOOKUP(table, idx)					\

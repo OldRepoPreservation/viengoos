@@ -1,4 +1,7 @@
-2004-03-22  Marcus Brinkmann  <marcus@gnu.org>
+2004-03-23  Marcus Brinkmann  <marcus@gnu.org>
+
+	* table.h (_HURD_TABLE_ALIGN): New macro.
+	(HURD_TABLE_INITIALIZER): Use it for ENTRY_SIZE.
 
 	* Makefile.am (AM_CFLAGS): New variable.
 	* headers.m4: Add table.h	
