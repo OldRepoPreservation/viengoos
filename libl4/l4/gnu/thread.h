@@ -34,6 +34,11 @@
 #define L4_THREAD_NO_BITS	_L4_THREAD_NO_BITS
 #define L4_THREAD_VERSION_BITS	_L4_THREAD_VERSION_BITS
 
+/* A thread version is valid if the lower six bits are not all
+   zero.  */
+#define L4_THREAD_VERSION_VALID(version)			\
+ (((version) & ((1 << 6) - 1)) ? true : false)
+
 
 static inline l4_thread_id_t
 _L4_attribute_always_inline

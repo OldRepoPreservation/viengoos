@@ -1,5 +1,7 @@
 2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/gnu/thread.h (L4_THREAD_VERSION_VALID): New macro.
+
 	* l4/gnu/types.h: Include <stdbool.h>.
 	* l4/gnu/ipc.h (l4_is_msg_tag_equal, l4_is_msg_tag_not_equal) 
 	(l4_is_map_item, l4_is_grant_item, l4_is_string_item) 
