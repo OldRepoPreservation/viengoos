@@ -1,5 +1,13 @@
 2004-11-30  Neal H. Walfield  <neal@gnu.org>
 
+	* bucket-manage-mt.c (manage_mt_get_next_worker): If
+	pthread_create_from_l4_tid_np fails, return WORKER to pthread's
+	available thread pool.
+	(worker_alloc_async): Likewise.
+	(hurd_cap_bucket_manage_mt): Likewise.
+
+2004-11-30  Neal H. Walfield  <neal@gnu.org>
+
 	* bucket-manage-mt.c: Include <compiler.h>.
 	(manage_mt_worker): Use EXPECT_TRUE and EXPECT_FALSE rather than
 	__builtin_expect.  Comment fixes.

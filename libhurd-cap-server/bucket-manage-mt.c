@@ -743,9 +743,14 @@ manage_mt_get_next_worker (struct worker_info *info, pthread_t *worker_thread)
       if (worker == l4_nilthread)
 	err = EAGAIN;
       else
-	err = pthread_create_from_l4_tid_np (worker_thread, NULL,
-					     worker, manage_mt_worker_sync,
-					     info);
+	{
+	  err = pthread_create_from_l4_tid_np (worker_thread, NULL,
+					       worker, manage_mt_worker_sync,
+					       info);
+	  /* Return the thread to the pool.  */
+	  if (err)
+	    pthread_pool_add_np (worker);
+	}
 
       if (!err)
 	{
@@ -833,10 +838,16 @@ worker_alloc_async (void *arg)
 	  if (worker == l4_nilthread)
 	    err = EAGAIN;
 	  else
-	    err = pthread_create_from_l4_tid_np (&worker_thread, NULL,
-						 worker,
-						 manage_mt_worker_async,
-						 info);
+	    {
+	      err = pthread_create_from_l4_tid_np (&worker_thread, NULL,
+						   worker,
+						   manage_mt_worker_async,
+						   info);
+	      /* Return the thread to the pool.  */
+	      if (err)
+		pthread_pool_add_np (worker);
+	    }
+
 	  if (!err)
 	    {
 	      pthread_detach (worker_thread);
@@ -916,7 +927,11 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
   err = pthread_create_from_l4_tid_np (&worker_thread, NULL,
 				       worker, manage_mt_worker_sync, &info);
   if (err)
-    return err;
+    {
+      /* Return the thread to the pool.  */
+      pthread_pool_add_np (worker);
+      return err;
+    }
   pthread_detach (worker_thread);
 
   pthread_mutex_lock (&bucket->lock);
