@@ -111,7 +111,7 @@ static struct block *zone[ZONES] = { 0, };
 /* Find the first bit set.  The least significant bit is 1.  If no bit
    is set, return 0.  FIXME: This can be optimized a lot, in an
    archtecture dependent way.  Add to libl4, like __l4_msb().  */
-inline unsigned int
+static inline unsigned int
 wffs (l4_word_t nr)
 {
   unsigned int bit = 0;

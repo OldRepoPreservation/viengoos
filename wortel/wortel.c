@@ -114,8 +114,30 @@ loader_get_memory_desc (l4_word_t nr)
 /* The maximum number of fpages required to cover a page aligned range
    of memory.  This is k if the maximum memory range size to cover is
    2^(k + min_page_size_log2), which can be easily proved by
-   induction.  The minimum page size in L4 is at least 2^10.  */
+   induction.  The minimum page size in L4 is at least 2^10.  We also
+   need to have each fpage aligned to a multiple of its own size.
+   This makes the proof by induction a bit more convoluted, but does
+   not change the result.  */
 #define MAX_FPAGES (sizeof (l4_word_t) * 8 - 10)
+
+
+/* Find the first bit set.  The least significant bit is 1.  If no bit
+   is set, return 0.  FIXME: This can be optimized a lot, in an
+   archtecture dependent way.  Add to libl4, like __l4_msb().  */
+static inline unsigned int
+wffs (l4_word_t nr)
+{
+  unsigned int bit = 0;
+
+  while (bit < sizeof (l4_word_t) * 8)
+    {
+      if ((1ULL << bit) & nr)
+	{
+	  return bit + 1;
+	}
+      bit++;
+    }
+}
 
 
 /* Determine the fpages required to cover the bytes from START to END
@@ -123,7 +145,8 @@ loader_get_memory_desc (l4_word_t nr)
    supported by the system.  Returns the number of fpages required to
    cover the range, and returns that many fpages (with maximum
    accessibility) in FPAGES.  At most MAX_FPAGES fpages will be
-   returned.  */
+   returned.  Each fpage will also be aligned to a multiple of its own
+   size.  */
 static unsigned int
 make_fpages (l4_word_t start, l4_word_t end, l4_fpage_t *fpages)
 {
@@ -141,8 +164,12 @@ make_fpages (l4_word_t start, l4_word_t end, l4_fpage_t *fpages)
   nr_fpages = 0;
   while (start < end)
     {
-      fpages[nr_fpages] = l4_fpage_add_rights (l4_fpage (start, end - start),
-					       l4_fully_accessible);
+      /* Each fpage must be self-aligned.  */
+      unsigned int fpsize_log2 = wffs (start | (end - start)) - 1;
+
+      fpages[nr_fpages]
+	= l4_fpage_add_rights (l4_fpage_log2 (start, fpsize_log2),
+			       l4_fully_accessible);
       start += l4_size (fpages[nr_fpages]);
       nr_fpages++;
     }
@@ -264,21 +291,24 @@ start_components (void)
      This can also be used to actually create these threads up
      front.  */
   ret = l4_thread_control (physmem_server, physmem_server, l4_myself (),
-			   l4_nilthread, (void *) 0x2000000);
+			   l4_nilthread, (void *) -1);
   if (!ret)
     panic ("Creation of initial physmem thread failed");
 
   /* The UTCB area must be controllable in some way, see above.  Same
      for KIP area.  */
   ret = l4_space_control (physmem_server, 0,
-			  l4_fpage_log2 (0x2400000, l4_kip_area_size_log2 ()),
-			  l4_fpage_log2 (0x2000000, 14),
+			  l4_fpage_log2 (wortel_start,
+					 l4_kip_area_size_log2 ()),
+			  l4_fpage_log2 (wortel_start + l4_kip_area_size (),
+					 l4_utcb_area_size_log2 ()),
 			  l4_anythread, &control);
   if (!ret)
     panic ("Creation of physmem address space failed");
 
   ret = l4_thread_control (physmem_server, physmem_server, l4_nilthread,
-			   l4_myself (), (void *) -1);
+			   l4_myself (),
+			   (void *) (wortel_start + l4_kip_area_size ()));
   if (!ret)
     panic ("Activation of initial physmem thread failed");
 
@@ -444,6 +474,13 @@ serve_bootstrap_requests (void)
 	  l4_msg_append_grant_item (&msg, grant_item);
 	  l4_msg_load (&msg);
 	  l4_reply (from);
+	}
+      else if ((label >> 4) == 0xffe)
+	{
+	  if (l4_untyped_words (msg_tag) != 2 || l4_typed_words (msg_tag) != 0)
+	    panic ("Invalid format of page fault message");
+	  panic ("Unexpected page fault from 0x%xat address 0x%x (IP 0x%x)",
+		 from.raw, l4_msg_word (&msg, 0), l4_msg_word (&msg, 1));
 	}
       else
 	panic ("Invalid message with tag 0x%x", msg_tag.raw);

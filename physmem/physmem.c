@@ -68,11 +68,7 @@ get_all_memory (void)
       fpage = grant_item.send_fpage;
 
       if (fpage.raw != l4_nilpage.raw)
-	{
-	  debug ("%s: Got fpage 0x%x/%u\n", program_name,
-		 l4_address (fpage), l4_size_log2 (fpage));
-	  zfree (l4_address (fpage), l4_size (fpage));
-	}
+	zfree (l4_address (fpage), l4_size (fpage));
     }
   while (fpage.raw != l4_nilpage.raw);
 }
@@ -81,11 +77,13 @@ get_all_memory (void)
 int
 main (int argc, char *argv[])
 {
-  output_debug = 1;
+  output_debug = 0;
 
   debug ("%s " PACKAGE_VERSION "\n", program_name);
 
   get_all_memory ();
+
+  zalloc_dump_zones (program_name);
 
   while (1)
     l4_sleep (l4_never);
