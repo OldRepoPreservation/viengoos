@@ -1,3 +1,153 @@
+2005-04-06  Neal H. Walfield  <neal@gnu.org>
+
+	* vm.h (hurd_vm_allocate): Remove declaration.
+	(hurd_vm_release): Rename from hurd_vm_deallocate.  Update
+	callers.
+	(VM_HERE): Remove.
+	(VM_ZEROFILL): Remove.
+	* vm.c (hurd_vm_allocate): Remove function.
+	(hurd_vm_release): Rename from hurd_vm_deallocate.
+
+	* mm.h: Include <stdint.h>, <sys/types.h>, <l4/types.h> and
+	<hurd/physmem.h>.
+	(hurd_store_t): New typedef.
+	(hurd_memory_t): Likewise.
+	(hurd_memory_use): New declaration.
+	(hurd_memory_transfer): Likewise.
+	(hurd_store_fault_t): New typedef.
+	(hurd_store_init): New declaration.
+	(hurd_store_size): New declaration.
+	(HURD_VM_HERE): New definition.
+	(hurd_store_bind_to_vm): New declaration.
+	(hurd_store_flush): New declaration.
+
+	* priv.h: Include "vm.h" and "mm.h".
+	(here): New debugging macro.
+	(struct region): Move to...
+	* mm.h: ...here.
+	(struct hurd_memory): Rename from struct frame.
+	Rename field dc_start to cont_start.  Add field cont.  Remove
+	field refs.  Update users.
+	(memory_slab): Rename from frame_slab.  Update users.
+	(memory_alloc_into): Rename from frame_alloc_into.  Update users.
+	(frame_alloc): Move to...
+	* priv.h (frame_insert): Move to...
+	* mm.h (hurd_store_cache): ...here.
+	* priv.h (frame_find_first): Move to...
+	* mm.h (hurd_store_find_cached): ...here.
+	* priv.h (frame_map): Move to...
+	* mm.h (hurd_memory_map): ...here.
+	* priv.h (frame_dealloc): Move to...
+	* mm.h (hurd_memory_dealloc): ...here.
+	* priv.h (struct hurd_store): Rename from struct store.  Remove
+	fields server and handle.  Add fields hook and fault.  Rename
+	field frames to memory.  Update users.
+	(store_find_free): Remove declaration.
+	(struct map): Add field store_offset.
+	(default_container): Likewise.
+	(map_init): Likewise.
+	(map_free): Rename from map_dealloc.  Update callers.
+	(map_init): New declaration.
+	(map_find_first): Rename from map_find.  Update callers.
+	(as_find_free): Rename from map_find_free.  Update callers.
+	(container_find_free): Remove declaration.
+	(core_slab_allocate_buffer): Rename from
+	mem_slab_allocate_buffer.  Update users.
+	(core_slab_deallocate_buffer): Rename from
+	mem_slab_deallocate_buffer.  Update users.
+	(frame_spare): Rename to memory_spare.  Update users.
+	(core_store): New declaration.
+	
+	* map.c (VIRTUAL_MEMORY_START): Move from here...
+	* priv.h: ...to here.
+	* map.c (as): Move from here...
+	* as.c: ...to here.
+	(map_system_init): Rename from map_init.  Reserve the UTCB and the
+	KIP.
+	(memory_spare): Rename from frame_spare.
+	(core_slab_allocate_buffer): Rename from mem_slab_allocate_buffer.
+	(core_slab_deallocate_buffer): Rename from
+	mem_slab_deallocate_buffer.
+	(map_init): New function.
+	(map_free): Rename from map_dealloc.
+	(map_find): Rename from map_find_first.  Avoid gratuitous
+	hurd_btree_map_prev.
+	(map_find_free): Remove function.
+	(store_find_free): Move from here...
+	* as.c (as_find_free): ...to here.
+
+	* frame.c: Move from here...
+	* memory.c: ...to here.  Include <hurd/startup.h>.
+	(swap_store): Remove definition.
+	(memory_slab): Rename from frame_slab.
+	(default_container): New static global.
+	(dc_offset): New function.
+	(memory_system_init): Likewise.
+	(memory_alloc_into): Rename from frame_alloc_into.
+	(hurd_memory_new): New function.  Refactored from frame_alloc.
+	(hurd_memory_delete): New function.
+	(hurd_memory_alloc): Rename from frame_alloc.  Rewritten to use
+	hurd_memory_new.
+	(frame_insert): Move from here...
+	* store.c (hurd_store_cache): ...to here.
+	* memory.c (hurd_memory_use): New function.
+	(hurd_memory_transfer): New function.
+	(hurd_memory_dealloc): Rename from frame_dealloc.  Don't
+	deallocate too eagerly: split memory which is only partially
+	deallocated.
+	(frame_find_first): Move from here...
+	* store.c (hurd_store_find_cached): ...to here.
+	* memory.c (hurd_memory_map): Rename from frame_map.  Loop
+	mapping all of the requested if a single RPC is insufficient.
+	
+	* mm-init.c (default_container): Remove definition.
+	(hurd_mm_init): Don't initialize DEFAULT_CONTAINER.  Don't
+	initialize the store data structures.  Call memory_system_init,
+	core_system_init, hurd_anonymous_init, and map_system_init.  Use
+	core_allocate rather than hurd_vm_allocate to allocate a stack for
+	the pager thread.
+
+	* pager.c (pager): Don't round ADDR.  Call MAP->STORE->FAULT if
+	the physical memory is not cached.
+
+	* physmem-user.h: Include <hurd/physmem.h>.  Improve
+	documentation.
+	(hurd_pm_control_t): Remove redundant typedef.
+	(hurd_pm_container_t): Likewise.
+	(hurd_pm_container_access_t): Remove typedef.
+	(HURD_PM_CONT_ALLOC_PARTIAL): Remove redundant define.
+	(HURD_PM_CONT_ALLOC_SQUASH): Likewise.
+	(HURD_PM_CONT_ALLOC_EXTRA): Likewise.
+	(HURD_PM_CONT_ALLOC_DMA): Likewise.
+	(hurd_pm_container_share): Change ACCESSS from a
+	hurd_pm_container_access_t * to a hurd_pm_container_t *.
+	(hurd_pm_container_map): Rename parameter rights to flags.  Add
+	new parameter AMOUNT.  Update callers.
+	* physmem-user.c (container_ops): Remove redundant enumeration.
+	(hurd_pm_container_create): Use hurd_pm_container_create_id as the
+	RPC identifier.
+	(hurd_pm_container_share): Use hurd_pm_container_share_id as the
+	RPC identifier.
+	(hurd_pm_container_allocate): Use hurd_pm_container_allocate_id as
+	the RPC identifier.
+	(hurd_pm_container_deallocate): Use
+	hurd_pm_container_deallocate_id as the RPC identifier.
+	(hurd_pm_container_map): Use hurd_pm_container_map_id as the RPC
+	identifier.  If AMOUNTP is non-NULL, return the number of bytes
+	mapped in *AMOUNTP.  Remove debugging code.
+	(hurd_pm_container_copy): Use hurd_pm_container_copy_id as the RPC
+	identifier.
+
+	* anonymous.h: New file.
+	* anonymous.c: New file.
+	* as.c: New file.
+	* core.c: New file.
+	* frame.c: Remove file.
+	* store.c: New file.
+	* Makefile.am (libhurd_mm_a_SOURCES): Add as.c, store.c, memory.c,
+	core.c, anonymous.c and anonymous.h.  Remove frame.c.
+	* headers.m4: Install anonymous.h as <hurd/anonymous.h>.
+	
 2005-03-09  Neal H. Walfield  <neal@gnu.org>
 
 	* physmem-user.c (hurd_pm_container_map): Update argument

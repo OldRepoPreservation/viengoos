@@ -13,4 +13,5 @@
 AC_CONFIG_LINKS([
   include/hurd/mm.h:libhurd-mm/mm.h
   include/hurd/vm.h:libhurd-mm/vm.h
+  include/hurd/anonymous.h:libhurd-mm/anonymous.h
 ])

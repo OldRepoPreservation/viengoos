@@ -27,8 +27,11 @@ includehurd_HEADERS = mm.h vm.h
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts
 AM_CFLAGS = 
 libhurd_mm_a_SOURCES = mm.h mm-init.c		\
+	as.c					\
 	vm.h vm.c				\
 	priv.h					\
-	map.c frame.c				\
+	store.c map.c memory.c			\
 	pager.c					\
+	core.c					\
+	anonymous.c anonymous.h			\
 	physmem-user.h physmem-user.c

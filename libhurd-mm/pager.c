@@ -42,7 +42,7 @@ pager (void)
   uintptr_t ip, addr;
   struct map *map;
   uintptr_t store_offset;
-  struct frame *frame;
+  struct hurd_memory *memory;
 
   /* Enter an infinite loop waiting for page faults.  */
   for (;;)
@@ -71,11 +71,8 @@ pager (void)
 	      sender, addr, ip, access);
 #endif
 
-      /* Round address down to the nearest base page address.  */
-      addr &= ~(getpagesize () - 1);
-
       /* Find the mapping on which the region faulted.  */
-      map = map_find (addr, 1);
+      map = map_find_first (addr, 1);
       if (EXPECT_FALSE (! map))
 	/* XXX: Segmentation fault.  */
 	panic ("Virtual address %x is unmapped.  Cannot handle fault! "
@@ -83,34 +80,26 @@ pager (void)
 
       assert (map->store);
 
-      store_offset = addr - map->vm.start + map->store_offset;
+      store_offset = map->store_offset + addr - map->vm.start;
 
       /* The mapping might be cached in physical memory but not
 	 properly mapped.  */
-      frame = frame_find_first (map->store, store_offset, 1);
-      if (! frame)
-	/* It isn't.  We need to page the data in to physical memory
-	   (or, in the case of anonymous memory, allocate physical
-	   memory to cover the region).  */
+      for (;;)
 	{
-	  if (map->store == &swap_store)
-	    {
-	      /* XXX: Until we have a real swap server we (correctly)
-		 assume that if there is no frame then memory has just
-		 not yet been allocated (i.e. it is not just paged
-		 out).  */
-	      frame = frame_alloc (getpagesize ());
-	      if (! frame)
-		panic ("frame_alloc failed.");
+	  memory = hurd_store_find_cached (map->store, store_offset, 1);
+	  if (memory)
+	    break;
 
-	      frame_insert (map->store, store_offset, frame);
-	    }
-	  else
-	    panic ("Unallocated non-swap memory?!");
+	  /* It isn't.  We need to page the data in to physical memory
+	     (or, in the case of anonymous memory, allocate physical
+	     memory to cover the region).  */
+	  map->store->fault (map->store, map->store->hook, sender,
+			     map->vm, store_offset,
+			     addr, access);
 	}
 
-      err = frame_map (frame, 0, frame->store.size,
-		       map->vm.start + frame->store.start - map->store_offset);
+      err = hurd_memory_map (memory, 0, memory->store.size,
+			     map->vm.start);
       assert_perror (err);
     }
 

@@ -29,16 +29,12 @@
 #include <l4.h>
 #include <hurd/startup.h>
 
-#include "mm.h"
+#include "anonymous.h"
 #include "vm.h"
-
 #include "priv.h"
 
 /* Physmem's server thread.  */
 l4_thread_id_t physmem;
-
-/* By default, we allocate all anonymous memory in this container.  */
-hurd_pm_container_t default_container;
 
 /* True once the MM is up and running.  */
 int mm_init_done;
@@ -57,25 +53,29 @@ hurd_mm_init (l4_thread_id_t pager_tid)
      physmem.  */
   physmem = __hurd_startup_data->image.server;
 
-  /* Create the primary anonymous memory container.  */
-  /* FIXME: We use the image cap handle as the memory control object.
-     This is wrong.  */
-  err = hurd_pm_container_create (__hurd_startup_data->image.cap_handle,
-				  &default_container);
-  assert_perror (err);
+#define INIT(service) \
+  do \
+    { \
+      void service##_system_init (void); \
+      service##_system_init (); \
+    } \
+  while (0)
 
-  swap_store.server = physmem;
-  swap_store.handle = default_container;
-  hurd_btree_frame_tree_init (&swap_store.frames);
+  /* Initialize the core.  */
+  INIT (memory);
+
+  /* Initialize the system pagers.  */
+  INIT (core);
+  INIT (hurd_anonymous);
 
   /* Initialize the mapping database.  */
-  map_init ();
+  INIT (map);
 
   /* The mapping database is now bootstrapped.  */
   mm_init_done = 1;
 
   /* Allocate a stack for the pager thread.  */
-  err = hurd_vm_allocate (&stack, getpagesize (), 0, 1);
+  err = core_allocate (&stack, getpagesize (), 0, 1);
   if (err)
     panic ("Unable to allocate a stack for the pager thread.\n");
 

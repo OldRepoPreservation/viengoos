@@ -36,76 +36,9 @@
 #include "priv.h"
 
 error_t
-hurd_vm_allocate (uintptr_t *address, size_t size, uintptr_t flags,
-		  int map_now)
+hurd_vm_release (uintptr_t start, size_t size)
 {
-  error_t err = 0;
-  struct map *map;
-  struct frame *frame;
-
-  assert (mm_init_done);
-
-  /* If VM_HERE is set, assert that the address is page aligned.  */
-  if ((flags & VM_HERE) && (*address & (getpagesize () - 1)))
-    return EINVAL;
-
-  /* Is size a multiple of the page size?  */
-  if ((size & (getpagesize () - 1)))
-    return EINVAL;
-
-  /* We don't support VM_HERE yet.  */
-  assert (! (flags & VM_HERE));
-
-  pthread_mutex_lock (&as.lock);
-
-  /* Create the mapping.  */
-  map = map_alloc ();
-  if (! map)
-    {
-      pthread_mutex_unlock (&as.lock);
-      return ENOMEM;
-    }
-
-  /* This is anonymous memory.  */
-  map->store = &swap_store;
-  map->vm.start = map_find_free (size, getpagesize ());
-  map->vm.size = size;
-  map->store_offset = map->vm.start;
-  map_insert (map);
-
-  /* We have established the mapping.  The pager will the physical
-     memory and map it in when required.  */
-
-  if (map_now)
-    /* But the caller wants the map now.  This is likely because this
-       is start up code and the pager is not yet up but it could also
-       be that the caller knows that this region will be used
-       immediately in which case the fault is pure overhead.  */
-    {
-      frame = frame_alloc (size);
-      if (! frame)
-	{
-	  debug ("frame_alloc failed!\n");
-	  pthread_mutex_unlock (&as.lock);
-	  return ENOMEM;
-	}
-      frame_insert (&swap_store, map->store_offset, frame);
-
-      err = frame_map (frame, 0, map->vm.size, map->vm.start);
-      if (err)
-	debug ("frame_map failed: %d\n", err);
-    }
-
-  *address = map->vm.start;
-  pthread_mutex_unlock (&as.lock);
-
-  return err;
-}
-
-error_t
-hurd_vm_deallocate (uintptr_t start, size_t size)
-{
-  struct map *map;
+  struct map *map, *next;
 
   if (start & (getpagesize () - 1))
     return EINVAL;
@@ -115,96 +48,102 @@ hurd_vm_deallocate (uintptr_t start, size_t size)
 
   pthread_mutex_lock (&as.lock);
 
-  map = map_find (start, size);
-  if (map)
-    for (;;)
-      {
-	/* We may deallocate MAP.  Get the next one now just in
-	   case.  */
-	struct map *next = hurd_btree_map_next (map);
+  next = map_find_first (start, size);
+  while (next)
+    {
+      map = next;
 
-	/* What part of MAP do we need to deallocate?  */
-	if (start <= map->vm.start)
-	  /* At least the start.  */
-	  {
-	    if (map->vm.start + map->vm.size <= start + size)
-	      /* MAP is contained entirely within the region to
-		 deallocate.  */
-	      {
-		frame_dealloc (map->store, map->store_offset,
-			       map->vm.size);
-		map_dealloc (map);
-	      }
-	    else
-	      /* Only the start of MAP is to be deallocated.  We move
-		 the start of the map forward and reduce the size
-		 accordingly.  */
-	      {
-		size_t lost = start + size - map->vm.start;
-		assert (lost > 0);
-		assert (lost < map->vm.size);
+      if (next->vm.start + next->vm.size < start + size)
+	{
+	  /* We may deallocate MAP.  Get the one following it now.  */
+	  next = hurd_btree_map_next (map);
+	  if (next && ! overlap (next->vm.start, next->vm.size, start, size))
+	    next = 0;
+	}
+      else
+	next = 0;
 
-		frame_dealloc (map->store, map->store_offset, lost);
+      printf ("%s (start: %x, size: %x) map->vm: %x+%x\n",
+	      __FUNCTION__, start, size, map->vm.start, map->vm.size);
 
-		map->vm.start += lost;
-		map->store_offset += lost;
-		map->vm.size -= lost;
-	      }
-	  }
-	else
-	  /* The start of MAP remains.  */
-	  {
-	    if (start + size >= map->vm.start + map->vm.size)
-	      /* Deallocate the end of MAP.
-                       |<-map->size->|
+      /* What part of MAP do we need to deallocate?  */
+      if (start <= map->vm.start)
+	/* At least the start.  */
+	{
+	  if (map->vm.start + map->vm.size <= start + size)
+	    /* MAP is contained entirely within the region to
+	       deallocate.  */
+	    {
+	      hurd_store_flush (map->store, map->store_offset, map->vm.size);
+	      map_free (map);
+	    }
+	  else
+	    /* Only the start of MAP is to be deallocated.  We move
+	       the start of the map forward and reduce the size
+	       accordingly.  */
+	    {
+	      size_t lost = start + size - map->vm.start;
+	      assert (lost > 0);
+	      assert (lost < map->vm.size);
+
+	      hurd_store_flush (map->store, map->store_offset, lost);
+
+	      map->vm.start += lost;
+	      map->store_offset += lost;
+	      map->vm.size -= lost;
+	    }
+	}
+      else
+	/* The start of MAP remains.  */
+	{
+	  if (start + size >= map->vm.start + map->vm.size)
+	    /* Deallocate the end of MAP.
+	         |<- map->vm.size ->|
+	                     |<- size ->|
+	       map->start  start 
+	    */
+	    {
+	      size_t lost = map->vm.start + map->vm.size - start;
+	      assert (lost > 0);
+	      assert (lost <= size);
+
+	      hurd_store_flush (map->store,
+				map->store_offset + map->vm.size - lost,
+				lost);
+
+	      map->vm.size -= lost;
+	    }
+	  else
+	    /* Deallocate the middle of this mapping.  We have to
+	       split it in two.  We keep MAP as the head and reduce
+	       its size.  We allocate a new mapping, TAIL, and
+	       insert it into the mapping database.
+
+	           map->start  start 
 	                         |<-size->|
-                   map->start  start 
-	       */
-	      {
-		size_t lost = map->vm.start + map->vm.size - start;
-		assert (lost > 0);
-		assert (lost <= size);
+	               |<--------map->size-------->|
 
-		frame_dealloc (map->store, map->store_offset + lost,
-			       map->vm.size - lost);
+	          =>
+	               |<--map-->|        |<-tail->|
+	    */
+	    {
+	      struct map *tail = map_alloc ();
 
-		map->vm.size -= lost;
-	      }
-	    else
-	      /* Deallocate the middle of this mapping.  We have to
-		 split it in two.  We keep MAP as the head and reduce
-		 its size.  We allocate a new mapping, TAIL, and
-		 insert it into the mapping database.
+	      hurd_store_flush (map->store,
+				map->store_offset + start - map->vm.start,
+				size);
 
-                   map->start  start 
-	                         |<-size->|
-                       |<--------map->size-------->|
-                    =>
-                       |<--map-->|        |<-tail->|
-	       */
-	      {
-		struct map *tail = map_alloc ();
+	      memcpy (tail, map, sizeof (*tail));
+	      tail->vm.start = start + size;
+	      tail->store_offset += start + size - map->vm.start;
+	      tail->vm.size -= start + size - map->vm.start;
 
-		frame_dealloc (map->store,
-			       map->store_offset + start - map->vm.start,
-			       size);
+	      map->vm.size = start - map->vm.start;
 
-		memcpy (tail, map, sizeof (*tail));
-		tail->vm.start = start + size;
-		tail->store_offset += start + size - map->vm.start;
-		tail->vm.size -= start + size - map->vm.start;
-
-		map->vm.size = start - map->vm.start;
-
-		map_insert (tail);
-	      }
-	  }
-
-	if (! next || ! overlap (next->vm.start, next->vm.size,
-				 start, size))
-	  break;
-	map = next;
-      }
+	      map_insert (tail);
+	    }
+	}
+    }
 
   pthread_mutex_unlock (&as.lock);
   return 0;

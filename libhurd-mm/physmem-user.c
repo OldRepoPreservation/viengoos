@@ -36,16 +36,6 @@ extern struct hurd_startup_data *__hurd_startup_data;
 
 #define physmem (__hurd_startup_data->image.server)
 
-enum container_ops
-  {
-    container_create_id = 130,
-    container_share_id,
-    container_allocate_id,
-    container_deallocate_id,
-    container_map_id,
-    container_copy_id
-  };
-
 /* Create a container managed by the physical memory server.  On
    success, returned in *CONTAINER.  */
 error_t
@@ -57,7 +47,7 @@ hurd_pm_container_create (hurd_pm_container_t control,
   l4_msg_tag_t tag;
 
   l4_msg_clear (msg);
-  l4_set_msg_label (msg, container_create_id);
+  l4_set_msg_label (msg, hurd_pm_container_create_id);
   l4_msg_append_word (msg, control);
   l4_msg_load (msg);
 
@@ -73,13 +63,13 @@ hurd_pm_container_create (hurd_pm_container_t control,
    in *ACCESS.  */
 error_t
 hurd_pm_container_share (hurd_pm_control_t container,
-			 hurd_pm_container_access_t *access)
+			 hurd_pm_container_t *access)
 {
   l4_msg_t msg;
   l4_msg_tag_t tag;
 
   l4_msg_clear (msg);
-  l4_set_msg_label (msg, container_share_id);
+  l4_set_msg_label (msg, hurd_pm_container_share_id);
   l4_msg_append_word (msg, container);
   l4_msg_load (msg);
 
@@ -103,7 +93,7 @@ hurd_pm_container_allocate (hurd_pm_container_t container,
   l4_msg_tag_t tag;
 
   l4_msg_clear (msg);
-  l4_set_msg_label (msg, container_allocate_id);
+  l4_set_msg_label (msg, hurd_pm_container_allocate_id);
   l4_msg_append_word (msg, container);
   l4_msg_append_word (msg, flags);
   l4_msg_append_word (msg, start);
@@ -127,7 +117,7 @@ hurd_pm_container_deallocate (hurd_pm_container_t container,
   l4_msg_tag_t tag;
 
   l4_msg_clear (msg);
-  l4_set_msg_label (msg, container_deallocate_id);
+  l4_set_msg_label (msg, hurd_pm_container_deallocate_id);
   l4_msg_append_word (msg, container);
   l4_msg_append_word (msg, start);
   l4_msg_append_word (msg, size);
@@ -147,16 +137,19 @@ hurd_pm_container_deallocate (hurd_pm_container_t container,
 error_t
 hurd_pm_container_map (hurd_pm_container_t container,
 		       l4_word_t index, size_t count,
-		       uintptr_t vaddr, l4_word_t flags)
+		       uintptr_t vaddr, l4_word_t flags,
+		       size_t *amountp)
 {
   l4_msg_t msg;
   l4_msg_tag_t tag;
+  int i;
+  size_t amount;
 
   /* Let physmem take over the address space completely.  */
   l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
 
   l4_msg_clear (msg);
-  l4_set_msg_label (msg, container_map_id);
+  l4_set_msg_label (msg, hurd_pm_container_map_id);
   l4_msg_append_word (msg, container);
   l4_msg_append_word (msg, flags);
   l4_msg_append_word (msg, vaddr);
@@ -167,21 +160,20 @@ hurd_pm_container_map (hurd_pm_container_t container,
   tag = l4_call (physmem);
   l4_msg_store (tag, msg);
 
-  printf ("%s(%x,%xk,%xk,%xk,%x)->", __FUNCTION__,
-	  container, index >> 10, count >> 10, vaddr >> 10, flags);
-  for (int i = 0;
-       i < l4_typed_words (tag);
-       i += sizeof (l4_map_item_t) / sizeof (l4_word_t))
+  if (amountp)
     {
-      l4_map_item_t mi;
-      l4_msg_get_map_item (msg, i, &mi);
-      assert (l4_is_map_item (mi));
-      printf ("(%xk,%xk)@%xk ",
-	      l4_address (l4_map_item_snd_fpage (mi)) >> 10,
-	      l4_size (l4_map_item_snd_fpage (mi)) >> 10,
-	      l4_map_item_snd_base (mi) >> 10);
+      for (i = 0, amount = 0;
+	   i < l4_typed_words (tag);
+	   i += sizeof (l4_map_item_t) / sizeof (l4_word_t))
+	{
+	  l4_map_item_t mi;
+	  l4_msg_get_map_item (msg, i, &mi);
+	  assert (l4_is_map_item (mi));
+	  amount += l4_size (l4_map_item_snd_fpage (mi));
+	}
+
+      *amountp = amount;
     }
-  printf ("\n");
 
   return l4_msg_label (msg);
 }
@@ -199,7 +191,7 @@ hurd_pm_container_copy (hurd_pm_container_t src_container,
   l4_msg_tag_t tag;
 
   l4_msg_clear (msg);
-  l4_set_msg_label (msg, container_copy_id);
+  l4_set_msg_label (msg, hurd_pm_container_copy_id);
   l4_msg_append_word (msg, src_container);
   l4_msg_append_word (msg, src_start);
   l4_msg_append_word (msg, dest_container);

@@ -26,6 +26,8 @@
 #include <hurd/btree.h>
 #include <hurd/slab.h>
 
+#include "vm.h"
+#include "mm.h"
 #include "physmem-user.h"
 
 /* XXX: Debugging output is nice.  We know that all users of this
@@ -50,6 +52,8 @@ extern int output_debug;
     while (1)						\
       l4_yield ();					\
   })
+
+#define here() debug ("\n");
 
 /* Return true if INDEX lies within (START, START+SIZE-1)
    inclusive.  */
@@ -85,15 +89,6 @@ overlap (uintptr_t index1, size_t size1, uintptr_t index2, size_t size2)
      in check 1 and check 3.  */
 }
 
-/* A region of memory.  */
-struct region
-{
-  /* Start of the region.  */
-  uintptr_t start;
-  /* And its extent.  */
-  size_t size;
-};
-
 /* If A and B overlap at all they are equal.  A region is less than a
    second region if the start of the first if before the second.  */
 static int
@@ -105,106 +100,46 @@ region_compare (const struct region *a, const struct region *b)
     return a->start - b->start;
 }
 
-/* Forward.  */
-struct store;
-
-/* Memory which is in core (referred to by struct stores).  */
-struct frame
+/* Physical memory which is caching backing store (referred to by
+   stores).  */
+struct hurd_memory
 {
   hurd_btree_node_t node;
 
-  /* The start of the memory block in the DEFAULT_CONTAINER.  */
-  uintptr_t dc_start;
+  /* Container containing the memory.  */
+  hurd_pm_container_t cont;
+  /* The start of the memory in CONT.  */
+  uintptr_t cont_start;
 
-  /* The start of the data that this memory block caches on the
-     containing store.  */
+  /* The location of the memory block on the backing store.  */
   struct region store;
-
-  /* The number of users.  We need to keep track of this so that if a
-     piece of memory is mapped twice we don't deallocate the memory
-     after the first time it is unmapped.  This rarely happens and
-     likely wouldn't have horrible consequences if we just dropped the
-     memory and it was on backing store, however, for anonymous memory
-     this might not be the case.  */
-  int refs;
 };
 
-BTREE_CLASS(frame, struct frame, struct region, store, node,
+BTREE_CLASS(memory, struct hurd_memory, struct region, store, node,
 	    region_compare)
 
-extern struct hurd_slab_space frame_slab;
+extern struct hurd_slab_space memory_slab;
 
-/* Initialize the frame structure in *FRAME to reference SIZE bytes of
-   physical memory.  DC_START specifies the start of a free region in
-   the default container continuing for SIZE bytes.  The returned
-   frame needs to be integrated into the appropriate backing store
-   (using frame_insert).
+/* Initialize the memory structure in *MEMORY to reference SIZE bytes of
+   physical memory.  The returned memory needs to be integrated (using
+   memory_insert) into store whose data it is caching.
 
-   (NB this function is only used when the start cannot be calculated
-   using the normal algorithms because the mapping database is not yet
-   up.)  */
-extern error_t frame_alloc_into (struct frame *frame, uintptr_t dc_start,
-				 size_t size);
-
-/* Allocate a frame structure and set it up to reference size SIZE
-   bytes of physical memory (somewhere in the default container).
-   Return NULL on failure.  The returned frame needs to be integrated
-   into the appropriate backing store (using frame_insert).  */
-extern struct frame *frame_alloc (size_t size);
-
-/* Record that frame FRAME caches data on store STORE starting at
-   byte STORE_START.  */
-extern void frame_insert (struct store *store,
-			  uintptr_t store_start, struct frame *frame);
-
-/* Find the first frame (i.e. with lowest start address) which
-   includes some part of the region in store STORE starting at
-   STORE_START and spanning LENGTH bytes.  If no frame covers any of
-   the region, return NULL.
-
-   NB: No two established maps will overlap internally, however, it is
-   possible that the region one is looking for covers multiple
-   maps.  */
-extern struct frame *frame_find_first (struct store *store,
-				       uintptr_t store_start, size_t length);
-
-/* Map the contents of frame FRAME starting at offset OFFSET extending
-   LENGTH bytes to address virtual ADDR.  (NB: OFFSET is relative to
-   the frame base.  Hence to map the entire frame, one would pass
-   OFFSET=0 and LENGTH=FRAME->STORE.SIZE.)  OFFSET must be aligned on
-   a multiple of the base page size and LENGTH must be a multiple of
-   the base page size.  */
-extern error_t frame_map (struct frame *frame, size_t offset, size_t length,
-			  uintptr_t addr);
-
-/* Deallocate any physical memory caching the region on store STORE
-   cover the byte START and continuing for LENGTH bytes.  STORE_START
-   must be aligned on a base page size boundary and size must be a
-   multiple of the base page size.  */
-extern void frame_dealloc (struct store *store,
-			   uintptr_t store_start, size_t length);
+   (NB: this function is only used when the MEMORY allocated from the
+   slab because we are in the process of expanding the slab.)  */
+extern error_t memory_alloc_into (struct hurd_memory *memory, size_t size);
 
-/* A backing store.  */
-struct store
+/* A store.  */
+struct hurd_store
 {
-  /* The server.  */
-  l4_thread_id_t server;
-  /* The capability handle.  */
-  hurd_cap_handle_t handle;
+  /* A hook for the call backs.  */
+  void *hook;
 
-  /* The parts of this backing store current in core.  */
-  hurd_btree_frame_t frames;
+  /* Store call backs.  */
+  hurd_store_fault_t fault;
+
+  /* The parts of this backing store currently cached in core.  */
+  hurd_btree_memory_t memory;
 };
-
-extern struct store swap_store;
-
-/* Find a free region in a container for a region of size SIZE with
-   alignment ALIGN.  Must be called with the map lock.  The lock must
-   not be dropped until the virtual address is entered into the
-   mapping database (and this function should not be called again
-   until that has happened).  */
-extern uintptr_t store_find_free (struct store *store, size_t size,
-				  size_t align);
 
 /* A memory map.  */
 struct map
@@ -213,10 +148,11 @@ struct map
 
   /* The virtual address the map covers.  */
   struct region vm;
-  /* The backing store.  */
-  struct store *store;
-  /* The starting address on the backing store of the start of the data.  */
-  size_t store_offset;
+  /* The store for this region.  */
+  struct hurd_store *store;
+  /* Offset of start of region on the store (only meaningful to the
+     store?).  */
+  off64_t store_offset;
 };
 
 BTREE_CLASS(map, struct map, struct region, vm, node, region_compare)
@@ -229,36 +165,39 @@ struct as
   pthread_mutex_t lock;
 };
 
-/* The task's address space.  */
-extern struct as as;
-
 /* The physical memory manager's server thread.  */
 extern l4_thread_id_t physmem;
-
-/* By default, we allocate all anonymous memory in this container.  */
-extern hurd_pm_container_t default_container;
 
 /* Set by map_init to true immediately before it returns.  */
 extern int mm_init_done;
 
 extern struct hurd_slab_space map_slab;
 
-/* Initialize the mapping database.  */
-extern void map_init (void);
-
-/* Allocate a map structure.  MAP_LOCK must be held.  The returned
-   map structure is not part of the map list; it may be added by
-   calling map_insert.  */
+/* Allocate a map structure.  MAP_LOCK must be held.  The returned map
+   structure is uninitialized.  */
 extern struct map *map_alloc (void);
 
-extern void map_dealloc (struct map *map);
+/* Free an unused map structure.  */
+extern void map_free (struct map *map);
 
-/* Add the map structure MAP (previously allocated by map_alloc) to
-   the mapping database.  MAP_LOCK must be held.  */
+/* Initialize the previously uninitialized map structure MAP.
+   Associate the virtual memory starting at address VM_ADDR and
+   continuing for SIZE bytes with store STORE starting at byte
+   STORE_OFFSET and continuing for SIZE bytes.  If vm_addr is 0, an
+   address is allocated dynamically.  Inserts MAP into the address
+   space.  If VM_USED_ADDR is not NULL, the virtual memory address is
+   saved in *VM_USED_ADDR.  */
+extern error_t map_init (struct map *map,
+			 uintptr_t vm_addr, size_t size,
+			 hurd_store_t *store, size_t store_offset,
+			 uintptr_t *vm_used_addr);
+
+/* Attach the map structure MAP (previously allocated by map_alloc) to
+   address space.  MAP_LOCK must be held.  */
 extern void map_insert (struct map *map);
 
-/* Remove the map structre MAP from the mapping database.  This does
-   not deallocate the memory the data structure is using.  */
+/* Detach the map structre MAP from the address space.  This does not
+   deallocate the memory the data structure is using.  */
 extern void map_detach (struct map *map);
 
 /* Find the first map (i.e. with lowest start address) which includes
@@ -268,34 +207,31 @@ extern void map_detach (struct map *map);
    NB: No two established maps will overlap internally, however, it is
    possible that the region one is looking for covers multiple
    maps.  */
-extern struct map *map_find (uintptr_t address, size_t size);
+extern struct map *map_find_first (uintptr_t address, size_t size);
+
+/* We don't want to start mapping things at 0 as then we don't catch
+   NULL pointer dereferences.  Reserving about 16k makes sense.  */
+#define VIRTUAL_MEMORY_START 0x4000
+
+/* The task's address space.  */
+extern struct as as;
 
 /* Find a free region of the virtual address space for a region of
    size SIZE with alignment ALIGN.  Must be called with the map lock.
    The lock msut not be dropped until the virtual address is entered
    into the mapping database (and this function should not be called
    again until that has happened).  */
-extern uintptr_t map_find_free (size_t size, size_t align);
-
-/* Find a free region in a container for a region of size SIZE with
-   alignment ALIGN.  Must be called with the map lock.  The lock msut
-   not be dropped until the virtual address is entered into the
-   mapping database (and this function should not be called again
-   until that has happened).  */
-extern uintptr_t container_find_free (l4_thread_id_t server,
-				      hurd_cap_handle_t handle,
-				      size_t size, size_t align);
-
+extern uintptr_t as_find_free (size_t size, size_t align);
 
 /* By default, the slab allocator uses mmap to allocate its buffers.
    This won't work for us as we have special requirements: our data
    structures cannot be paged and they must be able to allocate memory
    before mmap even works.  */
-extern error_t mem_slab_allocate_buffer (void *hook, size_t size,
-					 void **ptr);
+extern error_t core_slab_allocate_buffer (void *hook, size_t size,
+					  void **ptr);
 
-extern error_t mem_slab_deallocate_buffer (void *hook, void *buffer,
-					   size_t size);
+extern error_t core_slab_deallocate_buffer (void *hook, void *buffer,
+					    size_t size);
 
 /* In order to initialize the mapping database, we need to get memory
    from physmem for the map slab.  This means that the allocated
@@ -314,7 +250,10 @@ extern error_t mem_slab_deallocate_buffer (void *hook, void *buffer,
    map.  */
 extern bool map_spare_integrate;
 extern struct map map_spare;
-extern struct frame frame_spare;
+extern struct hurd_memory memory_spare;
 
 /* Pager fault handler.  */
 extern void pager (void);
+
+/* Memory used by the pager proper.  Completely unpaged.  */
+extern struct hurd_store core_store;
