@@ -74,8 +74,8 @@
 ** Ideally this would be a feature in glibc.
 ** Should support alignment requirements properly.
 ** Should check return value from constructor.
-** Implement hurd_slab_destroy ().
-
+** Support having the pager reap stuff (needs a wrapper around reap()
+   that does locking).
 
 * libhurd-ihash
 ** Can be merged back into the Hurd if the callers are changed.
