@@ -722,6 +722,8 @@ start_elf (unsigned int mod)
 					   l4_utcb_area_size_log2 ());
   phys_startup->argz = argz_len ? STARTUP_TO_VIRT (argz) : NULL;
   phys_startup->argz_len = argz_len;
+  phys_startup->envz = NULL;
+  phys_startup->envz_len = 0;
   phys_startup->wortel.server = l4_my_global_id ();
   phys_startup->wortel.cap_handle = wortel_add_user (mods[mod].task_id);
   phys_startup->task.server = mods[MOD_TASK].server_thread;

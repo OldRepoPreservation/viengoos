@@ -1,5 +1,8 @@
 2005-01-26  Marcus Brinkmann  <marcus@gnu.org>
 
+	* startup.h (struct hurd_startup_data): New members envz and
+	envz_len.
+
 	* Makefile.am (includehurd_HEADERS): Add startup.h.
 
 2004-12-01  Neal H. Walfield  <neal@gnu.org>

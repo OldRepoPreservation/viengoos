@@ -85,6 +85,10 @@ struct hurd_startup_data
   char *argz;
   size_t argz_len;
 
+  /* The environment vector.  */
+  char *envz;
+  size_t envz_len;
+
   /* The wortel thread and cap ID, or L4_NILTHREAD if this task does
      not have permission to access wortel.  */
   struct hurd_startup_cap wortel;
