@@ -1,3 +1,8 @@
+2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
+
+	* task.c (bootstrap_final): New function.
+	(main): Call bootstrap_final.
+
 2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (task_SOURCES): Add physmem-user.h, physmem-user.c,

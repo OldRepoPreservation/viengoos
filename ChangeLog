@@ -1,3 +1,9 @@
+2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
+
+	* deva: New directory.
+	* configure.ac (AC_CONFIG_FILES): Add deva/Makefile.
+	* Makefile.am (SUBDIRS): Add deva.
+
 2004-04-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* configure.ac: Add include for wortel/headers.m4.

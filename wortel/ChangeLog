@@ -1,3 +1,21 @@
+2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.h: Include <stdbool.h>.
+	(WORTEL_MSG_GET_TASK_CAP): Renamed into
+	WORTEL_MSG_BOOTSTRAP_FINAL.
+	(WORTEL_MSG_GET_DEVA_CAP_REQUEST, WORTEL_MSG_GET_DEVA_CAP_REPLY):
+	Define new macros.
+	(wortel_get_deva_cap_request, wortel_get_deva_cap_reply,
+	wortel_bootstrap_final): New functions.
+	(wortel_get_task_cap): Removed.
+	* wortel.c (start_elf, start_deva): New functions.
+	(start_task): Bunch of it is now in start_elf.
+	(serve_bootstrap_requests): Handle WORTEL_MSG_BOOTSTRAP_FINAL, not
+	WORTEL_MSG_GET_TASK_CAP.  Implement support for starting deva.
+	Implement WORTEL_MSG_GET_DEVA_CAP_REQUEST and
+	WORTEL_MSG_GET_DEVA_CAP_REPLY.
+	* wortel-intern.h (struct wortel_module): New member deva.
+
 2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.h (WORTEL_MSG_GET_FIRST_FREE_THREAD_NO,

@@ -266,6 +266,8 @@ setup_components (void)
 	     it is ok.  FIXME: Maybe use the idea of a designated
 	     container in physmem for use of a last-resort page fault
 	     service through physmem, see TODO.  */
+
+	  /* FIXME: Shouldn't we exclude physmem here?  */
 	  mods[i].startup = sigma0_get_any (HURD_STARTUP_SIZE_LOG2);
 	  if (mods[i].startup == L4_NILPAGE)
 	    panic ("can not allocate startup code fpage for %s",
@@ -434,16 +436,16 @@ extern void startup_bin_end;
 
 #include "elf.h"
 
-/* Start up the physical memory server.  */
+/* Start up the task server.  */
 static void
-start_task (void)
+start_elf (unsigned int mod)
 {
   /* The virtual memory layout of the task server: startup code starts
      at HURD_STARTUP_START (32K), stack grows down from
      HURD_STARTUP_START + HURD_STARTUP_SIZE (64K).  64K: Kernel
      interface page, followed by the UTCB area.  */
-  l4_word_t start = l4_address (mods[MOD_TASK].startup);
-  l4_word_t size = l4_size (mods[MOD_TASK].startup);
+  l4_word_t start = l4_address (mods[mod].startup);
+  l4_word_t size = l4_size (mods[mod].startup);
   l4_word_t stack;
   l4_word_t startup_bin_size;
   l4_word_t entry_point;
@@ -517,14 +519,14 @@ start_task (void)
   phys_startup = (struct hurd_startup_data *) STARTUP_TO_PHYS (startup);
 
   /* Prepare the argument vectors.  */
-  if (mods[MOD_TASK].args)
+  if (mods[mod].args)
     {
       char *dst;
       char *src;
       size_t len;
 
       /* Determine the argument line dimensions.  */
-      src = mods[MOD_TASK].args;
+      src = mods[mod].args;
       len = strlen (src) + 1;
       ALLOCA (len);
       argz = (char *) stack;
@@ -570,8 +572,8 @@ start_task (void)
     /* Get the memory range to which the ELF image from START to END
        (exclusive) will be loaded.  NAME is used for panic
        messages.  */
-    const char *name = mods[MOD_TASK].name;
-    Elf32_Ehdr *elf = (Elf32_Ehdr *) mods[MOD_TASK].start;
+    const char *name = mods[mod].name;
+    Elf32_Ehdr *elf = (Elf32_Ehdr *) mods[mod].start;
     int i;
 
     mapc = 0;
@@ -654,14 +656,14 @@ start_task (void)
 		       in this case we know its safe to just clear out
 		       the actual module page.  The only thing we
 		       delete this way is the ELF section headers.  */
-		    memset ((void *) (mods[MOD_TASK].start
+		    memset ((void *) (mods[mod].start
 				      + ph->p_offset + ph->p_filesz), 0,
 			    filesz - (byte_offset + ph->p_filesz));
 
 		    /* FIXME When we have physical mem containers for
 		       allocation, use them.  */
 		    phys_mapv->cont.server = mods[MOD_PHYSMEM].server_thread;
-		    phys_mapv->cont.cap_handle = mods[MOD_TASK].mem_cont;
+		    phys_mapv->cont.cap_handle = mods[mod].mem_cont;
 		    phys_mapv->size = memsz - filesz;
 		    /* The dirty hack here causes physmem to allocate
 		       anonymous memory.  */
@@ -684,7 +686,7 @@ start_task (void)
 		/* FIXME When we have physical mem containers for
 		   allocation, use them.  */
 		phys_mapv->cont.server = mods[MOD_PHYSMEM].server_thread;
-		phys_mapv->cont.cap_handle = mods[MOD_TASK].mem_cont;
+		phys_mapv->cont.cap_handle = mods[mod].mem_cont;
 		phys_mapv->size = l4_page_round (ph->p_filesz);;
 		phys_mapv->offset = l4_page_trunc (ph->p_offset)
 		  | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
@@ -710,17 +712,17 @@ start_task (void)
   phys_startup->argz = argz_len ? STARTUP_TO_VIRT (argz) : NULL;
   phys_startup->argz_len = argz_len;
   phys_startup->wortel.server = l4_my_global_id ();
-  phys_startup->wortel.cap_handle = wortel_add_user (mods[MOD_TASK].task_id);
+  phys_startup->wortel.cap_handle = wortel_add_user (mods[mod].task_id);
   phys_startup->image.server = mods[MOD_PHYSMEM].server_thread;
-  phys_startup->image.cap_handle = mods[MOD_TASK].mem_cont;
+  phys_startup->image.cap_handle = mods[mod].mem_cont;
   phys_startup->mapc = mapc;
   phys_startup->mapv = (struct hurd_startup_map *) STARTUP_TO_VIRT (mapv);
   /* The program header is already a virtual address for the task.  */
-  phys_startup->phdr = (void *) mods[MOD_TASK].header_loc;
-  phys_startup->phdr_len = mods[MOD_TASK].header_size;
+  phys_startup->phdr = (void *) mods[mod].header_loc;
+  phys_startup->phdr_len = mods[mod].header_size;
   phys_startup->entry_point = (void *) task_entry_point;
   phys_startup->startup.server = mods[MOD_PHYSMEM].server_thread;
-  phys_startup->startup.cap_handle = mods[MOD_TASK].startup_cont;
+  phys_startup->startup.cap_handle = mods[mod].startup_cont;
    
   /* The stack layout is in accordance to the following startup prototype:
      void start (struct hurd_startup_data *startup_data).  */
@@ -741,7 +743,7 @@ start_task (void)
   memcpy ((void *) (start + entry_point),
 	  &startup_bin_start, startup_bin_size);
 
-  task = mods[MOD_TASK].server_thread;
+  task = mods[mod].server_thread;
 
   /* Create the main thread (which is also the designated server
      thread).  For now, we will be the scheduler.  FIXME: Set the
@@ -786,13 +788,13 @@ start_task (void)
     panic ("Sending startup message to task thread failed: %u",
 	   l4_error_code ());
 
-  assert (!mods[MOD_TASK].nr_extra_threads);
+  assert (!mods[mod].nr_extra_threads);
 
   /* Now serve the first page request.  */
   {
     l4_msg_tag_t tag;
     l4_map_item_t map_item;
-    l4_fpage_t fpage = mods[MOD_TASK].startup;
+    l4_fpage_t fpage = mods[mod].startup;
     l4_word_t addr;
       
     tag = l4_receive (task);
@@ -816,6 +818,27 @@ start_task (void)
       panic ("sending pagefault reply to task failed: %u\n",
 	     l4_error_code ());
   }
+}
+
+
+/* Start up the task server.  */
+static void
+start_task (void)
+{
+  start_elf (MOD_TASK);
+}
+
+
+static void
+start_deva (void)
+{
+  start_elf (MOD_DEVA);
+}
+
+
+static void
+start_root_fs (void)
+{
 }
 
 
@@ -850,8 +873,9 @@ serve_bootstrap_requests (void)
   unsigned int nr_cont = 0;
   unsigned int cur_cont = 0;
 
-  /* This is the physmem thread that sent us the GET_TASK_CAP RPC.  */
-  l4_thread_id_t physmem;
+  /* These are the threads that sent us the BOOTSTRAP_FINAL RPC.  */
+  l4_thread_id_t bootstrap_final_physmem;
+  l4_thread_id_t bootstrap_final_task;
 
   /* This is to keep information about created task caps.  */
   unsigned int cur_task = (unsigned int) -1;
@@ -918,7 +942,12 @@ serve_bootstrap_requests (void)
       l4_msg_t msg;
       l4_msg_tag_t tag;
 
+#ifndef TIMEBOMB
       tag = l4_wait (&from);
+#else
+      /* Use this for debugging.  */
+      tag = l4_wait_timeout (l4_time_period (UINT64_C (1000000) * 5), &from);
+#endif
       if (l4_ipc_failed (tag))
 	panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
 
@@ -1066,21 +1095,55 @@ serve_bootstrap_requests (void)
 	  l4_msg_load (msg);
 	  l4_reply (from);
 	}
-      else if (label == WORTEL_MSG_GET_TASK_CAP)
+      else if (label == WORTEL_MSG_BOOTSTRAP_FINAL)
 	{
-	  /* This RPC is used by physmem after the memory container
-	     caps have been successfully created to request the task
-	     server cap of the physmem task.  */
+	  hurd_task_id_t task_id = l4_version (from);
 
-	  /* FIXME: Use the task ID to find out which server wants
-	     this info.  */
+	  if (task_id == mods[MOD_PHYSMEM].task_id)
+	    {
+	      /* We have to reply later, when we started up the task
+		 server and received the physmem task cap.  */
+	      bootstrap_final_physmem = from;
 
-	  /* We have to reply later, when we started up the task
-	     server and received the physmem task cap.  */
-	  physmem = from;
+	      /* Start up the task server and continue serving RPCs.  */
+	      start_task ();
+	    }
+	  else if (task_id == mods[MOD_TASK].task_id)
+	    {
+	      /* We have to reply later, when we started up the devive
+		 access server and received the deva cap.  */
+	      bootstrap_final_task = from;
 
-	  /* Start up the task server and continue serving RPCs.  */
-	  start_task ();
+	      start_deva ();
+	    }
+	  else if (task_id == mods[MOD_DEVA].task_id)
+	    {
+	      /* Send the reply to physmem's bootstrap final RPC.  */
+	      l4_msg_clear (msg);
+	      l4_msg_append_word (msg, mods[MOD_TASK].server_thread);
+	      l4_msg_append_word (msg, mods[MOD_PHYSMEM].task_ctrl);
+	      l4_msg_append_word (msg, mods[MOD_DEVA].server_thread);
+	      l4_msg_append_word (msg, mods[MOD_PHYSMEM].deva);
+	      l4_msg_load (msg);
+	      l4_reply (bootstrap_final_physmem);
+
+	      /* Send the reply to task's bootstrap final RPC.  */
+	      l4_msg_clear (msg);
+	      l4_msg_append_word (msg, mods[MOD_TASK].server_thread);
+	      l4_msg_append_word (msg, mods[MOD_TASK].task_ctrl);
+	      l4_msg_append_word (msg, mods[MOD_DEVA].server_thread);
+	      l4_msg_append_word (msg, mods[MOD_TASK].deva);
+	      l4_msg_load (msg);
+	      l4_reply (bootstrap_final_task);
+
+	      /* Send the reply to deva's bootstrap final RPC.  */
+	      l4_msg_clear (msg);
+	      /* It already has its caps.  */
+	      l4_msg_load (msg);
+	      l4_reply (from);
+
+	      start_root_fs ();
+	    }
 	}
       else if (label == WORTEL_MSG_GET_FIRST_FREE_THREAD_NO)
 	{

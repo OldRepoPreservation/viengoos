@@ -20,6 +20,8 @@
 #ifndef _WORTEL_USER_H
 #define _WORTEL_USER_H	1
 
+#include <stdbool.h>
+
 #include <l4/types.h>
 #include <l4/space.h>
 #include <l4/ipc.h>
@@ -54,10 +56,12 @@ extern wortel_cap_id_t wortel_cap_id;
 #define WORTEL_MSG_GET_CAP_REQUEST	65
 #define WORTEL_MSG_GET_CAP_REPLY	66
 #define WORTEL_MSG_GET_THREADS		67
-#define WORTEL_MSG_GET_TASK_CAP		68
+#define WORTEL_MSG_BOOTSTRAP_FINAL	68
 #define WORTEL_MSG_GET_FIRST_FREE_THREAD_NO 69
 #define WORTEL_MSG_GET_TASK_CAP_REQUEST	70
 #define WORTEL_MSG_GET_TASK_CAP_REPLY	71
+#define WORTEL_MSG_GET_DEVA_CAP_REQUEST	72
+#define WORTEL_MSG_GET_DEVA_CAP_REPLY	73
 
 #define _WORTEL_LABEL(id)					\
   (((id) << WORTEL_MSG_CAP_ID_BITS)				\
@@ -325,23 +329,27 @@ wortel_get_cap_reply (hurd_cap_handle_t handle)
 }
 
 
-/* Get the task cap handle.  */
-static inline hurd_cap_handle_t
+/* Get the task and deva cap handle.  */
+static inline void
 __attribute__((always_inline))
-wortel_get_task_cap (void)
+wortel_bootstrap_final (l4_thread_id_t *task_server,
+			hurd_cap_handle_t *task_cap_handle,
+			l4_thread_id_t *deva_server,
+			hurd_cap_handle_t *deva_cap_handle)
 {
   l4_msg_tag_t tag;
-  hurd_cap_handle_t task;
   
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
   tag = l4_niltag;
-  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_TASK_CAP));
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_BOOTSTRAP_FINAL));
   l4_set_msg_tag (tag);
   tag = l4_call (wortel_thread_id);
 
-  l4_store_mr (1, &task);
-  return task;
+  l4_store_mr (1, task_server);
+  l4_store_mr (2, task_cap_handle);
+  l4_store_mr (3, deva_server);
+  l4_store_mr (4, deva_cap_handle);
 }
 
 
@@ -406,6 +414,50 @@ wortel_get_task_cap_reply (hurd_cap_handle_t handle)
 
   tag = l4_niltag;
   l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_TASK_CAP_REPLY));
+  l4_msg_tag_set_untyped_words (&tag, 1);
+  l4_set_msg_tag (tag);
+  l4_load_mr (1, handle);
+  tag = l4_call (wortel_thread_id);
+}
+
+
+/* Get the next task capability request.  */
+static inline hurd_task_id_t
+__attribute__((always_inline))
+wortel_get_deva_cap_request (bool *master)
+{
+  l4_msg_tag_t tag;
+  hurd_task_id_t task_id;
+  l4_word_t is_master;
+
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_DEVA_CAP_REQUEST));
+  l4_set_msg_tag (tag);
+  tag = l4_call (wortel_thread_id);
+
+  l4_store_mr (1, &task_id);
+  l4_store_mr (2, &is_master);
+
+  *master = is_master ? true : false;
+
+  return task_id;
+}
+
+
+/* Reply to a task capability request.  */
+static inline void
+__attribute__((always_inline))
+wortel_get_deva_cap_reply (hurd_cap_handle_t handle)
+{
+  l4_msg_tag_t tag;
+  l4_word_t nr_threads;
+  
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_DEVA_CAP_REPLY));
   l4_msg_tag_set_untyped_words (&tag, 1);
   l4_set_msg_tag (tag);
   l4_load_mr (1, handle);

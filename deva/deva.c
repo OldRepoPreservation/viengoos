@@ -1,4 +1,4 @@
-/* Main function for the task server.
+/* deva.c - Main function for the deva server.
    Copyright (C) 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -29,7 +29,7 @@
 #include <hurd/startup.h>
 #include <hurd/wortel.h>
 
-#include "task.h"
+#include "deva.h"
 
 
 /* Initialized by the machine-specific startup-code.  */
@@ -37,7 +37,7 @@ extern struct hurd_startup_data *__hurd_startup_data;
 
 
 /* The program name.  */
-char program_name[] = "task";
+char program_name[] = "deva";
 
 
 /* The following functions are required by pthread.  */
@@ -72,18 +72,17 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
   hurd_cap_handle_t cap;
   hurd_cap_handle_t startup_cap;
   hurd_cap_obj_t obj;
+  bool master;
 
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
   while (1)
     {
       hurd_task_id_t task_id;
-      unsigned int nr_threads;
-      l4_thread_id_t threads[L4_NUM_MRS];
 
-      task_id = wortel_get_task_cap_request (&nr_threads, threads);
+      task_id = wortel_get_deva_cap_request (&master);
 
-      if (nr_threads == 0)
+      if (master)
 	{
 	  /* This requests the master control capability.  */
 
@@ -96,12 +95,13 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	}
       else
 	{
-	  debug ("Creating task cap for 0x%x:", task_id);
+	  debug ("Creating deva cap for 0x%x:", task_id);
 
-	  err = task_alloc (task_id, nr_threads, threads, &obj);
+	  /* FIXME: Allocate a system console driver.  */
+	  err = deva_alloc (&obj);
 
 	  if (err)
-	    panic ("task_alloc: %i\n", err);
+	    panic ("deva_alloc: %i\n", err);
 	  hurd_cap_obj_unlock (obj);
 
 	  err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
@@ -114,7 +114,7 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	  debug (" 0x%x\n", cap);
 
 	  /* Return CAP.  */
-	  wortel_get_task_cap_reply (cap);
+	  wortel_get_deva_cap_reply (cap);
 	}
     }
 }
@@ -128,14 +128,12 @@ get_task_id ()
 }
 
 
-/* The first free thread number.  */
-l4_word_t first_free_thread_no;
-
 /* Initialize the thread support, and return the L4 thread ID to be
    used for the server thread.  */
 static l4_thread_id_t
 setup_threads (void)
 {
+#if 0
   l4_word_t err;
   pthread_t thread;
   l4_thread_id_t server_thread;
@@ -193,16 +191,17 @@ setup_threads (void)
   pthread_pool_add_np (extra_thread);
 
   return server_thread;
+#endif
 }
 
 
 void *
-task_server (void *arg)
+deva_server (void *arg)
 {
   hurd_cap_bucket_t bucket = (hurd_cap_bucket_t) arg;
   error_t err;
 
-  /* No root object is provided by the task server.  */
+  /* No (anonymous) root object is provided by the task server.  */
   /* FIXME: Use a worker timeout.  */
   err = hurd_cap_bucket_manage_mt (bucket, NULL, 0, 0);
   if (err)
@@ -212,20 +211,6 @@ task_server (void *arg)
 }
 
 
-static void
-bootstrap_final (void)
-{
-  l4_thread_id_t task_server;
-  hurd_cap_handle_t task_cap;
-  l4_thread_id_t deva_server;
-  hurd_cap_handle_t deva_cap;
-
-  wortel_bootstrap_final (&task_server, &task_cap, &deva_server, &deva_cap);
-
-  /* FIXME: Do something with the task cap.  */
-}
-
-
 int
 main (int argc, char *argv[])
 {
@@ -240,11 +225,9 @@ main (int argc, char *argv[])
 
   server_thread = setup_threads ();
 
-  /* FIXME: Start the scheduler.  */
-
-  err = task_class_init ();
+  err = deva_class_init ();
   if (err)
-    panic ("task_class_init: %i\n", err);
+    panic ("deva_class_init: %i\n", err);
 
   err = hurd_cap_bucket_create (&bucket);
   if (err)
@@ -254,13 +237,13 @@ main (int argc, char *argv[])
 
   /* Create the server thread and start serving RPC requests.  */
   err = pthread_create_from_l4_tid_np (&manager, NULL, server_thread,
-				       task_server, bucket);
+				       deva_server, bucket);
 
   if (err)
     panic ("pthread_create_from_l4_tid_np: %i\n", err);
   pthread_detach (manager);
 
-  bootstrap_final ();
+  /* FIXME: get root filesystem cap (for loading drivers).  */
 
   /* FIXME: Eventually, add shutdown support on wortels(?)
      request.  */

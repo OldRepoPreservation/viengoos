@@ -109,6 +109,9 @@ struct wortel_module
      the task server starts up.  */
   hurd_cap_handle_t task_ctrl;
 
+  /* The deva capability for this module (a console device).  */
+  hurd_cap_handle_t deva;
+
   /* Server thread and the initial main thread of the task made from
      this module.  */
   l4_thread_id_t server_thread;
