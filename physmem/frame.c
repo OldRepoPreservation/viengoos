@@ -25,14 +25,31 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <pthread.h>
 #include <l4.h>
 #include <hurd/btree.h>
 #include <hurd/slab.h>
 
 #include <compiler.h>
 
-#include "physmem.h"
+#include "priv.h"
 #include "zalloc.h"
+
+void
+frame_dump (struct frame *frame)
+{
+  struct frame_entry *fe;
+
+  printf ("frame: %x (%d refs). memory: %x+%x\n",
+	  frame, frame->refs, 
+	  l4_address (frame->memory), l4_size (frame->memory));
+  printf ("Frame entries: ");
+  for (fe = frame->frame_entries; fe; fe = fe->next)
+    printf ("fe %x:%x+%x@%x on %x", fe,
+	    fe->region.start, fe->region.size, fe->frame_offset,
+	    fe->frame);
+  printf ("\n");
+}
 
 static error_t
 frame_constructor (void *hook, void *buffer)
@@ -40,6 +57,8 @@ frame_constructor (void *hook, void *buffer)
   struct frame *frame = buffer;
 
   frame->refs = 1;
+  pthread_mutex_init (&frame->lock, 0);
+  pthread_mutex_lock (&frame->lock);
   frame->frame_entries = 0;
   frame->cow = 0;
 
@@ -47,7 +66,7 @@ frame_constructor (void *hook, void *buffer)
 }
 
 static struct hurd_slab_space frame_space
-  = HURD_SLAB_SPACE_INITIALIZER (struct frame_entry,
+  = HURD_SLAB_SPACE_INITIALIZER (struct frame,
 				 NULL, NULL,
 				 frame_constructor, NULL,
 				 NULL);
@@ -63,12 +82,14 @@ frame_alloc (size_t size)
 
   err = hurd_slab_alloc (&frame_space, (void *) &frame);
   if (err)
-    return 0;
+    /* XXX: Free some memory and try again.  */
+    assert_perror (err);
 
   assert (frame->refs == 1);
   frame->memory = l4_fpage (0, size);
-  frame->may_be_mapped = false;
+  frame->may_be_mapped = 0;
   assert (frame->cow == 0);
+  assert (pthread_mutex_trylock (&frame->lock) == EBUSY);
   assert (frame->frame_entries == 0);
 
   return frame;
@@ -102,6 +123,8 @@ frame_memory_alloc (struct frame *frame)
 void
 frame_deref (struct frame *frame)
 {
+  assert (pthread_mutex_trylock (&frame->lock) == EBUSY);
+
   if (EXPECT_FALSE (frame->refs == 1))
     /* Last reference.  Deallocate this frame.  */
     {
@@ -110,8 +133,7 @@ frame_deref (struct frame *frame)
 
       if (frame->may_be_mapped)
 	{
-	  debug ("unmapping frame %x+%x\n",
-		 l4_address (frame->memory), l4_size (frame->memory));
+	  assert (l4_address (frame->memory));
 	  l4_unmap_fpage (l4_fpage_add_rights (frame->memory,
 					       L4_FPAGE_FULLY_ACCESSIBLE));
 	}
@@ -119,19 +141,28 @@ frame_deref (struct frame *frame)
       if (l4_address (frame->memory))
 	zfree (l4_address (frame->memory), l4_size (frame->memory));
 
+      assert (frame->frame_entries == 0);
+      assert (frame->cow == 0);
+#ifndef NDEBUG
+      frame->memory = l4_fpage (0xDEAD000, 0);
+#endif
+
       hurd_slab_dealloc (&frame_space, frame);
     }
   else
-    frame->refs --;
+    {
+      frame->refs --;
+      pthread_mutex_unlock (&frame->lock);
+    }
 }
 
 void
 frame_add_user (struct frame *frame, struct frame_entry *frame_entry)
 {
-  /* We consume a reference.  */
+  assert (pthread_mutex_trylock (&frame->lock) == EBUSY);
   assert (frame->refs > 0);
 
-  /* Add FRAME_ENTRY to the list of users of FRAME.  */
+  /* Add FRAME_ENTRY to the list of the users of FRAME.  */
   frame_entry->next = frame->frame_entries;
   if (frame_entry->next)
     frame_entry->next->prevp = &frame_entry->next;
@@ -142,17 +173,11 @@ frame_add_user (struct frame *frame, struct frame_entry *frame_entry)
 void
 frame_drop_user (struct frame *frame, struct frame_entry *frame_entry)
 {
+  assert (pthread_mutex_trylock (&frame->lock) == EBUSY);
   assert (frame->refs > 0);
+  assert (frame_entry->frame == frame);
 
-  /* Remove FRAME_ENTRY from the list of users of FRAME.  */
   *frame_entry->prevp = frame_entry->next;
   if (frame_entry->next)
     frame_entry->next->prevp = frame_entry->prevp;
-
-  /* XXX: A frame entry may refer only to a piece of the underlying
-     frame.  If all that remain now are partial users of FRAME then we
-     may need to do some splitting.  */
-
-  /* Release a reference.  */
-  frame_deref (frame);
 }

@@ -24,6 +24,7 @@
 #endif
 
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <pthread.h>
 #include <compiler.h>
@@ -32,6 +33,7 @@
 #include <hurd/cap-server.h>
 #include <hurd/btree.h>
 
+#include "priv.h"
 #include "physmem.h"
 #include "zalloc.h"
 
@@ -40,6 +42,45 @@
 
 static struct hurd_cap_class container_class;
 
+static inline void
+container_dump (struct container *cont)
+{
+  struct frame_entry *fe;
+
+  printf ("Container %x: ", cont);
+  for (fe = hurd_btree_frame_entry_first (&cont->frame_entries); fe;
+       fe = hurd_btree_frame_entry_next (fe))
+    printf ("fe:%x %x+%x@%x on %x:%x+%x ",
+	    fe, fe->region.start, fe->region.size, fe->frame_offset,
+	    fe->frame, l4_address (fe->frame->memory),
+	    l4_size (fe->frame->memory));
+  printf ("\n");
+}
+
+error_t
+container_attach (struct container *cont, struct frame_entry *frame_entry)
+{
+  error_t err;
+
+  assert (pthread_mutex_trylock (&cont->lock) == EBUSY);
+
+  err = hurd_btree_frame_entry_insert (&cont->frame_entries, frame_entry);
+  if (! err)
+    frame_entry->container = cont;
+
+  return err;
+}
+
+void
+container_detach (struct container *cont, struct frame_entry *frame_entry)
+{
+  assert (pthread_mutex_trylock (&cont->lock) == EBUSY);
+  assert (hurd_btree_frame_entry_find (&cont->frame_entries,
+				       &frame_entry->region));
+  assert (cont == frame_entry->container);
+
+  hurd_btree_frame_entry_detach (&cont->frame_entries, frame_entry);
+}
 
 /* CTX->obj should be a memory control object, not a container.  */
 static error_t
@@ -82,8 +123,7 @@ static error_t
 container_allocate (hurd_cap_rpc_context_t ctx)
 {
   error_t err;
-  struct container *container = hurd_cap_obj_to_user (struct container *,
-						      ctx->obj);
+  struct container *cont = hurd_cap_obj_to_user (struct container *, ctx->obj);
   l4_word_t flags = l4_msg_word (ctx->msg, 1);
   uintptr_t start = l4_msg_word (ctx->msg, 2);
   size_t size = l4_msg_word (ctx->msg, 3);
@@ -104,23 +144,21 @@ container_allocate (hurd_cap_rpc_context_t ctx)
   l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
   int nr_fpages = l4_fpage_span (0, size - 1, fpages);
 
+  pthread_mutex_lock (&cont->lock);
+
   for (err = 0, amount = 0, i = 0; i < nr_fpages; i ++)
     {
       /* FIXME: Check to make sure that the memory control object that
 	 this container refers to has enough memory to do each
 	 allocation.  */
       struct frame_entry *fe = frame_entry_alloc ();
-      if (! fe)
-	{
-	  err = ENOMEM;
-	  break;
-	}
+      assert (fe);
 
-      err = frame_entry_new (container, fe, start + l4_address (fpages[i]),
-			     l4_size (fpages[i]));
+      err = frame_entry_create (cont, fe, start + l4_address (fpages[i]),
+				l4_size (fpages[i]));
       if (err)
 	{
-	  frame_entry_dealloc (fe);
+	  frame_entry_free (fe);
 	  break;
 	}
 
@@ -128,7 +166,11 @@ container_allocate (hurd_cap_rpc_context_t ctx)
 
       /* XXX: Use the flags.
          frame->flags = flags; */
+
+      pthread_mutex_unlock (&fe->frame->lock);
     }
+
+  pthread_mutex_unlock (&cont->lock);
 
   l4_msg_clear (ctx->msg);
   l4_msg_append_word (ctx->msg, amount);
@@ -139,12 +181,11 @@ container_allocate (hurd_cap_rpc_context_t ctx)
 static error_t
 container_deallocate (hurd_cap_rpc_context_t ctx)
 {
-  error_t err;
-  struct container *container = hurd_cap_obj_to_user (struct container *,
-						      ctx->obj);
+  error_t err = 0;
+  struct container *cont = hurd_cap_obj_to_user (struct container *, ctx->obj);
   uintptr_t start = l4_msg_word (ctx->msg, 1);
-  size_t size = l4_msg_word (ctx->msg, 2);
-  struct frame_entry *fe;
+  const size_t size = l4_msg_word (ctx->msg, 2);
+  size_t remaining = size;
 
   /* We require two arguments (in addition to the cap id): the start
      and the size.  */
@@ -158,119 +199,79 @@ container_deallocate (hurd_cap_rpc_context_t ctx)
 
   l4_msg_clear (ctx->msg);
 
-  fe = frame_entry_find (container, start, size);
-  if (! fe)
-    /* Nothing was allocated in this region.  */
-    return 0;
+  pthread_mutex_lock (&cont->lock);
 
-  /* Find the first region which overlaps with this one.  */
-  while (start < fe->region.start)
+  if ((size & (L4_MIN_PAGE_SIZE - 1)) != 0)
     {
-      struct frame_entry *prev = hurd_btree_frame_entry_prev (fe);
-
-      if (! prev
-	  || ! overlap (prev->region.start, prev->region.size, start, size))
-	break;
-
-      fe = prev;
+      err = EINVAL;
+      goto out;
     }
 
-  for (;;)
+  struct frame_entry *next = frame_entry_find (cont, start, 1);
+  if (! next)
+    goto out;
+
+  if (((start - next->region.start) & (L4_MIN_PAGE_SIZE - 1)) != 0)
     {
-      struct frame_entry *next;
+      err = EINVAL;
+      goto out;
+    }
+
+  while (next && remaining > 0)
+    {
+      struct frame_entry *fe = next;
 
       /* We must get the region after FE before we potentially
 	 deallocate FE.  */
-      if (fe->region.start + fe->region.size < start + size)
-	/* There may be more frame entries after this one which we
-	   need to deallocate.  */
-	next = hurd_btree_frame_entry_next (fe);
+      if (fe->region.start + fe->region.size < start + remaining)
+	/* The region to deallocate extends beyond FE.  */
+	{
+	  next = hurd_btree_frame_entry_next (fe);
+	  if (next && fe->region.start + fe->region.size != next->region.start)
+	    /* NEXT does not immediately follow FE.  */
+	    next = 0;
+	}
       else
+	/* FE is the last frame entry to process.  */
 	next = 0;
 
-      if (start <= fe->region.start
-	  && start + size <= fe->region.start + fe->region.size)
-	/* Deallocate the entire frame entry.  */
-	{
-	  frame_entry_drop (container, fe);
-	  frame_entry_dealloc (fe);
-	}
-      else
-	/* We keep part of the region.  */
-	{
-	  int i;
-	  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
-	  int nr_fpages;
+      /* The number of bytes to deallocate in this frame entry.  */
+      size_t length = fe->region.size - (start - fe->region.start);
+      if (length > remaining)
+	length = remaining;
+      assert (length > 0);
 
-	  /* Detach FE from its container: frame entries in the same
-	     container cannot overlap and we are going to replace FE
-	     with a set of smaller frame entries covering the physical
-	     memory which will not be deallocated.  */
-	  frame_entry_detach (container, fe);
+      pthread_mutex_lock (&fe->frame->lock);
+      err = frame_entry_deallocate (cont, fe, start, length);
+      if (err)
+	goto out;
 
-	  if (start >= fe->region.start)
-	    /* We keep part of the start of the region.  */
-	    {
-	      nr_fpages = l4_fpage_span (0, start - fe->region.start, fpages);
-
-	      for (i = 0; i < nr_fpages; i ++)
-		{
-		  struct frame_entry *subfe = frame_entry_alloc ();
-		  assert (fe);
-
-		  err = frame_entry_use_frame (container, subfe,
-					       start + l4_address (fpages[i]),
-					       l4_size (fpages[i]),
-					       fe->frame,
-					       l4_address (fpages[i]));
-		  assert_perror (err);
-		}
-	    }
-
-	  if (start + size < fe->region.start + fe->region.size)
-	    /* We keep part of the end of the region.  */
-	    {
-	      nr_fpages = l4_fpage_span (0, size - start, fpages);
-
-	      for (i = 0; i < nr_fpages; i ++)
-		{
-		  struct frame_entry *subfe = frame_entry_alloc ();
-		  assert (fe);
-
-		  err = frame_entry_use_frame (container, subfe,
-					       start + l4_address (fpages[i]),
-					       l4_size (fpages[i]),
-					       fe->frame,
-					       l4_address (fpages[i]));
-		  assert_perror (err);
-		}
-	    }
-
-	  frame_deref (fe->frame);
-	  frame_entry_dealloc (fe);
-	}
-
-      if (! next || ! overlap (next->region.start, next->region.size,
-			       start, size))
-	break;
-      fe = next;
+      start += length;
+      remaining -= length;
     }
 
-  return 0;
+ out:
+  pthread_mutex_unlock (&cont->lock);
+
+  if (remaining > 0)
+    debug ("no frame entry at %x (of container %x) but %x bytes "
+	   "left to deallocate!\n", start, cont, remaining);
+
+  /* Return the amount actually deallocated.  */
+  l4_msg_append_word (ctx->msg, size - remaining);
+
+  return err;
 }
 
 static error_t
 container_map (hurd_cap_rpc_context_t ctx)
 {
-  struct container *container = hurd_cap_obj_to_user (struct container *,
-						      ctx->obj);
+  error_t err = 0;
+  struct container *cont = hurd_cap_obj_to_user (struct container *, ctx->obj);
   l4_word_t flags = l4_msg_word (ctx->msg, 1);
   uintptr_t vaddr = l4_msg_word (ctx->msg, 2);
   uintptr_t index = l4_msg_word (ctx->msg, 3);
   size_t size = l4_msg_word (ctx->msg, 4);
-  int nr_fpages;
-#define MAX_MAP_ITEMS ((L4_NUM_MRS - 1) / 2)
-  int i;
 
   /* We require four arguments (in addition to the cap id).  */
   if (l4_untyped_words (l4_msg_msg_tag (ctx->msg)) != 5)
@@ -283,73 +284,66 @@ container_map (hurd_cap_rpc_context_t ctx)
 
   l4_msg_clear (ctx->msg);
 
+#if 0
+  printf ("container_map (index:%x, size:%x, vaddr:%x, flags: %x)\n",
+	  index, size, vaddr, flags);
+#endif
+
   /* SIZE must be a multiple of the minimum page size and VADDR must
      be aligned on a base page boundary.  */
   if ((size & (L4_MIN_PAGE_SIZE - 1)) != 0
       || (vaddr & (L4_MIN_PAGE_SIZE - 1)) != 0)
     return EINVAL;
-  
-  pthread_mutex_lock (&container->lock);
 
-  for (i = 0; i < MAX_MAP_ITEMS && size > 0; )
+  pthread_mutex_lock (&cont->lock);
+
+  struct frame_entry *fe;
+  for (fe = frame_entry_find (cont, index, 1);
+       fe && size > 0;
+       fe = hurd_btree_frame_entry_next (fe))
     {
-      l4_fpage_t fpages[MAX_MAP_ITEMS];
-      struct frame_entry *fe;
-
-      /* Get the memory.  */
-      fe = frame_entry_find (container, index, 1);
-      if (! fe)
+      if (index < fe->region.start)
+	/* Hole between last frame and this one.  */
 	{
-	  pthread_mutex_unlock (&container->lock);
-	  return errno;
+	  err = EINVAL;
+	  break;
 	}
 
-      /* Allocate the memory (if needed).  */
-      frame_memory_bind (fe->frame);
-      fe->frame->may_be_mapped = true;
+      uintptr_t offset = index - fe->region.start;
+      if ((offset & (getpagesize () - 1)))
+	/* Not properly aligned.  */
+	{
+	  err = EINVAL;
+	  break;
+	}
 
-      /* This might only be a partial mapping of a memory.  Subtract
-	 the desired index from where the memory actually starts and
-	 add that to the address of the physical memory block.  */
-      l4_word_t mem = l4_address (fe->frame->memory) + fe->frame_offset
-	+ index - fe->region.start;
-      l4_word_t amount = fe->region.size - (index - fe->region.start);
+      size_t len = fe->region.size - offset;
+      if (len > size)
+	len = size;
 
-      /* Does the user want all that we can give?  */
-      if (amount > size)
-	amount = size;
+      size_t amount;
 
-      /* Adjust the index and the size.  */
-      size -= amount;
+      pthread_mutex_lock (&fe->frame->lock);
+      err = frame_entry_map (fe, offset, len, extract_access (flags), vaddr,
+			     ctx->msg, &amount);
+      pthread_mutex_unlock (&fe->frame->lock);
+
+      assert (! err || err == ENOSPC);
+
       index += amount;
+      size -= amount;
+      vaddr += amount;
 
-      nr_fpages = l4_fpage_xspan (mem, mem + amount - 1,
-				  vaddr, &fpages[i], MAX_MAP_ITEMS - i);
-      for (; i < MAX_MAP_ITEMS && amount > 0; i ++)
+      if (err == ENOSPC)
 	{
-	  l4_map_item_t map_item;
-
-	  assert (nr_fpages > 0);
-
-	  /* Set the desired permissions.  */
-	  l4_set_rights (&fpages[i], flags);
-
-	  /* Add the mad item to the message.  */
-	  map_item = l4_map_item (fpages[i], vaddr);
-	  l4_msg_append_map_item (ctx->msg, map_item);
-
-	  mem += l4_size (fpages[i]);
-	  vaddr += l4_size (fpages[i]);
-	  amount -= l4_size (fpages[i]);
-	  nr_fpages --;
+	  err = 0;
+	  break;
 	}
-
-      assert (nr_fpages == 0);
     }
 
-  pthread_mutex_unlock (&container->lock);
+  pthread_mutex_unlock (&cont->lock);
 
-  return 0;
+  return err;
 }
 
 static error_t
@@ -427,6 +421,23 @@ container_copy (hurd_cap_rpc_context_t ctx)
 	}
     }
 
+  if ((flags & HURD_PM_CONT_ALL_OR_NONE))
+    /* Don't accept a partial copy.  */
+    {
+      /* XXX: Make sure that all of the source is defined and has
+	 enough permission.  */
+
+      /* Check that no frames are located in the destination
+	 region.  */
+      struct frame_entry *fe = frame_entry_find (dest_cont, dest_start,
+						 count);
+      if (fe)
+	{
+	  err = EEXIST;
+	  goto clean_up;
+	}
+    }
+
   /* Find the frame entry in the source container which contains the
      start of the region to copy.  */
   sfe_next = frame_entry_find (src_cont, src_start, 1);
@@ -473,30 +484,36 @@ container_copy (hurd_cap_rpc_context_t ctx)
 	  sfe_next = NULL;
 	}
 
+      pthread_mutex_lock (&sfe->frame->lock);
+
       /* Get the frames we'll have in the destination container.  */
       nr_fpages
 	= l4_fpage_span (src_start - sfe->region.start + sfe->frame_offset,
 			 src_end - sfe->region.start + sfe->frame_offset,
 			 fpages);
+      assert (nr_fpages > 0);
 
       for (i = 0; i < nr_fpages; i ++)
 	{
 	  dfe = frame_entry_alloc ();
 	  if (! dfe)
 	    {
+	      pthread_mutex_unlock (&sfe->frame->lock);
 	      err = ENOMEM;
 	      goto clean_up;
 	    }
 
-	  /* XXX: We need to check the users' quota.  */
-	  err = frame_entry_use_frame (dest_cont, dfe,
-				       dest_start, l4_size (fpages[i]),
-				       sfe->frame,
-				       sfe->frame_offset
-				       + src_start - sfe->region.start);
+	  /* XXX: We need to check the user's quota.  */
+	  err = frame_entry_copy (dest_cont, dfe,
+				  dest_start, l4_size (fpages[i]),
+				  sfe,
+				  sfe->frame_offset
+				  + src_start - sfe->region.start,
+				  flags & HURD_PM_CONT_COPY_SHARED);
 	  if (err)
 	    {
-	      frame_entry_dealloc (dfe);
+	      pthread_mutex_unlock (&sfe->frame->lock);
+	      frame_entry_free (dfe);
 	      goto clean_up;
 	    }
 
@@ -504,6 +521,20 @@ container_copy (hurd_cap_rpc_context_t ctx)
 	  dest_start += l4_size (fpages[i]);
 	  count -= l4_size (fpages[i]);
 	}
+
+      if (! (flags & HURD_PM_CONT_COPY_SHARED)
+	  && (sfe->frame->may_be_mapped & HURD_PM_CONT_WRITE))
+	/* We just created a COW copy of SFE->FRAME and we have given
+	   out at least one map with write access.  Revoke any write
+	   access to the frame.  */
+	{
+	  l4_fpage_t fpage = sfe->frame->memory;
+	  l4_set_rights (&fpage, L4_FPAGE_WRITABLE);
+	  l4_unmap_fpage (fpage);
+	  sfe->frame->may_be_mapped &= L4_FPAGE_EXECUTABLE|L4_FPAGE_READABLE;
+	}
+
+      pthread_mutex_unlock (&sfe->frame->lock);
     }
 
   if (count > 0)
@@ -535,16 +566,6 @@ container_copy (hurd_cap_rpc_context_t ctx)
   return err;
 }
 
-enum container_ops
-  {
-    container_create_id = 130,
-    container_share_id,
-    container_allocate_id,
-    container_deallocate_id,
-    container_map_id,
-    container_copy_id
-  };
-
 error_t
 container_demuxer (hurd_cap_rpc_context_t ctx)
 {
@@ -552,28 +573,28 @@ container_demuxer (hurd_cap_rpc_context_t ctx)
 
   switch (l4_msg_label (ctx->msg))
     {
-    case container_create_id:
+    case hurd_pm_container_create_id:
       err = container_create (ctx);
       break;
 
-    case container_share_id:
+    case hurd_pm_container_share_id:
       err = container_share (ctx);
       break;
 
-    case container_allocate_id:
+    case hurd_pm_container_allocate_id:
       err = container_allocate (ctx);
       break;
 
-    case container_deallocate_id:
+    case hurd_pm_container_deallocate_id:
       err = container_deallocate (ctx);
       break;
 
     case 128: /* The old container map implementation.  */
-    case container_map_id:
+    case hurd_pm_container_map_id:
       err = container_map (ctx);
       break;
 
-    case container_copy_id:
+    case hurd_pm_container_copy_id:
       err = container_copy (ctx);
       break;
 
@@ -590,16 +611,19 @@ container_demuxer (hurd_cap_rpc_context_t ctx)
 
   l4_set_msg_label (ctx->msg, err);
 
+  if (err)
+    debug ("%s: Returning %d to %x\n", __FUNCTION__, err, ctx->from);
+
   return 0;
 }
 
 error_t
 container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
-		 struct container **r_container)
+		 struct container **r_cont)
 {
   error_t err;
   hurd_cap_obj_t obj;
-  struct container *container;
+  struct container *cont;
   l4_word_t start;
   int i;
 
@@ -607,59 +631,88 @@ container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
   if (err)
     return err;
 
-  container = hurd_cap_obj_to_user (struct container *, obj);
+  cont = hurd_cap_obj_to_user (struct container *, obj);
 
-  hurd_btree_frame_entry_tree_init (&container->frame_entries);
+#ifndef NDEBUG
+  /* We just allocated CONT and we haven't given it to anyone else,
+     however, frame_entry_create requires that CONT be locked and if
+     it isn't, will trigger an assert.  Make it happy.  */
+  pthread_mutex_lock (&cont->lock);
+#endif
+
+  hurd_btree_frame_entry_tree_init (&cont->frame_entries);
   start = l4_address (fpages[0]);
   for (i = 0; i < nr_fpages; i ++)
     {
       struct frame_entry *fe = frame_entry_alloc ();
       if (! fe)
-	return ENOMEM;
+	{
+	  err = ENOMEM;
+	  break;
+	}
 
-      err = frame_entry_new (container, fe,
-			     l4_address (fpages[i]) - start,
-			     l4_size (fpages[i]));
+      err = frame_entry_create (cont, fe,
+				l4_address (fpages[i]) - start,
+				l4_size (fpages[i]));
       if (err)
 	{
-	  frame_entry_dealloc (fe);
-	  return err;
+	  frame_entry_free (fe);
+	  break;
 	}
 
       fe->frame->memory = fpages[i];
+      pthread_mutex_unlock (&fe->frame->lock);
     }
 
-  *r_container = container;
-  return 0;
+#ifndef NDEBUG
+  pthread_mutex_unlock (&cont->lock);
+#endif
+
+  if (! err)
+    *r_cont = cont;
+  return err;
 }
 
 
+/* Initialize a new container object.  */
+static error_t
+container_init (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
+{
+  struct container *cont = hurd_cap_obj_to_user (struct container *, obj);
+
+  pthread_mutex_init (&cont->lock, 0);
+  hurd_btree_frame_entry_tree_init (&cont->frame_entries);
+
+  return 0;
+}
+
+/* Reinitialize a container object.  */
 static void
 container_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 {
-  struct container *container = hurd_cap_obj_to_user (struct container *,
-						      obj);
+  struct container *cont = hurd_cap_obj_to_user (struct container *, obj);
   struct frame_entry *fe, *next;
 
-  /* We don't need to lock the container as we know we are the only
-     ones who can now access it.  */
-  for (fe = hurd_btree_frame_entry_first (&container->frame_entries);
+  assert (pthread_mutex_trylock (&cont->lock));
+  pthread_mutex_unlock (&cont->lock);
+
+  for (fe = hurd_btree_frame_entry_first (&cont->frame_entries);
        fe; fe = next)
     {
       next = hurd_btree_frame_entry_next (fe);
-      frame_entry_drop (container, fe);
-      frame_entry_dealloc (fe);
+      pthread_mutex_lock (&fe->frame->lock);
+      frame_entry_destroy (cont, fe, true);
+      frame_entry_free (fe);
     }
-  hurd_btree_frame_entry_tree_init (&container->frame_entries);
-}
 
+  hurd_btree_frame_entry_tree_init (&cont->frame_entries);
+}
 
 /* Initialize the container class subsystem.  */
 error_t
 container_class_init ()
 {
   return hurd_cap_class_init (&container_class, struct container *,
-			      NULL, NULL, container_reinit, NULL,
+			      container_init, NULL, container_reinit, NULL,
 			      container_demuxer);
 }
-

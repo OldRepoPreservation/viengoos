@@ -30,7 +30,7 @@
 #include <l4/stubs.h>
 #include <l4/stubs-init.h>
 
-#include "physmem.h"
+#include "priv.h"
 
 
 /* Initialize libl4, setup the argument vector, and pass control over

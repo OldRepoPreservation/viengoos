@@ -1,3 +1,101 @@
+2005-04-06  Neal H. Walfield  <neal@gnu.org>
+
+	* physmem.h: Move from here...  * priv.h: ...to here.  Improve
+	comments.
+	(extract_access): New function.
+	(struct frame): Add lock field.  Change type of may_be_mapped
+	field from bool to l4_word_t.
+	(struct frame_entry): Add container, shared_next and shared_prevp
+	fields.
+	(frame_entry_free): Renamed from frame_entry_dealloc.  Update
+	callers.
+	(frame_entry_create): Renamed from frame_entry_new.  Update
+	callers.
+	(frame_entry_use): Renamed from frame_entry_use_frame.  Update
+	callers.
+	(frame_entry_copy): New declaration.
+	(frame_entry_destroy): Renamed from frame_entry_drop.  Update
+	callers.
+	(frame_entry_map): New declaration.
+	(frame_entry_deallocate): New declaration.
+	(frame_memory_bind): Assert that FRAME->LOCK is locked.
+	(frame_release): New definition.
+	(container_attach): Renamed from frame_entry_attach.  Update
+	callers.
+	(frame_entry_detach): Renamed from frame_entry_detach.  Update
+	callers.
+	* frame.c: Don't include "physmem.h".  Include "priv.h" and
+	<pthread.h>.
+	(frame_dump): New function.
+	(frame_constructor): Initialize FRAME->LOCK and lock it.
+	(frame_space): It is a space of frame structures, no frame_entry
+	structures.  Fix typo.
+	(frame_alloc): Initialize FRAME_MAY_BE_MAPPED.  Assert FRAME->LOCK
+	is locked.
+	(frame_deref): When unmapping a frame, assert that FRAME->MEMORY
+	points to memory.  Unlock FRAME->LOCK on return.  Add sanity
+	checks.
+	(frame_add_user): Assert that FRAME->LOCK is locked.
+	(frame_drop_user): Assert that FRAME->LOCK is locked.  Don't drop
+	a reference.
+	* frame-entry.c: Include <string.h> and "zalloc.h".
+	(frame_entry_constructor): New function.
+	(frame_entry_space): Use it.
+	(frame_entry_dump): Don't mark as static.  Improve output.  Add
+	some sanity checks.
+	(frame_entry_alloc): Assert that FRAME_ENTRY->SHARED_NEXT and
+	FRAME_ENTRY->SHARED_PREVP are correct.
+	(frame_entry_free): Add sanity checks.
+	[!NDEBUG]: Clear memory.
+	(frame_entry_share_with): New function.
+	(frame_entry_create): Assert CONT->LOCK is held.  Initialize
+	FRAME_ENTRY->CONTAINER.  Initialize share list.
+	(frame_entry_copy): New function.
+	(frame_entry_use): Assert CONT->LOCK and SOURCE->LOCK are held.
+	Set FRAME_ENTRY->CONTAINER.  Initialize share list.
+	(frame_entry_destroy): If CONT is NULL, don't try to detach
+	FRAME_ENTRY from a container.  Assert CONT->LOCK in CONT is
+	non-NULL and SOURCE->LOCK are held.  Correctly update COW count.
+	Only unlock FRAME_ENTRY->LOCK if DO_UNLOCK is true.
+	(frame_entry_attach): Moved to container.c and renamed to
+	container_attach.
+	(frame_entry_detach): Moved to container.c and renamed to
+	container_detach.
+	(frame_entry_map): New function.
+	(frame_entry_deallocate): New function.
+	* container.c: Include <string.h> and "priv.h".
+	(container_dump): New function.
+	(container_attach): Moved from frame-entry.c and renamed from
+	frame_entry_attach.
+	(container_detach): Moved from frame-entry.c and renamed from
+	frame_entry_detach.
+	(container_allocate): Lock CONT->LOCK.  Don't check the return
+	value of FRAME_ENTRY_ALLOC for errors: it is guaranteed to
+	succeed.  Unlock FE->FRAME->LOCK and CONT->LOCK.
+	(container_deallocate): Lock CONT->LOCK.  Refactor iteration.
+	Rewrite body to use frame_entry_deallocate.  Return the number of
+	bytes allocated.
+	(container_map): Refactor iteration.  Rewrite body to use
+	frame_entry_map.
+	(container_copy): If HURD_PM_CONT_ALL_OR_NONE is set try better to
+	make sure the operation won't fail mid-flight.  Lock
+	SFE->FRAME->LOCK.  If the copy is a copy on write and the frame
+	has extant write mappings, remove them.
+	(container_ops): Moved to physmem.h.  Preface names with hurd_pm_
+	to reflect presence in the global name space.
+	(container_demuxer): If the invoke method produces returns an
+	error code, emit a debugging message.
+	(container_alloc) [!NDEBUG]: Lock CONT->LOCK.
+	Unlock FE->FRAME->LOCK.
+	(container_init): New function.
+	(container_reinit): Assert CONT->LOCK is held.
+	(container_class_init): Use CONTAINER_INIT.
+
+	* physmem.h: New file.
+	* headers.m4: New file.
+	* physmem.c: Don't include "physmem.h".  Include "priv.h".
+	* ia32-cmain.c: Likewise.
+
 2005-03-09  Neal H. Walfield  <neal@gnu.org>
 
 	* container.c (container_allocate): Set err to ENOMEM when

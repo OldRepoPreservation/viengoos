@@ -29,7 +29,7 @@
 
 #include <hurd/wortel.h>
 
-#include "physmem.h"
+#include "priv.h"
 #include "zalloc.h"
 
 
