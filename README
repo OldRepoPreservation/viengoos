@@ -18,28 +18,36 @@ $ ./configure --enable-maintainer-mode --prefix=/l4
 $ make
 $ make install
 $ mkdir /l4/boot
-$ cp laden/laden /l4/boot
-$ cp wortel/wortel /l4/boot
-$ cp physmem/physmem /l4/boot
+$ install -s laden/laden /l4/boot
+$ install -s wortel/wortel /l4/boot
+$ install -s physmem/physmem /l4/boot
+$ install -s task/task /l4/boot
+
+You need at least automake 1.7 and autoconf 2.53.  Note that the
+binaries MUST be stripped, otherwise they will overlap in memory (or
+you can adjust the load addresses).
 
 
 Installation on ia32
 --------------------
 
-Prerequisites: Pistachio-0.2 with the patch you can find at the end of
-this file.  You can find information about how to download the
-Pistachio source distribution (which includes the kernel and sigma0)
-at the following URL:
+Prerequisites: Pistachio-0.4.  You can find information about how to
+download the Pistachio source distribution (which includes the kernel
+and sigma0) at the following URL:
 
 http://www.l4ka.org/projects/pistachio/download.php
 
 sigma0 must be built with a different link base than the default value
 0x20000, because that conflicts with GRUB (on ia32).  I have
-successfully used a link base of 0x40000.
+successfully used a link base of 0x40000.  Use the configure option
+--with-sigma0-linkbase when configuring the user space of the L4
+distribution.
 
 Then set up GRUB to boot laden as the kernel, and the L4 kernel,
-sigma0, wortel (the rootserver) and physmem as its modules (in that
-order).
+sigma0, wortel (the rootserver), physmem and task as its modules (in
+that order).  Also, add some dummy entries for the not-yet-existing
+modules deva, deva-store and rootfs (just repeat the task server entry
+another three times)
 
 Try the debug option (-D) to laden and wortel to see some output from
 them.  They are silent by default.
@@ -53,41 +61,7 @@ module /boot/ia32-kernel
 module /boot/sigma0
 module /boot/wortel -D
 module /boot/physmem
-
-
-sigma0 Patch
-------------
-
-sigma0 in pistachio 0.2 is a bit buggy.  The following patch fixes the
-problems that the bugs cause to wortel.
-
---- pistachio-0.2/user/serv/sigma0/sigma0.cc.prev	2003-09-16 20:29:14.000000000 +0200
-+++ pistachio-0.2/user/serv/sigma0/sigma0.cc	2003-09-16 21:03:09.000000000 +0200
-@@ -506,7 +506,8 @@
-     L4_Word_t low_a = (low + size - 1) & ~(size-1);
-     L4_Fpage_t ret;
- 
--    if ((high_a - low_a) < size || (owner != tid && owner != L4_anythread))
-+    if (low_a > high_a || (high_a - low_a) < size
-+	|| (owner != tid && owner != L4_anythread))
-     {
- 	// Allocation failed
- 	ret = L4_Nilpage;
-@@ -530,7 +531,7 @@
-     {
- 	// Allocate from middle of region
- 	ret = L4_FpageLog2 (low_a, log2size) + L4_FullyAccessible;
--	memregion_t * r = new memregion_t (high_a, high, owner);
-+	memregion_t * r = new memregion_t (low_a + size, high, owner);
- 	r->next = next;
- 	r->prev = this;
- 	r->next->prev = next = r;
-@@ -1246,7 +1247,7 @@
-     {
- 	if ((fp = r->allocate (log2size)).raw != L4_Nilpage.raw)
- 	{
--	    map = L4_MapItem (fp, 0);
-+	    map = L4_MapItem (fp, L4_Address (fp));
- 	    alloc_pool.insert
- 		(new memregion_t (L4_Address (fp), L4_Address (fp) +
- 				  (1UL << log2size), tid));
+module /boot/task
+module /boot/task
+module /boot/task
+module /boot/task
