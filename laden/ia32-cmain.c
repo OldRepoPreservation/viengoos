@@ -331,7 +331,7 @@ find_components (void)
   loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end);
 
   start = (l4_word_t) mbi;
-  end = start + sizeof (*mbi) - 1;
+  end = start + sizeof (*mbi);
   loader_add_region ("grub-mbi", start, end);
   
   if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count)
@@ -344,7 +344,7 @@ find_components (void)
       loader_add_region ("grub-mods", start, end);
 
       start = (l4_word_t) mod[0].string;
-      end = start;
+      end = start + 1;
       for (nr = 0; nr < mbi->mods_count; nr++)
 	{
 	  char *str = (char *) mod[nr].string;
@@ -355,8 +355,8 @@ find_components (void)
 		start = (l4_word_t) str;
 	      while (*str)
 		str++;
-	      if (((l4_word_t) str) > end)
-		end = (l4_word_t) str;
+	      if (((l4_word_t) str) + 1 > end)
+		end = (l4_word_t) str + 1;
 	    }
 	}
       loader_add_region ("grub-mods-cmdlines", start, end);

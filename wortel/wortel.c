@@ -174,16 +174,16 @@ start_components (void)
   {
     l4_fpage_t fpages[MAX_FPAGES];
     unsigned int nr_fpages;
-    l4_word_t start = mods[MOD_PHYSMEM].start;
-    l4_word_t size = (mods[MOD_PHYSMEM].end - start + min_page_size)
-      & ~(min_page_size - 1);
+    l4_word_t size = (mods[MOD_PHYSMEM].end - mods[MOD_PHYSMEM].start
+		      + min_page_size - 1) & ~(min_page_size - 1);
 
     /* We want to grant all the memory for the physmem binary image
        with the first page fault, but we might have to send several
        fpages.  So we first create a list of all fpages we need, then
        we serve one after another, providing the one containing the
        fault address last.  */
-    nr_fpages = make_fpages (start, size, fpages);
+    nr_fpages = make_fpages (mods[MOD_PHYSMEM].start, size,
+			     fpages);
 
     /* Now serve page requests.  */
     while (nr_fpages)

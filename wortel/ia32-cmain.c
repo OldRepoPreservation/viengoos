@@ -113,7 +113,8 @@ cmain (void)
 
 
 /* The following must be defined and are used to calculate the extents
-   of the laden binary itself.  */
+   of the laden binary itself.  _END is one more than the address of
+   the last byte.  */
 extern char _start;
 extern char _end;
 
@@ -123,6 +124,7 @@ extern char _end;
 void
 find_components (void)
 {
+  l4_word_t min_page_size = getpagesize ();
   multiboot_info_t *mbi = (multiboot_info_t *) l4_boot_info ();
   l4_word_t start;
   l4_word_t end;
@@ -143,9 +145,11 @@ find_components (void)
 	{
 	  mods[i].name = mod_names[i];
 	  mods[i].start = mod[i].mod_start;
-	  mods[i].end = mod[i].mod_end;
+	  if (mods[i].start & (min_page_size - 1))
+	    panic ("Module %s does not start on a page boundary.\n");
+	  mods[i].end = (mod[i].mod_end + min_page_size - 1)
+	    & ~(min_page_size - 1);
 	  mods[i].args = (char *) mod[i].string;
-	  mod++;
 	}
     }
 
@@ -154,7 +158,7 @@ find_components (void)
   loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end);
 
   start = (l4_word_t) mbi;
-  end = start + sizeof (*mbi) - 1;
+  end = start + sizeof (*mbi);
   loader_add_region ("grub-mbi", start, end);
   
   if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count)
@@ -167,7 +171,7 @@ find_components (void)
       loader_add_region ("grub-mods", start, end);
 
       start = (l4_word_t) mod[0].string;
-      end = start;
+      end = start + 1;
       for (nr = 0; nr < mbi->mods_count; nr++)
 	{
 	  char *str = (char *) mod[nr].string;
@@ -178,10 +182,10 @@ find_components (void)
 		start = (l4_word_t) str;
 	      while (*str)
 		str++;
-	      if (((l4_word_t) str) > end)
-		end = (l4_word_t) str;
+	      if (((l4_word_t) str) + 1> end)
+		end = (l4_word_t) str + 1;
 	    }
 	}
-      loader_add_region ("grub-mods-cmdlines", start, end);
+      loader_add_region ("grub-mods-cmdlines", start, end + 1);
     }
 }

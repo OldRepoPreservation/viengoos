@@ -26,7 +26,7 @@
 
 
 
-/* Verify that the memory region START to END (inclusive) is valid.  */
+/* Verify that the memory region START to END (exclusive) is valid.  */
 static void
 mem_check (const char *name, unsigned long start, unsigned long end)
 {
@@ -49,7 +49,7 @@ mem_check (const char *name, unsigned long start, unsigned long end)
 	{
 	  /* Check if the region fits into conventional memory.  */
 	  if (start >= (memdesc->low << 10) && start < (memdesc->high << 10)
-	      && end >= (memdesc->low << 10) && end < (memdesc->high << 10))
+	      && end > (memdesc->low << 10) && end <= (memdesc->high << 10))
 	    fits = 1;
 	}
       else
@@ -57,7 +57,7 @@ mem_check (const char *name, unsigned long start, unsigned long end)
 	  /* Check if the region overlaps with non-conventional
 	     memory.  */
 	  if ((start >= (memdesc->low << 10) && start < (memdesc->high << 10))
-	      || (end >= (memdesc->low << 10) && end < (memdesc->high << 10))
+	      || (end > (memdesc->low << 10) && end <= (memdesc->high << 10))
 	      || (start < (memdesc->low << 10) && end > (memdesc->high << 10)))
 	    {
 	      conflicts = 1;
@@ -102,8 +102,8 @@ check_region (const char *name, l4_word_t start, l4_word_t end)
   for (i = 0; i < nr_regions; i++)
     {
       if ((start >= used_regions[i].start && start < used_regions[i].end)
-	  || (end >= used_regions[i].start && end < used_regions[i].end)
-	  || (start < used_regions[i].start && end >= used_regions[i].start))
+	  || (end >= used_regions[i].start && end <= used_regions[i].end)
+	  || (start < used_regions[i].start && end > used_regions[i].start))
 	panic ("%s (0x%x - 0x%x) conflicts with %s (0x%x - 0x%x)",
 	       name, start, end, used_regions[i].name, used_regions[i].start,
 	       used_regions[i].end);
@@ -153,10 +153,10 @@ loader_remove_region (const char *name)
 }
 
 
-/* Load the ELF image from START to END into memory under the name
-   NAME (also used as the name for the region of the resulting ELF
-   program).  Return the lowest and highest address used by the
-   program in NEW_START_P and NEW_END_P, and the entry point in
+/* Load the ELF image from START to END (exclusive) into memory under
+   the name NAME (also used as the name for the region of the
+   resulting ELF program).  Return the lowest and highest address used
+   by the program in NEW_START_P and NEW_END_P, and the entry point in
    ENTRY.  */
 void
 loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
