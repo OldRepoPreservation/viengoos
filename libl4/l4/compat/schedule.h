@@ -41,7 +41,7 @@ typedef struct
 #define _L4_CLOCK_OP(op, type)						\
 static inline L4_Clock_t						\
 _L4_attribute_always_inline						\
-operator ## op ## (const L4_Clock_t clock, const type usec)		\
+operator ## op ## (const L4_Clock_t& clock, const type usec)		\
 {									\
   L4_Clock_t new_clock;							\
   new_clock.raw = clock.raw op usec;					\
@@ -52,6 +52,21 @@ _L4_CLOCK_OP(+, int)
 _L4_CLOCK_OP(+, L4_Word64_t)
 _L4_CLOCK_OP(-, int)
 _L4_CLOCK_OP(-, L4_Word64_t)
+#undef _L4_CLOCK_OP
+
+
+#define _L4_CLOCK_OP(op)						\
+static inline L4_Clock_t						\
+_L4_attribute_always_inline						\
+operator ## op ## (const L4_Clock_t& clock1, const L4_Clock_t& clock2)	\
+{									\
+  L4_Clock_t new_clock;							\
+  new_clock.raw = clock1.raw op clock2.raw;				\
+  return new_clock;							\
+}
+
+_L4_CLOCK_OP(+)
+_L4_CLOCK_OP(-)
 #undef _L4_CLOCK_OP
 
 
@@ -76,10 +91,25 @@ _L4_CLOCK_OP(!=)
 #define _L4_CLOCK_OP(name, op)						\
 static inline L4_Clock_t						\
 _L4_attribute_always_inline						\
-L4_Clock ## name ## Usec (const L4_Clock_t clock, const L4_Word64_t usec) \
+L4_Clock ## name (const L4_Clock_t clock, const L4_Word64_t usec)	\
 {									\
   L4_Clock_t new_clock;							\
   new_clock.raw = clock.raw op usec;					\
+  return new_clock;							\
+}
+
+_L4_CLOCK_OP(AddUsec, +)
+_L4_CLOCK_OP(SubUsec, -)
+#undef _L4_CLOCK_OP
+
+
+#define _L4_CLOCK_OP(name, op)						\
+static inline L4_Clock_t						\
+_L4_attribute_always_inline						\
+L4_Clock ## name (const L4_Clock_t clock1, const L4_Clock_t clock2)	\
+{									\
+  L4_Clock_t new_clock;							\
+  new_clock.raw = clock1.raw op clock2.raw;				\
   return new_clock;							\
 }
 
@@ -395,7 +425,7 @@ L4_IsTimeNotEqual (const L4_Time_t l, const L4_Time_t r)
   return _L4_is_time_not_equal (l.raw, r.raw);
 }
 
-#endif	/* _cplusplus */
+#endif	/* __cplusplus */
 
 
 /* 3.4 ThreadSwitch [Systemcall]  */

@@ -202,7 +202,7 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_user_defined_handle_of (_L4_thread_id_t thread)
 {
-  _L4_word_t control = 0;
+  _L4_word_t control = _L4_XCHG_REGS_DELIVER;
   _L4_word_t user_handle = 0;
   _L4_word_t dummy = 0;
   _L4_thread_id_t pager = _L4_nilthread;
@@ -231,7 +231,7 @@ static inline _L4_thread_id_t
 _L4_attribute_always_inline
 _L4_pager_of (_L4_thread_id_t thread)
 {
-  _L4_word_t control = 0;
+  _L4_word_t control = _L4_XCHG_REGS_DELIVER;
   _L4_thread_id_t pager = _L4_nilthread;
   _L4_word_t dummy = 0;
 
@@ -317,7 +317,7 @@ name ## _sp_ip_flags (_L4_thread_id_t thread, _L4_word_t *sp,		\
                       _L4_word_t *ip, _L4_word_t *flags)		\
 {									\
   _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_HALT	\
-    | (extra_control);							\
+    | _L4_XCHG_REGS_DELIVER | (extra_control);				\
   _L4_word_t dummy = 0;							\
   _L4_thread_id_t pager = _L4_nilthread;				\
 									\

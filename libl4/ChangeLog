@@ -1,6 +1,19 @@
 2004-10-06  Marcus Brinkmann  <marcus@gnu.org>
+	
+	* l4/compat/schedule.h (_L4_CLOCK_OP): Make CLOCK argument a
+	reference.
+	(_L4_CLOCK_OP) [__cplusplus]: Add another instance of the macro to
+	define operator+(L4_Clock_t&, L4_Clock_t&) and
+	operator-(L4_Clock_t&, L4_Clock_t&).
+	(_L4_CLOCK_OP) [!__cplusplus]: Add another instance of the macro
+	to define L4_ClockAdd and L4_ClockSub.
+	* l4/thread.h (_L4_user_defined_handle_of, _L4_pager_of,
+	__L4_STOP): Add the _L4_XCHG_REGS_DELIVER bit to CONTROL.
+	* l4/syscall.h (_L4_XCHG_REGS_DELIVER): New macro.
 
-	* l4/compat/space.h (L4_FlushFpage) [!__cplusplus]: Rename to ...
+	* l4/compat/space.h: Change all tests for _cplusplus to tests
+	for __cplusplus.
+	(L4_FlushFpage) [!__cplusplus]: Rename to ...
 	(L4_FlushFpages) [!__cplusplus]: ... this.
 
 	* l4/gnu/space.h (L4_FPAGE_READ_WRITE_ONLY): Define macro.
