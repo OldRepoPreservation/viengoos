@@ -127,3 +127,16 @@ Architecture specific status:
 
 i386	complete and up-to-date
 powerpc	needs to be tested and updated to latest API version
+
+
+TODO
+----
+
+* Optimize l4_time_period for built-in constants.
+* Implement l4_time_point.
+* Implement l4_time_add, l4_time_sub, l4_time_add_usec, l4_time_sub_usec.
+* Add l4_time_t period shift operators for fast exponential backoff
+  (ie, just increase the exponent).  Use in __pthread_spin_lock, for example.
+* Sanitize the error handling.  The GNU interface should return proper errno
+  values for all failures.  ExchangeRegister can fail, so all functions using
+  it must also return an error value (l4_start_sp_ip etc).
