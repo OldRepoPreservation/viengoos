@@ -108,15 +108,16 @@ check_region (char *name, l4_word_t start, l4_word_t end)
 
 /* Add the region with the name NAME from START to END to the table of
    regions to check against.  Before doing that, check for overlaps
-   with existing regions, unless FORCE is true.  */
+   with existing regions.  */
 void
-loader_add_region (char *name, l4_word_t start, l4_word_t end, int force)
+loader_add_region (char *name, l4_word_t start, l4_word_t end)
 {
+  debug ("Protected Region: %s (0x%x - 0x%x)\n", name, start, end);
+
   if (nr_regions == MAX_REGIONS)
     panic ("Too many memory regions, region %s doesn't fit", name);
 
-  if (!force)
-    check_region (name, start, end);
+  check_region (name, start, end);
 
   used_regions[nr_regions].name = name;
   used_regions[nr_regions].start = start;
@@ -206,7 +207,7 @@ elf_load (char *name, l4_word_t start, l4_word_t end,
 
   /* FIXME: Add this as a bootloader specific memory type to L4's
      memdesc list instead.  */
-  loader_add_region (name, new_start, new_end, 0);
+  loader_add_region (name, new_start, new_end);
 
   if (new_start_p)
     *new_start_p = new_start;
@@ -226,18 +227,18 @@ load_components (void)
 {
   if (!kernel.low)
     panic ("No L4 kernel found");
-  loader_add_region ("kernel-mod", kernel.low, kernel.high, 0);
+  loader_add_region ("kernel-mod", kernel.low, kernel.high);
 
   if (!sigma0.low)
     panic ("No sigma0 server found");
-  loader_add_region ("sigma0-mod", sigma0.low, sigma0.high, 0);
+  loader_add_region ("sigma0-mod", sigma0.low, sigma0.high);
 
   if (sigma1.low)
-    loader_add_region ("sigma1-mod", sigma1.low, sigma1.high, 0);
+    loader_add_region ("sigma1-mod", sigma1.low, sigma1.high);
 
   if (!rootserver.low)
     panic ("No rootserver server found");
-  loader_add_region ("rootserver-mod", rootserver.low, rootserver.high, 0);
+  loader_add_region ("rootserver-mod", rootserver.low, rootserver.high);
 
   elf_load ("kernel", kernel.low, kernel.high,
 	    &kernel.low, &kernel.high, &kernel.ip);

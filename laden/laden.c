@@ -67,6 +67,8 @@ parse_args (int argc, char *argv[])
 		  "\n"
 		  "  -o, --output DRV  use output driver DRV\n"
 		  "  -D, --debug       enable debug output\n"
+		  "  -h, --halt        halt the system at error (default)\n"
+		  "  -r, --reboot      reboot the system at error\n"
 		  "\n"
 		  "      --usage       print out some usage information and "
 		  "exit\n"

@@ -94,8 +94,8 @@ extern int debug;
 
 /* Add the region with the name NAME from START to END to the table of
    regions to check against.  Before doing that, check for overlaps
-   with existing regions, unless FORCE is true.  */
-void loader_add_region (char *name, l4_word_t start, l4_word_t end, int force);
+   with existing regions.  */
+void loader_add_region (char *name, l4_word_t start, l4_word_t end);
 
 
 /* Load the ELF images of the kernel and the initial servers into

@@ -53,9 +53,6 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
 {
   int argc = 0;
   char **argv = 0;
-  l4_word_t start;
-  l4_word_t end;
-
 
   /* Verify that we are booted by a Multiboot-compliant boot loader.  */
   if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
@@ -121,42 +118,6 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
      a later time.  */
   boot_info = (uint32_t) mbi;
 
-  /* Now protect ourselves and the mulitboot info (at least the module
-     configuration.  */
-  loader_add_region ("laden", (l4_word_t) &_start, (l4_word_t) &_end, 1);
-
-  start = (l4_word_t) mbi;
-  end = start + sizeof (*mbi) - 1;
-  loader_add_region ("grub-mbi", start, end, 1);
-  
-  if (CHECK_FLAG (mbi->flags, 3))
-    {
-      module_t *mod = (module_t *) mbi->mods_addr;
-      int nr;
-
-      start = (l4_word_t) mod;
-      end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
-      loader_add_region ("grub-mods", start, end, 1);
-
-      start = (l4_word_t) mod[0].string;
-      end = start;
-      for (nr = 0; nr < mbi->mods_count; nr++)
-	{
-	  char *str = (char *) mod[nr].string;
-
-	  if (str)
-	    {
-	      if (((l4_word_t) str) < start)
-		start = (l4_word_t) str;
-	      while (*str)
-		str++;
-	      if (((l4_word_t) str) > end)
-		end = (l4_word_t) str;
-	    }
-	}
-      loader_add_region ("grub-mods-cmdlines", start, end, 1);
-    }
-
   /* Now invoke the main function.  */
   main (argc, argv);
 
@@ -207,6 +168,8 @@ void
 find_components (void)
 {
   multiboot_info_t *mbi = (multiboot_info_t *) boot_info;
+  l4_word_t start;
+  l4_word_t end;
 
   debug_dump ();
 
@@ -217,18 +180,27 @@ find_components (void)
 
       if (mbi->mods_count > 0)
 	{
-	  kernel.low = mod[0].mod_start;
-	  kernel.high = mod[0].mod_end;
+	  kernel.low = mod->mod_start;
+	  kernel.high = mod->mod_end;
+	  mod++;
+	  mbi->mods_count--;
 	}
-      if (mbi->mods_count > 1)
+      if (mbi->mods_count > 0)
 	{
-	  sigma0.low = mod[1].mod_start;
-	  sigma0.high = mod[1].mod_end;
+	  sigma0.low = mod->mod_start;
+	  sigma0.high = mod->mod_end;
+	  mod++;
+	  mbi->mods_count--;
 	}
-      if (mbi->mods_count > 1)
+      /* Swallow the modules we used so far.  This makes the
+	 rootserver the first module in the list, irregardless if
+	 sigma1 is used or not.  FIXME: The rootserver might need the
+	 information about the other modules, though.  */
+      mbi->mods_addr = (l4_word_t) mod;
+      if (mbi->mods_count > 0)
 	{
-	  rootserver.low = mod[2].mod_start;
-	  rootserver.high = mod[2].mod_end;
+	  rootserver.low = mod->mod_start;
+	  rootserver.high = mod->mod_end;
 	}
     }
 
@@ -350,5 +322,42 @@ find_components (void)
 
 	  add_memory_map (low, high, L4_MEMDESC_RESERVED, 0);
 	}
+    }
+
+
+  /* Now protect ourselves and the mulitboot info (at least the module
+     configuration.  */
+  loader_add_region ("laden", (l4_word_t) &_start, (l4_word_t) &_end);
+
+  start = (l4_word_t) mbi;
+  end = start + sizeof (*mbi) - 1;
+  loader_add_region ("grub-mbi", start, end);
+  
+  if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count)
+    {
+      module_t *mod = (module_t *) mbi->mods_addr;
+      int nr;
+
+      start = (l4_word_t) mod;
+      end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
+      loader_add_region ("grub-mods", start, end);
+
+      start = (l4_word_t) mod[0].string;
+      end = start;
+      for (nr = 0; nr < mbi->mods_count; nr++)
+	{
+	  char *str = (char *) mod[nr].string;
+
+	  if (str)
+	    {
+	      if (((l4_word_t) str) < start)
+		start = (l4_word_t) str;
+	      while (*str)
+		str++;
+	      if (((l4_word_t) str) > end)
+		end = (l4_word_t) str;
+	    }
+	}
+      loader_add_region ("grub-mods-cmdlines", start, end);
     }
 }
