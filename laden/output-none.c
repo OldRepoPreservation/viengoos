@@ -1,4 +1,4 @@
-/* output-non.c - A dummy output driver.
+/* output-none.c - A dummy output driver.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 

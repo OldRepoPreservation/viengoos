@@ -9,7 +9,7 @@ and setting up sigma0 and the rootserver.
 OPERATION
 =========
 
-laden is started by an architecture specific way, and is provided with
+laden is started by an architecture bootloader, and is provided with
 ELF images of the kernel, sigma0 and the rootserver (and optionally
 sigma1).  It then loads these ELF images into the appropriate memory
 location.  Afterwards, the kernel interface page is located and
