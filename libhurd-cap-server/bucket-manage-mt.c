@@ -130,7 +130,6 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
   error_t err = 0;
   hurd_cap_bucket_t bucket = ctx->bucket;
   _hurd_cap_client_t client;
-  hurd_cap_handle_t cap;
   hurd_cap_class_t cap_class;
   hurd_cap_obj_t obj;
   _hurd_cap_obj_entry_t obj_entry;
@@ -158,9 +157,9 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
      malformed, and thus ignored.  */
   if (l4_untyped_words (l4_msg_msg_tag (ctx->msg)) < 1)
     return ECAP_NOREPLY;
-  cap = l4_msg_word (ctx->msg, 0);
+  ctx->handle = l4_msg_word (ctx->msg, 0);
 
-  err = lookup_client (bucket, _hurd_cap_client_id (cap),
+  err = lookup_client (bucket, _hurd_cap_client_id (ctx->handle),
 		       ctx->sender, &client);
   if (err)
     return err;
@@ -203,8 +202,8 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
   {
     _hurd_cap_obj_entry_t *entry;
 
-    entry = (_hurd_cap_obj_entry_t *) hurd_table_lookup (&client->caps,
-							 _hurd_cap_id (cap));
+    entry = (_hurd_cap_obj_entry_t *)
+      hurd_table_lookup (&client->caps, _hurd_cap_id (ctx->handle));
     if (!entry)
       err = ECAP_NOREPLY;
     else

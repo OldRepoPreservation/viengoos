@@ -1,3 +1,17 @@
+2005-03-08  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (libhurd_cap_server_a_SOURCES): Add ctx-cap-use.c.
+	* cap-server.h (struct hurd_cap_rpc_context): Add member HANDLE.
+	(struct hurd_cap_ctx_cap_use): New forward.
+	(hurd_cap_ctx_size): New declaration.
+	(hurd_cap_ctx_start_cap_use): New declaration.
+	(hurd_cap_ctx_end_cap_use): New declaration.
+	* cap-server-intern.h (struct hurd_cap_ctx_cap_use): New
+	structure.
+	* bucket-manage-mt.c (manage_demuxer): Save capability handle in
+	CTX->handle.
+	* ctx-cap-use.c: New file.
+
 2005-01-12  Neal H. Walfield  <neal@gnu.org>
 
 	* class-init.c (hurd_cap_class_init_untyped): Fix assert.

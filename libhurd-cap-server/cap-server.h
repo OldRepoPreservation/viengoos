@@ -91,6 +91,8 @@ struct hurd_cap_rpc_context
   /* The capability object on which the RPC was invoked.  */
   hurd_cap_obj_t obj;
 
+  /* The capability handle on which the RPC was invoked.  */
+  hurd_cap_handle_t handle;
 
   /* Private members.  */
 
@@ -528,5 +530,44 @@ void hurd_cap_bucket_resume (hurd_cap_bucket_t bucket);
    must be inhibited.  */
 error_t hurd_cap_bucket_end (hurd_cap_bucket_t bucket, bool force);
 
+
+/* If you want to use other capabilities in an RPC handler beside the
+   one on which the RPC was invoked, you need to make sure that
+   inhibition works on those other capabilities and cancel your
+   operation.  For this, the following interfaces are provided.  */
+
+/* Forward.  */
+struct hurd_cap_ctx_cap_use;
+
+/* Return the number of bytes required for a hurd_cap_ctx_cap_use
+   structure.  */
+size_t hurd_cap_ctx_size (void) __attribute__ ((const));
+
+/* The calling thread wishes to execute an RPC on the the handle
+   HANDLE.  The calling thread must already be registered as executing
+   an RPC.  RPC_CTX is the cooresponding RPC context.  The function
+   uses the structure CAP_USE, which must point to the number of bytes
+   returned by hurd_cap_ctx_size, to store data required by
+   hurd_cap_ctx_end_cap_use.  The capability object corresponding to
+   HANDLE is locked and returned in *OBJP.
+
+   Returns EINVAL if the capability handle is invalid for the client.
+
+   Returns ENOENT if there is no object associated with handle HANDLE.
+
+   Returns EBAD if the capability is dead.
+
+   Returns EDOM if the object associated with HANDLE is not in class
+   REQUIRED_CLASS.  If no type check is required, it will be skipped
+   if REQURIED_CLASS is NULL.  */
+error_t hurd_cap_ctx_start_cap_use (hurd_cap_rpc_context_t rpc_ctx,
+				    hurd_cap_handle_t handle,
+				    hurd_cap_class_t required_class,
+				    struct hurd_cap_ctx_cap_use *cap_use,
+				    hurd_cap_obj_t *objp);
+
+/* End the use of the object CAP_USE->OBJ, which must be locked.  */
+void hurd_cap_ctx_end_cap_use (hurd_cap_rpc_context_t rpc_ctx,
+			       struct hurd_cap_ctx_cap_use *cap_use);
 
 #endif	/* _HURD_CAP_SERVER_H */

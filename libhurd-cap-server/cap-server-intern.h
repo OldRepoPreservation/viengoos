@@ -1,5 +1,5 @@
 /* cap-server-intern.h - Internal interface to the Hurd capability library.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -579,6 +579,21 @@ _hurd_cap_obj_cond_check (hurd_cap_obj_t obj)
       pthread_cond_broadcast (&obj->cap_class->cond);
     }
 }
+
+/* The following structure is used when using other capabilities in an
+   RPC handler beside the one on which the RPC was invoked.  */
+struct hurd_cap_ctx_cap_use
+{
+  /* Private members.  */
+
+  _hurd_cap_obj_entry_t _obj_entry;
+
+  /* The pending_rpc list item for the object's pending RPC list.  */
+  struct _hurd_cap_list_item _worker_obj;
+
+  /* The pending_rpc list item for the object class' pending RPC list.  */
+  struct _hurd_cap_list_item _worker_class;
+};
 
 
 #endif	/* _HURD_CAP_SERVER_INTERN_H */

@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libhurd-cap-server.
-# Copyright (C) 2004 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2005 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -37,4 +37,5 @@ libhurd_cap_server_a_SOURCES = table.h table.c				\
 	obj-entry-space.c obj-copy-out.c				\
 	client-create.c client-release.c client-inhibit.c		\
 	bucket-create.c bucket-free.c bucket-inhibit.c			\
-	bucket-manage-mt.c bucket-worker-alloc.c bucket-inject.c
+	bucket-manage-mt.c bucket-worker-alloc.c bucket-inject.c	\
+	ctx-cap-use.c
