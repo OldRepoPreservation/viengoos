@@ -1,0 +1,23 @@
+Slab Allocator
+==============
+
+If a program requires many objects of the same type, which are created
+and destroyed often, then it can be better to not use a general
+purpose allocation strategy like malloc(), but a special arena (or
+other backing memory) and a special purpose allocator that can take
+advantage of the fact that all objects are of the same size.
+
+In addition, such objects usually have an initial stage that is
+naturally returned to when the object is not needed anymore.  For
+example locks are unlocked, reference counters are zero, etc.  In such
+a situation, performance can be further increased by caching the
+unused objects, instead of destroying them.
+
+The following article gives more information about such caching object
+allocators:
+
+http://citeseer.nj.nec.com/bonwick94slab.html
+
+The current implementation in libhurd-slab is only a dummy
+implementation using malloc and free, though.
+
