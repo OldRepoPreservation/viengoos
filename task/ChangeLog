@@ -1,5 +1,13 @@
 2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
 
+	* Makefile.am (task_SOURCES): Add task-id.c.
+	* task.h (task_id_to_task_lock, task_id_to_task): New declarations.
+	(task_id_get_task): New static inline function.
+	(task_id_enter, task_id_add): New prototypes.
+	* task.c (create_bootstrap_caps): Enter the new tasks into the
+	hash table with task_id_enter.
+	* task-id.c: New file.
+
 	* ia32-cmain.c (switch_thread): Correct start of small sub stack
 	address.  Reported by Rian Hunter <hurd@thelaststop.net>.
 

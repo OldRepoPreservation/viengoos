@@ -32,27 +32,6 @@
 #include "task.h"
 
 
-struct task
-{
-  /* The capability object must be the first member of this
-     struct.  */
-  struct hurd_cap_obj obj;
-
-  /* The task ID is used in the version field of the global thread ID,
-     so it is limited to L4_THREAD_VERSION_BITS (14/32) bits and must
-     not have its lower 6 bits set to all zero (because that indicates
-     a local thread ID).  */
-  l4_word_t task_id;
-
-  /* FIXME: Just for testing and dummy stuff: A small table of the
-     threads in this task.  */
-#define MAX_THREADS 4
-  l4_thread_id_t threads[MAX_THREADS];
-  unsigned int nr_threads;
-};
-typedef struct task *task_t;
-
-
 static void
 task_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 {
@@ -130,6 +109,7 @@ task_alloc (l4_word_t task_id, unsigned int nr_threads,
   if (err)
     return err;
 
+  task->task_id = task_id;
   assert (nr_threads <= MAX_THREADS);
   task->nr_threads = nr_threads;
   memcpy (task->threads, threads, sizeof (l4_thread_id_t) * nr_threads);

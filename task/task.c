@@ -99,10 +99,14 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	  debug ("Creating task cap for 0x%x:", task_id);
 
 	  err = task_alloc (task_id, nr_threads, threads, &obj);
-
 	  if (err)
 	    panic ("task_alloc: %i\n", err);
+
 	  hurd_cap_obj_unlock (obj);
+
+	  err = task_id_enter ((task_t) obj);
+	  if (err)
+	    panic ("task_id_enter: %i\n", err);
 
 	  err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
 	  if (err)
@@ -204,6 +208,9 @@ task_server (void *arg)
 
   /* No root object is provided by the task server.  */
   /* FIXME: Use a worker timeout.  */
+  /* FIXME: Use a no-sender callback that deletes the resources from a
+     dead task and turns it into a zombie or removes it from the hash
+     table completely.  */
   err = hurd_cap_bucket_manage_mt (bucket, NULL, 0, 0);
   if (err)
     debug ("bucket_manage_mt failed: %i\n", err);
