@@ -42,7 +42,7 @@ _L4_thread_start (_L4_thread_id_t to, _L4_word_t sp, _L4_word_t ip)
 
   _L4_set_msg_tag (tag);
   _L4_load_mr (1, ip);
-  _L4_load_mr (1, sp);
+  _L4_load_mr (2, sp);
   tag = _L4_send (to);
   return _L4_ipc_succeeded (tag);
 }
