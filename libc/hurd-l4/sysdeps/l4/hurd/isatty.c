@@ -1,4 +1,4 @@
-/* Copyright (C) 1991, 1995, 1996, 1997, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 1994, 1995, 1997, 2005 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -17,43 +17,21 @@
    02111-1307 USA.  */
 
 #include <errno.h>
-#include <stddef.h>
-#include <sys/stat.h>
+#include <unistd.h>
 
-/* Get information about the file descriptor FD in BUF.  */
+/* Return 1 if FD is a terminal, 0 if not.  */
 int
-__fxstat64 (int vers, int fd, struct stat64 *buf)
+__isatty (fd)
+     int fd;
 {
-  if (vers != _STAT_VER)
-    {
-      __set_errno (EINVAL);
-      return -1;
-    }
+  error_t err;
 
-  if (fd < 0)
-    {
-      __set_errno (EBADF);
-      return -1;
-    }
-  else if (buf == NULL)
-    {
-      __set_errno (EINVAL);
-      return -1;
-    }
-
-  /* FIXME: This is only here to make our cheesy stdin/stdout/stderr
-     replacement work in line-buffered mode, see
-     libio/filedoalloc.c.  */
+  /* FIXME: This is just to make line buffering for our cheap
+     stdin/stdout/stderr work.  */
   if (fd == 0 || fd == 1 || fd == 2)
-    {
-      buf->st_mode = S_IFCHR;
-      buf->st_blksize = 0;
-      return 0;
-    }
+    return 1;
 
-  __set_errno (ENOSYS);
-  return -1;
+  return 0;
 }
-hidden_def (__fxstat64)
-stub_warning (fstat64)
-#include <stub-tag.h>
+
+weak_alias (__isatty, isatty)
