@@ -1,5 +1,5 @@
 /* output.h - Output routines interfaces.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -78,7 +78,7 @@ extern int output_debug;
     extern char *program_name;				\
     if (output_debug)					\
       printf ("%s:%s: " fmt, program_name,		\
-	      __FUNCTION__, __VA_ARGS__);		\
+	      __FUNCTION__, ##__VA_ARGS__);		\
   })
 
 #endif	/* _OUTPUT_H */

@@ -1,3 +1,8 @@
+2005-01-07  Neal H. Walfield  <neal@gnu.org>
+
+	* output.h (debug): Preface __VA_ARGS__ with ## thereby making it
+	optional.
+
 2004-11-17  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (bootdir): New variable.

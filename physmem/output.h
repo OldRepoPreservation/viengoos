@@ -45,7 +45,7 @@ extern int output_debug;
   ({							\
     if (output_debug)					\
       printf ("%s:%s: " fmt, program_name,		\
-	      __FUNCTION__, __VA_ARGS__);		\
+	      __FUNCTION__, ##__VA_ARGS__);		\
   })
 
 /* Print an error message and fail.  */

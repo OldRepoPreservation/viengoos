@@ -1,5 +1,10 @@
 2005-01-07  Neal H. Walfield  <neal@gnu.org>
 
+	* output.h (debug): Preface __VA_ARGS__ with ## thereby making it
+	optional.
+
+2005-01-07  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.c (threads): Supply the allocate_buffer and
 	deallocate_buffer arguments to HURD_SLAB_SPACE_INITIALIZER to
 	conform with the new semantics.
