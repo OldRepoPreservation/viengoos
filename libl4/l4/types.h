@@ -49,15 +49,31 @@ __l4_uintN_t (64, __DI__);
 
 #if L4_WORDSIZE == L4_WORDSIZE_32
 typedef l4_uint32_t l4_word_t;
-#define L4_WORD_C(c) c ## U
+#define L4_WORD_C(c)	c ## U
+#define __L4_PRI_PREFIX
 #else
 #if L4_WORDSIZE == L4_WORDSIZE_64
 typedef l4_uint64_t l4_word_t;
-#define L4_WORD_C(c) c ## UL
+#define L4_WORD_C(c)	c ## UL
+#define __L4_PRI_PREFIX	"l"
 #else
 #error "Unsupported word size."
 #endif
 #endif
+
+#define L4_PRIdWORD	__L4_PRI_PREFIX "d"
+#define L4_PRIiWORD	__L4_PRI_PREFIX "i"
+#define L4_PRIoWORD	__L4_PRI_PREFIX "o"
+#define L4_PRIuWORD	__L4_PRI_PREFIX "u"
+#define L4_PRIxWORD	__L4_PRI_PREFIX "x"
+#define L4_PRIXWORD	__L4_PRI_PREFIX "X"
+
+#define L4_SCNdWORD	__L4_PRI_PREFIX "d"
+#define L4_SCNiWORD	__L4_PRI_PREFIX "i"
+#define L4_SCNoWORD	__L4_PRI_PREFIX "o"
+#define L4_SCNuWORD	__L4_PRI_PREFIX "u"
+#define L4_SCNxWORD	__L4_PRI_PREFIX "x"
+#define L4_SCNXWORD	__L4_PRI_PREFIX "X"
 
 
 /* Utility macros for structure definitions.  */

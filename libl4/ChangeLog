@@ -1,5 +1,10 @@
 2003-09-18  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/types.h (__L4_PRI_PREFIX, L4_PRIdWORD, L4_PRIiWORD,
+	L4_PRIoWORD, L4_PRIuWORD, L4_PRIxWORD, L4_PRIXWORD, L4_SCNdWORD,
+	L4_SCNiWORD, L4_SCNoWORD, L4_SCNuWORD, L4_SCNxWORD, L4_SCNXWORD):
+	New macros.
+
 	* l4/types.h (L4_WORD_C): Fix macro.
 
 	* l4.h (l4_init): Move to ...
