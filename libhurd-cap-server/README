@@ -1,8 +1,11 @@
 TODO:
 
-* Implement bucket-inhibit correctly. !!!
+* Implement bucket-inhibit correctly. !!!  Also see:
+* Decide if it is needed to prevent capability allocation
+  outside of RPCs (as return arguments).  In that case, allocation
+  must be blocked while it is checked if no extinct users exists -
+  otherwise inhibiting RPCs is good enough.
 * Verify all the bucket/client stuff after rewrite.
-* Rename obj_slab to obj_space.
 
 * Do we need to support soft references?
 * Extend table and hash interface to reclaim resources without
