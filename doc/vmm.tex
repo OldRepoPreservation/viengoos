@@ -121,7 +121,7 @@ with the underlying operating system's page eviction scheme.  By
 putting the responsibility to page on tasks we think that tasks will
 be forced to make smart decisions as they can only hurt themselves.
 
-\section{Memory Allocation}
+\section{Self Paging}
 
 If memory was infinite and the only problem was worrying about one
 program accessing the memory of another, memory allocation would be
@@ -184,16 +184,16 @@ instance, \function{malloc} could take an extra parameter indicating
 the class of data being allocated.  These class would provide hints
 about the expected usage pattern and life time of the data.
 
-\subsection{Bootstrap}
+\section{Bootstrap}
 
 When the Hurd starts up, all physical memory is eventually transfered
 to the physical memory server by the root server.  At this point, the
 physical memory server will control all of the physical pages in the
 system.
 
-\subsection{Allocation Policy}
+\section{Memory Allocation Policy}
 
-\subsubsection{Guaranteed Frames and Extra Frames}
+\subsection{Guaranteed Frames and Extra Frames}
 
 The physical memory server maintains a concept of \keyword{guaranteed
 frames} and \keyword{extra frames}.  The former are virtual frames
@@ -242,7 +242,7 @@ Hurd: unlike in VMS, the file systems and device drivers are in user
 space.  Thus, the caching that was being done by VMS cannot be done
 intelligently by the physical memory server.
 
-\subsubsection{An External Memory Policy Server}
+\subsection{An External Memory Policy Server}
 
 The number of guaranteed frames that a given task has access to is not
 determined by the physical memory server but by the \keyword{memory
@@ -312,7 +312,7 @@ The memory policy server will fault on the memory region on its next
 access and it may rerequest the buffer.  This call will succeed when
 the sender is the memory policy server, it will fail otherwise.
 
-\subsubsection{Containers}
+\section{Containers}
 
 Containers are the basic abstraction used for allocating, addressing
 and sharing memory.  Conceptually, containers contain a set of
@@ -399,7 +399,7 @@ How to get frames.  Type of frames (e.g. DMA) or fixed physical address.
 Memory is not allocate until map time (and not always then,
 e.g. logical copies).
 
-\section{Mapping Memory in Containers}
+\subsection{Mapping Memory}
 
 The physical memory server guarantees that a mapping operation will
 take a short amount of time: this is not guaranteed to happen
@@ -431,7 +431,7 @@ start, in int nr\_frames, in int flags)
 Flags may is a bit wise or of: CONTAINER\_MAP\_READ,
 CONTAINER\_MAP\_WRITE and CONTAINER\_MAP\_ENFORCE\_WRITE.
 
-\section{Moving Data}
+\subsection{Moving Data}
 
 In a monolithic kernel, little data is exchanged between tasks.  In a
 multiserver system, file systems live in their own tasks and thus
@@ -647,8 +647,8 @@ needed in the future.  This can be done by sending a frame to backing
 store.
 
 \begin{code}
-error\_t pm_swap (in container_t c, in container_frame_t frame, in int
-count, out [] swap_ids)
+error\_t pm\_swap (in container\_t c, in container\_frame\_t frame, in int
+count, out [] swap\_ids)
 \end{code}
 
 The swap server resides in (or is proxied by) the phsyical memory
