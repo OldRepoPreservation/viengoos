@@ -1,3 +1,7 @@
+2004-10-25  Marcus Brinkmann  <marcus@gnu.org>
+
+	* physmem.c (physmem_server): Call hurd_cap_bucket_worker_alloc.
+
 2004-10-20  Marcus Brinkmann  <marcus@gnu.org>
 
 	* malloc-wrap.c: Do not include zalloc.h here.

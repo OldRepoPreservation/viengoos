@@ -204,6 +204,11 @@ physmem_server (void *arg)
   hurd_cap_bucket_t bucket = (hurd_cap_bucket_t) arg;
   error_t err;
 
+  /* The physical memory server can run out of threads at a time where
+     the task server runs out of memory.  To avoid a dead-lock, we
+     allocate worker threads asynchronously.  */
+  hurd_cap_bucket_worker_alloc (bucket, true);
+
   /* No root object is provided by the physmem server.  */
   /* FIXME: Use a worker timeout (eventually).  */
   err = hurd_cap_bucket_manage_mt (bucket, NULL, 0, 0);
