@@ -1,3 +1,8 @@
+2005-02-24  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/compat/space.h (L4_FullyAccessible): Fix type.
+	Submitted by Glen Kaukola <gkaukola@charter.net>.
+
 2005-02-23  Marco Gerards  <metgerards@student.han.nl>
 
 	* l4/sigma0.h (_L4_sigma0_get_page_rcv_window): Add local variable TAG.

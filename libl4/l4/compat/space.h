@@ -33,7 +33,7 @@
 #define L4_Readable		_L4_readable
 #define L4_Writable		_L4_writable
 #define L4_eXecutable		_L4_executable
-#define L4_FullyAccessible	_L4_fullly_accesible
+#define L4_FullyAccessible	_L4_fully_accessible
 #define L4_ReadWriteOnly	_L4_read_write_only
 #define L4_ReadeXecOnly		_L4_read_exec_only
 #define L4_NoAccess		_L4_no_access
