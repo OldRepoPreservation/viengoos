@@ -18,7 +18,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#include "laden.h"
+#include "loader.h"
+#include "output.h"
+#include "shutdown.h"
 
 #include "elf.h"
 
@@ -28,17 +30,20 @@
 static void
 mem_check (const char *name, unsigned long start, unsigned long end)
 {
+  l4_memory_desc_t memdesc;
   int nr;
   int fits = 0;
   int conflicts = 0;
 
+  if (!loader_get_num_memory_desc ())
+    return;
+
   /* FIXME: This implementation does not account for conventional
      memory overriding non-conventional memory in the descriptor
      list.  */
-
-  for (nr = 0; nr < memory_map_size; nr++)
+  for (nr = 0; nr < loader_get_num_memory_desc (); nr++)
     {
-      l4_memory_desc_t memdesc = &memory_map[nr];
+      memdesc = loader_get_memory_desc (nr);
 
       if (memdesc->type == L4_MEMDESC_CONVENTIONAL)
 	{
@@ -63,8 +68,8 @@ mem_check (const char *name, unsigned long start, unsigned long end)
   if (conflicts)
     panic ("%s (0x%x - 0x%x) conflicts with memory of "
 	   "type %i/%i (0x%x - 0x%x)", name, start, end,
-	   memory_map[nr].type, memory_map[nr].subtype,
-	   memory_map[nr].low << 10, memory_map[nr].high << 10);
+	   memdesc->type, memdesc->subtype,
+	   memdesc->low << 10, memdesc->high << 10);
   if (!fits)
     panic ("%s (0x%x - 0x%x) does not fit into memory",
 	   name, start, end);
@@ -127,8 +132,8 @@ loader_add_region (char *name, l4_word_t start, l4_word_t end)
 
 
 /* Remove the region with the name NAME from the table.  */
-static void
-remove_region (const char *name)
+void
+loader_remove_region (const char *name)
 {
   int i;
 
@@ -153,9 +158,10 @@ remove_region (const char *name)
    program).  Return the lowest and highest address used by the
    program in NEW_START_P and NEW_END_P, and the entry point in
    ENTRY.  */
-static void
-elf_load (char *name, l4_word_t start, l4_word_t end,
-	  l4_word_t *new_start_p, l4_word_t *new_end_p, l4_word_t *entry)
+void
+loader_elf_load (char *name, l4_word_t start, l4_word_t end,
+		 l4_word_t *new_start_p, l4_word_t *new_end_p,
+		 l4_word_t *entry)
 {
   l4_word_t new_start = -1;
   l4_word_t new_end = 0;
@@ -215,47 +221,4 @@ elf_load (char *name, l4_word_t start, l4_word_t end,
     *new_end_p = new_end;
   if (entry)
     *entry = elf->e_entry;
-}
-
-
-/* Load the ELF images of the kernel and the initial servers into
-   memory, checking for overlaps.  Update the start and end
-   information with the information from the ELF program, and fill in
-   the entry points.  */
-void
-load_components (void)
-{
-  if (!kernel.low)
-    panic ("No L4 kernel found");
-  loader_add_region ("kernel-mod", kernel.low, kernel.high);
-
-  if (!sigma0.low)
-    panic ("No sigma0 server found");
-  loader_add_region ("sigma0-mod", sigma0.low, sigma0.high);
-
-  if (sigma1.low)
-    loader_add_region ("sigma1-mod", sigma1.low, sigma1.high);
-
-  if (!rootserver.low)
-    panic ("No rootserver server found");
-  loader_add_region ("rootserver-mod", rootserver.low, rootserver.high);
-
-  elf_load ("kernel", kernel.low, kernel.high,
-	    &kernel.low, &kernel.high, &kernel.ip);
-  remove_region ("kernel-mod");
-
-  elf_load ("sigma0", sigma0.low, sigma0.high,
-	    &sigma0.low, &sigma0.high, &sigma0.ip);
-  remove_region ("sigma0-mod");
-
-  if (sigma1.low)
-    {
-      elf_load ("sigma1", sigma1.low, sigma1.high,
-		&sigma1.low, &sigma1.high, &sigma1.ip);
-      remove_region ("sigma1-mod");
-    }
-
-  elf_load ("rootserver", rootserver.low, rootserver.high,
-	    &rootserver.low, &rootserver.high, &rootserver.ip);
-  remove_region ("rootserver-mod");
 }

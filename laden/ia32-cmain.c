@@ -109,7 +109,7 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
       argc = 1;
 
       argv = alloca (sizeof (char *) * 2);
-      argv[0] = PROGRAM_NAME;
+      argv[0] = program_name;
       argv[1] = 0;
     }
 
@@ -323,7 +323,6 @@ find_components (void)
 	  add_memory_map (low, high, L4_MEMDESC_RESERVED, 0);
 	}
     }
-
 
   /* Now protect ourselves and the mulitboot info (at least the module
      configuration.  */

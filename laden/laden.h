@@ -22,9 +22,12 @@
 #include "string.h"
 #include "output.h"
 #include "shutdown.h"
+#include "loader.h"
 
 
-#define PROGRAM_NAME	"laden"
+/* The program name.  */
+extern char *program_name;
+
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
 
 
@@ -49,7 +52,7 @@ extern l4_word_t boot_info;
 /* The memory map to be provided to the kernel.  */
 #define MEMORY_MAP_MAX 200
 extern struct l4_memory_desc memory_map[MEMORY_MAP_MAX];
-extern int memory_map_size;
+extern l4_word_t memory_map_size;
 
 #define add_memory_map(start,end,mtype,msubtype)				\
   ({									\
@@ -76,33 +79,6 @@ int load_mem_info (l4_memory_desc_t memdesc, int nr);
 
 
 /* The generic code defines these functions.  */
-
-/* Print an error message and fail.  */
-#define panic(...)				\
-  ({						\
-    printf (PROGRAM_NAME ": error: ");		\
-    printf (__VA_ARGS__);			\
-    putchar ('\n');				\
-    shutdown ();				\
-  })
-
-/* True if debug mode is enabled.  */
-extern int debug;
-
-/* Print a debug message.  */
-#define debug(...) do { if (debug) printf (__VA_ARGS__); } while (0)
-
-/* Add the region with the name NAME from START to END to the table of
-   regions to check against.  Before doing that, check for overlaps
-   with existing regions.  */
-void loader_add_region (char *name, l4_word_t start, l4_word_t end);
-
-
-/* Load the ELF images of the kernel and the initial servers into
-   memory, checking for overlaps.  Update the start and end
-   information with the information from the ELF program, and fill in
-   the entry points.  */
-void load_components (void);
 
 void kip_fixup (void);
 

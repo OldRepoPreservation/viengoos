@@ -25,6 +25,9 @@
 #include "laden.h"
 
 
+/* The program name.  */
+char *program_name = "laden";
+
 rootserver_t kernel;
 rootserver_t sigma0;
 rootserver_t sigma1;
@@ -33,12 +36,70 @@ rootserver_t rootserver;
 /* The boot info to be inserted into the L4 KIP.  */
 l4_word_t boot_info;
 
-struct l4_memory_desc memory_map[MEMORY_MAP_MAX];
-int memory_map_size;
-
 
-/* True if debug mode is enabled.  */
-int debug;
+struct l4_memory_desc memory_map[MEMORY_MAP_MAX];
+
+l4_word_t memory_map_size;
+
+
+/* Return the number of memory descriptors.  */
+l4_word_t
+loader_get_num_memory_desc (void)
+{
+  return memory_map_size;
+}
+
+
+/* Return the NRth memory descriptor.  The first memory descriptor is
+   indexed by 0.  */
+l4_memory_desc_t
+loader_get_memory_desc (l4_word_t nr)
+{
+  return &memory_map[nr];
+}
+
+
+/* Load the ELF images of the kernel and the initial servers into
+   memory, checking for overlaps.  Update the start and end
+   information with the information from the ELF program, and fill in
+   the entry points.  */
+static void
+load_components (void)
+{
+  if (!kernel.low)
+    panic ("No L4 kernel found");
+  loader_add_region ("kernel-mod", kernel.low, kernel.high);
+
+  if (!sigma0.low)
+    panic ("No sigma0 server found");
+  loader_add_region ("sigma0-mod", sigma0.low, sigma0.high);
+
+  if (sigma1.low)
+    loader_add_region ("sigma1-mod", sigma1.low, sigma1.high);
+
+  if (!rootserver.low)
+    panic ("No rootserver server found");
+  loader_add_region ("rootserver-mod", rootserver.low, rootserver.high);
+
+  loader_elf_load ("kernel", kernel.low, kernel.high,
+		   &kernel.low, &kernel.high, &kernel.ip);
+  loader_remove_region ("kernel-mod");
+
+  loader_elf_load ("sigma0", sigma0.low, sigma0.high,
+		   &sigma0.low, &sigma0.high, &sigma0.ip);
+  loader_remove_region ("sigma0-mod");
+
+  if (sigma1.low)
+    {
+      loader_elf_load ("sigma1", sigma1.low, sigma1.high,
+		       &sigma1.low, &sigma1.high, &sigma1.ip);
+      loader_remove_region ("sigma1-mod");
+    }
+
+  loader_elf_load ("rootserver", rootserver.low, rootserver.high,
+		   &rootserver.low, &rootserver.high, &rootserver.ip);
+  loader_remove_region ("rootserver-mod");
+}
 
 
 static void
@@ -52,7 +113,7 @@ parse_args (int argc, char *argv[])
 	{
 	  i++;
 	  printf ("Usage %s [OPTION...]\n", argv[0]);
-	  printf ("Try `" PROGRAM_NAME " --help' for more information\n");
+	  printf ("Try `%s --help' for more information\n", program_name);
 	  shutdown ();	  
 	}
       else if (!strcmp (argv[i], "--help"))
@@ -95,7 +156,7 @@ parse_args (int argc, char *argv[])
       else if (!strcmp (argv[i], "--version"))
 	{
 	  i++;
-	  printf (PROGRAM_NAME " " PACKAGE_VERSION "\n");
+	  printf ("%s " PACKAGE_VERSION "\n", program_name);
 	  shutdown ();	  
 	}
       else if (!strcmp (argv[i], "-o") || !strcmp (argv[i], "--output"))
@@ -118,7 +179,7 @@ parse_args (int argc, char *argv[])
       else if (!strcmp (argv[i], "-D") || !strcmp (argv[i], "--debug"))
 	{
 	  i++;
-	  debug = 1;
+	  output_debug = 1;
 	}
       else if (argv[i][0] == '-')
 	panic ("Unsupported option %s", argv[i]);
@@ -133,7 +194,7 @@ main (int argc, char *argv[])
 {
   parse_args (argc, argv);
 
-  debug (PROGRAM_NAME " " PACKAGE_VERSION "\n");
+  debug ("%s " PACKAGE_VERSION "\n", program_name);
 
   find_components ();
 

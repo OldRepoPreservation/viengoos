@@ -42,4 +42,16 @@ extern int shutdown_reset;
    system.  */
 void shutdown (void);
 
+/* The program name.  */
+extern char *program_name;
+
+/* Print an error message and fail.  */
+#define panic(...)				\
+  ({						\
+    printf ("%s: error: ", program_name);	\
+    printf (__VA_ARGS__);			\
+    putchar ('\n');				\
+    shutdown ();				\
+  })
+
 #endif	/* _SHUTDOWN_H */
