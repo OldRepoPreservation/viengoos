@@ -1,4 +1,4 @@
-/* math.h - Math support routines for ia32.
+/* math.h - Math support routines for powerpc.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -31,11 +31,12 @@ __l4_msb (l4_word_t data)
 {
   l4_word_t msb;
 
-  __asm__ ("bsr %[data], %[msb]"
-	   : [msb] "=r" (msb)
-	   : [data] "rm" (data));
+  /* Count the leading zeros.  */
+  asm ("cntlzw %[msb], %[data]"
+       : [msb] "=r" (msb)
+       : "r" (data & -data));
 
-  return msb + 1;
+  return 32 - msb;
 }
 
 
@@ -46,9 +47,6 @@ __l4_lsb (l4_word_t data)
 {
   l4_word_t lsb;
 
-  __asm__ ("bsf %[data], %[lsb]"
-	   : [lsb] "=r" (lsb)
-	   : [data] "rm" (data));
-
-  return lsb + 1;
+  /* x & -x clears all bits in the word except the LSB set.  */
+  return __l4_msb (data & -data);
 }

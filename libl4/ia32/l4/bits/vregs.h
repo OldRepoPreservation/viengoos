@@ -1,4 +1,4 @@
-/* vregs.h - L4 virtual registers for ia32.
+/* vregs.h - L4 virtual registers for powerpc.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -31,7 +31,7 @@ __l4_utcb (void)
 {
   l4_word_t *utcb;
 
-  __asm__ ("movl %%gs:0, %[utcb]"
+  __asm__ ("mr %[utcb], %%r2"
 	   : [utcb] "=r" (utcb));
 
   return utcb;
@@ -164,10 +164,7 @@ l4_clr_cop_flag (l4_word_t n)
 
   /* The second byte in the flags field contains the coprocessor
      flags.  */
-  __asm__ ("andl %[mask], %[where]"
-	   :
-	   : [mask] "ir" (~(1 << (8 + n))),
-	   [where] "m" (utcb[__L4_UTCB_FLAGS]));
+  utcb[__L4_UTCB_FLAGS] &= ~(1 << (8 + n));
 }
 
 
@@ -179,10 +176,7 @@ l4_set_cop_flag (l4_word_t n)
 
   /* The second byte in the flags field contains the coprocessor
      flags.  */
-  __asm__ ("orl %[mask], %[where]"
-	   :
-	   : [mask] "ir" (1 << (8 + n)),
-	   [where] "m" (utcb[__L4_UTCB_FLAGS]));
+  utcb[__L4_UTCB_FLAGS] |= 1 << (8 + n);
 }
 
 
@@ -191,14 +185,12 @@ __attribute__((__always_inline__))
 l4_disable_preemption_fault_exception (void)
 {
   l4_word_t *utcb = __l4_utcb ();
-  l4_uint8_t result;
+  l4_word_t result;
 
   /* The first byte in the flags field contains the preemption
-     flags.  The sixth bit is the signal bit*/
-  __asm__ ("btr %[offset], %[base]\n"
-	   "setc %[result]"
-	   : [result] "=r" (result)
-	   : [offset] "i" (5), [base] "m" (utcb[__L4_UTCB_FLAGS]));
+     flags.  The sixth bit is the signal bit.  */
+  result = (utcb[__L4_UTCB_FLAGS] >> 5) & 1;
+  utcb[__L4_UTCB_FLAGS] &= ~(1 << 5);
 
   return result;
 }
@@ -209,14 +201,12 @@ __attribute__((__always_inline__))
 l4_enable_preemption_fault_exception (void)
 {
   l4_word_t *utcb = __l4_utcb ();
-  l4_uint8_t result;
+  l4_word_t result;
 
   /* The first byte in the flags field contains the preemption
      flags.  The sixth bit is the signal flag.  */
-  __asm__ ("bts %[offset], %[base]\n"
-	   "setc %[result]"
-	   : [result] "=r" (result)
-	   : [offset] "i" (5), [base] "m" (utcb[__L4_UTCB_FLAGS]));
+  result = (utcb[__L4_UTCB_FLAGS] >> 5) & 1;
+  utcb[__L4_UTCB_FLAGS] |= 1 << 5;
 
   return result;
 }
@@ -227,14 +217,12 @@ __attribute__((__always_inline__))
 l4_disable_preemption (void)
 {
   l4_word_t *utcb = __l4_utcb ();
-  l4_uint8_t result;
+  l4_word_t result;
 
   /* The first byte in the flags field contains the preemption
      flags.  The seventh bit is the delay flag.  */
-  __asm__ ("btr %[offset], %[base]\n"
-	   "setc %[result]"
-	   : [result] "=r" (result)
-	   : [offset] "i" (6), [base] "m" (utcb[__L4_UTCB_FLAGS]));
+  result = (utcb[__L4_UTCB_FLAGS] >> 6) & 1;
+  utcb[__L4_UTCB_FLAGS] &= ~(1 << 6);
 
   return result;
 }
@@ -245,14 +233,12 @@ __attribute__((__always_inline__))
 l4_enable_preemption (void)
 {
   l4_word_t *utcb = __l4_utcb ();
-  l4_uint8_t result;
+  l4_word_t result;
 
   /* The first byte in the flags field contains the preemption
      flags.  The seventh bit is the delay flag.  */
-  __asm__ ("bts %[offset], %[base]\n"
-	   "setc %[result]"
-	   : [result] "=r" (result)
-	   : [offset] "i" (6), [base] "m" (utcb[__L4_UTCB_FLAGS]));
+  result = (utcb[__L4_UTCB_FLAGS] >> 6) & 1;
+  utcb[__L4_UTCB_FLAGS] |= 1 << 6;
 
   return result;
 }
@@ -263,14 +249,10 @@ __attribute__((__always_inline__))
 l4_preemption_pending (void)
 {
   l4_word_t *utcb = __l4_utcb ();
-  l4_uint8_t result;
+  l4_word_t result;
 
-  /* The first byte in the flags field contains the preemption
-     flags.  The eighth bit is the pending flag.  */
-  __asm__ ("btr %[offset], %[base]\n"
-	   "setc %[result]"
-	   : [result] "=r" (result)
-	   : [offset] "i" (7), [base] "m" (utcb[__L4_UTCB_FLAGS]));
+  result = (utcb[__L4_UTCB_FLAGS] >> 7) & 1;
+  utcb[__L4_UTCB_FLAGS] &= ~(1 << 7);
 
   return result;
 }
@@ -341,10 +323,7 @@ l4_set_virtual_sender (l4_thread_id_t thread)
 
 
 /* Message registers (MR0 to MR63) start at offset __L4_UTCB_MR0 and
-   go upward.  The spec doesn't say this, but we can use __L4_UTCB_MR0
-   to store the first message register MR0 until we do an actual
-   system call, although only MR1 to MR63 are actually memory
-   mapped.  */
+   go upward.  */
 
 /* Set message register NR to DATA.  */
 static inline void
