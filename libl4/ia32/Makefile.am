@@ -26,4 +26,4 @@ nobase_include_HEADERS = l4/bits/types.h			\
 	l4/bits/compat/ipc.h l4/bits/compat/misc.h		\
 	l4/bits/compat/space.h					\
 	l4/bits/gnu/ipc.h l4/bits/gnu/kip.h l4/bits/gnu/misc.h	\
-	l4/bits/compat/space.h
+	l4/bits/gnu/space.h

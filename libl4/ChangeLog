@@ -1,3 +1,9 @@
+2004-03-23  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ia32/Makefile.am (nobase_include_HEADERS): Fix typo that
+	prevented l4/bits/gnu/space.h from being installed.  Reported by
+	Daniel Wagner.
+
 2004-03-22  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/ipc.h (l4_send_timeout): Call _L4_send_timeout.
