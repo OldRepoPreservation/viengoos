@@ -370,6 +370,10 @@ serve_bootstrap_requests (void)
      memory is available.  */
   unsigned int get_mem_size = sizeof (l4_word_t) * 8 - 1;
 
+  /* Allocate a single page at address 0, because we don't want to
+     bother anybody with that silly page.  */
+  sigma0_get_fpage (l4_fpage (0, getpagesize ()));
+
   while (get_mem_size >= 10
 	 && ! ((1 << get_mem_size) & l4_page_size_mask ()))
     get_mem_size--;
@@ -405,7 +409,7 @@ serve_bootstrap_requests (void)
 	  /* No reply needed.  */
 	  continue;
 	}
-      else if (WORTEL_MSG_GET_MEM)
+      else if (label == WORTEL_MSG_GET_MEM)
 	{
 	  l4_fpage_t fpage;
 	  l4_grant_item_t grant_item;

@@ -1,5 +1,7 @@
 /* Main function for physical memory server.
    Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann.
+
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
@@ -66,8 +68,11 @@ get_all_memory (void)
       fpage = grant_item.send_fpage;
 
       if (fpage.raw != l4_nilpage.raw)
-	debug ("%s: Got fpage 0x%x/%u\n", program_name,
-	       l4_address (fpage), l4_size_log2 (fpage));
+	{
+	  debug ("%s: Got fpage 0x%x/%u\n", program_name,
+		 l4_address (fpage), l4_size_log2 (fpage));
+	  zfree (l4_address (fpage), l4_size (fpage));
+	}
     }
   while (fpage.raw != l4_nilpage.raw);
 }

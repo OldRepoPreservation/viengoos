@@ -111,6 +111,9 @@ sigma0_get_fpage (l4_fpage_t fpage)
   l4_msg_get_map_item (&msg, 0, &map_item);
   if (l4_is_nil_fpage (map_item.send_fpage))
     panic ("%s: sigma0 rejected mapping", __func__);
+  if (l4_address (fpage) != l4_address (map_item.send_fpage))
+    panic ("%s: sigma0 returned wrong address 0x%x (expected 0x%x)",
+	   __func__, l4_address (map_item.send_fpage), l4_address (fpage));
 }
 
 
