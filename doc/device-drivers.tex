@@ -2,106 +2,102 @@
 
 This section written by Peter De Schrijver and Daniel Wagner.
 
+
 \section{Requirements}
 
-  \begin{itemize}
-  \item Performance: Speed is important!
-  \item Portability: Framework should work on different architectures.
+\begin{itemize}
+\item Performance: Speed is important!
+\item Portability: Framework should work on different architectures.
     
-    Also: Useable in a not hurdisch environment with only
-    small changes.
+  Also: Useable in a not hurdisch environment with only
+  small changes.
 
-  \item Flexibility
-  \item Convenient interfaces
-  \item Consistency 
-  \item Safety: driver failure should have as minimal system impact as
-    possible.
-  \end{itemize}
+\item Flexibility
+\item Convenient interfaces
+\item Consistency 
+\item Safety: driver failure should have as minimal system impact as
+  possible.
+\end{itemize}
+
 
 \section{Overview}
 
- The framework consists of: 
- \begin{itemize}
- \item Bus drivers
- \item Device drivers
- \item Service servers (plugin managers, $\omega_0$, rootserver)
- \end{itemize}
+The framework consists of: 
+\begin{itemize}
+\item Bus drivers
+\item Device drivers
+\item Service servers (plugin managers, $\omega_0$, deva)
+\end{itemize}
 
 \subsection{Drivers and the filesystem}
-  
-  The device driver framework will only offer a physical device view.
-  Ie. it will be a tree with devices as the leaves connected by
-  various bus technologies.  Any logical view and naming persistence
-  will have to be build on top of this (translator).
+
+The device driver framework will only offer a physical device view.
+Ie. it will be a tree with devices as the leaves connected by
+various bus technologies.  Any logical view and naming persistence
+will have to be build on top of this (translator).
 
 \subsection{Layer of the drivers}
 
-  The device driver framework consists only of the lower level drivers
-  and doesn't need to have a complicated scheme for access control.
-  This is because it should be possible to share devices, e.g. for
-  neighbour Hurd.  The authentication is done by installing a virtual
-  driver in each OS/neighour Hurd.  The driver framework trusts these
-  virtual drivers.  So it's possible for a non Hurdish system to use
-  the driver framework just by implementing these virtual drivers.
+The device driver framework consists only of the lower level drivers
+and doesn't need to have a complicated scheme for access control.
+This is because it should be possible to share devices, e.g. for
+neighbour Hurd.  The authentication is done by installing a virtual
+driver in each OS/neighour Hurd.  The driver framework trusts these
+virtual drivers.  So it's possible for a non Hurdish system to use
+the driver framework just by implementing these virtual drivers.
   
-  Only threads which have registered as trusted are allowed to access
-  device drivers.  The check is simply done by checking the senders
-  ID against a table of known threads.
+Only threads which have registered as trusted are allowed to access
+device drivers.  The check is simply done by checking the senders
+ID against a table of known threads.
 
 \subsection{Address spaces}
 
-  Drivers always reside in their own AS. The overhead for cross AS IPC
-  is small enough to do so.
+Drivers always reside in their own AS. The overhead for cross AS IPC
+is small enough to do so.
 
 \subsection{Zero copying and DMA}
-  
-  It is assumed that there are no differences between physical memory
-  pages. For example each physical memory page can be used for DMA
-  transfers. Of course, older hardware like ISA devices can so not be
-  supported. Who cares?
-  
-  With this assumption, the device driver framework can be given any
-  physical memory page for DMA operation.  This physical memory page
-  must be pinned down.
-  
-  If an application wants to send or receive data to/from a device
-  driver it has to tell the virtual driver the page on which the
-  operation has to be executed.  Since the application doesn't know
-  the virtual-real memory mapping, it has to ask the physical memory
-  manager for the real memory address of the page in question.  If the
-  page is not directly mapped from the physical memory manager the
-  application ask the mapper (another application which has mapped
-  this memory region the first application) to resolve the mapping.
-  This can be done recursively.  Normally, this resolving of mapping
-  can be speed up using a cache services, since a small number of
-  pages are reused very often.
-  
-  With the scheme, the drivers do not have to take special care of
-  zero copying if there is only one virtual driver.  When there is
-  more than one virtual driver pages have to copied for all other
-  virtual drivers.
 
-\subsection{Root bus driver}
+It is assumed that there are no differences between physical memory
+pages. For example each physical memory page can be used for DMA
+transfers. Of course, older hardware like ISA devices can so not be
+supported. Who cares?
   
-  The root bus is the entrypoint to look up devices.
+With this assumption, the device driver framework can be given any
+physical memory page for DMA operation.  This physical memory page
+must be pinned down.
   
-  XXX There should be iterators/visitors for operating on
-  busses/devices.  (daniel)
+If an application wants to send or receive data to/from a device
+driver it has to tell the virtual driver the page on which the
+operation has to be executed.  Since the application doesn't know
+the virtual-real memory mapping, it has to ask the physical memory
+manager for the real memory address of the page in question.  If the
+page is not directly mapped from the physical memory manager the
+application ask the mapper (another application which has mapped
+this memory region the first application) to resolve the mapping.
+This can be done recursively.  Normally, this resolving of mapping
+can be speed up using a cache services, since a small number of
+pages are reused very often.
+  
+With the scheme, the drivers do not have to take special care of
+zero copying if there is only one virtual driver.  When there is
+more than one virtual driver pages have to copied for all other
+virtual drivers.
 
 \subsection{Physical versus logical device view}
-  
-  The device driver framework will only offer a physical device view.
-  Ie. it will be a tree with devices as the leaves connected by
-  various bus technologies.  Any logical view and naming persistence
-  will have to be build on top of this (translator).
+
+The device driver framework will only offer a physical device view.
+Ie. it will be a tree with devices as the leaves connected by
+various bus technologies.  Any logical view and naming persistence
+will have to be build on top of this (translator).
 
 \subsection{Things for the future}
 
-  \begin{itemize}
-  \item Interaction with the task server (e.g. listings driver threads 
-    with ps,etc.)
-  \item Powermanagement
-  \end{itemize}
+\begin{itemize}
+\item Interaction with the task server (e.g. listings driver threads 
+  with ps,etc.)
+\item Powermanagement
+\end{itemize}
+
 
 \section{Bus Drivers}
 
@@ -111,7 +107,7 @@ perform the following tasks:
 
 \begin{itemize}
 \item Handle hotplug events
-  
+
   Busses which do not support hotplugging, will treated as if there is
   1 insertion event for every device connected to it when the bus
   driver is started.  Drivers which don't support autoprobing of
@@ -121,9 +117,8 @@ perform the following tasks:
   doesn't generate insertion/removal events, but can still support
   some form of hotplug functionality if the user tells the driver when
   a change to the bus configuration has happened (eg. SCSI).
-
 \item Configure client device drivers
-    
+
   The bus driver should start the appropriate client device driver
   translator when an insertion event is detected.  It should also
   provide the client device driver with all necessary configuration
@@ -131,9 +126,8 @@ perform the following tasks:
   typically consists of the bus addresses of the device and possibly
   IRQ numbers or DMA channel ID's.  The device driver is loaded by the
   assotiatet plugin manager.
-
 \item Provide access to devices
-  
+
   This means the bus driver should be able to perform a bus
   transaction on behalf of a client device driver.  In some cases this
   involves sending a message and waiting for reply (eg. SCSI, USB,
@@ -158,30 +152,29 @@ perform the following tasks:
   configuration is possible (configuration scripts etc.)
 \end{itemize}
 
+\subsection{Root bus driver}
 
-\subsection{Plugin Manager}
+The root bus is the entrypoint to look up devices. 
 
-  Each bus driver has a handle/reference to which insert/remove events
-  are send.  The owner of the handle/refence must then take
-  appropriate action like loading the drivers.  These actors are
-  called plugin managers.
+XXX There should be iterators/visitors for operating on
+busses/devices.  (daniel)
 
 \subsection{Generic Bus Driver}
 
-  Operations:
-  \begin{itemize}
-  \item notify (attach, detach)
-  \item string enumerate
-  \end{itemize}
-  
-  XXX Extract generic bus services from the PCI Bus Driver section
-  which could be also be used other PCI related busses (ISA) be used.
-  The name for this service is missleading, since a SCSI Bus Driver
-  does not have anything in common with a PCI bus.  (daniel)
+Operations:
+\begin{itemize}
+\item notify (attach, detach)
+\item string enumerate
+\end{itemize}
+
+XXX Extract generic bus services from the PCI Bus Driver section
+which could be also be used other PCI related busses (ISA) be used.
+The name for this service is missleading, since a SCSI Bus Driver
+does not have anything in common with a PCI bus.  (daniel)
 
 \subsection{ISA Bus Driver}
-Inherits from:
 
+Inherits from:
 \begin{itemize}
 \item Generic Bus Driver
 \end{itemize}
@@ -192,7 +185,6 @@ Operations:
 \end{itemize}
 
 XXX The interface has not been defined up to now. (daniel)
-
 
 \subsection{PCI Bus Driver}
 
@@ -212,19 +204,25 @@ Operations:
 \item write\_io\_{8,16,32,64}: write to an IO register
 \item read\_config\_{8,16,32,?}: read from a PCI config register
 \item write\_config\_{8,16,32,?}: write to a PCI config register
-\item alloc\_dma\_mem(for non zero copying): allocate main memory useable for DMA
-\item free\_dma\_mem  (for non zero copying): free main memory useable for DMA
+\item alloc\_dma\_mem(for non zero copying): allocate main memory 
+  useable for DMA
+\item free\_dma\_mem  (for non zero copying): free main memory 
+  useable for DMA
 \item prepare\_dma\_read: write back CPU cachelines for DMAable memory area
 \item sync\_dma\_write: discard CPU cachelines for DMAable memory area
-\item alloc\_consistent\_mem: allocate memory which is consistent between CPU 
-  and device
+\item alloc\_consistent\_mem: allocate memory which is consistent 
+  between CPU and device
 \item free\_consistent\_mem: free memory which
   is consistent between CPU and device
-\item get\_irq\_mapping (A,B,C,D): get the IRQ matching the INT(A,B,C,D) line
+\item get\_irq\_mapping (A,B,C,D): get the IRQ matching the 
+  INT(A,B,C,D) line
 \end{itemize}
 
+
 \section{Device Drivers}
+
 \subsection{Classes}
+
 \begin{itemize}
 \item character: This the standard tty as known in the Unix environment.
 \item block
@@ -245,6 +243,7 @@ to give feedback.  Log messages which are send to the console before
 the hardware has been initialized should be buffered.
 
 \subsection{Generic Device Driver}
+
 Operations:
 \begin{itemize}
 \item init : prepare hardware for use
@@ -254,8 +253,8 @@ Operations:
 \item change\_irq\_peer : change peer thread to propagate irq message to.
 \end{itemize}
 
-
 \subsection{ISA Devices}
+
 Inherits from:
 \begin{itemize}
 \item Generic Device Driver
@@ -270,13 +269,13 @@ Supported devices
 
 XXX interface definition for each device driver is missing. (daniel)
 
-
 \subsection{PCI Devices}
+
 Inherits from:
 \begin{itemize}
 \item Generic Device Driver
 \end{itemize}
-  
+
 Supported devices:
 \begin{itemize}
 \item block devices
@@ -286,8 +285,50 @@ Supported devices:
 XXX interface definition for each device driver is missing. (daniel)
 
 
-\section{Resource Management}
+\section{Service Servers}
 
+\subsection{Plugin Manager}
+
+Each bus driver has a handle/reference to which insert/remove events
+are send.  The owner of the handle/refence must then take
+appropriate action like loading the drivers.  These actors are
+called plugin managers.
+
+\subsection{Deva}
+
+Deva stands for Device Access Server.  This server implements basic
+services for the device driver framework like thread creation, thread
+deletion, etc.  The device driver framework itself doesn't depend on
+any Hurd code.  The interaction with the Hurd system will be
+abstracted by deva. 
+
+Which services must deva provide:
+\begin{itemize}
+\item task/thread manipulation (create, deletion)
+\item memory (de)allocation (virtual, physical)
+\item io ports 
+\item driver (un)loading
+\item bootstrapping
+\end{itemize}
+
+\subsection{$\omega_0$}
+
+$\omega_0$ is a system-central IRQ-logic server. It runs in the
+privileged AS space in order to be allowed rerouting IRQ IPC.
+
+If an IRQ is shared between several devices, the drivers are daisy
+chained and have to notify their peers if an IRQ IPC has arrived.
+
+For more details see http://os.inf.tu-dresden.de/~hohmuth/prj/omega0.ps.gz
+
+Operations:
+\begin{itemize}
+\item attach\_irq : attach an ISR thread to the IRQ 
+\item detach\_irq : detach an ISR thread form the IRQ
+\end{itemize}
+
+
+\section{Resource Management}
 
 \subsection{IRQ handling}
 
@@ -362,25 +403,8 @@ after acknowledgement and processing.
 
 The L4 kernel does handle IRQ acknowlegdment. 
 
- 
-\subsection{$\omega_0$}
-
-$\omega_0$ is a system-central IRQ-logic server. It runs in the
-privileged AS space in order to be allowed rerouting IRQ IPC.
-
-If an IRQ is shared between several devices, the drivers are daisy
-chained and have to notify their peers if an IRQ IPC has arrived.
-
-XXX For more detail see XXX URL missing
-
-Operations:
-\begin{itemize}
-\item attach\_irq : attach an ISR thread to the IRQ 
-\item detach\_irq : detach an ISR thread form the IRQ
-\end{itemize}
-
-
 \subsection{Memory}
+
 If no physical memory pages are provided by the OS the device driver
 framework alloces pages from the physical memory manager.  The device
 driver framework has at no point of time to handle any virtual to
@@ -389,34 +413,31 @@ physical page mapping.
 
 \section{Bootstrapping}
 
-A simpleFS provides initial drivers for bootstraping.  The root bus
-driver and simpleFS is loaded by grub as module.  It then signals for
-loading new (bus) drivers.  As before if there is no driver avaible
-for some reason for the device, the bus driver doesn't change the
-device state and waits for a notifaction that there are new drivers
-avaible. This simpleFS might be based on BSD libstand (library for
-standalone applications).  simpleFS doesn't need to be writeable
-either.
-
+The device driver framework will be started by deva, which is started
+by wortel.  All drivers and server (e.g. the plugin manager) are
+stored in a archive which will be extracted by deva.
 
 \subsection{Plugin Manager}
-A Plugin manager handles driver loading for devices.  It searches for
-driver in seach pathes (on filesystems).  It's possible to add new
-search pathes later.  This allows the system to bootstrap with only
-one search path (the simpleFS).  When the search path is changed, the
-device tree will be scanned for devices which don't have a driver
-loaded yet.  If a driver has become available, it will be loaded.
+
+A Plugin manager handles driver loading for devices.  It ask for drivers
+deva.  
+
+\subsection{deva}
+
+For bootstrapping deva will only have a subset of drivers ready.  
+As soon the filesystem runs deva can ask for drivers from the harddisk. 
+If new drivers are available it has to inform the plugin manager to ask
+for unresolved drivers again.
 
 
 \section{Order of implementation}
 
 \begin{enumerate}
-\item rootserver, plugin server
+\item deva, plugin manager
 \item root bus server
 \item pci bus
 \item isa bus
 \item serial port  (isa bus)
 \item console 
 \end{enumerate}
-
 
