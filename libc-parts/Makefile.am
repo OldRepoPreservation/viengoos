@@ -23,9 +23,9 @@ noinst_LIBRARIES = libc-parts.a
 libc_parts_a_SOURCES = 
 
 routines := memcpy memmove memset bcopy bzero memchr rawmemchr \
-		 strstr strtok strchr strchrnul strcpy stpcpy strcat \
-		 strcmp strncmp \
-		 htonl htons ntohl ntohs ffs
+	strstr strtok strchr strchrnul strcpy stpcpy strcat \
+	strcmp strncmp \
+	htonl htons ntohl ntohs ffs
 
 # We have to find all modules in the archive which contain the above
 # functions.
