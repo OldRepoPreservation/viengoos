@@ -29,6 +29,7 @@
 #define L4_FPAGE_WRITABLE		_L4_writable
 #define L4_FPAGE_READABLE		_L4_readable
 #define L4_FPAGE_FULLY_ACCESSIBLE	_L4_fully_accessible
+#define L4_FPAGE_READ_WRITE_ONLY	_L4_read_write_only
 #define L4_FPAGE_READ_EXEC_ONLY		_L4_read_exec_only
 
 #define L4_NILPAGE			_L4_nilpage

@@ -23,6 +23,7 @@
 # error "Never use <l4/compat/syscall.h> directly; include <l4/syscall.h> instead."
 #endif
 
+#define L4_ErrOk		(0)
 #define L4_ErrNoPrivilege	_L4_ERR_NO_PRIVILEGE
 #define L4_ErrInvalidThread	_L4_ERR_INV_THREAD
 #define L4_ErrInvalidSpace	_L4_ERR_INV_SPACE

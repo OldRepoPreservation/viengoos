@@ -1,3 +1,12 @@
+2004-10-06  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/gnu/space.h (L4_FPAGE_READ_WRITE_ONLY): Define macro.
+	* l4/space.h (_L4_read_write_only): Define macro.
+	* l4/compat/space.h (L4_ReadWriteOnly): Define macro.
+	* l4/compat/syscall.h (L4_ErrOk): Define macro.
+	* l4/misc.h (_L4_set_page_attribute): Wrap the ATTRIBUTE argument
+	into an object of the correct type.
+
 2004-08-02  Peter Bruin  <pjbruin@dds.nl>
 
 	* powerpc/l4/bits/vregs.h (_L4_my_local_id): Remove variable

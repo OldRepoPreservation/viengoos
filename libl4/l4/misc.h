@@ -36,6 +36,9 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_set_page_attribute (_L4_fpage_t fpage, _L4_word_t attribute)
 {
+  _L4_word_t attributes[4];
+
+  attributes[0] = attribute;
   _L4_set_rights (&fpage, 0);
   _L4_load_mr (0, fpage);
   return _L4_memory_control (0, &attribute); 

@@ -60,6 +60,7 @@ typedef _L4_RAW
 #define _L4_writable		0x02
 #define _L4_readable		0x04
 #define _L4_fully_accessible	(_L4_readable | _L4_writable | _L4_executable)
+#define _L4_read_write_only	(_L4_readable | _L4_writable)
 #define _L4_read_exec_only	(_L4_readable | _L4_executable)
 
 #define _L4_nilpage			((_L4_fpage_t) 0)
