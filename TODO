@@ -13,7 +13,10 @@
    descriptor list is not supported.
 ** Add loaded modules as bootloader specific types to memory
    descriptor list (for sigma0 and wortel).
-
+** Fix the memory descriptors: Consistently set the high value right.
+   Mark all bootloader stuff has bootloader specific, to prevent that
+   L4 scribbles over it accidently.  This includes the GRUB info as
+   well as all modules beyond the rootserver module.
 
 * wortel
 ** Conventional memory overriding non-conventional memory in the
@@ -26,12 +29,18 @@
 ** Should check return value from constructor.
 ** Implement hurd_slab_destroy ().
 
+
 * libhurd-ihash
 ** Can be merged back into the Hurd if the callers are changed.
 ** Need to decide on the hurd_ihash_key_t type: unsigned int vs. uint32_t.
    The latter seems to be sufficient.  Might even be uint64_t, though.
    Johan Rydberg suggested uintptr_t.
 
+* L4 (for lack of a better place)
+** Check that L4 does not schedule the client when the server makes a
+   non-blocking reply.
+** Check that L4 does schedule the server when the client makes a
+   blocking call.
 
 Copyright 2003 Free Software Foundation, Inc.
 Written by Marcus Brinkmann <marcus@gnu.org>
