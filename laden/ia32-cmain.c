@@ -127,16 +127,19 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
 
   start = (l4_word_t) mbi;
   end = start + sizeof (*mbi) - 1;
+  loader_add_region ("grub-mbi", start, end, 1);
+  
   if (CHECK_FLAG (mbi->flags, 3))
     {
       module_t *mod = (module_t *) mbi->mods_addr;
       int nr;
 
-      if (((l4_word_t) mod) < start)
-	start = (l4_word_t) mod;
-      if (((l4_word_t) mod) + mbi->mods_count * sizeof (*mod) > end)
-	end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
+      start = (l4_word_t) mod;
+      end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
+      loader_add_region ("grub-mods", start, end, 1);
 
+      start = (l4_word_t) mod[0].string;
+      end = start;
       for (nr = 0; nr < mbi->mods_count; nr++)
 	{
 	  char *str = (char *) mod[nr].string;
@@ -151,8 +154,8 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
 		end = (l4_word_t) str;
 	    }
 	}
+      loader_add_region ("grub-mods-cmdlines", start, end, 1);
     }
-  loader_add_region ("grub-mbi", start, end, 1);
 
   /* Now invoke the main function.  */
   main (argc, argv);

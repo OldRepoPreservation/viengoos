@@ -97,7 +97,8 @@ check_region (char *name, l4_word_t start, l4_word_t end)
   for (i = 0; i < nr_regions; i++)
     {
       if ((start >= used_regions[i].start && start < used_regions[i].end)
-	  || (end >= used_regions[i].start && end < used_regions[i].end))
+	  || (end >= used_regions[i].start && end < used_regions[i].end)
+	  || (start < used_regions[i].start && end >= used_regions[i].start))
 	panic ("%s (0x%x - 0x%x) conflicts with %s (0x%x - 0x%x)",
 	       name, start, end, used_regions[i].name, used_regions[i].start,
 	       used_regions[i].end);
