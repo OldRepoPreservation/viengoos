@@ -92,6 +92,12 @@ extern int debug;
 /* Print a debug message.  */
 #define debug(...) do { if (debug) printf (__VA_ARGS__); } while (0)
 
+/* Add the region with the name NAME from START to END to the table of
+   regions to check against.  Before doing that, check for overlaps
+   with existing regions, unless FORCE is true.  */
+void loader_add_region (char *name, l4_word_t start, l4_word_t end, int force);
+
+
 /* Load the ELF images of the kernel and the initial servers into
    memory, checking for overlaps.  Update the start and end
    information with the information from the ELF program, and fill in

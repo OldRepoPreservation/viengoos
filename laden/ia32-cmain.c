@@ -41,6 +41,10 @@ help_arch (void)
 /* Check if the bit BIT in FLAGS is set.  */
 #define CHECK_FLAG(flags,bit)	((flags) & (1 << (bit)))
 
+/* The following must be defined and are used to calculate the extents
+   of the laden binary itself.  */
+extern char _start;
+extern char _end;
 
 /* Setup the argument vector and pass control over to the main
    function.  */
@@ -49,6 +53,9 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
 {
   int argc = 0;
   char **argv = 0;
+  l4_word_t start;
+  l4_word_t end;
+
 
   /* Verify that we are booted by a Multiboot-compliant boot loader.  */
   if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
@@ -113,6 +120,39 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
      also to get at the multiboot info from other functions called at
      a later time.  */
   boot_info = (uint32_t) mbi;
+
+  /* Now protect ourselves and the mulitboot info (at least the module
+     configuration.  */
+  loader_add_region ("laden", (l4_word_t) &_start, (l4_word_t) &_end, 1);
+
+  start = (l4_word_t) mbi;
+  end = start + sizeof (*mbi) - 1;
+  if (CHECK_FLAG (mbi->flags, 3))
+    {
+      module_t *mod = (module_t *) mbi->mods_addr;
+      int nr;
+
+      if (((l4_word_t) mod) < start)
+	start = (l4_word_t) mod;
+      if (((l4_word_t) mod) + mbi->mods_count * sizeof (*mod) > end)
+	end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
+
+      for (nr = 0; nr < mbi->mods_count; nr++)
+	{
+	  char *str = (char *) mod[nr].string;
+
+	  if (str)
+	    {
+	      if (((l4_word_t) str) < start)
+		start = (l4_word_t) str;
+	      while (*str)
+		str++;
+	      if (((l4_word_t) str) > end)
+		end = (l4_word_t) str;
+	    }
+	}
+    }
+  loader_add_region ("grub-mbi", start, end, 1);
 
   /* Now invoke the main function.  */
   main (argc, argv);
