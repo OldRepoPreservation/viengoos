@@ -29,9 +29,10 @@
 #include <hurd/cap-server.h>
 
 
-/* Create a new capability class for objects with the size SIZE,
-   including the struct hurd_cap_obj, which has to be placed at the
-   beginning of each capability object.
+/* Create a new capability class for objects allocating SIZE bytes for
+   the user object with alignment ALIGNMENT (i.e. size does NOT
+   include the struct hurd_cap_obj which is placed at the beginning of
+   each capability object).
 
    The callback OBJ_INIT is used whenever a capability object in this
    class is created.  The callback OBJ_REINIT is used whenever a

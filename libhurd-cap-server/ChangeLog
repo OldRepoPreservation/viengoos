@@ -1,5 +1,23 @@
 2004-11-30  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-server.h: Improve comments.
+	(hurd_cap_class_create_untyped): Tighten alignment restrictions:
+	ALIGNMENT must be a power of 2.
+	* class-init.c (hurd_cap_class_init_untyped): Calculate best
+	alignment.
+
+	* cap-server.h (hurd_cap_obj_get_size): Renamed to ...
+	(hurd_cap_obj_user_offset): ... this.
+	(hurd_cap_obj_to_user_untyped): Call hurd_cap_obj_user_offset, not
+	hurd_cap_obj_get_size.
+	(hurd_cap_obj_from_user_untyped): Likewise.
+	* class-init.c (hurd_cap_class_init_untyped): Likewise.
+	
+	* class-create.c: Improve comments.
+	* obj-copy-out.c: Likewise.
+
+2004-11-30  Neal H. Walfield  <neal@gnu.org>
+
 	* cap-server-intern.h (_hurd_cap_obj_drop): Reverse faulty logic.
 
 2004-11-30  Neal H. Walfield  <neal@gnu.org>

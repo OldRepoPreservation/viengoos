@@ -97,11 +97,17 @@ hurd_cap_class_init_untyped (hurd_cap_class_t cap_class,
 {
   error_t err;
 
-  size += hurd_cap_obj_get_size (alignment);
+  /* The alignment requirements must be a power of 2.  */
+  assert ((alignment & (alignment - 1)) == 0
+	  || ! __func__ ": requested alignment not a power of 2");
 
-  /* FIXME: Find the smallest possible alignment common to the user
-     object and a struct hurd_cap_obj.  */
-  assert (alignment >= __alignof__(struct hurd_cap_obj));
+  /* Find the smallest alignment requirement common to the user object
+     and a struct hurd_cap_obj.  Since both are required to be a power
+     of 2, we need simply take the larger one.  */
+  if (alignment < __alignof__(struct hurd_cap_obj))
+    alignment = __alignof__(struct hurd_cap_obj);
+
+  size += hurd_cap_obj_user_offset (alignment);
 
   /* Capability object management.  */
 
@@ -139,9 +145,8 @@ hurd_cap_class_init_untyped (hurd_cap_class_t cap_class,
   if (err)
     goto err_cond;
 
-  /* The cond_waiter member doesn't need to be initialized.  It is set
-     whenever the state changes to _HURD_CAP_STATE_YELLOW by the
-     inhibitor.  */
+  /* The cond_waiter member doesn't need to be initialized.  It is
+     only valid when CAP_CLASS->STATE is _HURD_CAP_STATE_YELLOW.  */
 
   cap_class->pending_rpcs = NULL;
 

@@ -219,19 +219,18 @@ struct hurd_cap_obj
   /* The reference counter for this object.  */
   uatomic32_t refs;
 
-  /* The state of this object.  If this is _HURD_CAP_STATE_GREEN, you
-     can use the capability object.  Otherwise, you should refrain
-     from using it.  You can sleep on the obj_state_cond condition in
-     the capability class until the state goes back to
-     _HURD_CAP_STATE_GREEN again.
+  /* The state of the capability object.
 
-     If the state is _HURD_CAP_STATE_YELLOW, this means that there is
-     some thread who wants the state to be _HURD_CAP_STATE_RED, and
-     this thread canceled all other pending RPC threads on this
-     object.  If you are the last worker thread for this capability
-     object (except for the thread waiting for the condition to become
-     _HURD_CAP_STATE_RED), you have to broadcast the obj_state_cond
-     condition.
+     If STATE is _HURD_CAP_STATE_GREEN, you can use the capability
+     object.  Otherwise, you must wait on the condition
+     CAP_CLASS->OBJ_COND for it return to _HURD_CAP_STATE_GREEN.
+
+     If the state is _HURD_CAP_STATE_YELLOW, a thread wants the state
+     to be _HURD_CAP_STATE_RED (and it has canceled all other pending
+     RPC threads on this object).  The last worker thread for this
+     capability object (other than the thread waiting for the
+     condition to become _HURD_CAP_STATE_RED) must broadcast the
+     obj_state_cond condition.
 
      Every worker thread that blocks on the capability object state
      until it reverts to _HURD_CAP_STATE_GREEN must perform a
@@ -259,7 +258,7 @@ struct hurd_cap_obj
 /* Operations on capability classes.  */
 
 /* Create a new capability class for objects with the size SIZE and
-   alignment requirement ALIGNMENT.
+   alignment requirement ALIGNMENT (which must be a power of 2).
 
    The callback OBJ_INIT is used whenever a capability object in this
    class is created.  The callback OBJ_REINIT is used whenever a
@@ -333,19 +332,21 @@ error_t hurd_cap_class_alloc (hurd_cap_class_t cap_class,
 			      hurd_cap_obj_t *r_obj);
 
 
-/* Get the size of the header, given the alignment requirement
-   ALIGNMENT of the user object following it.  */
+/* Get the offset of the user object following a capability.
+   ALIGNMENT is the alignment requirements of the user object as
+   supplied to hurd_cap_class_init, hurd_cap_class_init_untyped,
+   hurd_cap_class_create or hurd_cap_class_create_untyped.  */
 static inline size_t
 __attribute__((__always_inline__))
-hurd_cap_obj_get_size (size_t alignment)
+hurd_cap_obj_user_offset (size_t alignment)
 {
-  size_t obj_size = sizeof (struct hurd_cap_obj);
+  size_t offset = sizeof (struct hurd_cap_obj);
   size_t rest = sizeof (struct hurd_cap_obj) % alignment;
 
   if (rest)
-    obj_size += alignment - rest;
+    offset += alignment - rest;
 
-  return obj_size;
+  return offset;
 }
 
 
@@ -360,7 +361,7 @@ hurd_cap_obj_to_user_untyped (hurd_cap_obj_t obj, size_t alignment)
 {
   uintptr_t obj_addr = (uintptr_t) obj;
 
-  obj_addr += hurd_cap_obj_get_size (alignment);
+  obj_addr += hurd_cap_obj_user_offset (alignment);
 
   return (void *) obj_addr;
 }
@@ -380,7 +381,7 @@ hurd_cap_obj_from_user_untyped (void *obj, size_t alignment)
 {
   uintptr_t obj_addr = (uintptr_t) obj;
 
-  obj_addr -= hurd_cap_obj_get_size (alignment);
+  obj_addr -= hurd_cap_obj_user_offset (alignment);
 
   return (hurd_cap_obj_t) obj_addr;
 }
@@ -409,7 +410,6 @@ hurd_cap_obj_lock (hurd_cap_obj_t obj)
   pthread_mutex_lock (&obj->lock);
 }
 
-
 /* Unlock the object OBJ, which must be locked.  */
 static inline void
 hurd_cap_obj_unlock (hurd_cap_obj_t obj)
@@ -418,7 +418,7 @@ hurd_cap_obj_unlock (hurd_cap_obj_t obj)
 }
 
 
-/* Add a reference for the capability object OBJ.  */
+/* Add a reference to the capability object OBJ.  */
 static inline void
 hurd_cap_obj_ref (hurd_cap_obj_t obj)
 {
@@ -426,9 +426,11 @@ hurd_cap_obj_ref (hurd_cap_obj_t obj)
 }
 
 
-/* Remove one reference for the capability object OBJ.  Note that the
-   caller must have at least two references for this capability object
-   when using this function.  To release the last reference,
+/* Remove one reference for the capability object OBJ, which must be
+   locked.  Note that the caller must have at least two references for
+   this capability object when using this function.  If this reference
+   is potentially the last reference (i.e. the caller does not hold
+   either directly or indirectly another reference to OBJ),
    hurd_cap_obj_drop must be used instead.  */
 static inline void
 hurd_cap_obj_rele (hurd_cap_obj_t obj)

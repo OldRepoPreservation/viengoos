@@ -83,7 +83,7 @@ _hurd_cap_obj_copy_out (hurd_cap_obj_t obj, hurd_cap_bucket_t bucket,
 	  return 0;
 	}
 
-      /* Add the entry to the caps table of the client.  */
+      /* Add the entry to the cap table of the client.  */
       err = hurd_table_enter (&client->caps, &entry, &entry->id);
       if (err)
 	{
