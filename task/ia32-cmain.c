@@ -57,7 +57,7 @@ cmain (void)
   l4_init_stubs ();
 
   wortel_thread_id = __hurd_startup_data->wortel.server;
-  wortel_cap_id = __hurd_startup_data->wortel.cap_id;
+  wortel_cap_id = __hurd_startup_data->wortel.cap_handle;
 
   argc = 1;
   argv = alloca (sizeof (char *) * 2);
