@@ -1,3 +1,12 @@
+2003-09-20  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.h (MAX_UNUSED_FPAGES): Move to here from wortel.c.
+	(wortel_unused_fpages, wortel_unused_fpages_count): Declare here.
+	* ia32-cmain.c: Include "sigma0.h".
+	(add_unused_area): New function.
+	(find_components): Use add_unused_area to add unused fpages to
+	pool.
+
 2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
 
 	* output-serial.c: Include <stdlib.h>.

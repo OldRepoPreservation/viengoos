@@ -43,6 +43,15 @@ extern l4_word_t wortel_start;
 extern l4_word_t wortel_end;
 
 
+/* Unused memory.  These fpages mark memory which we needed at some
+   time, but don't need anymore.  It can be granted to the physical
+   memory server at startup.  This includes architecture dependent
+   boot data as well as the physical memory server module.  */
+#define MAX_UNUSED_FPAGES 32
+extern l4_fpage_t wortel_unused_fpages[MAX_UNUSED_FPAGES];
+extern unsigned int wortel_unused_fpages_count;
+
+
 /* Room for the arguments.  1 KB is a cramped half-screen full, which
    should be more than enough.  Arguments need to be copied here by
    the architecture dependent find_components, so all precious data is

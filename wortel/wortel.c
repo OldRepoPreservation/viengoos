@@ -40,7 +40,6 @@ l4_word_t wortel_end;
    time, but don't need anymore.  It can be granted to the physical
    memory server at startup.  This includes architecture dependent
    boot data as well as the physical memory server module.  */
-#define MAX_UNUSED_FPAGES 32
 l4_fpage_t wortel_unused_fpages[MAX_UNUSED_FPAGES];
 unsigned int wortel_unused_fpages_count;
 
