@@ -1,3 +1,8 @@
+2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* container.c (container_map): Call l4_fpage_xspan instead of
+	l4_fpage_span.
+
 2004-10-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* physmem.c (physmem_server): Call hurd_cap_bucket_worker_alloc.

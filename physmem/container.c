@@ -1,4 +1,4 @@
-/* Main function for physical memory server.
+/* container.c - container class for physical memory server.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -79,7 +79,8 @@ container_map (hurd_cap_rpc_context_t ctx)
   l4_word_t start;
   l4_word_t end;
   l4_word_t nr_fpages;
-  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
+#define MAX_MAP_ITEMS ((L4_NUM_MRS - 1) / 2)
+  l4_fpage_t fpages[MAX_MAP_ITEMS];
   l4_word_t i;
 
   /* FIXME FIXME FIXME */
@@ -97,7 +98,7 @@ container_map (hurd_cap_rpc_context_t ctx)
     }
 
   l4_msg_clear (ctx->msg);
-  nr_fpages = l4_fpage_span (start, end, fpages);
+  nr_fpages = l4_fpage_xspan (start, end, vaddr, fpages, MAX_MAP_ITEMS);
 
   for (i = 0; i < nr_fpages; i++)
     {
@@ -110,7 +111,6 @@ container_map (hurd_cap_rpc_context_t ctx)
       l4_msg_append_map_item (ctx->msg, map_item);
       vaddr += l4_size (fpage);
     }
-
   return 0;
 }
 
@@ -150,7 +150,8 @@ container_class_init ()
 
 
 /* Allocate a new container object covering the NR_FPAGES fpages
-   listed in FPAGES.  The object is locked and has one reference.  */
+   listed in FPAGES.  The object returned is locked and has one
+   reference.  */
 error_t
 container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
 		 hurd_cap_obj_t *r_obj)
