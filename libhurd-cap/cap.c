@@ -20,7 +20,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
-#include <error.h>
+#include <errno.h>
 
 #include <pthread.h>
 

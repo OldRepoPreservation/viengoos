@@ -21,7 +21,7 @@
 #ifndef _HURD_SLAB_H
 #define _HURD_SLAB_H	1
 
-#include <error.h>
+#include <errno.h>
 
 
 /* Initialize the slab object pointed to by BUFFER.  */

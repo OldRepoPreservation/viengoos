@@ -22,7 +22,6 @@
 #include <pthread.h>
 #include <assert.h>
 #include <errno.h>
-#include <error.h>
 
 #include <hurd/cap.h>
 

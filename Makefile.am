@@ -1,1 +1,1 @@
-SUBDIRS = libl4 laden
+SUBDIRS = libl4 laden libhurd-slab

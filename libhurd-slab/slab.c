@@ -20,7 +20,6 @@
 
 #include <stdlib.h>
 #include <errno.h>
-#include <error.h>
 
 #include <hurd/slab.h>
 

@@ -27,6 +27,7 @@ AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR([laden/laden.c])
 AC_CONFIG_HEADER([config.h])
+AC_GNU_SOURCE
 
 # Checks for programs.
 AC_PROG_CC
@@ -51,8 +52,12 @@ case $host_cpu in
     ;;
 esac
 
+# Create links for header file.
+m4_include([libhurd-slab/headers.m4])
+
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
                  laden/Makefile
-		 libl4/ia32/Makefile libl4/Makefile])
+		 libl4/ia32/Makefile libl4/Makefile
+		 libhurd-slab/Makefile])
 AC_OUTPUT
