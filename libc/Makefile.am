@@ -27,7 +27,10 @@ patch_files = 00-configure-touch.patch 01-configure.in-base-os.patch \
 	05-sysdeps-generic-getpeername.patch \
 	06-sysdeps-generic-open.patch \
 	07-sysdeps-generic-fcntl.patch \
-	50-nptl-hurd-l4.patch
+	08-sysdeps-generic-dl-sysdep.patch \
+	50-nptl-hurd-l4.patch \
+	51-nptl-hurd-l4-tls.patch
+
 patches = $(addprefix patches/, $(patch_files))
 
 hurd_l4_sysdeps_l4_hurd = bits/errno.h bits/fcntl.h bits/local_lim.h \

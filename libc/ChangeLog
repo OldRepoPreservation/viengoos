@@ -1,3 +1,8 @@
+2005-02-06  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (patch_files): Add 08-sysdeps-generic-dl-sysdep.patch
+	and 51-nptl-hurd-l4-tls.patch.
+
 2005-02-05  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (hurd_l4_sysdeps_l4_hurd): Update the file list.
