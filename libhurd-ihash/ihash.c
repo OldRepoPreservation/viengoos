@@ -20,6 +20,10 @@
    along with the GNU Hurd; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
