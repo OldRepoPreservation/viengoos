@@ -18,9 +18,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#include "laden.h"
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <sys/io.h>
+
+#include "output.h"
 
 #define VGA_VIDEO_MEM_BASE_ADDR	0x0B8000
 #define VGA_VIDEO_MEM_LENGTH	0x004000

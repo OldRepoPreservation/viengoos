@@ -18,9 +18,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-
+#ifndef _STRING_H
+#define _STRING_H 1
+
 int strcmp (const char *s1, const char *s2);
 
 void *memcpy (void *dest, const void *src, int n);
 
 void *memset (void *s, int c, int n);
+
+#endif	/* _STRING_H */

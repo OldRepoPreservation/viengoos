@@ -18,9 +18,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdarg.h>
 
-#include "laden.h"
+#include "output.h"
 
 
 /* The active output driver.  */
@@ -29,8 +33,9 @@ static struct output_driver *output;
 
 /* Activate the output driver NAME or the default one if NAME is a
    null pointer.  Must be called once at startup, before calling
-   putchar or any other output routine.  */
-void
+   putchar or any other output routine.  Returns 0 if NAME is not a
+   valid output driver name, otherwise 1 on success.  */
+int
 output_init (char *name)
 {
   if (output)
@@ -49,13 +54,15 @@ output_init (char *name)
 	  out++;
 	}
       if (!output)
-	panic ("Unknown output driver %s", name);
+	return 0;
     }
   else
     output = output_drivers[0];
 
   if (output->init)
     (*output->init) ();
+
+  return 1;
 }
 
 

@@ -18,6 +18,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include "string.h"
+
+
 int
 strcmp (const char *s1, const char *s2)
 {

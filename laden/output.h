@@ -18,6 +18,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
+#ifndef _OUTPUT_H
+#define _OUTPUT_H	1
+
 
 /* Every architecture must define at least one output driver, but might
    define several.  For each output driver, the name and operations on
@@ -46,9 +49,9 @@ extern struct output_driver *output_drivers[];
 
 /* Activate the output driver NAME or the default one if NAME is a
    null pointer.  Must be called once at startup, before calling
-   putchar or any other output routine.  Otherwise the default output
-   driver will be used.  */
-void output_init (char *name);
+   putchar or any other output routine.  Returns 0 if NAME is not a
+   valid output driver name, otherwise 1 on success.  */
+int output_init (char *name);
 
 /* Deactivate the output driver.  Must be called after the last time
    putchar or any other output routine is called.  */
@@ -58,3 +61,5 @@ void output_deinit (void);
 void putchar (int chr);
 
 void printf (const char *fmt, ...);
+
+#endif	/* _OUTPUT_H */

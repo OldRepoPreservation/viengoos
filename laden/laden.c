@@ -99,7 +99,9 @@ parse_args (int argc, char *argv[])
       else if (!strcmp (argv[i], "-o") || !strcmp (argv[i], "--output"))
 	{
 	  i++;
-	  output_init (argv[i++]);
+	  if (!output_init (argv[i]))
+	    panic ("Unknown output driver %s", argv[i]);
+	  i++;
 	}
       else if (!strcmp (argv[i], "-h") || !strcmp (argv[i], "--halt"))
 	{

@@ -18,8 +18,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#include "laden.h"
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
 
+#include "output.h"
+
+
 extern struct output_driver vga_output;
 extern struct output_driver no_output;
 

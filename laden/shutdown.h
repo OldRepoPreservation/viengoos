@@ -18,6 +18,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
+#ifndef _SHUTDOWN_H
+#define _SHUTDOWN_H	1
+
+#include "output.h"
+
 
 /* Every architecture must provide the following functions.  */
 
@@ -36,3 +41,5 @@ extern int shutdown_reset;
 /* End the program with a failure.  This can halt or reset the
    system.  */
 void shutdown (void);
+
+#endif	/* _SHUTDOWN_H */
