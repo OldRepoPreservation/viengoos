@@ -25,6 +25,7 @@
 
 #include <sys/mman.h>
 #include <errno.h>
+#include <hurd/anonymous.h>
 #include <hurd/vm.h>
 
 #include "output.h"
@@ -34,6 +35,7 @@ mmap (void *address, size_t length, int protect, int flags,
       int filedes, off_t offset)
 {
   error_t err;
+  uintptr_t a = (uintptr_t) address;
 
   if (address)
     panic ("mmap called with non-zero ADDRESS");
@@ -42,13 +44,14 @@ mmap (void *address, size_t length, int protect, int flags,
   if (protect != (PROT_READ | PROT_WRITE))
     panic ("mmap called with invalid protection");
 
-  err = hurd_vm_allocate ((uintptr_t *) &address, length, VM_ZEROFILL, 0);
+  err = hurd_anonymous_allocate (&a, length, HURD_ANONYMOUS_ZEROFILL, 0);
   if (err)
     {
       errno = err;
       return MAP_FAILED;
     }
-  return address;
+
+  return (void *) a;
 }
 
 int
@@ -59,8 +62,8 @@ munmap (void *addr, size_t length)
   /* POSIX says we must round LENGTH up to an even number of pages.
      If ADDR is unaligned, that is an error (which hurd_vm_deallocate
      will catch).  */
-  err = hurd_vm_deallocate ((uintptr_t) addr, ((length + getpagesize () - 1)
-					       & ~(getpagesize () - 1)));
+  err = hurd_vm_release ((uintptr_t) addr, ((length + getpagesize () - 1)
+					    & ~(getpagesize () - 1)));
   if (err)
     {
       errno = err;

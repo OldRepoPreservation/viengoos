@@ -1,3 +1,9 @@
+2005-04-06  Neal H. Walfield  <neal@gnu.org>
+
+	* mmap.c: Include <hurd/anonymous.h>.
+	(mmap): Call hurd_anonymous_allocate, not hurd_vm_allocate.
+	(munmap): Call hurd_vm_release, not hurd_vm_deallocate.
+
 2005-01-11  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (task_SOURCES): Remove physmem-user.h and
