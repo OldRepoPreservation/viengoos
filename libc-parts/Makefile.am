@@ -20,7 +20,7 @@
 
 noinst_LIBRARIES = libc-parts.a
 
-libc_parts_a_SOURCES = ctype.h c-ctype.h c-ctype.c		\
+libc_parts_a_SOURCES = assert.h ctype.h c-ctype.h c-ctype.c	\
 	errno.h errno.c						\
 	strtol.c strtoll.c strtoul.c strtoull.c
 
