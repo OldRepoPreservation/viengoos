@@ -40,8 +40,12 @@ http://www.l4ka.org/projects/pistachio/download.php
 sigma0 must be built with a different link base than the default value
 0x20000, because that conflicts with GRUB (on ia32).  I have
 successfully used a link base of 0x40000.  Use the configure option
---with-sigma0-linkbase when configuring the user space of the L4
+--with-s0-linkbase=0x40000 when configuring the user space of the L4
 distribution.
+
+You only need the ia32-kernel and sigma0 binary from the L4
+distribution.  You may want to install the other programs and
+utilities as well to test your L4 kernel, though.
 
 Then set up GRUB to boot laden as the kernel, and the L4 kernel,
 sigma0, wortel (the rootserver), physmem and task as its modules (in
