@@ -27,6 +27,8 @@
 #include <sys/mman.h>
 #include <pthread.h>
 
+#include <hurd/wortel.h>
+
 #include "physmem.h"
 #include "zalloc.h"
 
@@ -52,46 +54,21 @@ abort (void)
 }
 
 
-#define WORTEL_MSG_PUTCHAR		1
-#define WORTEL_MSG_PANIC		2
-#define WORTEL_MSG_GET_MEM		3
-#define WORTEL_MSG_GET_CAP_REQUEST	4
-#define WORTEL_MSG_GET_CAP_REPLY	5
-#define WORTEL_MSG_GET_THREADS		6
-#define WORTEL_MSG_GET_TASK_CAP		7
+/* Initialized in main.  */
+l4_thread_id_t wortel_thread_id;
 
+/* FIXME: Hard coded cap ID.  */
+wortel_cap_id_t wortel_cap_id = 0;
+
+
 void
 get_all_memory (void)
 {
   l4_fpage_t fpage;
 
-  l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
-
   do
     {
-      l4_msg_t msg;
-      l4_msg_tag_t tag;
-      l4_grant_item_t grant_item;
-
-      l4_msg_clear (msg);
-      l4_set_msg_label (msg, WORTEL_MSG_GET_MEM);
-      /* FIXME: Use real cap_id.  */
-      l4_msg_append_word (msg, 0);
-      l4_msg_load (msg);
-      /* FIXME: Hard coded wortel thread.  */
-      tag = l4_call (l4_global_id (l4_thread_user_base () + 2, 1));
-      if (l4_ipc_failed (tag))
-	panic ("get_mem request failed during %s: %u",
-	       l4_error_code () & 1 ? "receive" : "send",
-	       (l4_error_code () >> 1) & 0x7);
-
-      if (l4_untyped_words (tag) != 0
-	  || l4_typed_words (tag) != 2)
-	panic ("Invalid format of wortel get_mem reply");
-
-      l4_msg_store (tag, msg);
-      l4_msg_get_grant_item (msg, 0, &grant_item);
-      fpage = l4_grant_item_snd_fpage (grant_item);
+      fpage = wortel_get_mem ();
 
       if (fpage != L4_NILPAGE)
 	zfree (l4_address (fpage), l4_size (fpage));
@@ -104,7 +81,6 @@ void
 create_bootstrap_caps (hurd_cap_bucket_t bucket)
 {
   error_t err;
-  hurd_task_id_t task_id;
   hurd_cap_handle_t cap;
   hurd_cap_handle_t startup_cap;
   hurd_cap_obj_t obj;
@@ -115,101 +91,57 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 
   while (1)
     {
-      l4_msg_t msg;
-      l4_msg_tag_t tag;
-      unsigned int i;
+      hurd_task_id_t task_id;
+      unsigned int nr_fpages;
+      l4_fpage_t fpages[L4_NUM_MRS / 2];
 
-      l4_msg_clear (msg);
-      l4_set_msg_label (msg, WORTEL_MSG_GET_CAP_REQUEST);
-      /* FIXME: Use real cap_id.  */
-      l4_msg_append_word (msg, 0);
-      l4_msg_load (msg);
-      /* FIXME: Hard coded wortel thread.  */
-      tag = l4_call (l4_global_id (l4_thread_user_base () + 2, 1));
+      task_id = wortel_get_cap_request (&nr_fpages, fpages);
 
-      if (l4_ipc_failed (tag))
-	panic ("get cap request failed during %s: %u",
-	       l4_error_code () & 1 ? "receive" : "send",
-	       (l4_error_code () >> 1) & 0x7);
-
-      l4_msg_store (tag, msg);
-
-      if (l4_typed_words (tag) == 0)
+      if (nr_fpages == 0)
 	{
 	  /* This requests the master control capability.  */
-	  if (l4_untyped_words (tag) != 1)
-	    panic ("Invalid format of wortel get cap request reply "
-		   "for master control");
 
 	  /* FIXME: Create capability.  */
-	  l4_msg_clear (msg);
-	  l4_set_msg_label (msg, WORTEL_MSG_GET_CAP_REPLY);
-	  /* FIXME: Use our wortel cap here.  */
-	  l4_msg_append_word (msg, 0);
 	  /* FIXME: Use our control cap for this task here.  */
-	  l4_msg_append_word (msg, 0xf00);
-	  l4_msg_load (msg);
-	  /* FIXME: Hard coded thread ID.  */
-	  l4_send (l4_global_id (l4_thread_user_base () + 2, 1));
+	  wortel_get_cap_reply (0xf00);
 
 	  /* This is the last request made.  */
 	  return;
 	}
-      else if (l4_untyped_words (tag) != 1)
-	panic ("Invalid format of wortel get cap request reply");
-
-      task_id = l4_msg_word (msg, 0);
-
-      debug ("Creating cap for 0x%x:", task_id);
-
-      /* Create memory container for the provided grant items.  */
-      nr_fpages = l4_typed_words (tag) / 2;
-      for (i = 0; i < nr_fpages; i++)
+      else
 	{
-	  l4_grant_item_t grant_item;
-	  l4_msg_get_grant_item (msg, i * 2, &grant_item);
+	  debug ("Creating cap for 0x%x:", task_id);
 
-	  fpages[i] = l4_grant_item_snd_fpage (grant_item);
-	  if (fpages[i] == L4_NILPAGE)
+	  /* Create memory container for the provided grant items.  */
+	  if (nr_fpages == 1 && fpages[0] == L4_NILPAGE)
 	    {
-	      if (nr_fpages == 1)
-		{
-		  /* FIXME: Create control capability for this one
-		     task.  */
-		  debug ("Can't create task control capability yet");
-		}
-	      else
-		panic ("Invalid fpage in create bootstrap cap call");
+	      /* FIXME: Create control capability for this one
+		 task.  */
+	      debug ("Can't create task control capability yet");
 	    }
+	  else
+	    {
+	      unsigned int i;
 
-	  debug ("0x%x ", fpages[i]);
+	      err = container_alloc (nr_fpages, fpages, &obj);
+
+	      if (err)
+		panic ("container_alloc: %i\n", err);
+	      hurd_cap_obj_unlock (obj);
+
+	      err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
+	      if (err)
+		panic ("hurd_cap_bucket_inject: %i\n", err);
+
+	      hurd_cap_obj_lock (obj);
+	      hurd_cap_obj_drop (obj);
+
+	      debug (" 0x%x\n", cap);
+
+	      /* Return CAP.  */
+	      wortel_get_cap_reply (cap);
+	    }
 	}
-
-      err = container_alloc (nr_fpages, fpages, &obj);
-      if (err)
-	panic ("container_alloc: %i\n", err);
-      hurd_cap_obj_unlock (obj);
-
-      err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
-      if (err)
-	panic ("hurd_cap_bucket_inject: %i\n", err);
-
-      hurd_cap_obj_lock (obj);
-      hurd_cap_obj_drop (obj);
-
-      debug (": 0x%x\n", cap);
-
-      /* Return CAP.  */
-      
-      l4_msg_clear (msg);
-      l4_set_msg_label (msg, WORTEL_MSG_GET_CAP_REPLY);
-
-      /* FIXME: Use our wortel cap here.  */
-      l4_msg_append_word (msg, 0);
-      l4_msg_append_word (msg, cap);
-      l4_msg_load (msg);
-      /* FIXME: Hard coded thread ID.  */
-      l4_send (l4_global_id (l4_thread_user_base () + 2, 1));
     }
 }
 
@@ -225,35 +157,9 @@ setup_threads (void)
   l4_thread_id_t main_thread;
   l4_word_t extra_threads;
 
-  {
-    l4_msg_t msg;
-    l4_msg_tag_t tag;
-
-    l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
-
-    l4_msg_clear (msg);
-    l4_set_msg_label (msg, WORTEL_MSG_GET_THREADS);
-    /* FIXME: Use real cap_id.  */
-    l4_msg_append_word (msg, 0);
-
-    l4_msg_load (msg);
-    /* FIXME: Hard coded wortel thread.  */
-    tag = l4_call (l4_global_id (l4_thread_user_base () + 2, 1));
-
-    if (l4_ipc_failed (tag))
-      panic ("get_thread request failed during %s: %u",
-	     l4_error_code () & 1 ? "receive" : "send",
-	     (l4_error_code () >> 1) & 0x7);
-
-    if (l4_untyped_words (tag) != 1
-	|| l4_typed_words (tag) != 0)
-      panic ("invalid format of wortel get_thread reply");
-
-    l4_msg_store (tag, msg);
-    l4_msg_get_word (msg, 0, &extra_threads);
-    if (extra_threads < 3)
-      panic ("at least three extra threads required for physmem");
-  }
+  extra_threads = wortel_get_threads ();
+  if (extra_threads < 3)
+    panic ("at least three extra threads required for physmem");
 
   /* Use the first extra thread as main thread.  */
   main_thread = l4_global_id (l4_thread_no (l4_my_global_id ()) + 1,
@@ -286,7 +192,7 @@ setup_threads (void)
 
 /* FIXME:  Should be elsewhere.  Needed by libhurd-slab.  */
 int
-getpagesize()
+getpagesize ()
 {
   return l4_min_page_size ();
 }
@@ -311,32 +217,9 @@ physmem_server (void *arg)
 static void
 get_task_cap (void)
 {
-  l4_msg_t msg;
-  l4_msg_tag_t tag;
   hurd_cap_handle_t task_cap;
 
-  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
-
-  l4_msg_clear (msg);
-  l4_set_msg_label (msg, WORTEL_MSG_GET_TASK_CAP);
-  /* FIXME: Use real cap_id.  */
-  l4_msg_append_word (msg, 0);
-
-  l4_msg_load (msg);
-  /* FIXME: Hard coded wortel thread.  */
-  tag = l4_call (l4_global_id (l4_thread_user_base () + 2, 1));
-
-  if (l4_ipc_failed (tag))
-    panic ("get task cap request failed during %s: %u",
-	   l4_error_code () & 1 ? "receive" : "send",
-	   (l4_error_code () >> 1) & 0x7);
-
-  if (l4_untyped_words (tag) != 1
-      || l4_typed_words (tag) != 0)
-    panic ("invalid format of wortel get task cap reply");
-
-  l4_msg_store (tag, msg);
-  l4_msg_get_word (msg, 0, &task_cap);
+  task_cap = wortel_get_task_cap ();
 
   /* FIXME: Do something with the task cap.  */
 }
@@ -349,6 +232,9 @@ main (int argc, char *argv[])
   l4_thread_id_t server_thread;
   hurd_cap_bucket_t bucket;
   pthread_t manager;
+
+  /* FIXME: Hard coded thread ID.  */
+  wortel_thread_id = l4_global_id (l4_thread_user_base () + 2, 1);
 
   output_debug = 1;
 
