@@ -40,7 +40,7 @@ hurd_slab_space_t cap_space;
 
 /* Initialize a new capability, allocated by the slab allocator.  */
 static error_t
-cap_constructor (void *buffer)
+cap_constructor (void *hook, void *buffer)
 {
   hurd_cap_t cap = (hurd_cap_t) buffer;
   error_t err;
@@ -60,7 +60,7 @@ cap_constructor (void *buffer)
 /* Release all resources allocated by the capability, which is in its
    freshly initialized state.  */
 static void
-cap_destructor (void *buffer)
+cap_destructor (void *hook, void *buffer)
 {
   hurd_cap_t cap = (hurd_cap_t) buffer;
 
@@ -76,7 +76,8 @@ error_t
 hurd_cap_init (void)
 {
   return hurd_slab_create (sizeof (struct hurd_cap), 0,
-			   cap_constructor, cap_destructor, &cap_space);
+			   cap_constructor, cap_destructor, NULL,
+			   &cap_space);
 }
 
 
