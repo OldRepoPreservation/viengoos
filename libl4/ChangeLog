@@ -1,3 +1,8 @@
+2004-04-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/gnu/space.h (L4_FPAGE_NO_ACCESS): Change L4_FPAGE_NO_ACCESS
+	from _l4_no_access to _L4_no_access.
+
 2004-04-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32/l4/bits/syscall.h (_L4_system_clock): Add "edi" to

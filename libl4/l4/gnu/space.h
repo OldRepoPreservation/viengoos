@@ -24,7 +24,7 @@
 #endif
 
 
-#define L4_FPAGE_NO_ACCESS		_l4_no_access
+#define L4_FPAGE_NO_ACCESS		_L4_no_access
 #define L4_FPAGE_EXECUTABLE		_L4_executable
 #define L4_FPAGE_WRITABLE		_L4_writable
 #define L4_FPAGE_READABLE		_L4_readable
