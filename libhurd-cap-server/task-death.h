@@ -45,7 +45,7 @@
 
 /* The type of a function callback that you can use to be informed
    about task deaths.  */
-typedef void (*task_death_notify_t) (void *hook, hurd_task_id_t task_id);
+typedef void (task_death_notify_t) (void *hook, hurd_task_id_t task_id);
 
 /* The struct you have to use to add your own notification
    handler.  */
