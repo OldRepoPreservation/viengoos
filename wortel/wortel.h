@@ -316,7 +316,6 @@ __attribute__((always_inline))
 wortel_get_cap_reply (hurd_cap_handle_t handle)
 {
   l4_msg_tag_t tag;
-  l4_word_t nr_threads;
   
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
@@ -408,7 +407,6 @@ __attribute__((always_inline))
 wortel_get_task_cap_reply (hurd_cap_handle_t handle)
 {
   l4_msg_tag_t tag;
-  l4_word_t nr_threads;
   
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
@@ -452,7 +450,6 @@ __attribute__((always_inline))
 wortel_get_deva_cap_reply (hurd_cap_handle_t handle)
 {
   l4_msg_tag_t tag;
-  l4_word_t nr_threads;
   
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 

@@ -568,7 +568,6 @@ start_elf (unsigned int mod)
        appropriate offsets to go along with.  The physmem server will
        take care of that - which means that he may return a smaller
        mapping than requested.  */
-    l4_word_t min_page_size = l4_min_page_size ();
     /* Get the memory range to which the ELF image from START to END
        (exclusive) will be loaded.  NAME is used for panic
        messages.  */
@@ -667,7 +666,7 @@ start_elf (unsigned int mod)
 		    phys_mapv->size = memsz - filesz;
 		    /* The dirty hack here causes physmem to allocate
 		       anonymous memory.  */
-		    phys_mapv->offset = l4_page_trunc (ph->p_vaddr) + filesz
+		    phys_mapv->offset = (l4_page_trunc (ph->p_vaddr) + filesz)
 		      | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
 		      | ((ph->p_flags & PF_W) ? L4_FPAGE_WRITABLE : 0)
 		      | ((ph->p_flags & PF_R) ? L4_FPAGE_READABLE : 0);
@@ -805,7 +804,7 @@ start_elf (unsigned int mod)
       panic ("Message from task thread is not a page fault");
     addr = l4_pagefault (tag, NULL, NULL);
     if (addr != (l4_word_t) STARTUP_TO_VIRT (entry_point))
-      panic ("Page fault at unexpected address 0x%x (expected 0x%x)",
+      panic ("Page fault at unexpected address 0x%x (expected 0x%p)",
 	     addr, STARTUP_TO_VIRT (entry_point));
 
     /* The memory was already requested from sigma0 by
@@ -874,8 +873,8 @@ serve_bootstrap_requests (void)
   unsigned int cur_cont = 0;
 
   /* These are the threads that sent us the BOOTSTRAP_FINAL RPC.  */
-  l4_thread_id_t bootstrap_final_physmem;
-  l4_thread_id_t bootstrap_final_task;
+  l4_thread_id_t bootstrap_final_physmem = l4_nilthread;
+  l4_thread_id_t bootstrap_final_task = l4_nilthread;
 
   /* This is to keep information about created task caps.  */
   unsigned int cur_task = (unsigned int) -1;

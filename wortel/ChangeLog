@@ -1,3 +1,13 @@
+2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.h (wortel_get_cap_reply, wortel_get_task_cap_reply,
+	wortel_get_deva_cap_reply): Remove unused variable NR_THREADS.
+	* wortel.c (start_elf): Remove unused variable min_page_size.
+	(start_elf): Add parentheses to silence gcc warning.  Change
+	format string to match argument.
+	(serve_bootstrap_requests): Initialize bootstrap_final_physmem and
+	bootstrap_final_task.
+
 2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.h: Include <stdbool.h>.
