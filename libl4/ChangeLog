@@ -1,3 +1,14 @@
+2004-03-17  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/thread.h (_L4_start, _L4_start_sp_ip, _L4_start_sp_ip_flags):
+	Add _L4_XCHG_REGS_CANCEL_IPC to control flags, to match L4 CVS.
+	* l4/compat/space.h (L4_UnmapFpage): Change the return type to
+	L4_Fpage_t and return the fpage to match L4 CVS.
+	(L4_Flush): Likewise.
+	* l4/syscall.h (_L4_ERR_INV_SPACE, _L4_ERR_INV_SCHEDULER,
+	_L4_ERR_INV_PARAM, _L4_ERR_UTCB_AREA, _L4_ERR_KIP_AREA,
+	_L4_ERR_NO_MEM): Decrement by one to match the L4 CVS.
+
 2004-03-17  Johan Rydberg  <jrydberg@night.trouble.net>
 
 	* l4/gnu/kip.h (l4_utcb_alignment_log2): Use void as argument type.
@@ -11,6 +22,7 @@
 
 	* l4/thread.h (__L4_STOP): Undefine after last use.
 
+>>>>>>> 1.27
 2004-03-16  Marcus Brinkmann  <marcus@gnu.org>
 
 	Total overhaul, and I am not going to list all the changes.  Every

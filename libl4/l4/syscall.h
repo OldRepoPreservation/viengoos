@@ -72,12 +72,12 @@
 /* Error codes.  */
 #define _L4_ERR_NO_PRIVILEGE		_L4_WORD_C(1)
 #define _L4_ERR_INV_THREAD		_L4_WORD_C(2)
-#define _L4_ERR_INV_SPACE		_L4_WORD_C(4)
-#define _L4_ERR_INV_SCHEDULER		_L4_WORD_C(5)
-#define _L4_ERR_INV_PARAM		_L4_WORD_C(6)
-#define _L4_ERR_UTCB_AREA		_L4_WORD_C(7)
-#define _L4_ERR_KIP_AREA		_L4_WORD_C(8)
-#define _L4_ERR_NO_MEM			_L4_WORD_C(9)
+#define _L4_ERR_INV_SPACE		_L4_WORD_C(3)
+#define _L4_ERR_INV_SCHEDULER		_L4_WORD_C(4)
+#define _L4_ERR_INV_PARAM		_L4_WORD_C(5)
+#define _L4_ERR_UTCB_AREA		_L4_WORD_C(6)
+#define _L4_ERR_KIP_AREA		_L4_WORD_C(7)
+#define _L4_ERR_NO_MEM			_L4_WORD_C(8)
 
 
 static inline const char *const

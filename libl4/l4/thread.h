@@ -257,7 +257,7 @@ static inline void
 _L4_attribute_always_inline
 _L4_start (_L4_thread_id_t thread)
 {
-  _L4_word_t control = _L4_XCHG_REGS_SET_HALT;
+  _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_CANCEL_IPC;
   _L4_word_t dummy = 0;
   _L4_thread_id_t pager = _L4_nilthread;
 
@@ -271,7 +271,7 @@ _L4_attribute_always_inline
 _L4_start_sp_ip (_L4_thread_id_t thread, _L4_word_t sp, _L4_word_t ip)
 {
   _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_SET_SP
-    | _L4_XCHG_REGS_SET_IP;
+    | _L4_XCHG_REGS_SET_IP | _L4_XCHG_REGS_CANCEL_IPC;
   _L4_word_t dummy = 0;
   _L4_thread_id_t pager = _L4_nilthread;
 
@@ -285,7 +285,8 @@ _L4_start_sp_ip_flags (_L4_thread_id_t thread, _L4_word_t sp,
 		      _L4_word_t ip, _L4_word_t flags)
 {
   _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_SET_SP
-    | _L4_XCHG_REGS_SET_IP | _L4_XCHG_REGS_SET_FLAGS;
+    | _L4_XCHG_REGS_SET_IP | _L4_XCHG_REGS_SET_FLAGS
+    | _L4_XCHG_REGS_CANCEL_IPC;
   _L4_word_t dummy = 0;
   _L4_thread_id_t pager = _L4_nilthread;
 
