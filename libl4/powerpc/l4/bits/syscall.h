@@ -35,7 +35,8 @@
    the IPC system calls.  */
 #define __L4_PPC_XCLOB "r18", "r19",					\
   "r20", "r21", "r22", "r23", "r24", "r25", "r26", "r27", "r28", "r29",	\
-  "cr0", "cr1", "cr2", "cr3", "cr4", "cr5", "cr6", "cr7", "xer", "memory"
+  "cr0", "cr1", "cr2", "cr3", "cr4", "cr5", "cr6", "cr7", "xer",        \
+  "ctr", "lr", "memory"
 #define __L4_PPC_CLOB "r0", "r11", "r12", "r13", "r14", "r15", "r16",	\
   "r17", __L4_PPC_XCLOB
 

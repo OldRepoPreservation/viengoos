@@ -26,7 +26,7 @@
 #define __L4_SETUP_SYSCALL(name)					\
 extern void (*__l4_ ## name) (void);					\
   __l4_ ## name = (void (*) (void))					\
-    (((l4_word_t) l4_kip ()) + l4_kip ()->name)
+    ((l4_word_t) l4_kip ()->name)
 
 
 /* Initialize the syscall stubs.  */

@@ -1,3 +1,10 @@
+2003-10-16  Johan Rydberg  <jrydberg@night.trouble.net>
+
+	* powerpc/l4/bits/stubs-init.h (__L4_SETUP_SYSCALL): Do correct
+	relocation (that means none).
+
+	* powerpc/l4/bits/syscall.h (__L4_PPC_XCLOB): Add ctr and lr.
+
 2003-10-05  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/kip.h: Include <l4/math.h>.
