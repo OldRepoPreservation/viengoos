@@ -350,6 +350,12 @@ l4_kernel_version (l4_word_t *ver, l4_word_t *subver, l4_word_t *subsubver)
 }
 
 
+#define L4_KERNEL_SUPPLIER_GMD	_L4_KERNEL_SUPPLIER_GMD
+#define L4_KERNEL_SUPPLIER_IBM	_L4_KERNEL_SUPPLIER_IBM
+#define L4_KERNEL_SUPPLIER_UNSW	_L4_KERNEL_SUPPLIER_UNSW
+#define L4_KERNEL_SUPPLIER_TUD	_L4_KERNEL_SUPPLIER_TUD
+#define L4_KERNEL_SUPPLIER_UKA	_L4_KERNEL_SUPPLIER_UKA
+
 static inline char *
 _L4_attribute_always_inline
 l4_kernel_supplier_from (l4_kip_t kip)

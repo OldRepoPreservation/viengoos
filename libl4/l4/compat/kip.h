@@ -44,6 +44,7 @@ typedef struct
   L4_Word_t raw[2];
 } L4_MemoryDesc_t;
 
+
 typedef struct
 {
   L4_Word_t raw[2];
@@ -67,6 +68,17 @@ L4_GetKernelInterface (void)
 }
 
 
+#define L4_APIVERSION_2		_L4_API_VERSION_2
+#define L4_APIVERSION_X0	_L4_API_VERSION_X0
+#define L4_APISUBVERSION_X0	_L4_API_SUBVERSION_X0
+#define L4_APIVERSION_X1	_L4_API_VERSION_X1
+#define L4_APISUBVERSION_X1	_L4_API_SUBVERSION_X1
+#define L4_APIVERSION_X2	_L4_API_VERSION_X2
+/* FIXME: The official libl4 incorrectly(?) defines this.  */
+#define L4_APISUBVERSION_X2	(0x82)
+/* FIXME: The official libl4 lacks this one.  */
+#define L4_APIVERSION_4		_L4_API_VERSION_4
+
 /* Returns the API version.  */
 static inline L4_Word_t
 _L4_attribute_always_inline
@@ -82,6 +94,13 @@ L4_ApiVersion (void)
 }
 
 
+/* Values for API flags field. */
+#define L4_APIFLAG_LE		_L4_API_FLAGS_LITTLE_ENDIAN
+#define L4_APIFLAG_BE		_L4_API_FLAGS_BIG_ENDIAN
+#define L4_APIFLAG_32BIT	_L4_API_FLAGS_WORDSIZE_32
+#define L4_APIFLAG_64BIT	_L4_API_FLAGS_WORDSIZE_64
+
+
 /* Returns the API flags.  */
 static inline L4_Word_t
 _L4_attribute_always_inline
@@ -95,6 +114,34 @@ L4_ApiFlags (void)
 
   return api_flags;
 }
+
+
+/* FIXME: The official interface defines them as ((id << 16) + subid)
+   but that does not make any sense.  */
+#define L4_KID_L4_486		\
+  ((_L4_KERNEL_ID_L4_486 << 8) + _L4_KERNEL_SUBID_L4_486)
+#define L4_KID_L4_PENTIUM	\
+  ((_L4_KERNEL_ID_L4_PENTIUM << 8) + _L4_KERNEL_SUBID_L4_PENTIUM)
+#define L4_KID_L4_X86		\
+  ((_L4_KERNEL_ID_L4_X86 << 8) + _L4_KERNEL_SUBID_L4_X86)
+#define L4_KID_L4_MIPS		\
+  ((_L4_KERNEL_ID_L4_MIPS << 8) + _L4_KERNEL_SUBID_L4_MIPS)
+#define L4_KID_L4_ALPHA		\
+  ((_L4_KERNEL_ID_L4_ALPHA << 8) + _L4_KERNEL_SUBID_L4_ALPHA)
+#define L4_KID_FIASCO		\
+  ((_L4_KERNEL_ID_FIASCO << 8) + _L4_KERNEL_SUBID_FIASCO)
+/* FIXME: These are even more wrong.  The names are not correct.  We
+   provide corrected ones in addition to the buggy ones.  */
+#define L4_KID_L4KA_X86		\
+  ((_L4_KERNEL_ID_L4KA_HAZELNUT << 8) + _L4_KERNEL_SUBID_L4KA_HAZELNUT)
+#define L4_KID_L4KA_ARM		\
+  ((_L4_KERNEL_ID_L4KA_PISTACHIO << 8) + _L4_KERNEL_SUBID_L4KA_PISTACHIO)
+#define L4_KID_L4KA_HAZELNUT	\
+  ((_L4_KERNEL_ID_L4KA_HAZELNUT << 8) + _L4_KERNEL_SUBID_L4KA_HAZELNUT)
+#define L4_KID_L4KA_PISTACHIO	\
+  ((_L4_KERNEL_ID_L4KA_PISTACHIO << 8) + _L4_KERNEL_SUBID_L4KA_PISTACHIO)
+#define L4_KID_L4KA_STRAWBERRY	\
+  ((_L4_KERNEL_ID_L4KA_STRAWBERRY << 8) + _L4_KERNEL_SUBID_L4KA_STRAWBERRY)
 
 
 /* Returns the kernel ID.  */
@@ -131,6 +178,25 @@ L4_KernelVersion (void *kip)
 
   return kern->version.raw;
 }
+
+
+/* Values for the kernel supplier field.  */
+#if _L4_BYTE_ORDER == _L4_BIG_ENDIAN
+#define _L4_KERNEL_SUPPLIER(x) \
+  ((((char[])x)[0] << 24) | (((char[])x)[1] << 16) \
+   | (((char[])x)[2] << 8) | (((char[])x)[3]))
+#else
+#define _L4_KERNEL_SUPPLIER(x) \
+  ((((char[])x)[3] << 24) | (((char[])x)[2] << 16) \
+   | (((char[])x)[1] << 8) | (((char[])x)[0]))
+#endif
+
+#define L4_SUPL_GMD	_L4_KERNEL_SUPPLIER (_L4_KERNEL_SUPPLIER_GMD)
+#define L4_SUPL_IBM	_L4_KERNEL_SUPPLIER (_L4_KERNEL_SUPPLIER_IBM)
+#define L4_SUPL_UNSW	_L4_KERNEL_SUPPLIER (_L4_KERNEL_SUPPLIER_UNSW)
+/* FIXME: This one is missing in the official libl4.  We add it.  */
+#define L4_SUPL_TUD	_L4_KERNEL_SUPPLIER (_L4_KERNEL_SUPPLIER_TUD)
+#define L4_SUPL_UKA	_L4_KERNEL_SUPPLIER (_L4_KERNEL_SUPPLIER_UKA)
 
 
 /* Returns the kernel supplier.  */

@@ -30,6 +30,15 @@
 
 
 /* The API version field.  */
+
+#define _L4_API_VERSION_2	(0x02)
+#define _L4_API_VERSION_X0	(0x83)
+#define _L4_API_SUBVERSION_X0	(0x80)
+#define _L4_API_VERSION_X1	(0x83)
+#define _L4_API_SUBVERSION_X1	(0x81)
+#define _L4_API_VERSION_X2	(0x84)
+#define _L4_API_VERSION_4	(0x04)
+
 typedef _L4_RAW (_L4_api_version_t, _L4_STRUCT1 ({
   _L4_BITFIELD4
     (_L4_word_t,
@@ -45,11 +54,12 @@ typedef _L4_RAW (_L4_api_version_t, _L4_STRUCT1 ({
 })) __L4_api_version_t;
 
 
-/* The API flags field.  */
-#define L4_API_FLAGS_LITTLE_ENDIAN	(0x0)
-#define L4_API_FLAGS_BIG_ENDIAN		(0x1)
-#define L4_API_FLAGS_WORDSIZE_32	(0x0)
-#define L4_API_FLAGS_WORDSIZE_64	(0x1)
+/* The API flag fields.  */
+
+#define _L4_API_FLAGS_LITTLE_ENDIAN	(0x0)
+#define _L4_API_FLAGS_BIG_ENDIAN	(0x1)
+#define _L4_API_FLAGS_WORDSIZE_32	(0x0)
+#define _L4_API_FLAGS_WORDSIZE_64	(0x1)
 
 typedef _L4_RAW (_L4_api_flags_t, _L4_STRUCT1 ({
   _L4_BITFIELD3
@@ -65,6 +75,27 @@ typedef _L4_RAW (_L4_api_flags_t, _L4_STRUCT1 ({
 
 
 /* The kernel ID field.  */
+
+#define _L4_KERNEL_ID_L4_486			(0)
+#define _L4_KERNEL_SUBID_L4_486			(1)
+#define _L4_KERNEL_ID_L4_PENTIUM		(0)
+#define _L4_KERNEL_SUBID_L4_PENTIUM		(2)
+#define _L4_KERNEL_ID_L4_X86			(0)
+#define _L4_KERNEL_SUBID_L4_X86			(3)
+#define _L4_KERNEL_ID_L4_MIPS			(1)
+#define _L4_KERNEL_SUBID_L4_MIPS		(1)
+#define _L4_KERNEL_ID_L4_ALPHA			(2)
+#define _L4_KERNEL_SUBID_L4_ALPHA		(1)
+#define _L4_KERNEL_ID_FIASCO			(3)
+#define _L4_KERNEL_SUBID_FIASCO			(1)
+#define _L4_KERNEL_ID_L4KA_HAZELNUT		(4)
+#define _L4_KERNEL_SUBID_L4KA_HAZELNUT		(1)
+#define _L4_KERNEL_ID_L4KA_PISTACHIO		(4)
+#define _L4_KERNEL_SUBID_L4KA_PISTACHIO		(2)
+#define _L4_KERNEL_ID_L4KA_STRAWBERRY		(4)
+#define _L4_KERNEL_SUBID_L4KA_STRAWBERRY	(3)
+
+
 typedef _L4_RAW (_L4_kernel_id_t, _L4_STRUCT1 ({
   _L4_BITFIELD4
     (_L4_word_t,
@@ -83,7 +114,7 @@ typedef _L4_RAW (_L4_kernel_id_t, _L4_STRUCT1 ({
 /* The page rights field.  */
 typedef _L4_word_t _L4_page_info_t;
 
-typedef _L4_RAW (_L4_page_info_t, _L4_STRUCT1 ({
+typedef _L4_RAW (_L4_page_info_t, _L4_STRUCT2 ({
   _L4_BITFIELD5
     (_L4_word_t,
      /* Execute access right can be independently set.  */
@@ -100,6 +131,14 @@ typedef _L4_RAW (_L4_page_info_t, _L4_STRUCT1 ({
      /* Page size of 2^(k + 10) is supported by hardware and kernel if
 	bit k is set.  */
      _L4_BITFIELD_32_64 (page_size_mask, 22, 54));
+},
+{
+  _L4_BITFIELD2
+    (_L4_word_t,
+     /* All access rights.  */
+     _L4_BITFIELD (rwx, 3),
+
+     _L4_BITFIELD_32_64 (__pad2, 29, 61));
 })) __L4_page_info_t;
 
 
@@ -314,6 +353,12 @@ typedef union _L4_proc_desc
 typedef __L4_proc_desc_t *_L4_proc_desc_t;
 
 
+#define _L4_KERNEL_SUPPLIER_GMD		{ 'G', 'M', 'D', ' ' }
+#define _L4_KERNEL_SUPPLIER_IBM		{ 'I', 'B', 'M', ' ' }
+#define _L4_KERNEL_SUPPLIER_UNSW	{ 'U', 'N', 'S', 'W' }
+#define _L4_KERNEL_SUPPLIER_TUD		{ 'T', 'U', 'D', ' ' }
+#define _L4_KERNEL_SUPPLIER_UKA		{ 'U', 'K', 'a', ' ' }
+
 /* The kernel description fields.  */
 typedef struct
 {
@@ -435,8 +480,8 @@ _L4_proc_desc (_L4_kip_t kip, _L4_word_t num)
   if (num >= _L4_num_processors (kip))
     return (_L4_proc_desc_t) 0;
 
-  return (_L4_proc_desc_t) (((_L4_word_t) kip) + kip->proc_desc_ptr)
-    + num * (1 << kip->processor_info.log2_size);
+  return (_L4_proc_desc_t) (((_L4_word_t) kip) + kip->proc_desc_ptr
+			    + num * (1 << kip->processor_info.log2_size));
 }
 
 
@@ -472,7 +517,7 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_page_rights (_L4_kip_t kip)
 {
-  return kip->page_info.raw;
+  return kip->page_info.rwx;
 }
 
 
