@@ -280,6 +280,143 @@ fail otherwise.
 
 Applications are able allocate memory by  Memory allocation will be 
 
+\section{Caching Store Accesses}
+
+It need not be explained how caching accesses to stores can radically
+improve the speed of the system.  In a monolithic kernel this cache is
+added to by the readers, i.e. the device drivers, supplemented with
+metadata from the file systems in the form of expected access patterns
+based on the type of data and how the file was opened and managed by
+the virtual memory manager.  In our design, this is impossible: each
+component---each device driver, each file system and the physical
+memory manager---all live in their own address spaces; additionally
+there will rarely be mutual trust: the physical memory server may not
+trust the file systems nor the ``device drivers'' (consider a network
+block device).  A caching mechanism must be designed.
+
+The purpose of caching is useful for multiple readers of a given
+block.  Sometimes this is the same task, however, more often it is
+multiple tasks.  Thus, having the caching scheme in each task is quite
+difficult as tasks do not trust one another and furthermore, tasks can
+die at any time thereby dropping their cache.  The logical place to
+put the cache then is the common point of access, the file system.
+
+An argument could be made that in reality, the common point of access
+is the device driver: there can be multiple accessors of the same
+store.  The question must be asked: what happens when the device
+driver is made the cache point instead of the file system?  Logically,
+a large tradeoff is made in terms of the ability to intelligently
+decide what pages to keep in the cache.  The file system, for
+instance, has meta-data about how a given page may be used based on
+how a file is opened and may realize that some pages should not be
+placed in the cache because they will be used once and immediately
+discarded.  This is true of the access patterns of multimedia
+applications.  These types of hints may be gathered at file open time.
+The class of data is another way the file system is able to predict
+usage, for example, it understands the difference between
+meta-data---inodes and directories---and file data.  A file system is
+also able to anticipate file-level access patterns whereas a device
+driver can only anticipate block-level access patterns, i.e. although
+file data is sometimes sequential, it is often scattered across a
+section of the disk due to fragmentation.  The primary way a the
+device driver can really manage its cache is through historical data
+in the form of previous accesses (which is itself even more limited as
+the device driver is uninformed of cache hits in the file system
+cache).  This type of data implies some form of LRU, least recently
+used, eviction scheme.  It should now be clear that the file system
+can make smarter decisions about what which blocks to evict due to its
+ability to make predictions based on client hints and its greater
+understanding of the data in the store.
+
+If we resign ourselves to keeping the cache only in the file system,
+then multiple users of a store will be penalized greatly: a block read
+by one client will always be reread if another client requests the
+same block: not only is the store accessed a second time, but twice as
+much memory will be used as there is no way to share the page and use
+copy on write.  Is this penalty worth the added intelligence in the
+file system?  An argument can be made that using just one caching
+strategy is suboptimital when we could just have two: nothing stops
+both the file system and the device driver from caching thereby
+permitting the former to continue to maintain an intelligent cache and
+the device driver to have its simple LRU cache.  This argument
+overlooks several important implications of having the two caches.
+First, complexity is being added to the device driver in the form of a
+list of pages it has read and given out.  This increase in memory
+usage has a secondary effect: if the data structures become large (as
+it certainly will for large active stores), it will be impossible to
+keep the device driver in question in a small address space (an
+important optimization on architectures without tagged TLBs, table
+look aside buffers).  Second, if both the file system and the device
+driver keep a cache, when the file system has a cache miss, the device
+driver then checks its cache before going to disk.  The device driver
+will only ever have a cache hit if there are multiple readers: when
+there is a single user of a store, the file system's cache and the
+device driver's cache will be identical.  This begs the question: how
+often will there be multiple users of a single store?  The answer
+seems to be very rarely: assuming the common case that the store has
+some type of file system on it, there can only be multiple users if
+all users are readers (note that not even one can be a writer as this
+implies cache consistency issues across different users of the store).
+Since this is a very rare case, we argue based on the philosophy ``do
+not optimize for rare cases'' that the overhead is greater than the
+potential pay back from the optimization.  Having multiple caches
+leads to a further problem: a page is really not evicted from the
+system until it is purged from all caches.  Thus if the file system
+cache is smart and chooses the better pages to evict, the
+cooresponding frames will not really be freed until the device driver
+also drops its references to the pages.  Thus, the effectiveness of
+the smarter caching algorithm is impeded by the device driver's
+caching scheme.  Double caching must be avoided at all costs.
+
+\subsection{Caching in the File System}
+
+We have argued above that all block caching will be done at the file
+system layer.  In this section, we detail how the caching will work.
+
+The file system allocates extra pages as long as it can and adds all
+eligible pages to the cache by logically copying them into a local
+container (pages which it reasons will be read once and then dropped
+may not be considered eligible).  When the physical memory server
+wants pages back, it chooses a victim with extra pages and asks for a
+subset of them back.  If a task has $G$ guaranteed pages and $G + E$
+pages allocated, the physical memory server can request up to $E$
+pages back from the task.  We recall from the definition of the extra
+pages that extra pages must be given back quickly (i.e. there is no
+time to send them to swap).
+
+Although a task chooses a page to evict from its cache, it does not
+mean that the page will be reused immediately, in fact, it is
+sometimes that case that the page cannot be reused at all as another
+task has have a reference to the page (in the form of a logical copy).
+As such, it would be nice to be able to get pages back that might
+still be in the physical memory server.  The following mechanism is
+thus provided: when a page is returned to the physical memory server,
+the reference to the page is turned into a soft reference.  Only when
+the page is actually reused by the physical memory server are soft
+references discarded.  A task is able to convert a soft reference back
+to a hard reference by contacting the physical memory server and
+asking for the page back.  If this operation return \errno{ENOEXIST},
+the page has been reused and the page must be remanufactured (e.g. by
+retrieving it from backing store).  This operation may also fail and
+return \errno{ENOMEM} if the task does not have enough guaranteed
+pages and there are no extra pages available.
+
+\begin{comment}
+There is a problem here in the form of name space pollution: the task
+doing the caching has to remember the mapping of blocks to container
+identifiers in order to recover the soft reference but the task has no
+way to know when the physical memory server expires a given soft
+reference.  Thus, while the physical memory server may drop a page,
+the task will only ever know this when it tries to convert the soft
+reference to a hard reference and fails (i.e. gets a cache miss).  For
+pages which this is never done, the memorized mapping will never be
+invalidated.  This may not be a problem if a block offset to container
+id is used, however, if hashing is done or some other mapping of block
+offsets to container identifiers is used, this will pollute the cache
+container's name space.
+\end{comment}
+
+
 
 % Traditionally, monolithical kernels, but even kernels like Mach,
 % provide a virtual memory management system in the kernel.  All paging
