@@ -1,3 +1,8 @@
+2003-10-01  Johan Rydberg  <jrydberg@night.trouble.net>
+
+	* wortel.c (serve_bootstrap_requests): Only throw away page zero
+	if it list as conventinal in memory descriptors.
+
 2003-09-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* loader.c (loader_elf_load): Fix wordsize check.  Submitted by

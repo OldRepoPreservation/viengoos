@@ -411,9 +411,22 @@ serve_bootstrap_requests (void)
   hurd_task_id_t server_task = (mod_idx < mods_count)
     ? l4_version (mods[mod_idx].main_thread) : 0;
 
-  /* Allocate a single page at address 0, because we don't want to
-     bother anybody with that silly page.  */
-  sigma0_get_fpage (l4_fpage (0, l4_min_page_size ()));
+  /* True if we need to remap the page at address 0.  */
+  int get_page_zero = 0;
+  int i;
+
+  /* If a conventinal page with address 0 exists in the memory
+     descriptors, allocate it because we don't want to bother anybody
+     with that silly page.  FIXME: We should eventually remap it to a
+     high address and provide it to physmem.  */
+  for (i = 0; i < loader_get_num_memory_desc (); i++)
+    {
+      l4_memory_desc_t memdesc = loader_get_memory_desc (i);
+      if (memdesc->low == 0)
+	get_page_zero = (memdesc->type == L4_MEMDESC_CONVENTIONAL);
+    }
+  if (get_page_zero)
+    sigma0_get_fpage (l4_fpage (0, l4_min_page_size ()));
 
   do
     {
