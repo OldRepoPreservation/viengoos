@@ -1,3 +1,7 @@
+2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* configure.ac (CFLAGS): Set after AC_PROG_CC.
+
 2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* platform: New directory.

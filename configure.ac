@@ -33,6 +33,9 @@ maintainer_mode=${enable_maintainer_mode-no}
 
 # Checks for programs.
 AC_PROG_CC
+# FIXME: We should support setting the CFLAGS by the user.  But
+# -std=gnu99 and -O2 are required.
+CFLAGS="-std=gnu99 -Wall -g -O3"
 AM_PROG_AS
 AC_PROG_RANLIB
 AC_CHECK_TOOL([AR], [ar], :)
