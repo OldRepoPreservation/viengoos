@@ -1,9 +1,14 @@
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
+	* wortel.c (start_elf): Fix the change that removed the extra zero
+	byte to argz - it removed all zero bytes between the arguments as
+	well.
+	
 	* wortel.c (start_elf): Initialize PHYS_STARTUP->flags.  New
 	variables PHDR and PHDR_LEN.  Calculate the virtual address of the
 	program header if it is loaded and use them for PHYS_STARTUP->phdr
 	and PHYS_STARTUP->phdr_len.
+
 	* wortel-intern.h (struct wortel_module): Remove members
 	HEADER_LOC and HEADER_SIZE.
 
