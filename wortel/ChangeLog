@@ -1,3 +1,7 @@
+2003-09-21  Marco Gerards  <metgerards@student.han.nl>
+
+	* Makefile.am (AM_CPPFLAGS): New variable.
+
 2003-09-20  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.h (MAX_UNUSED_FPAGES): Move to here from wortel.c.

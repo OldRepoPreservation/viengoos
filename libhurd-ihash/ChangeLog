@@ -1,3 +1,8 @@
+2003-09-21  Marco Gerards  <metgerards@student.han.nl>
+
+	* Makefile.am (AM_CPPFLAGS): Use top_builddir instead of
+	top_srcdir.
+
 2003-08-26  Marcus Brinkmann  <marcus@g10code.de>
 
 	* ihash.h: Include <limits.h>.

@@ -24,5 +24,5 @@ lib_LIBRARIES = libhurd-cap.a
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = cap.h
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_builddir)/include
 libhurd_cap_a_SOURCES = cap.h cap.c cap-user.c #cap-move.c

@@ -24,6 +24,6 @@ lib_LIBRARIES = libhurd-ihash.a
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = ihash.h
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_builddir)/include
 AM_CFLAGS = -std=gnu99
 libhurd_ihash_a_SOURCES = ihash.h ihash.c

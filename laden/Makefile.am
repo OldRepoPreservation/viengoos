@@ -18,6 +18,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
+AM_CPPFLAGS = -I$(top_builddir)/include
+
 if ARCH_IA32
   ARCH_SOURCES = multiboot.h ia32-crt0.S ia32-cmain.c \
     ia32-output.c output-vga.c output-serial.c ia32-shutdown.c

@@ -1,3 +1,7 @@
+2003-09-21  Marco Gerards  <metgerards@student.han.nl>
+
+	* Makefile.am (AM_CPPFLAGS): New variable.
+
 2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
 
 	* physmem.c: Include "zalloc.h".
