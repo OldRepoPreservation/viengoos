@@ -31,9 +31,9 @@ you can adjust the load addresses).
 Installation on ia32
 --------------------
 
-Prerequisites: Pistachio-0.4.  You can find information about how to
-download the Pistachio source distribution (which includes the kernel
-and sigma0) at the following URL:
+Prerequisites: Pistachio-0.4 with the patch below.  You can find
+information about how to download the Pistachio source distribution
+(which includes the kernel and sigma0) at the following URL:
 
 http://www.l4ka.org/projects/pistachio/download.php
 
@@ -69,3 +69,34 @@ module /boot/task
 module /boot/task
 module /boot/task
 module /boot/task
+
+
+Pistachio Patch
+---------------
+
+The following patch fixes a problem with IPC propagation.
+
+2004-10-08  Marcus Brinkmann  <marcus@gnu.org>
+
+	* src/api/v4/ipc.cc (SYS_IPC): If propagating, modify the
+          originator's partner to wait for the new receiver if the
+          originator is in a closed wait for the sender.
+
+Index: ipc.cc
+===================================================================
+RCS file: /public-cvs/pistachio/kernel/src/api/v4/ipc.cc,v
+retrieving revision 1.57.4.6
+diff -u -p -r1.57.4.6 ipc.cc
+--- ipc.cc	3 Jun 2004 13:58:57 -0000	1.57.4.6
++++ ipc.cc	7 Oct 2004 22:36:12 -0000
+@@ -292,6 +292,9 @@ SYS_IPC (threadid_t to_tid, threadid_t f
+ 		 && (current->get_space() == virt_sender->get_space() ||
+ 		     current->get_space() == to_tcb->get_space()))
+ 	    {
++		if (virt_sender->get_state().is_waiting() &&
++		    virt_sender->get_partner() == sender_id)
++		  virt_sender->set_partner(to_tid);
+ 		sender_id = current->get_virtual_sender();
+ 	    }
+ 	    else
+
