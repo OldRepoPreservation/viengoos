@@ -218,7 +218,7 @@ strategy is to remember which pages can be remanufactured (e.g. reread
 from disk or recalculated) and promote them to guaranteed pages when
 the page becomes dirty being careful to never have less than $E$ clean
 pages in the task.  Given these semantics, guanteed pages should not
-be thought of as wired (e.g. \fuction{mlock}ed in the POSIX
+be thought of as wired (e.g. \function{mlock}ed in the POSIX
 sense)---although they can have this property---but as frames which
 the task itself must multiplex.  Thus the idea of self-paged tasks.
 
@@ -372,7 +372,7 @@ Discuss mmap: local function call.  RPC is done when a page is
 faulted: do a read from the fs (into a container), then map the data
 from the container into the AS as required.
 
-MAP_COPY sucks: fs must save all modified data.  What happens when a
+MAP\_COPY sucks: fs must save all modified data.  What happens when a
 100MB file is completely rewritten (or 1GB, etc)?  can we use upcalls?
 If we do, the fs still needs to hold the data in the intern.  Can we
 copy the file on disk and use that as backing store (think how
@@ -532,7 +532,7 @@ equal to the number of allocated pages minus the number of guaranteed
 pages.
 
 \begin{code}
-void pm_return_pages (in int count);
+void pm\_return\_pages (in int count);
 \end{code}
 
 The physical memory send this message to the task's memory control
@@ -541,7 +541,7 @@ memory server will never wait (thus, the thread must be in the
 receiving state).  If the thread is not ready, the physical memory
 server assumes that the task is misbehaving.  The physical memory
 server does not wait for a reply, instead, the client must free the
-pages using \function{pm_release_pages} as described above.
+pages using \function{pm\_release\_pages} as described above.
 
 \section{The Memory Policy Server}
 
@@ -568,6 +568,14 @@ flushed to swap (i.e. a swap operation is not synchronous).
 
 Tasks multiplex guaranteed pages.  Must manage their own memory.  How
 to get data (e.g. extend malloc via the slab mechanism, extend fopen).
+
+Multiplexing guaranteed pages: say a page is sent to swap in order to
+be reused for something else.  The page itself must be cleared,
+i.e. disassocitated with any logical copies.  This is done using:
+
+\begin{code}
+error\_t pm\_release\_data (in pm\_container\_t container, in pm\_page\_t[] pages)
+\end{code}
 
 
 % Traditionally, monolithical kernels, but even kernels like Mach,
