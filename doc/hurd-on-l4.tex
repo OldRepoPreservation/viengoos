@@ -169,8 +169,8 @@ image and modifies it in the following way:
 
 The L4 kernel initializes itself and then creates the address spaces
 and threads for the initial servers $\sigma_0$ and the rootserver.  It
-maps all physical memory idempotently into $sigma_0$, and sets the
-pager of the rootserver thread to $sigma_0$.  Then it starts the
+maps all physical memory idempotently into $\sigma_0$, and sets the
+pager of the rootserver thread to $\sigma_0$.  Then it starts the
 initial servers.
 
 
@@ -182,7 +182,7 @@ rootserver.
 
 \begin{comment}
   $\sigma_0$ can also be used directly by sending messages to it,
-  according to the $sigma_0$ RPC protocol.  This is used by the kernel
+  according to the $\sigma_0$ RPC protocol.  This is used by the kernel
   to allocate reserved memory, but can also be used by the user to
   explicitely allocate more memory than single pages indirectly via
   page faults.
