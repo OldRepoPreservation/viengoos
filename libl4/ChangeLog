@@ -1,5 +1,7 @@
 2005-01-22  Matthieu Lemerre  <racin@free.fr>
 
+	* l4/gnu/ipc.h (l4_string_buffer): New function.
+
 	* powerpc/l4/bits/vregs.h (_L4_load_br, _L4_store_br,
 	_L4_load_brs, _L4_store_brs): Fix buffer register addressing.
 	* ia32/l4/bits/vregs.h (_L4_load_br, _L4_store_br,
