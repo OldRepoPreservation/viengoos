@@ -1,4 +1,8 @@
 2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
 
+	* powerpc/bits/atomic.h: Include the common powerpc version from
+	GLIBC (#include_next won't work in our setup).
+	* powerpc64/bits/atomic.h: Likewise.
+
 	* Initial commit.
 
