@@ -1,4 +1,4 @@
-/* class-alloc.c - Deallocate a capability object.
+/* class-alloc.c - Allocate a capability object.
    Copyright (C) 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
@@ -40,7 +40,7 @@ hurd_cap_class_alloc (hurd_cap_class_t cap_class, hurd_cap_obj_t *r_obj)
   error_t err;
   hurd_cap_obj_t obj;
 
-  err = hurd_slab_alloc (cap_class->slab, (void **) &obj);
+  err = hurd_slab_alloc (cap_class->obj_slab, (void **) &obj);
   if (err)
     return err;
 
@@ -50,21 +50,13 @@ hurd_cap_class_alloc (hurd_cap_class_t cap_class, hurd_cap_obj_t *r_obj)
       err = (*cap_class->obj_alloc) (cap_class, obj);
       if (err)
 	{
-	  hurd_slab_dealloc (cap_class->slab, obj);
+	  hurd_slab_dealloc (cap_class->obj_slab, obj);
 	  return err;
 	}
     }
 
-  /* Now take the lock.  Should not fail, but you never know.  */
-  err = hurd_cap_obj_lock (cap_class, obj);
-  if (err)
-    {
-      /* Roll back the user changes.  */
-      if (cap_class->obj_reinit)
-	(*cap_class->obj_reinit) (cap_class, obj);
-      hurd_slab_dealloc (cap_class->slab, obj);
-      return err;
-    }
+  /* Now take the lock.  */
+  hurd_cap_obj_lock (cap_class, obj);
 
   *r_obj = obj;
   return 0;

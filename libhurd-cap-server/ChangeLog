@@ -1,5 +1,67 @@
 2004-03-25  Marcus Brinkmann  <marcus@gnu.org>
 
+	* Makefile.am (libhurd_cap_server_a_SOURCES): Add class-inhibit.c,
+	client-create.c, client-release.c, client-inhibit.c, and
+	obj-inhibit.c.
+	* README, class-inhibit.c, client-create.c, client-release.c,
+	client-inhibit.c, obj-inhibit.c: New files.
+	* cap-server.h: Protect inclusion with _HURD_CAP_SERVER_H.
+	Include <hurd/types.h>, <hurd/table.h>, <hurd/ihash.h> and
+	<hurd/task-death.h>.
+	(hurd_cond_wait): Define to pthread_cond_wait for now.
+	(struct _hurd_cap_list_item): New struct.
+	(_hurd_cap_list_item_t): New typedef.
+	(_hurd_cap_list_item_add, _hurd_cap_list_item_remove): New inline
+	functions.
+	(enum _hurd_cap_state): New enum.
+	(struct _hurd_cap_obj): Add members STATE, PENDING_RPCS,
+	COND_WAITER, and CLIENTS.
+	(hurd_cap_obj_data): Removed.
+	(struct _hurd_cap_entry): New struct.
+	(_hurd_cap_entry_t): New type.
+	(struct hurd_cap_client): New struct.
+	(hurd_cap_client_t): New type.
+	(struct _hurd_cap_client_entry): New struct.
+	(_hurd_cap_client_entry_t): New type.
+	(struct hurd_cap_class): Rename member SLAB to OBJ_SLAB.  Add new
+	members OBJ_COND, OBJ_COND_LOCK, CLIENT_SLAB, CLIENT_COND,
+	CLIENT_COND_LOCK, CLIENT_DEATH_NOTIFY, LOCK, CLIENTS,
+	CLIENTS_REVERSE, STATE, COND, COND_WAITER and PENDING_RPCS.
+	(hurd_cap_class_init, _hurd_cap_class_destroy): New prototypes.
+	(hurd_cap_class_dealloc): Rename prototype to ...
+	(_hurd_cap_class_dealloc): ... this.
+	(hurd_cap_obj_lock, hurd_cap_obj_unlock): Change return type to
+	void.
+	(hurd_cap_obj_drop): Call _hurd_cap_class_dealloc (not
+	hurd_cap_class_dealloc).
+	(_hurd_cap_client_create, _hurd_cap_client_dealloc,
+	_hurd_cap_client_release): New prototype.
+	(hurd_cap_client_lookup): New inline function.
+	(hurd_cap_class_inhibit, hurd_cap_class_resume,
+	hurd_cap_client_inhibit, hurd_cap_client_resume,
+	_hurd_cap_client_end, hurd_cap_obj_inhibit, hurd_cap_obj_resume):
+	New prototypes.
+	* class-alloc.c (hurd_cap_class_alloc): Use CAP_CLASS->obj_slab,
+	not CAP_CLASS->slab.  Don't check return value of
+	hurd_cap_obj_lock (as it is void now).
+	* class-create.c (_hurd_cap_obj_constructor): Initialize
+	OBJ->clients, OBJ->state, OBJ->pending_rpcs and OBJ->clients.
+	Don't check return value of pthread_mutex_destroy.
+	(_hurd_cap_obj_destructor): Destroy OBJ->clients.  Don't check
+	return value of pthread_mutex_destroy.
+	(_hurd_cap_client_constructor, _hurd_cap_client_destructor,
+	_hurd_cap_client_death, hurd_cap_class_init): New functions.
+	(hurd_cap_class_create): Rewritten in terms of
+	hurd_cap_class_init.
+	* class-dealloc.c (hurd_cap_class_dealloc): Rename to ...
+	(_hurd_cap_class_dealloc): ... this.  Do not check return value of
+	now void hurd_cap_obj_unlock function.  Assert OBJ->state and
+	OBJ->pending_rpcs.  Use CAP_CLASS->obj_slab, not CAP_CLASS->slab.
+	* class-destroy.c: Do not include <assert.h>.
+	(_hurd_cap_client_try_destroy): New function.
+	(hurd_cap_class_destroy): Rewritten.
+	(hurd_cap_class_free): New function.
+
 	* task-death.h (task_death_notify_t): Fix return type (should be
 	void, not void *).
 

@@ -33,7 +33,8 @@
 /* Deallocate the capability object OBJ in the class CAP_CLASS.  OBJ
    must be locked and have no more references.  */
 void
-hurd_cap_class_dealloc (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
+__attribute__((visibility("hidden")))
+_hurd_cap_class_dealloc (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 {
   error_t err;
 
@@ -41,10 +42,13 @@ hurd_cap_class_dealloc (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
   (*cap_class->obj_reinit) (cap_class, obj);
 
   /* Now do our part of the reinitialization.  */
-  err = hurd_cap_obj_unlock (cap_class, obj);
-  assert (!err);
-
   assert (obj->refs == 1);
+  assert (obj->state == _HURD_CAP_STATE_GREEN);
+  assert (obj->pending_rpcs == NULL);
 
-  hurd_slab_dealloc (cap_class->slab, obj);
+  /* FIXME: It would be a good idea to shrink the empty hash table
+     OBJ->clients, so that the storage is reclaimed.  */
+  hurd_cap_obj_unlock (cap_class, obj);
+
+  hurd_slab_dealloc (cap_class->obj_slab, obj);
 }

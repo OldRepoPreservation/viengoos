@@ -30,4 +30,6 @@ AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts
 AM_CFLAGS = -std=gnu99
 libhurd_cap_server_a_SOURCES = table.c task-death.c			\
 	cap-server.h class-create.c class-destroy.c			\
-	class-alloc.c class-dealloc.c
+	class-alloc.c class-dealloc.c class-inhibit.c			\
+	client-create.c client-release.c client-inhibit.c		\
+	obj-inhibit.c
