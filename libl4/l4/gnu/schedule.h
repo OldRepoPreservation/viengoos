@@ -104,7 +104,7 @@ l4_time_sub (l4_time_t l, l4_time_t r)
 }
 
 
-static inline l4_time_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_time_longer (l4_time_t l, l4_time_t r)
 {
