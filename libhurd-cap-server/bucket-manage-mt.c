@@ -72,7 +72,10 @@ reply_err (l4_thread_id_t to, error_t err)
 {
 #define HURD_L4_ERROR_LABEL ((uint16_t) INT16_MIN)
 #define HURD_L4_ERROR_TAG ((HURD_L4_ERROR_LABEL << 16) & 1)
-  l4_set_msg_tag (HURD_L4_ERROR_TAG);
+  l4_msg_tag_t tag = HURD_L4_ERROR_TAG;
+
+  l4_set_propagation (&tag);
+  l4_set_msg_tag (tag);
   l4_load_mr (1, err);
   l4_reply (to);
 }
@@ -262,18 +265,15 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
       pthread_mutex_unlock (&obj->lock);
       goto class_cleanup;
     }
-
   _hurd_cap_list_item_add (&obj->pending_rpcs, &worker_obj);
-  pthread_mutex_unlock (&obj->lock);
-
 
   /* At this point, we have looked up the capability, acquired an
      internal reference for its entry in the client table (which
      implicitely keeps a reference acquired for the object itself),
      acquired a reference for the capability client entry in the
      bucket, and have added an item to the pending_rpcs lists in the
-     client, class and object.  With all this, we can finally start to
-     process the message for real.  */
+     client, class and object.  The object is locked.  With all this,
+     we can finally start to process the message for real.  */
 
   /* FIXME: Call the internal demuxer here, for things like reference
      counter modification, cap passing etc.  */
@@ -281,13 +281,21 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
   /* Invoke the class-specific demuxer.  */
   ctx->client = client;
   ctx->obj = obj;
-  (*cap_class->demuxer) (ctx);
+  err = (*cap_class->demuxer) (ctx);
 
-  /* Clean up.  */
-  pthread_mutex_lock (&obj->lock);
+  /* Clean up.  OBJ is still locked.  */
   _hurd_cap_list_item_remove (&worker_obj);
   _hurd_cap_obj_cond_check (obj);
-  pthread_mutex_unlock (&obj->lock);
+
+  /* Instead releasing the lock for the object, we hold it until
+     manage_demuxer_cleanup is called.  This is important, because the
+     object must be locked until the reply message is sent.  Consider
+     the impact of map items or string items.  FIXME: Alternatively,
+     let the user set a flag if the object is locked upon return (and
+     must be kept lock continuously until the reply is sent).  OTOH,
+     releasing a lock just to take it again is also pretty useless.
+     Needs performance measurements to make a good decision.  */
+  hurd_cap_obj_ref (obj);
 
  class_cleanup:
   pthread_mutex_lock (&cap_class->lock);
@@ -314,6 +322,14 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
   _hurd_cap_client_release (bucket, client->id);
 
   return err;
+}
+
+
+static void
+__attribute__((always_inline))
+manage_demuxer_cleanup (hurd_cap_rpc_context_t ctx)
+{
+  hurd_cap_obj_drop (ctx->obj);
 }
 
 
@@ -502,6 +518,8 @@ manage_mt_worker (void *arg)
 	    }
 	  else
 	    {
+	      bool demuxed = false;
+
 	      _hurd_cap_list_item_add (inhibited ? &bucket->waiting_rpcs
 				       : &bucket->pending_rpcs, worker);
 	      pthread_mutex_unlock (&bucket->lock);
@@ -544,6 +562,7 @@ manage_mt_worker (void *arg)
 		  ctx.sender = hurd_task_id_from_thread_id (from);
 		  ctx.bucket = bucket;
 		  ctx.from = from;
+		  ctx.obj = NULL;
 		  err = manage_demuxer (&ctx, worker);
 		}
 
@@ -596,11 +615,18 @@ manage_mt_worker (void *arg)
 		    reply_err (from, err);
 		  else
 		    {
+		      /* We must make sure the message tag is set.  */
+		      l4_msg_tag_t tag = l4_msg_msg_tag (ctx.msg);
+		      l4_set_propagation (&tag);
+		      l4_set_msg_msg_tag (ctx.msg, tag);
 		      l4_msg_load (ctx.msg);
 		      l4_reply (from);
 		    }
 		}
 
+	      if (ctx.obj)
+		manage_demuxer_cleanup (&ctx);
+	      
 	      /* Now listen for the next message, with a timeout.  */
 	      from = manager;
 	      msg_tag = l4_wait_timeout (timeout, &from);

@@ -1,3 +1,14 @@
+2004-04-12  Marcus Brinkmann  <marcus@gnu.org>
+
+	* bucket-manage-mt.c (manage_mt_worker): Set CTX.obj to NULL
+	before calling demuxer.  If later on CTX.obj is not NULL, call
+	manage_demuxer_cleanup after sending the reply message.  Set
+	propagation flag in message tag.
+	(manage_demuxer): Do not release OBJ lock before calling the
+	demuxer, do not acquire and release OBJ lock afterwards.  Instead,
+	acquire a reference to OBJ.
+	(reply_err): Set propagation flag in message tag.
+
 2004-04-11  Marco Gerards  <metgerards@student.han.nl>
 
 	* table.c (hurd_table_init): Return an error code.
