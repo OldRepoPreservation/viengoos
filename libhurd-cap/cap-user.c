@@ -28,7 +28,8 @@
 #include "cap-intern.h"
 
 
-static struct hurd_ihash server_to_sconn = HURD_IHASH_INITIALIZER;
+static struct hurd_ihash server_to_sconn
+  = HURD_IHASH_INITIALIZER (HURD_IHASH_NO_LOCP);
 static pthread_mutex_t server_to_sconn_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
@@ -131,7 +132,7 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
       sconn->refs = 0;
 
       /* Enter the new server connection object.  */
-      err = hurd_ihash_add (&server_to_sconn, server_thread, sconn, NULL);
+      err = hurd_ihash_add (&server_to_sconn, server_thread, sconn);
       if (err)
 	{
 	  pthread_mutex_destroy (&sconn->lock);
@@ -162,7 +163,7 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
       cap->scid = scid;
       cap->dead_cb = NULL;
 
-      err = hurd_ihash_add (&sconn->id_to_cap, scid, cap, 0);
+      err = hurd_ihash_add (&sconn->id_to_cap, scid, cap);
       if (err)
 	{
 	  _hurd_cap_sconn_dealloc (sconn);
