@@ -24,7 +24,7 @@
 
 
 /* The program name.  */
-extern char *program_name;
+extern char program_name[];
 
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
 

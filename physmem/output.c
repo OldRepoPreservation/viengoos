@@ -33,6 +33,29 @@
 int output_debug;
 
 
+/* Send a shutdown request to the rootserver wortel.  */
+void
+shutdown (void)
+{
+  l4_msg_t msg;
+
+  l4_msg_clear (&msg);
+  /* FIXME: Hard coded message label.  */
+#define WORTEL_MSG_SHUTDOWN 2
+  l4_set_msg_label (&msg, WORTEL_MSG_SHUTDOWN);
+
+  /* FIXME: This should be our cap ID.  */
+  l4_msg_append_word (&msg, 0);
+
+  /* This is some yet unspecified specifier.  */
+  l4_msg_append_word (&msg, 0);
+
+  l4_msg_load (&msg);
+  /* FIXME: Hard coded thread ID.  */
+  l4_send (l4_global_id (l4_thread_user_base () + 2, 1));
+}
+
+
 /* Print the single character CHR on the output device.  */
 int
 putchar (int chr)

@@ -1,3 +1,11 @@
+2003-10-16  Marcus Brinkmann  <marcus@gnu.org>
+
+	* output.c (shutdown): New function.
+	* physmem.c: Include <stdlib.h>.
+	(get_all_memory): Update to match new wortel interface.
+	(create_bootstrap_caps): New function.
+	(main): Call create_bootstrap_caps.
+
 2003-10-12  Marcus Brinkmann  <marcus@gnu.org>
 
 	* config.m4: New file.
