@@ -22,7 +22,7 @@ noinst_LIBRARIES = libc-parts.a
 
 libc_parts_a_SOURCES = ctype.h c-ctype.h c-ctype.c		\
 	errno.h errno.c						\
-	strtol.c strtoll.c strtoul.c strtoull.c			\
+	strtol.c strtoll.c strtoul.c strtoull.c
 
 # For the following routines we want to take the possibly optimized
 # versions from the target's GNU C library, rather than duplicating
