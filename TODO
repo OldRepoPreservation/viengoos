@@ -1,5 +1,7 @@
 * libl4
-  The TODO list for libl4 is in the file libl4/TODO.
+** The main TODO list for libl4 is in the file libl4/TODO.
+** We need cancellable forms of ipc() and lipc()!
+
 
 * configure.ac
 ** Allow user to specify location of libc.a.
@@ -46,12 +48,36 @@
 ** Can be merged back into the Hurd if the callers are changed.
 
 
+* libhurd-cap-server
+** Implement propagation support, so that worker threads like for
+   select or notifications can propagate rpcs to another thread.  This
+   must update the pending_rpc table (the worker thread can then
+   return with ENOREPLY) for cancellation support.  Of course, the new
+   receiver thread must be able to deal with cancellation.
+
+   One problem is that the new processing thread can't know which rpc
+   is cancelled.  Yuck!
+
+   So, maybe, to cancel, the manager could just propagates the
+   cancellation request.  For this to work, we need to be able to
+   differentiate between normal pending workers and such sub-managers.
+
 * L4 (for lack of a better place)
 ** Check that L4 does not schedule the client when the server makes a
    non-blocking reply.
 ** Check that L4 does schedule the server when the client makes a
    blocking call.
-
+** What happens with map and grant items if IPC is aborted due to
+   xfer timeout?
+** Wishlist for ABI changes:
+*** [ia32] Use %fs or %gs:4 for the TCB pointer instead %gs:0, to free
+    that one for the ia32 TLS ABI.
+*** Use Xfer timeout of the other side for pagefault timeouts, instead
+    of the minimum (so pageouts on your side don't abort IPC operations
+    if you need to restrict the xfer timeout to zero).
+    Alternatively: Have another set of xfer timeouts for that use.
+** Bugs:
+*** See patches in README
 
 Copyright 2003, 2004 Free Software Foundation, Inc.
 Written by Marcus Brinkmann <marcus@gnu.org>
