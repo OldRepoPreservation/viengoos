@@ -1,3 +1,8 @@
+2003-09-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* loader.c (loader_elf_load): Fix wordsize check.  Submitted by
+	Johan Rydberg.
+
 2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* loader.c [HAVE_CONFIG_H]: Include <config.h>.
