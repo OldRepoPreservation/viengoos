@@ -22,7 +22,7 @@ configuring this source tree):
 
 $ mkdir hurd-l4-build
 $ cd hurd-l4-build
-$ ../hurd-l4/configure --prefix=/l4 --enable-libc \
+$ ../hurd-l4/configure --prefix=/l4 --with-libc \
 	--enable-maintainer-mode --build=i686-linux --host=i686-gnu
 $ make -C libc libc-cvs
 
@@ -36,12 +36,13 @@ $ cp -a libc ~/libc-for-hurd-l4
 (next time around:)
 
 $ cp -a ~/libc-for-hurd-l4 libc/libc
-$ ../hurd-l4/configure --prefix=/l4 --enable-libc \
+$ ../hurd-l4/configure --prefix=/l4 --with-libc \
 	--enable-maintainer-mode --build=i686-linux --host=i686-gnu
+$ make
 
-The Makefile will always download a tested, working version of the C
-library.  But you can copy any version to the libc directory and try
-your luck.
+The Makefile target libc-cvs will always download a tested, working
+version of the C library.  But you can copy any version to the libc
+directory and try your luck.
 
 The downloaded or installed version of the GNU C library source _will_
 be modified when you build the package!  So, please, make a copy
