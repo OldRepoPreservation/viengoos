@@ -265,21 +265,8 @@ struct _hurd_cap_client_entry
 typedef struct _hurd_cap_client_entry *_hurd_cap_client_entry_t;
 
 
-/* Buckets are a set of classes, on which RPCs are managed
+/* Buckets are a set of capabilities, on which RPCs are managed
    collectively.  */
-
-struct _hurd_cap_class_entry
-{
-  /* The capability class pointer must be the first entry in this
-     struct.  */
-  hurd_cap_class_t cap_class;
-
-  /* If this is true, then this capability class is inspected whenever
-     the manager thread is supposed to exit.  */
-  bool precious;
-};
-typedef struct _hurd_cap_class_entry *_hurd_cap_class_entry_t;
-
 
 struct _hurd_cap_bucket
 {
@@ -319,10 +306,6 @@ struct _hurd_cap_bucket
 
   /* The following members are protected by this lock.  */
   pthread_mutex_t lock;
-
-  /* A table of _hurd_cap_class_entry objects.  These are the classes
-     that are managed by this capability bucket.  */
-  struct hurd_table classes;
 
   /* The state of the bucket.  */
   _hurd_cap_state_t state;

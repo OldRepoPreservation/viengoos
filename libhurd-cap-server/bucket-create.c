@@ -125,10 +125,6 @@ hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket)
   if (err)
     goto err_lock;
 
-  err = hurd_table_init (&bucket->classes,
-			 sizeof (struct _hurd_cap_class_entry));
-  goto err_classes;
-
   bucket->state = _HURD_CAP_STATE_GREEN;
 
   err = pthread_cond_init (&bucket->cond, NULL);
@@ -166,8 +162,6 @@ hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket)
  err_clients:
   pthread_cond_destroy (&bucket->cond);
  err_cond:
-  hurd_table_destroy (&bucket->classes);
- err_classes:
   pthread_mutex_destroy (&bucket->lock);
  err_lock:
   pthread_mutex_destroy (&bucket->client_cond_lock);

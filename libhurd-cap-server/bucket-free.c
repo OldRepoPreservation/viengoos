@@ -39,7 +39,6 @@ hurd_cap_bucket_free (hurd_cap_bucket_t bucket)
      Reintroduce _hurd_cap_client_try_destroy.  */
   hurd_table_destroy (&bucket->clients);
   pthread_cond_destroy (&bucket->cond);
-  hurd_table_destroy (&bucket->classes);
   pthread_mutex_destroy (&bucket->lock);
   pthread_mutex_destroy (&bucket->client_cond_lock);
   pthread_cond_destroy (&bucket->client_cond);

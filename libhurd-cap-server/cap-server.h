@@ -358,7 +358,7 @@ error_t hurd_cap_obj_inhibit (hurd_cap_obj_t obj);
 void hurd_cap_obj_resume (hurd_cap_obj_t obj);
 
 
-/* Buckets are a set of classes, on which RPCs are managed
+/* Buckets are a set of capabilities, on which RPCs are managed
    collectively.  */
 
 struct _hurd_cap_bucket;
@@ -371,19 +371,6 @@ error_t hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket);
 
 /* Free the bucket BUCKET, which must not be used.  */
 void hurd_cap_bucket_free (hurd_cap_bucket_t bucket);
-
-
-/* Add the capability class CAP_CLASS to the bucket BUCKET.  If
-   PRECIOUS is true, then this class is inspected for active users
-   whenever a timeout of un-forced "go away" request occurs.  */
-error_t hurd_cap_bucket_add (hurd_cap_bucket_t bucket,
-			     hurd_cap_class_t cap_class,
-			     bool precious);
-
-
-/* Remove the capability class CAP_CLASS from the bucket BUCKET.  */
-error_t hurd_cap_bucket_remove (hurd_cap_bucket_t bucket,
-				hurd_cap_class_t cap_class);
 
 
 /* Start managing RPCs on the bucket BUCKET.  The BOOTSTRAP capability

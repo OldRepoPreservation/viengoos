@@ -1,3 +1,18 @@
+2004-04-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (libhurd_cap_server_a_SOURCES): Remove bucket-add.c,
+	bucket-remove.c.
+	* bucket-add.c, bucket-remove.c: Files removed.
+	* cap-server.h (hurd_cap_bucket_add, hurd_cap_bucket_remove):
+	Remove prototypes.
+	* cap-server-intern.h (struct _hurd_cap_class_entry): Removed.
+	(_hurd_cap_class_entry_t): Removed.
+	(struct _hurd_cap_bucket): Remove member classes.
+	* bucket-create.c (hurd_cap_bucket_create): Do not initialize
+	deleted member classes.
+	* bucket-free.c (hurd_cap_bucket_free): Do not destroy deleted
+	member classes.
+
 2004-03-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* bucket-add.c, bucket-create.c, bucket-free.c, bucket-inhibit.c,
