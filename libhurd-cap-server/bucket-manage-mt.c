@@ -74,7 +74,6 @@ reply_err (l4_thread_id_t to, error_t err)
 #define HURD_L4_ERROR_TAG ((HURD_L4_ERROR_LABEL << 16) & 1)
   l4_msg_tag_t tag = HURD_L4_ERROR_TAG;
 
-  l4_set_propagation (&tag);
   l4_set_msg_tag (tag);
   l4_load_mr (1, err);
   l4_reply (to);
@@ -617,7 +616,7 @@ manage_mt_worker (void *arg)
 		    {
 		      /* We must make sure the message tag is set.  */
 		      l4_msg_tag_t tag = l4_msg_msg_tag (ctx.msg);
-		      l4_set_propagation (&tag);
+		      l4_clear_propagation (&tag);
 		      l4_set_msg_msg_tag (ctx.msg, tag);
 		      l4_msg_load (ctx.msg);
 		      l4_reply (from);

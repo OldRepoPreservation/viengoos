@@ -1,3 +1,8 @@
+2004-10-07  Marcus Brinkmann  <marcus@gnu.org>
+
+	* bucket-manage-mt.c (reply_err): Don't set propagation flag.
+	(manage_mt_worker): Clear the propagation flag.
+
 2004-08-02  Peter Bruin  <pjbruin@dds.nl>
 
 	* cap-server-intern.h (_hurd_cap_bucket_cond_check): Call
