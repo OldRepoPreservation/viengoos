@@ -1,3 +1,8 @@
+2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
+
+	* bucket-manage-mt.c (manage_mt_worker): Use
+	_hurd_cap_list_item_dequeued to set current_worker_is_us.
+
 2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
 
 	* cap-server.h (hurd_cap_bucket_inject): Change hurd_cap_t to

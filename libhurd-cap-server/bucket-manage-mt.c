@@ -365,10 +365,7 @@ manage_mt_worker (void *arg)
 
 	  pthread_mutex_lock (&bucket->lock);
 	  /* If we are not on the free queue, we are the current worker.  */
-	  if (worker->prevp == NULL)
-	    current_worker_is_us = 1;
-	  else
-	    current_worker_is_us = 0;
+	  current_worker_is_us = _hurd_cap_list_item_dequeued (worker);
 	  pthread_mutex_unlock (&bucket->lock);
 
 	  /* If we are not the current worker, then we can just exit
