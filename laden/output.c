@@ -82,7 +82,7 @@ output_deinit (void)
 
 
 /* Print the single character CHR on the output device.  */
-void
+int
 putchar (int chr)
 {
   if (!output)
@@ -90,6 +90,20 @@ putchar (int chr)
 
   if (output->putchar)
     (*output->putchar) (chr);
+
+  return 0;
+}
+
+
+int
+puts (const char *str)
+{
+  while (*str != '\0')
+    putchar (*(str++));
+
+  putchar ('\n');
+
+  return 0;
 }
 
 
@@ -130,7 +144,7 @@ print_signed_nr (long long nr, int base)
 }
   
 
-void
+int
 printf (const char *fmt, ...)
 {
   va_list ap;
@@ -245,4 +259,6 @@ printf (const char *fmt, ...)
 	  break;
 	}
     }
+
+  return 0;
 }

@@ -58,9 +58,11 @@ int output_init (char *name);
 void output_deinit (void);
 
 /* Print the single character CHR on the output device.  */
-void putchar (int chr);
+int putchar (int chr);
 
-void printf (const char *fmt, ...);
+int puts (const char *str);
+
+int printf (const char *fmt, ...);
 
 /* True if debug mode is enabled.  */
 extern int output_debug;

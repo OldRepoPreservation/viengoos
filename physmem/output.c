@@ -34,7 +34,7 @@ int output_debug;
 
 
 /* Print the single character CHR on the output device.  */
-void
+int
 putchar (int chr)
 {
   l4_msg_t msg;
@@ -48,6 +48,20 @@ putchar (int chr)
   /* FIXME: Hard coded thread ID.  */
   l4_send (l4_global_id (l4_thread_user_base () + 2, 1));
   /* FIXME: No error handling.  */
+
+  return 0;
+}
+
+
+int
+puts (const char *str)
+{
+  while (*str != '\0')
+    putchar (*(str++));
+
+  putchar ('\n');
+
+  return 0;
 }
 
 
@@ -88,7 +102,7 @@ print_signed_nr (long long nr, int base)
 }
   
 
-void
+int
 printf (const char *fmt, ...)
 {
   va_list ap;
@@ -203,4 +217,6 @@ printf (const char *fmt, ...)
 	  break;
 	}
     }
+
+  return 0;
 }
