@@ -365,7 +365,7 @@ hurd_slab_destroy (hurd_slab_space_t space)
   /* FIXME: Remove slab space from pager's reap functionality.  */
 
   /* The only resource that needs to be deallocated is the mutex.  */
-  pthread_mutex_destory (&space->lock);
+  pthread_mutex_destroy (&space->lock);
   return 0;
 }
 
@@ -376,7 +376,7 @@ hurd_slab_destroy (hurd_slab_space_t space)
 error_t
 hurd_slab_free (hurd_slab_space_t space)
 {
-  error_t err = hurd_slab_destory (space);
+  error_t err = hurd_slab_destroy (space);
   if (err)
     return err;
   free (space);
