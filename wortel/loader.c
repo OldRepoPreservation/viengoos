@@ -158,6 +158,59 @@ loader_remove_region (const char *name)
 }
 
 
+/* Get the memory range to which the ELF image from START to END
+   (exclusive) will be loaded.  NAME is used for panic messages.  */
+void
+loader_elf_dest (const char *name, l4_word_t start, l4_word_t end,
+		 l4_word_t *new_start_p, l4_word_t *new_end_p)
+{
+  l4_word_t new_start = -1;
+  l4_word_t new_end = 0;
+  int i;
+
+  Elf32_Ehdr *elf = (Elf32_Ehdr *) start;
+
+  if (elf->e_ident[EI_MAG0] != ELFMAG0
+      || elf->e_ident[EI_MAG1] != ELFMAG1
+      || elf->e_ident[EI_MAG2] != ELFMAG2
+      || elf->e_ident[EI_MAG3] != ELFMAG3)
+    panic ("%s is not an ELF file", name);
+
+  if (elf->e_type != ET_EXEC)
+    panic ("%s is not an executable file", name);
+
+  if (!elf->e_phoff)
+    panic ("%s has no valid program header offset", name);
+
+#ifdef i386
+  if (elf->e_ident[EI_CLASS] != ELFCLASS32
+      || elf->e_ident[EI_DATA] != ELFDATA2LSB
+      || elf->e_machine != EM_386)
+    panic ("%s is not for this architecture", name);
+#else
+#error Not ported to this architecture!
+#endif
+
+  for (i = 0; i < elf->e_phnum; i++)
+    {
+      Elf32_Phdr *ph = (Elf32_Phdr *) (start + elf->e_phoff
+				       + i * elf->e_phentsize);
+      if (ph->p_type == PT_LOAD)
+	{
+	  if (ph->p_paddr < new_start)
+	    new_start = ph->p_paddr;
+	  if (ph->p_memsz + ph->p_paddr > new_end)
+	    new_end = ph->p_memsz + ph->p_paddr;
+	}
+    }
+
+  if (new_start_p)
+    *new_start_p = new_start;
+  if (new_end_p)
+    *new_end_p = new_end;
+}
+
+
 /* Load the ELF image from START to END (exclusive) into memory under
    the name NAME (also used as the name for the region of the
    resulting ELF program).  Return the lowest and highest address used

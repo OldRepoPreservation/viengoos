@@ -24,11 +24,57 @@ $ cp physmem/physmem /l4/boot
 
 Note that use of optimization is mandatory, not optional.
 
-You also need the L4 kernel and sigma0.  sigma0 must be built with a
-different link base than the default value 0x20000, because that
-conflicts with GRUB (on ia32).  I have successfully used a link base
-of 0x40000.  Then set up GRUB to boot laden as the kernel, and the L4
-kernel, sigma0, wortel (the rootserver) and physmem as its modules.
+
+Installation
+------------
+
+Prerequisites: Pistachio-0.2 with the patch you can find at the end of
+this file.
+
+Furthermore, sigma0 must be built with a different link base than the
+default value 0x20000, because that conflicts with GRUB (on ia32).  I
+have successfully used a link base of 0x40000.
+
+Then set up GRUB to boot laden as the kernel, and the L4 kernel,
+sigma0, wortel (the rootserver) and physmem as its modules.
 
 Try the debug option (-D) to laden and wortel to see some output from
 them.  They are silent by default.
+
+
+sigma0 Patch
+------------
+
+sigma0 in pistachio 0.2 is a bit buggy.  The following patch fixes the
+problems that the bugs cause to wortel.
+
+--- pistachio-0.2/user/serv/sigma0/sigma0.cc.prev	2003-09-16 20:29:14.000000000 +0200
++++ pistachio-0.2/user/serv/sigma0/sigma0.cc	2003-09-16 21:03:09.000000000 +0200
+@@ -506,7 +506,8 @@
+     L4_Word_t low_a = (low + size - 1) & ~(size-1);
+     L4_Fpage_t ret;
+ 
+-    if ((high_a - low_a) < size || (owner != tid && owner != L4_anythread))
++    if (low_a > high_a || (high_a - low_a) < size
++	|| (owner != tid && owner != L4_anythread))
+     {
+ 	// Allocation failed
+ 	ret = L4_Nilpage;
+@@ -530,7 +531,7 @@
+     {
+ 	// Allocate from middle of region
+ 	ret = L4_FpageLog2 (low_a, log2size) + L4_FullyAccessible;
+-	memregion_t * r = new memregion_t (high_a, high, owner);
++	memregion_t * r = new memregion_t (low_a + size, high, owner);
+ 	r->next = next;
+ 	r->prev = this;
+ 	r->next->prev = next = r;
+@@ -1246,7 +1247,7 @@
+     {
+ 	if ((fp = r->allocate (log2size)).raw != L4_Nilpage.raw)
+ 	{
+-	    map = L4_MapItem (fp, 0);
++	    map = L4_MapItem (fp, L4_Address (fp));
+ 	    alloc_pool.insert
+ 		(new memregion_t (L4_Address (fp), L4_Address (fp) +
+ 				  (1UL << log2size), tid));

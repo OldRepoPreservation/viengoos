@@ -25,6 +25,7 @@
 #include <alloca.h>
 
 #include "wortel.h"
+#include "sigma0.h"
 
 
 /* The program name.  */
@@ -33,6 +34,15 @@ const char program_name[] = "wortel";
 /* The region of wortel itself.  */
 l4_word_t wortel_start;
 l4_word_t wortel_end;
+
+
+/* Unused memory.  These fpages mark memory which we needed at some
+   time, but don't need anymore.  It can be granted to the physical
+   memory server at startup.  This includes architecture dependent
+   boot data as well as the physical memory server module.  */
+#define MAX_UNUSED_FPAGES 32
+l4_fpage_t wortel_unused_fpages[MAX_UNUSED_FPAGES];
+unsigned int wortel_unused_fpages_count;
 
 
 /* Room for the arguments.  1 KB is a cramped half-screen full, which
@@ -140,65 +150,6 @@ make_fpages (l4_word_t start, l4_word_t end, l4_fpage_t *fpages)
 }
 
 
-/* Request the fpage FPAGE from sigma0.  */
-static void
-sigma0_get_fpage (l4_fpage_t fpage)
-{
-  l4_msg_t msg;
-  l4_msg_tag_t msg_tag;
-  l4_map_item_t map_item;
-
-  l4_accept (l4_map_grant_items (l4_complete_address_space));
-  l4_msg_clear (&msg);
-  l4_set_msg_label (&msg, 0xffa0);
-  l4_msg_append_word (&msg, fpage.raw);
-  l4_msg_append_word (&msg, L4_DEFAULT_MEMORY);
-  l4_msg_load (&msg);
-  msg_tag = l4_call (l4_global_id (l4_thread_user_base (), 1));
-  if (l4_ipc_failed (msg_tag))
-    panic ("sigma0 request failed during %s: %u",
-	   l4_error_code () & 1 ? "receive" : "send",
-	   (l4_error_code () >> 1) & 0x7);
-  if (l4_untyped_words (msg_tag) != 0
-      || l4_typed_words (msg_tag) != 2)
-    panic ("Invalid format of sigma0 reply");
-  l4_msg_store (msg_tag, &msg);
-  l4_msg_get_map_item (&msg, 0, &map_item);
-  if (map_item.send_fpage.raw == l4_nilpage.raw)
-    panic ("sigma0 rejected mapping");
-}
-
-/* Request an fpage of the size 2^SIZE from sigma0.  */
-static l4_fpage_t
-sigma0_get_any (unsigned int size)
-{
-  l4_msg_t msg;
-  l4_msg_tag_t msg_tag;
-  l4_map_item_t map_item;
-  l4_fpage_t fpage = l4_fpage_add_rights (l4_fpage_log2 (-1, size),
-					  l4_fully_accessible);
-
-  l4_accept (l4_map_grant_items (l4_complete_address_space));
-  l4_msg_clear (&msg);
-  l4_set_msg_label (&msg, 0xffa0);
-  debug ("Request 0x%x\n", fpage.raw);
-  l4_msg_append_word (&msg, fpage.raw);
-  l4_msg_append_word (&msg, L4_DEFAULT_MEMORY);
-  l4_msg_load (&msg);
-  msg_tag = l4_call (l4_global_id (l4_thread_user_base (), 1));
-  if (l4_ipc_failed (msg_tag))
-    panic ("sigma0 request failed during %s: %u",
-	   l4_error_code () & 1 ? "receive" : "send",
-	   (l4_error_code () >> 1) & 0x7);
-  if (l4_untyped_words (msg_tag) != 0
-      || l4_typed_words (msg_tag) != 2)
-    panic ("Invalid format of sigma0 reply");
-  l4_msg_store (msg_tag, &msg);
-  l4_msg_get_map_item (&msg, 0, &map_item);
-  debug ("Got 0x%x\n", map_item.send_fpage.raw);
-  return map_item.send_fpage;
-}
-
 
 static void
 load_components (void)
@@ -207,57 +158,82 @@ load_components (void)
   unsigned int nr_fpages;
   l4_word_t min_page_size = getpagesize ();
   unsigned int i;
+  l4_word_t addr;
+  l4_word_t end_addr;
 
   /* One issue we have to solve is to make sure that when the physical
-     memory server requests all the available physical pages, we know
-     which pages we can give to it, and which we can't.  This can be
-     left to sigma0, as long as we request all pages from sigma0 we
+     memory server requests all the available physical fpages, we know
+     which fpages we can give to it, and which we can't.  This can be
+     left to sigma0, as long as we request all fpages from sigma0 we
      can't give to the physical memory server up-front.
 
      We do this in several steps: First, we copy all of the startup
      information to memory that is part of the wortel binary image
-     itself.  This is done by the architecture dependant
+     itself.  This is done by the architecture dependent
      find_components function.  Then we request all of our own memory,
-     and all the memory needed for the physical memory server image
-     (at its destination address), and all the memory for each module
-     (at their corresponding load addresses).  */
+     all the memory for our modules, and finally all the memory needed
+     for the physical memory server image (at its destination
+     address).  */
 
   if (wortel_start & (min_page_size - 1))
     panic ("%s does not start on a page boundary", program_name);
   loader_add_region (program_name, wortel_start, wortel_end);
-  nr_fpages = make_fpages (wortel_start, wortel_end, fpages);
-  while (nr_fpages--)
-    sigma0_get_fpage (fpages[nr_fpages]);
+
+  /* We must request our own memory using the smallest fpages
+     possible, because we already have some memory mapped due to page
+     faults, and fpages are specified as inseparable objects.  */
+  for (addr = wortel_start; addr < wortel_end; addr += min_page_size)
+    sigma0_get_fpage (l4_fpage (addr, min_page_size));
 
   /* First protect all pages covered by the modules.  This will also
-     show if each module starts (and ends) on its own page.  */
+     show if each module starts (and ends) on its own page.  Request
+     all memory for all modules.  Although we can release the memory
+     for the physmem module later on, we have to touch it anyway to
+     load it to its destination address, and requesting the fpages now
+     allows us to choose how we want to split up the module in
+     (inseparable) fpages.  */
   for (i = 0; i < mods_count; i++)
     {
       if (mods[i].start & (min_page_size - 1))
 	panic ("Module %s does not start on a page boundary", mods[i].name);
       loader_add_region (mods[i].name, mods[i].start, mods[i].end);
-    }
 
-  /* Now load the physical memory server to its destination
-     address.  */
-  if (!mods[MOD_PHYSMEM].start)
-    panic ("No physical memory server found");
-  loader_elf_load ("physmem-server", mods[MOD_PHYSMEM].start,
-		   mods[MOD_PHYSMEM].end,
-		   &mods[MOD_PHYSMEM].start, &mods[MOD_PHYSMEM].end,
-		   &mods[MOD_PHYSMEM].ip);
-  loader_remove_region ("physmem-mod");
-
-  /* Finally we can request all the memory for the physical memory
-     server and all other modules from sigma0.  This will register the
-     memory as taken by us, and the memory will not be returned by any
-     future request.  */
-  for (i = 0; i < mods_count; i++)
-    {
       nr_fpages = make_fpages (mods[i].start, mods[i].end, fpages);
+      if (i == MOD_PHYSMEM)
+	{
+	  /* The physical memory server module memory can be recycled
+	     later.  */
+	  if (nr_fpages + wortel_unused_fpages_count > MAX_UNUSED_FPAGES)
+	    panic ("not enough room in unused fpages list for physmem-mod");
+	  memcpy (&wortel_unused_fpages[wortel_unused_fpages_count],
+		  fpages, sizeof (l4_fpage_t) * nr_fpages);
+	  wortel_unused_fpages_count += nr_fpages;
+	}
+
       while (nr_fpages--)
 	sigma0_get_fpage (fpages[nr_fpages]);
     }
+
+  /* Because loading the physical memory server to its destination
+     address will touch the destination memory, which we later want to
+     grant to the physical memory server using (inseparable) fpages,
+     we request the desired fpages up-front.  */
+  loader_elf_dest ("physmem-server", mods[MOD_PHYSMEM].start,
+		   mods[MOD_PHYSMEM].end, &addr, &end_addr);
+  nr_fpages = make_fpages (addr, end_addr, fpages);
+  while (nr_fpages--)
+    sigma0_get_fpage (fpages[nr_fpages]);
+
+  /* Now load the physical memory server to its destination
+     address.  */
+  addr = mods[MOD_PHYSMEM].start;
+  end_addr = mods[MOD_PHYSMEM].end;
+  if (!addr)
+    panic ("No physical memory server found");
+  loader_elf_load ("physmem-server", addr, end_addr,
+		   &mods[MOD_PHYSMEM].start, &mods[MOD_PHYSMEM].end,
+		   &mods[MOD_PHYSMEM].ip);
+  loader_remove_region ("physmem-mod");
 }
 
 
@@ -275,7 +251,6 @@ start_components (void)
   if (mods[MOD_PHYSMEM].ip < mods[MOD_PHYSMEM].start
       || mods[MOD_PHYSMEM].ip > mods[MOD_PHYSMEM].end)
     panic ("physmem has invalid IP");
-
 
   cap_id = wortel_add_user (2);
   /* FIXME: Pass cap_id to physmem.  */
@@ -393,8 +368,12 @@ serve_bootstrap_requests (void)
   /* The size of the region that we are currently trying to allocate
      for GET_MEM requests.  If this is smaller than 2^10, no more
      memory is available.  */
-  unsigned int get_mem_size = 12;
+  unsigned int get_mem_size = sizeof (l4_word_t) * 8 - 1;
 
+  while (get_mem_size >= 10
+	 && ! ((1 << get_mem_size) & l4_page_size_mask ()))
+    get_mem_size--;
+  
   do
     {
       l4_thread_id_t from;
@@ -438,13 +417,23 @@ serve_bootstrap_requests (void)
 	  if (get_mem_size < 10)
 	    panic ("physmem server does not stop requesting memory");
 
-	  do
-	    {
-	      fpage = sigma0_get_any (get_mem_size);
-	      if (fpage.raw == l4_nilpage.raw)
-		get_mem_size--;
-	    }
-	  while (fpage.raw == l4_nilpage.raw && get_mem_size >= 10);
+	  /* Give out the memory.  First our unused fpages, then the
+	     fpages we can get from sigma0.  */
+	  if (wortel_unused_fpages_count)
+	    fpage = wortel_unused_fpages[--wortel_unused_fpages_count];
+	  else
+	    do
+	      {
+		fpage = sigma0_get_any (get_mem_size);
+		if (fpage.raw == l4_nilpage.raw)
+		  {
+		    get_mem_size--;
+		    while (get_mem_size >= 10
+			   && ! ((1 << get_mem_size) & l4_page_size_mask ()))
+		      get_mem_size--;
+		  }
+	      }
+	    while (fpage.raw == l4_nilpage.raw && get_mem_size >= 10);
 
 	  grant_item = l4_grant_item (fpage, l4_address (fpage));
 	  l4_msg_clear (&msg);

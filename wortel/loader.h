@@ -43,6 +43,11 @@ void loader_add_region (const char *name, l4_word_t start, l4_word_t end);
 /* Remove the region with the name NAME from the table.  */
 void loader_remove_region (const char *name);
 
+/* Get the memory range to which the ELF image from START to END
+   (exclusive) will be loaded.  NAME is used for panic messages.  */
+void loader_elf_dest (const char *name, l4_word_t start, l4_word_t end,
+		      l4_word_t *new_start_p, l4_word_t *new_end_p);
+
 /* Load the ELF image from START to END into memory under the name
    NAME (also used as the name for the region of the resulting ELF
    program).  Return the lowest and highest address used by the
