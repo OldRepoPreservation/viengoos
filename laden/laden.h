@@ -19,6 +19,8 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
 #include <l4.h>
+#include "string.h"
+#include "output.h"
 
 
 #define PROGRAM_NAME	"laden"
@@ -61,31 +63,6 @@ extern int memory_map_size;
   })
 
 
-/* Every architecture must define at least one output driver, but might
-   define several.  For each output driver, the name and operations on
-   the driver must be provided in the following structure.  */
-
-struct output_driver
-{
-  const char *name;
-
-  /* Initialize the output device.  */
-  void (*init) (void);
-
-  /* Deinitialize the output device.  */
-  void (*deinit) (void);
-
-  /* Output a character.  */
-  void (*putchar) (int chr);
-};
-
-
-/* Every architecture must provide a list of all output drivers,
-   terminated by a driver structure which has a null pointer as its
-   name.  */
-extern struct output_driver *output_drivers[];
-
-
 /* Every architecture must provide the following functions.  */
 
 /* Return a help text for this architecture.  */
@@ -103,36 +80,11 @@ void halt (void);
 int load_mem_info (l4_memory_desc_t memdesc, int nr);
 
 
-/* From string.h.  */
-
-int strcmp (const char *s1, const char *s2);
-
-void *memcpy (void *dest, const void *src, int n);
-
-void *memset (void *s, int c, int n);
-
-
-
 /* The generic code defines these functions.  */
 
 /* End the program with a failure.  This can halt or reset the
    system.  */
 void shutdown (void);
-
-/* Activate the output driver NAME or the default one if NAME is a
-   null pointer.  Must be called once at startup, before calling
-   putchar or any other output routine.  */
-void output_init (char *name);
-
-/* Deactivate the output driver.  Must be called after the last time
-   putchar or any other output routine is called, and before control
-   is passed on to the L4 kernel.  */
-void output_deinit (void);
-
-/* Print the single character CHR on the output device.  */
-void putchar (int chr);
-
-void printf (const char *fmt, ...);
 
 /* Print an error message and fail.  */
 #define panic(...)				\

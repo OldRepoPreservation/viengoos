@@ -27,8 +27,9 @@ noinst_PROGRAMS = laden
 
 laden_CFLAGS = -I$(srcdir) $(AM_CFLAGS)
 
-laden_SOURCES =  $(ARCH_SOURCES) elf.h laden.h output.c output-none.c \
-  laden.c loader.c kip-fixup.c string.c
+laden_SOURCES =  $(ARCH_SOURCES) elf.h laden.h string.h string.c \
+	output.h output.c output-none.c \
+	laden.c loader.c kip-fixup.c
 
 /* FIXME: Make linkbase configurable.  */
 laden_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x180000
