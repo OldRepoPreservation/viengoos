@@ -20,4 +20,4 @@
 # 02111-1307 USA.
 
 includehurddir = $(includedir)/hurd
-includehurd_HEADERS = types.h
+includehurd_HEADERS = startup.h types.h
