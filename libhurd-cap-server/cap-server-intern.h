@@ -26,6 +26,8 @@
 #include <hurd/ihash.h>
 #include <hurd/cap-server.h>
 
+#include <compiler.h>
+
 #include "table.h"
 #include "task-death.h"
 
@@ -114,7 +116,7 @@ void _hurd_cap_obj_dealloc (hurd_cap_obj_t obj)
 static inline void
 _hurd_cap_obj_drop (hurd_cap_obj_t obj)
 {
-  if (__builtin_expect (!atomic_decrement_and_test (&obj->refs), 1))
+  if (EXPECT_FALSE (atomic_decrement_and_test (&obj->refs)))
     hurd_cap_obj_unlock (obj);
   else
     _hurd_cap_obj_dealloc (obj);
@@ -377,12 +379,12 @@ struct _hurd_cap_bucket
   /* The free worker threads in this bucket.  */
   _hurd_cap_list_item_t free_worker;
 
-  /* A hash from l4_thread_id_t numbers to the list items in
-     PENDING_RPCs.  This is used to limit each client thread to just
-     one RPC at one time.  */
+  /* A hash from l4_thread_id_t to _hurd_cap_list_item_t (the list
+     items in PENDING_RPCs).  This is used to limit each client thread
+     to just one RPC at one time.  */
   struct hurd_ihash senders;
 
-  /* The mapping of hurd_cap_client_id_t to _hurd_cap_client_t.  */
+  /* Mapping from hurd_cap_client_id_t to _hurd_cap_client_entry_t.  */
   struct hurd_table clients;
 
   /* Reverse lookup from hurd_task_id_t to _hurd_cap_client_t.  */

@@ -30,6 +30,7 @@
 #include <pthread.h>
 
 #include <l4.h>
+#include <compiler.h>
 
 #include "cap-server-intern.h"
 
@@ -118,10 +119,10 @@ lookup_client (hurd_cap_bucket_t bucket, hurd_cap_client_id_t client_id,
 }
 
 
-/* Process the message MSG from thread FROM in worker thread WORKER of
-   bucket BUCKET.  Return ECAP_NOREPLY if no reply should be sent.  Any
-   other error will be replied to the user.  If 0 is returned, MSG
-   must contain the reply message.  */
+/* Process the message CTX->MSG from thread CTX->FROM in worker thread
+   CTX->WORKER of bucket CTX->BUCKET.  Return ECAP_NOREPLY if no reply
+   should be sent.  Any other error will be replied to the user.  If 0
+   is returned, CTX->MSG must contain the reply message.  */
 static error_t
 __attribute__((always_inline))
 manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
@@ -364,7 +365,7 @@ manage_mt_worker (void *arg, bool async)
   worker->next = NULL;
   worker->prevp = NULL;
 
-  if (__builtin_expect (async, 0))
+  if (EXPECT_FALSE (async))
     {
       /* We have to add ourselves to the free list and inform the
 	 worker_alloc_async thread.  */
@@ -401,7 +402,7 @@ manage_mt_worker (void *arg, bool async)
 
   while (1)
     {
-      if (__builtin_expect (l4_ipc_failed (msg_tag), 0))
+      if (EXPECT_FALSE (l4_ipc_failed (msg_tag)))
 	{
 	  /* Slow path.  */
 
@@ -457,9 +458,10 @@ manage_mt_worker (void *arg, bool async)
 	  assert (l4_thread_is_equal (l4_actual_sender (), manager));
 
 	  pthread_mutex_lock (&bucket->lock);
-	  /* We process cancellation messages irregardless of the
+	  /* We process cancellation messages regardless of the
 	     bucket state.  */
-	  if (l4_msg_label (ctx.msg) == HURD_CAP_MSG_LABEL_CANCEL)
+	  if (EXPECT_FALSE (l4_msg_label (ctx.msg)
+			    == HURD_CAP_MSG_LABEL_CANCEL))
 	    {
 	      if (l4_untyped_words (l4_msg_msg_tag (ctx.msg)) == 1)
 		{
@@ -494,7 +496,7 @@ manage_mt_worker (void *arg, bool async)
 	  else
 	    {
 	      /* Normal RPCs.  */
-	      if (bucket->state == _HURD_CAP_STATE_BLACK)
+	      if (EXPECT_FALSE (bucket->state == _HURD_CAP_STATE_BLACK))
 		{
 		  /* The bucket operations have been ended, and the
 		     manager has already been canceled.  We know that
@@ -510,7 +512,7 @@ manage_mt_worker (void *arg, bool async)
 		}
 	      else
 		{
-		  if (bucket->state != _HURD_CAP_STATE_GREEN)
+		  if (EXPECT_FALSE (bucket->state != _HURD_CAP_STATE_GREEN))
 		    {
 		      /* If we are inhibited, we will have to wait
 			 until we are uninhibited.  */
@@ -519,7 +521,7 @@ manage_mt_worker (void *arg, bool async)
 
 		  /* FIXME: This is inefficient.  ihash should support
 		     an "add if not there" function.  */
-		  if (hurd_ihash_find (&bucket->senders, from))
+		  if (EXPECT_FALSE (hurd_ihash_find (&bucket->senders, from)))
 		    err = EBUSY;
 		  else
 		    {
@@ -530,7 +532,7 @@ manage_mt_worker (void *arg, bool async)
 		}
 	    }
 	    
-	  if (err)
+	  if (EXPECT_FALSE (err))
 	    {
 	      pthread_mutex_unlock (&bucket->lock);
 
@@ -568,7 +570,7 @@ manage_mt_worker (void *arg, bool async)
 		 that we are not the current worker thread
 		 anymore.  */
 
-	      if (inhibited)
+	      if (EXPECT_FALSE (inhibited))
 		{
 		  pthread_mutex_lock (&bucket->lock);
 		  while (!err && bucket->state != _HURD_CAP_STATE_GREEN
@@ -590,7 +592,7 @@ manage_mt_worker (void *arg, bool async)
 		  pthread_mutex_unlock (&bucket->lock);
 		}
 
-	      if (!err)
+	      if (EXPECT_TRUE (!err))
 		{
 		  /* Process the message.  */
 		  ctx.sender = hurd_task_id_from_thread_id (from);
@@ -614,7 +616,8 @@ manage_mt_worker (void *arg, bool async)
 		 immediately follows up with a new message of course
 		 can expect that to work properly.  */
 
-	      if (bucket->is_manager_waiting && !bucket->free_worker)
+	      if (EXPECT_FALSE (bucket->is_manager_waiting
+				&& !bucket->free_worker))
 		{
 		  /* The manager is starving for worker threads.  */
 		  pthread_cond_broadcast (&bucket->cond);
@@ -623,8 +626,9 @@ manage_mt_worker (void *arg, bool async)
 	      /* Remove from pending_rpcs (or waiting_rpcs) list.  */
 	      _hurd_cap_list_item_remove (worker);
 	      /* The last waiting RPC may have to signal the manager.  */
-	      if (inhibited && bucket->state == _HURD_CAP_STATE_BLACK
-		  && !bucket->waiting_rpcs)
+	      if (EXPECT_FALSE (inhibited
+				&& bucket->state == _HURD_CAP_STATE_BLACK
+				&& !bucket->waiting_rpcs))
 		pthread_cond_broadcast (&bucket->cond);
 	      _hurd_cap_list_item_add (&bucket->free_worker, worker);
 
@@ -643,9 +647,9 @@ manage_mt_worker (void *arg, bool async)
 	      pthread_mutex_unlock (&bucket->lock);
 
 	      /* Finally, return the reply message, if appropriate.  */
-	      if (__builtin_expect (err != ECAP_NOREPLY, 1))
+	      if (EXPECT_TRUE (err != ECAP_NOREPLY))
 		{
-		  if (__builtin_expect (err, 0))
+		  if (EXPECT_FALSE (err))
 		    reply_err (from, err);
 		  else
 		    {
@@ -665,8 +669,8 @@ manage_mt_worker (void *arg, bool async)
 	      from = manager;
 	      msg_tag = l4_xreceive_timeout (manager, timeout, &from);
 
-	      /* From here, we will loop all over to the beginning of
-		 the while(1) block.  */
+	      /* From here, we will loop to the beginning of the
+		 while(1) block.  */
 	    }
 	}
     }
@@ -729,7 +733,7 @@ manage_mt_get_next_worker (struct worker_info *info, pthread_t *worker_thread)
 
   pthread_mutex_lock (&bucket->lock);
 
-  if (__builtin_expect (bucket->free_worker == NULL, 0))
+  if (EXPECT_FALSE (bucket->free_worker == NULL))
     {
       /* Slow path.  Create a new thread and use that.  */
       error_t err;
@@ -958,7 +962,7 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
 	 be true for most of the IPC operations in this file.  */
       msg_tag = l4_wait_timeout (global_timeout, &from);
 
-      if (__builtin_expect (l4_ipc_failed (msg_tag), 0))
+      if (EXPECT_FALSE (l4_ipc_failed (msg_tag)))
 	{
 	  l4_word_t err_code = l4_error_code ();
 
@@ -1009,8 +1013,8 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
 	  msg_tag = l4_lcall (worker);
 	  assert (l4_ipc_succeeded (msg_tag));
 
-	  if (__builtin_expect
-	      (l4_label (msg_tag) == _HURD_CAP_MSG_WORKER_ACCEPTED, 1))
+	  if (EXPECT_TRUE (l4_label (msg_tag)
+			   == _HURD_CAP_MSG_WORKER_ACCEPTED))
 	    {
 	      worker = manage_mt_get_next_worker (&info, &worker_thread);
 	      if (worker == l4_nilthread)

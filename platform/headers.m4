@@ -13,4 +13,5 @@
 AC_CONFIG_LINKS([
   include/atomic.h:platform/atomic.h
   include/bits/atomic.h:platform/${arch}/bits/atomic.h
+  include/compiler.h:platform/compiler.h
 ])

@@ -1,3 +1,8 @@
+2004-11-30  Neal H. Walfield  <neal@gnu.org>
+
+	* compiler.h: New file.
+	* headers.m4: Set up compiler.h.
+
 2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* powerpc/bits/atomic.h: Include the common powerpc version from

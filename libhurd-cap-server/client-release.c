@@ -27,6 +27,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 
+#include <compiler.h>
+
 #include "cap-server-intern.h"
 
 
@@ -175,7 +177,7 @@ _hurd_cap_client_release (hurd_cap_bucket_t bucket, hurd_cap_client_id_t idx)
   entry = (_hurd_cap_client_entry_t) HURD_TABLE_LOOKUP (&bucket->clients,
 							idx);
 
-  if (__builtin_expect (entry->refs > 1, 1))
+  if (EXPECT_TRUE (entry->refs > 1))
     {
       entry->refs--;
       pthread_mutex_unlock (&bucket->lock);
