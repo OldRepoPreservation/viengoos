@@ -24,6 +24,7 @@
 #endif
 
 #include "physmem.h"
+#include "zalloc.h"
 
 
 /* The program name.  */

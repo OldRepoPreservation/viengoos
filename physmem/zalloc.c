@@ -21,7 +21,7 @@
    02111-1307 USA.  */
 
 #include <assert.h>
-#include <strings.h>
+#include <string.h>
 
 #include "output.h"
 
@@ -108,7 +108,7 @@ static struct block *zone[ZONES] = { 0, };
 
 /* Add the block BLOCK to the zone ZONE_NR.  The block has the
    right size and alignment.  Buddy up if possible.  */
-static inline
+static inline void
 add_block (struct block *block, unsigned int zone_nr)
 {
   while (1)
@@ -283,7 +283,7 @@ zalloc_dump_zones (const char *prefix)
 	for (block = zone[i]; block; block = block->next)
 	  {
 	    available += ZONE_SIZE (i);
-	    printf ("0x%x%s", block, (block->next ? ", " : " "));
+	    printf ("%p%s", block, (block->next ? ", " : " "));
 	  }
 	printf ("}\n");
       }
