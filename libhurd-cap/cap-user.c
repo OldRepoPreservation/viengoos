@@ -101,74 +101,70 @@ _hurd_cap_sconn_remove (sconn, scid)
 
 /* Enter a new send capability provided by the server SERVER_THREAD
    (with the task ID reference SERVER_TASK_ID) and the cap ID SCID.
-   If successful, the locked capability is returned with one
-   (additional) reference in CAP.  The server connection and
+   SCONN is the server connection for SERVER_THREAD, if known.  It
+   should be unlocked.  If SCONN is NULL, then SERVER_TASK_INFO should
+   be the task info capability for the server SERVER_THREAD, otherwise
+   it must be HURD_CAP_NULL.  Both, SCONN and SERVER_TASK_INFO, are
+   consumed if used.  If successful, the locked capability is returned
+   with one (additional) reference in CAP.  The server connection and
    capability object are created if necessary.  */
 error_t
-_hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
+_hurd_cap_sconn_enter (hurd_cap_sconn_t sconn_provided,
+		       hurd_task_info_t server_task_info,
+		       l4_thread_id_t server_thread, uint32_t scid,
 		       hurd_cap_t *cap)
 {
-  hurd_cap_sconn_t sconn;
+  hurd_cap_sconn_t sconn = sconn_provided;
   int sconn_created = 0;
 
-  pthread_mutex_lock (&server_to_sconn_lock);
-  sconn = hurd_ihash_find (&server_to_sconn, server_thread);
-  if (!sconn)
+  if (sconn)
+    assert (sconn->server_thread == server_thread);
+  else
     {
-      error_t err;
-      hurd_task_id_t server_task = hurd_task_id_from_thread_id (server_thread);
-      hurd_task_id_t taskserver_task;
+      /* It might have become available by now.  */
+      pthread_mutex_lock (&server_to_sconn_lock);
+      sconn = hurd_ihash_find (&server_to_sconn, server_thread);
+      if (sconn)
+	hurd_cap_deallocate (server_task_info);
+      else
+	{
+	  error_t err;
 
-      taskserver_task = hurd_task_id_from_thread_id
-	(hurd_cap_get_thread_id (hurd_task_self()));
+	  sconn = malloc (sizeof (*sconn));
+	  if (!sconn)
+	    {
+	      pthread_mutex_unlock (&server_to_sconn_lock);
+	      hurd_cap_deallocate (server_task_info);
+	      return errno;
+	    }
+	  err = pthread_mutex_init (&sconn->lock, NULL);
+	  if (err)
+	    {
+	      free (sconn);
+	      pthread_mutex_unlock (&server_to_sconn_lock);
+	      hurd_cap_deallocate (server_task_info);
+	      return errno;
+	    }
 
-      sconn = malloc (sizeof (*sconn));
-      if (!sconn)
-	{
-	  pthread_mutex_unlock (&server_to_sconn_lock);
-	  return errno;
-	}
-      err = pthread_mutex_init (&sconn->lock, NULL);
-      if (err)
-	{
-	  free (sconn);
-	  pthread_mutex_unlock (&server_to_sconn_lock);
-	  return errno;
-	}
-	 
-      if (server_task != taskserver_task)
-	{
-	  err = hurd_task_info_create (hurd_task_self (),
-				       server_task,
-				       &sconn->server_task_id);
+	  hurd_ihash_init (&sconn->id_to_cap);
+	  sconn->server_thread = server_thread;
+	  sconn->server_task_id = server_task_info;
+	  sconn->refs = 0;
+
+	  /* Enter the new server connection object.  */
+	  err = hurd_ihash_add (&server_to_sconn, server_thread, sconn);
 	  if (err)
 	    {
 	      pthread_mutex_destroy (&sconn->lock);
+	      hurd_ihash_destroy (&sconn->id_to_cap);
 	      free (sconn);
 	      pthread_mutex_unlock (&server_to_sconn_lock);
+	      hurd_cap_deallocate (server_task_id);
 	      return errno;
 	    }
 	}
-      else
-	sconn->server_task_id = 0;
-
-      hurd_ihash_init (&sconn->id_to_cap);
-      sconn->server_thread = server_thread;
-      sconn->refs = 0;
-
-      /* Enter the new server connection object.  */
-      err = hurd_ihash_add (&server_to_sconn, server_thread, sconn);
-      if (err)
-	{
-	  pthread_mutex_destroy (&sconn->lock);
-	  hurd_ihash_destroy (&sconn->id_to_cap);
-	  free (sconn);
-	  pthread_mutex_unlock (&server_to_sconn_lock);
-	  return errno;
-	}
     }
   pthread_mutex_lock (&sconn->lock);
-  sconn->refs++;
   pthread_mutex_unlock (&server_to_sconn_lock);
 
   cap = hurd_ihash_find (&sconn->id_to_cap, scid);
@@ -195,6 +191,10 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
     }
   pthread_mutex_lock (&cap->lock);
   cap->srefs++;
+  /* We have to add a reference for the capability we have added,
+     unless we are consuming the reference that was provided.  */
+  if (!sconn_provided)
+    sconn->refs++;
   pthread_mutex_unlock (&sconn->lock);
 
   return 0;
