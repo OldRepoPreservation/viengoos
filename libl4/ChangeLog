@@ -1,3 +1,8 @@
+2004-04-06  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/gnu/ipc.h: Revert last change.  Local IPC must always include
+	a send and a receive phase.
+
 2004-04-05  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/ipc.h (l4_lwait_timeout, l4_lwait, l4_lreply): New
