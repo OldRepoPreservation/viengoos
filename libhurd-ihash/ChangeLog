@@ -1,3 +1,8 @@
+2004-04-21  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ihash.h (HURD_IHASH_ITERATE): Don't use increment operator in
+	assignment, but just add one.  Reported by Ognyan Kulev.
+
 2004-04-03  Marco Gerards  <metgerards@student.han.nl>
 
 	Bringing ihash into sync with the version in the Hurd:
