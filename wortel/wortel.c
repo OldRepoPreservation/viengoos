@@ -21,6 +21,8 @@
 #include <config.h>
 #endif
 
+#include <alloca.h>
+
 #include "wortel.h"
 
 
@@ -63,11 +65,18 @@ load_components (void)
 static void
 start_components (void)
 {
+  l4_word_t min_page_size = getpagesize ();
   l4_word_t ret;
   l4_word_t control;
   l4_msg_t msg;
   l4_msg_tag_t msg_tag;
-  unsigned int io_map = 0;
+  
+  if (physmem.low & (min_page_size - 1))
+    panic ("physmem is not page aligned on this architecture");
+  if (physmem.low > physmem.high)
+    panic ("physmem has invalid memory range");
+  if (physmem.ip < physmem.low || physmem.ip > physmem.high)
+    panic ("physmem has invalid IP");
 
   /* Thread nr is next available after rootserver thread nr,
      version part is 2 (rootserver is 1).  */
@@ -105,8 +114,112 @@ start_components (void)
   l4_msg_load (&msg);
   msg_tag = l4_send (physmem_server);
   if (l4_ipc_failed (msg_tag))
-    panic ("Sending startup message to physmemserver thread failed: %u",
+    panic ("Sending startup message to physmem thread failed: %u",
 	   l4_error_code ());
+
+  {
+    l4_fpage_t *fpages;
+    unsigned int nr_fpages = 0;
+    l4_word_t start = physmem.low;
+    l4_word_t end = (physmem.high + min_page_size) & ~(min_page_size - 1);
+    l4_word_t region;
+
+    /* We want to grant all the memory for the physmem binary image
+       with the first page fault, but we might have to send several
+       fpages.  So we first create a list of all fpages we need, then
+       we serve one after another, providing the one containing the
+       fault address last.  */
+
+    /* A page-aligned region of size up to 2^k * min_page_size can be
+       covered by k fpages at most (proof by induction).  At this
+       point, END is at least one MIN_PAGE_SIZE larger than START.  */
+    region = (end - start) / min_page_size;
+    while (region > 0)
+      {
+	nr_fpages++;
+	region >>= 1;
+      }
+    fpages = alloca (sizeof (l4_fpage_t) * nr_fpages);
+
+    nr_fpages = 0;
+    while (start < end)
+      {
+	fpages[nr_fpages] = l4_fpage (start, end - start);
+	start += l4_size (fpages[nr_fpages]);
+	nr_fpages++;
+      }
+
+    /* Now serve page requests.  */
+    while (nr_fpages)
+      {
+	l4_grant_item_t grant_item;
+	l4_fpage_t fpage;
+	l4_word_t addr;
+	unsigned int i;
+
+	msg_tag = l4_receive (physmem_server);
+	if (l4_ipc_failed (msg_tag))
+	  panic ("Receiving messages from physmem thread failed: %u",
+		 (l4_error_code () >> 1) & 0x7);
+	if ((l4_label (msg_tag) >> 4) != 0xffe)
+	  panic ("Message from physmem thread is not a page fault");
+	l4_msg_store (msg_tag, &msg);
+	if (l4_untyped_words (msg_tag) != 2 || l4_typed_words (msg_tag) != 0)
+	  panic ("Invalid format of page fault message");
+	addr = l4_msg_word (&msg, 0);
+	if (addr != physmem.ip)
+	  panic ("Page fault at unexpected address 0x%x (expected 0x%x)",
+		 addr, physmem.ip);
+
+	if (nr_fpages == 1)
+	  i = 0;
+	else
+	  for (i = 0; i < nr_fpages; i++)
+	    if (addr < l4_address (fpages[i])
+		|| addr >= l4_address (fpages[i]) + l4_size (fpages[i]))
+	      break;
+	if (i == nr_fpages)
+	  panic ("Could not find suitable fpage");
+
+	fpage = l4_fpage_add_rights (fpages[i], l4_fully_accessible);
+	debug ("Granting Fpage: 0x%x - 0x%x\n", l4_address (fpage),
+	       l4_address (fpage) + l4_size (fpage));
+
+	if (i != 0)
+	  fpages[i] = fpages[nr_fpages - 1];
+	nr_fpages--;
+
+	/* First we have to request the fpage from sigma0.  */
+	l4_accept (l4_map_grant_items (l4_complete_address_space));
+	l4_msg_clear (&msg);
+	l4_set_msg_label (&msg, 0xffa0);
+	l4_msg_append_word (&msg, fpage.raw);
+	l4_msg_append_word (&msg, L4_DEFAULT_MEMORY);
+	l4_msg_load (&msg);
+	msg_tag = l4_call (l4_global_id (l4_thread_user_base (), 1));
+	if (l4_ipc_failed (msg_tag))
+	  panic ("sigma0 request failed during %s: %u",
+		 l4_error_code () & 1 ? "receive" : "send",
+		 (l4_error_code () >> 1) & 0x7);
+	if (l4_untyped_words (msg_tag) != 0
+	    || l4_typed_words (msg_tag) != 2)
+	  panic ("Invalid format of sigma0 reply");
+	l4_msg_store (msg_tag, &msg);
+	if (l4_msg_word (&msg, 1) == l4_nilpage.raw)
+	  panic ("sigma0 rejected mapping");
+
+	/* Now we can grant the mapping to the physmem server.
+	   FIXME: Should use the fpage returned by sigma0.  */
+	l4_msg_clear (&msg);
+	l4_set_msg_label (&msg, 0);
+	/* FIXME: Keep track of mappings already provided.  Possibly
+	   map text section rx and data rw.  */
+	grant_item = l4_grant_item (fpage, l4_address (fpage));
+	l4_msg_append_grant_item (&msg, grant_item);
+	l4_msg_load (&msg);
+	l4_reply (physmem_server);
+      }
+  }
 
   do
     {
@@ -117,86 +230,11 @@ start_components (void)
 	panic ("Receiving messages from physmemserver thread failed: %u",
 	       (l4_error_code () >> 1) & 0x7);
 
-      /* FIXME: Check sender, etc.  */
-
       label = l4_label (msg_tag);
       l4_msg_store (msg_tag, &msg);
-      if ((label >> 4) == 0xffe)
-	{
-	  l4_grant_item_t grant_item;
-	  l4_fpage_t fpage;
-	  l4_word_t addr;
 
-	  /* This is a page fault.  */
-	  if (l4_untyped_words (msg_tag) != 2
-	      || l4_typed_words (msg_tag) != 0)
-	    panic ("Invalid format of page fault msg");
-
-	  if (!io_map)
-	    {
-	      l4_map_item_t map_item;
-
-	      /* FIXME: This is a hack.  The first time we map the I/O
-		 ports into the task.  The kernel will repeat the page
-		 fault.  */
-	      io_map = 1;
-
-	      /* Now we can grant the mapping to the physmem server.
-		 FIXME: Should use the fpage returned by sigma0.  */
-	      l4_msg_clear (&msg);
-	      l4_set_msg_label (&msg, 0);
-	      /* FIXME: Try to use largest fpage possible for the image.
-		 Keep track of mappings already provided.  Possibly map
-		 text section rx and data rw.  */
-	      map_item = l4_map_item (l4_fpage_add_rights
-					  (l4_io_fpage (0, 10),
-					   l4_fully_accessible), 0);
-	      l4_msg_append_map_item (&msg, map_item);
-	      l4_msg_load (&msg);
-	      l4_reply (physmem_server);
-	      continue;
-	    }
-
-	  addr = l4_msg_word (&msg, 0) & ~((1 << 12) - 1);
-	  fpage = l4_fpage_add_rights (l4_fpage_log2 (addr, 12),
-				       l4_fully_accessible);
-	  debug ("Serving Page Fault: %c%c%c at 0x%x (IP: 0x%x)\n",
-		 label & 4 ? 'x' : '-', label & 2 ? 'w' : '-',
-		 label & 1 ? 'r' : '-', addr,
-		 l4_msg_word (&msg, 1));
-
-	  /* First we have to request the fpage from sigma0.  */
-	  l4_accept (l4_map_grant_items (l4_complete_address_space));
-	  l4_msg_clear (&msg);
-	  l4_set_msg_label (&msg, 0xffa0);
-	  l4_msg_append_word (&msg, fpage.raw);
-	  l4_msg_append_word (&msg, L4_DEFAULT_MEMORY);
-	  l4_msg_load (&msg);
-	  msg_tag = l4_call (l4_global_id (l4_thread_user_base (), 1));
-	  if (l4_ipc_failed (msg_tag))
-	    panic ("sigma0 request failed during %s: %u",
-		   l4_error_code () & 1 ? "receive" : "send",
-		   (l4_error_code () >> 1) & 0x7);
-	  if (l4_untyped_words (msg_tag) != 0
-	      || l4_typed_words (msg_tag) != 2)
-	    panic ("Invalid format of sigma0 reply");
-	  l4_msg_store (msg_tag, &msg);
-	  if (l4_msg_word (&msg, 1) == l4_nilpage.raw)
-	    panic ("sigma0 rejected mapping");
-
-	  /* Now we can grant the mapping to the physmem server.
-	     FIXME: Should use the fpage returned by sigma0.  */
-	  l4_msg_clear (&msg);
-	  l4_set_msg_label (&msg, 0);
-	  /* FIXME: Try to use largest fpage possible for the image.
-	     Keep track of mappings already provided.  Possibly map
-	     text section rx and data rw.  */
-	  grant_item = l4_grant_item (fpage, addr);
-	  l4_msg_append_grant_item (&msg, grant_item);
-	  l4_msg_load (&msg);
-	}
 #define WORTEL_MSG_PUTCHAR 1
-      else if (label == WORTEL_MSG_PUTCHAR)
+      if (label == WORTEL_MSG_PUTCHAR)
 	{
 	  int chr;
 
@@ -212,8 +250,6 @@ start_components (void)
 	}
       else
 	panic ("Invalid message with tag 0x%x", msg_tag);
-
-      l4_reply (physmem_server);
     }
   while (1);
 }

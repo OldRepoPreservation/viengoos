@@ -31,6 +31,7 @@ wortel_SOURCES = $(ARCH_SOURCES) string.h string.c		\
 	output.h output.c output-none.c				\
 	shutdown.h shutdown.c					\
 	elf.h loader.h loader.c					\
+	getpagesize.c						\
 	wortel.h wortel.c
 
 /* FIXME: Make linkbase configurable.  */
