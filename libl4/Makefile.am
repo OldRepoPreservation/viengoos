@@ -23,19 +23,8 @@ if ARCH_IA32
 endif
 SUBDIRS =  $(ARCH_SUBDIR)
 
-lib_LIBRARIES = libl4.a
-
 include_HEADERS = l4.h
 nobase_include_HEADERS = l4/types.h l4/math.h l4/globals.h		\
 	l4/vregs.h l4/stubs.h l4/stubs-init.h l4/syscall.h		\
 	l4/kip.h l4/thread.h l4/schedule.h l4/space.h			\
 	l4/ipc.h l4/misc.h
-
-libl4_a_SOURCES = l4.h l4/types.h l4/math.h l4/globals.h		\
-	l4/vregs.h l4/stubs.h l4/stubs-init.h l4/syscall.h		\
-	l4/kip.h l4/thread.h l4/schedule.h l4/space.h			\
-	l4/ipc.h l4/misc.h						\
-	math.c l4.c globals.c vregs.c stubs.c stubs-init.c syscall.c	\
-	kip.c thread.c schedule.c space.c ipc.c misc.c
-
-libl4_a_CFLAGS = -I$(srcdir)/$(ARCH_SUBDIR) -I$(srcdir) $(AM_CFLAGS)

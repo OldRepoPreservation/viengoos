@@ -1,4 +1,32 @@
-2003-09-18  Marcus Brinkmann  <marcus@g10code.de>
+2003-09-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/kip.h (l4_api_version): Replace with always inlined static
+	inline function.
+	* l4/thread.h (_L4_EXTERN_INLINE): Do not define.  Replace all
+	uses of it with static inline, and mark these functions with
+	attribute __always_inline__.
+	* l4/ipc.h (_L4_EXTERN_INLINE): Likewise.
+	* l4/math.h (_L4_EXTERN_INLINE): Likewise.
+	* l4/misc.h (_L4_EXTERN_INLINE): Likewise.
+	* l4/schedule.h (_L4_EXTERN_INLINE): Likewise.
+	* l4/space.h (_L4_EXTERN_INLINE): Likewise.
+	* ia32/l4/bits/math.h (_L4_EXTERN_INLINE): Likewise.
+	* ia32/l4/bits/space.h (_L4_EXTERN_INLINE): Likewise.
+	* ia32/l4/bits/stubs-init.h (_L4_EXTERN_INLINE): Likewise.
+	* ia32/l4/bits/syscall.h (_L4_EXTERN_INLINE): Likewise.
+	* ia32/l4/bits/vregs.h (_L4_EXTERN_INLINE): Likewise.
+	* l4/kip.h (_L4_EXTERN_INLINE): Likewise.
+	* l4.h (_L4_EXTERN_INLINE): Likewise.
+	* ia32/l4/bits/vregs.h (__l4_utcb): Mark with attributes
+	always_inline and const.
+	* globals.c, ipc.c, kip.c, l4.c, math.c, misc.c, schedule.c,
+	space.c, stubs-init.c, stubs.c, syscall.c, thread.c, vregs.c:
+	Files removed.
+	* Makefile.am (lib_LIBRARIES): Variable removed.
+	(libl4_a_SOURCES): Likewise.
+	(libl4_a_CFLAGS): Likewise.
+
+2003-09-18  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/kip.h (l4_get_kernel_interface): Rename to ...
 	(l4_kip): ... this.  Also in all callers.

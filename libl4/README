@@ -1,7 +1,7 @@
 GNU libl4
 =========
 
-A user-space library for L4.
+A user-space "library" for L4.
 
 
 Why use this user space library for L4 and not the official one?
@@ -24,7 +24,7 @@ Although all functions the interface defined are usually inlined,
 user-defined functions on top of the official interface might use
 structure types as return types of functions.  However, there are two
 calling conventions in use for that, one compatible to PCC which
-passes the srtuct on the stack, and one more efficient that uses
+passes the struct on the stack, and one more efficient that uses
 registers for small structures.  Unfortunately, the less efficient one
 is the default.  This makes these data types less optimal for use in
 C programs.
@@ -33,7 +33,7 @@ C programs.
 lead to code that can be simpler to understand and sometimes even more
 efficient.  For example, gcc 3.2 supports more than 10 parameters in
 asm bindings, and named asm operands.  The official libl4 supports
-older versions of gcc, too, and can not make use of this feature.
+older versions of gcc, too, and does not make use of this feature.
 
 * Complete backward compatibility.  This library is supposed to
 provide, in addition to the new interface, the same interface as the
@@ -47,28 +47,28 @@ How to use it
 -------------
 
 Normally, you can just include <l4.h> or one of the more specific
-header files <l4/*.h> and use the data types and functions.  Most
-functions are inlined, and linking is not necessary with optimization.
+header files <l4/*.h> and use the data types and functions.  All
+functions are always inlined, irregardless of optimization level.
 
 
 Why is linking with libl4 not necessary?
 ----------------------------------------
 
+All functions are inlined.  There is no library you can use for
+linking.
+
 The dynamic linker will fix up the system calls to point directly to
 the system call gate in the kernel interface page.  It will also
-provide its own versions of the global variables (from
-<l4/globals.h>).  Thus linking is not necessary.
-
-FIXME: Static linking.
+provide its own versions of the global variables (from <l4/globals.h>).
 
 
 What if I am not using the dynamic linker?
 ------------------------------------------
 
 If you are not using the dynamic linker, you can either link to libl4,
-or include <l4/globals.h> somewhere in your program.  You also have to
-run l4_init () manually to initialize the global variables and fixup
-the system calls.
+or include <l4/globals.h> somewhere (but only once!) in your program.
+You also have to run l4_init() manually (defined in <l4.h>) to
+initialize the global variables and fixup the system call stubs.
 
 
 What compiler do I need?
@@ -80,7 +80,7 @@ requirements are:
 
 * Support for a variety of GCC extensions, like:
 ** Inline assembler, including named input and output arguments.
-** Attributes like const, pure, and type.
+** Attributes like always_inline, const, pure, and type.
 ** Builtin functions like __builtin_const_p.
 
 * Internal representation of bit-fields that tightly packs all

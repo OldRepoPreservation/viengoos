@@ -1,3 +1,24 @@
+/* syscall.h - Public interface to the L4 system calls.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_SYSCALL_H
 #define _L4_SYSCALL_H	1
 
@@ -5,7 +26,7 @@
 #include <l4/vregs.h>
 #include <l4/kip.h>
 
-/* <l4/bits/syscall.h> defines extern inlines for all system calls.  */
+/* <l4/bits/syscall.h> defines all system calls.  */
 #include <l4/bits/syscall.h>
 
 /* l4_exchange_registers control argument.  */

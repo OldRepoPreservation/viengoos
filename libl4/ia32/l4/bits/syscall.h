@@ -1,19 +1,34 @@
+/* syscall.h - Public interface to the L4 system calls for ia32.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_SYSCALL_H
 # error "Never use <l4/bits/syscall.h> directly; include <l4/syscall.h> instead."
 #endif
 
-#ifndef _L4_EXTERN_INLINE
-#define _L4_EXTERN_INLINE extern __inline
-#endif
-
-
+
 /* Return the pointer to the kernel interface page, the API version,
    the API flags, and the kernel ID.  */
-_L4_EXTERN_INLINE l4_kip_t
-l4_kernel_interface (l4_api_version_t *api_version, l4_api_flags_t *api_flags,
-		     l4_kernel_id_t *kernel_id) __attribute__ ((__pure__));
 
-_L4_EXTERN_INLINE l4_kip_t
+static inline l4_kip_t
+__attribute__((__always_inline__, __const__))
 l4_kernel_interface (l4_api_version_t *api_version, l4_api_flags_t *api_flags,
 		     l4_kernel_id_t *kernel_id)
 {
@@ -31,7 +46,8 @@ l4_kernel_interface (l4_api_version_t *api_version, l4_api_flags_t *api_flags,
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_exchange_registers (l4_thread_id_t *dest, l4_word_t *control,
 		       l4_word_t *sp, l4_word_t *ip, l4_word_t *flags,
 		       l4_word_t *user_defined_handle, l4_thread_id_t *pager)
@@ -77,7 +93,8 @@ l4_exchange_registers (l4_thread_id_t *dest, l4_word_t *control,
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_thread_control (l4_thread_id_t dest, l4_thread_id_t space,
 		   l4_thread_id_t scheduler, l4_thread_id_t pager,
 		   void *utcb_loc)
@@ -98,7 +115,8 @@ l4_thread_control (l4_thread_id_t dest, l4_thread_id_t space,
 }
 
 
-_L4_EXTERN_INLINE l4_clock_t
+static inline l4_clock_t
+__attribute__((__always_inline__))
 l4_system_clock (void)
 {
   l4_clock_t time;
@@ -112,7 +130,8 @@ l4_system_clock (void)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_thread_switch (l4_thread_id_t dest)
 {
   __asm__ __volatile__ ("call *__l4_thread_switch"
@@ -121,7 +140,8 @@ l4_thread_switch (l4_thread_id_t dest)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_schedule (l4_thread_id_t dest, l4_word_t time_control,
 	     l4_word_t proc_control, l4_word_t prio,
 	     l4_word_t preempt_control, l4_word_t *old_time_control)
@@ -142,7 +162,8 @@ l4_schedule (l4_thread_id_t dest, l4_word_t time_control,
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_unmap (l4_word_t control)
 {
   l4_word_t mr0;
@@ -161,7 +182,8 @@ l4_unmap (l4_word_t control)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_space_control (l4_thread_id_t space, l4_word_t control,
 		  l4_fpage_t kip_area, l4_fpage_t utcb_area,
 		  l4_thread_id_t redirector, l4_word_t *old_control)
@@ -182,7 +204,8 @@ l4_space_control (l4_thread_id_t space, l4_word_t control,
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_ipc (l4_thread_id_t to, l4_thread_id_t from_spec,
 	l4_word_t timeouts, l4_thread_id_t *from)
 {
@@ -216,7 +239,8 @@ l4_ipc (l4_thread_id_t to, l4_thread_id_t from_spec,
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_lipc (l4_thread_id_t to, l4_thread_id_t from_spec,
 	 l4_word_t timeouts, l4_thread_id_t *from)
 {
@@ -250,7 +274,8 @@ l4_lipc (l4_thread_id_t to, l4_thread_id_t from_spec,
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_processor_control (l4_word_t proc, l4_word_t control, l4_word_t int_freq,
 		      l4_word_t ext_freq, l4_word_t voltage)
 {
@@ -269,7 +294,8 @@ l4_processor_control (l4_word_t proc, l4_word_t control, l4_word_t int_freq,
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_memory_control (l4_word_t control, l4_word_t *attributes)
 {
   l4_word_t tag;

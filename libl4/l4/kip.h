@@ -1,4 +1,4 @@
-/* kip.h - Public interface for the L4 kernel interface page.
+/* kip.h - Public interface to the L4 kernel interface page.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -321,29 +321,33 @@ typedef struct
 
 
 extern l4_kip_t __l4_kip;
-#define l4_kip()  (__l4_kip + 0)  /* Not an lvalue.  */
+
+static inline l4_kip_t
+__attribute__((__always_inline__))
+l4_kip (void)
+{
+  return __l4_kip;
+}
 
 
-#ifndef _L4_EXTERN_INLINE
-#define _L4_EXTERN_INLINE extern __inline
-#endif
-
-
-_L4_EXTERN_INLINE l4_api_version_t
+static inline l4_api_version_t
+__attribute__((__always_inline__))
 l4_api_version (void)
 {
   return l4_kip ()->api_version;
 }
 
 
-_L4_EXTERN_INLINE l4_api_flags_t
+static inline l4_api_flags_t
+__attribute__((__always_inline__))
 l4_api_flags (void)
 {
   return l4_kip ()->api_flags;
 }
 
 
-_L4_EXTERN_INLINE l4_kernel_id_t
+static inline l4_kernel_id_t
+__attribute__((__always_inline__))
 l4_kernel_id (void)
 {
   l4_kern_desc_t kern;
@@ -354,7 +358,8 @@ l4_kernel_id (void)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_kernel_gen_date (l4_word_t *year, l4_word_t *month, l4_word_t *day)
 {
   l4_kern_desc_t kern;
@@ -371,7 +376,8 @@ l4_kernel_gen_date (l4_word_t *year, l4_word_t *month, l4_word_t *day)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_kernel_version (l4_word_t *ver, l4_word_t *subver, l4_word_t *subsubver)
 {
   l4_kern_desc_t kern;
@@ -388,7 +394,8 @@ l4_kernel_version (l4_word_t *ver, l4_word_t *subver, l4_word_t *subsubver)
 }
 
 
-_L4_EXTERN_INLINE char *
+static inline char *
+__attribute__((__always_inline__))
 l4_kernel_supplier (void)
 {
   l4_kern_desc_t kern;
@@ -400,14 +407,16 @@ l4_kernel_supplier (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_num_processors (void)
 {
   return l4_kip ()->processor_info.processors + 1;
 }
 
 
-_L4_EXTERN_INLINE l4_proc_desc_t
+static inline l4_proc_desc_t
+__attribute__((__always_inline__))
 l4_proc_desc (l4_word_t num)
 {
   if (num >= l4_num_processors ())
@@ -419,14 +428,16 @@ l4_proc_desc (l4_word_t num)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_proc_internal_freq (l4_proc_desc_t proc)
 {
   return proc->internal_freq;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_proc_external_freq (l4_proc_desc_t proc)
 {
   return proc->external_freq;
@@ -435,21 +446,19 @@ l4_proc_external_freq (l4_proc_desc_t proc)
 
 #define L4_MIN_PAGE_SIZE_LOG2	10
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_page_size_mask (void)
 {
-  return l4_kip ()->page_info.page_size_mask
-    << L4_MIN_PAGE_SIZE_LOG2;
+  return l4_kip ()->page_info.page_size_mask << L4_MIN_PAGE_SIZE_LOG2;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t l4_min_page_size_log2 (void)
-     __attribute__((__const__));
-
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_min_page_size_log2 (void)
 {
-  page_size_mask = l4_kip ()->page_info.page_size_mask;
+  l4_word_t page_size_mask = l4_kip ()->page_info.page_size_mask;
   unsigned int page_size_log2 = L4_MIN_PAGE_SIZE_LOG2;
   
   /* There'd better be one bit set.  */
@@ -463,80 +472,88 @@ l4_min_page_size_log2 (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t l4_min_page_size_log2 (void)
-     __attribute__((__const__));
-
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_min_page_size (void)
 {
   return L4_WORD_C(1) << l4_min_page_size_log2 ();
 }
 
 
-_L4_EXTERN_INLINE l4_page_info_t
+static inline l4_page_info_t
+__attribute__((__always_inline__))
 l4_page_rights (void)
 {
   return l4_kip ()->page_info;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_thread_id_bits (void)
 {
   return l4_kip ()->thread_info.log2_max_thread;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_thread_user_base (void)
 {
   return l4_kip ()->thread_info.user_base;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_thread_system_base (void)
 {
   return l4_kip ()->thread_info.system_base;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_read_precision (void)
 {
   return l4_kip ()->clock_info.read_precision;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_schedule_precision (void)
 {
   return l4_kip ()->clock_info.schedule_precision;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_utcb_area_size_log2 (void)
 {
   return l4_kip ()->utcb_info.log2_min_size;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_utcb_area_size (void)
 {
   return 1 << l4_kip ()->utcb_info.log2_min_size;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_utcb_alignment_log2 (void)
 {
   return l4_kip ()->utcb_info.log2_align;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_utcb_size (void)
 {
   return l4_kip ()->utcb_info.size_mul
@@ -544,28 +561,32 @@ l4_utcb_size (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_kip_area_size_log2 (void)
 {
   return l4_kip ()->kip_area_info.log2_size;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_kip_area_size (void)
 {
   return 1 << l4_kip ()->kip_area_info.log2_size;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_boot_info (void)
 {
   return l4_kip ()->boot_info;
 }
 
 
-_L4_EXTERN_INLINE char *
+static inline char *
+__attribute__((__always_inline__))
 l4_kernel_version_string (void)
 {
   l4_kern_desc_t kern;
@@ -577,7 +598,8 @@ l4_kernel_version_string (void)
 }
 
 
-_L4_EXTERN_INLINE char *
+static inline char *
+__attribute__((__always_inline__))
 l4_feature (l4_word_t num)
 {
   char *feature = l4_kernel_version_string ();
@@ -596,14 +618,16 @@ l4_feature (l4_word_t num)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_num_memory_desc (void)
 {
   return l4_kip ()->memory_info.nr;
 }
 
 
-_L4_EXTERN_INLINE l4_memory_desc_t
+static inline l4_memory_desc_t
+__attribute__((__always_inline__))
 l4_memory_desc (l4_word_t num)
 {
   l4_memory_desc_t mem;
@@ -618,28 +642,32 @@ l4_memory_desc (l4_word_t num)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_memory_desc_virtual (l4_memory_desc_t mem)
 {
   return mem->virtual;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_memory_desc_type (l4_memory_desc_t mem)
 {
   return (mem->subtype << 4) + mem->type;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_memory_desc_low (l4_memory_desc_t mem)
 {
   return mem->low << 10;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_memory_desc_high (l4_memory_desc_t mem)
 {
   return mem->high << 10;

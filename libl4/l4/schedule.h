@@ -1,3 +1,24 @@
+/* schedule.h - Public interface to the L4 scheduler.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_SCHEDULE_H
 #define _L4_SCHEDULE_H	1
 
@@ -6,11 +27,6 @@
 #include <l4/syscall.h>
 #include <l4/thread.h>
 
-
-#ifndef _L4_EXTERN_INLINE
-#define _L4_EXTERN_INLINE extern __inline
-#endif
-
 
 /* FIXME: These are compound statements and can not be used for
    initialization of global variables in C99.  */
@@ -18,7 +34,8 @@
 #define l4_zero_time \
 	((l4_time_t) { .period.m = 0, .period.e = 5, .period._zero = 0 })
 
-_L4_EXTERN_INLINE l4_time_t
+static inline l4_time_t
+__attribute__((__always_inline__))
 l4_time_period (l4_uint64_t usec)
 {
   /* FIXME: If usec is a built-in constant, optimize.  Optimize the
@@ -42,7 +59,8 @@ l4_time_period (l4_uint64_t usec)
 
 /* Convenience interface for l4_thread_switch.  */
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_yield (void)
 {
   l4_thread_switch (l4_nilthread);
@@ -51,7 +69,8 @@ l4_yield (void)
 
 /* Convenience interface for l4_schedule.  */
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_set_priority (l4_thread_id_t dest, l4_word_t priority)
 {
   l4_word_t prio = priority & ((1 << 16) - 1);
@@ -60,7 +79,8 @@ l4_set_priority (l4_thread_id_t dest, l4_word_t priority)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_set_processor_no (l4_thread_id_t dest, l4_word_t proc_num)
 {
   l4_word_t proc = proc_num & ((1 << 8) - 1);
@@ -69,7 +89,8 @@ l4_set_processor_no (l4_thread_id_t dest, l4_word_t proc_num)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_time_slice (l4_thread_id_t dest, l4_time_t *ts, l4_time_t *tq)
 {
   l4_word_t time_control;
@@ -79,7 +100,8 @@ l4_time_slice (l4_thread_id_t dest, l4_time_t *ts, l4_time_t *tq)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_set_time_slice (l4_thread_id_t dest, l4_time_t ts, l4_time_t tq)
 {
   l4_word_t time_control = (ts.raw << 16) | tq.raw;
@@ -88,7 +110,8 @@ l4_set_time_slice (l4_thread_id_t dest, l4_time_t ts, l4_time_t tq)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_preemption_delay (l4_thread_id_t dest, l4_word_t sensitive_prio,
 		     l4_word_t max_delay)
 {

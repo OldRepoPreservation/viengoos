@@ -1,3 +1,24 @@
+/* ipc.h - Public interface to the L4 IPC primitive.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_IPC_H
 #define _L4_IPC_H	1
 
@@ -11,47 +32,49 @@
 
 #define l4_niltag	((l4_msg_tag_t) { .raw = 0 })
 
-#ifndef _L4_EXTERN_INLINE
-#define _L4_EXTERN_INLINE extern __inline
-#endif
 
-
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_msg_tag_equal (l4_msg_tag_t tag1, l4_msg_tag_t tag2)
 {
   return tag1.raw == tag2.raw;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_msg_tag_not_equal (l4_msg_tag_t tag1, l4_msg_tag_t tag2)
 {
   return tag1.raw != tag2.raw;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_label (l4_msg_tag_t tag)
 {
   return tag.label;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_untyped_words (l4_msg_tag_t tag)
 {
   return tag.untyped;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_typed_words (l4_msg_tag_t tag)
 {
   return tag.typed;
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_msg_tag_add_label (l4_msg_tag_t tag, l4_word_t label)
 {
   l4_msg_tag_t new_tag = tag;
@@ -60,14 +83,16 @@ l4_msg_tag_add_label (l4_msg_tag_t tag, l4_word_t label)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_tag_add_label_to (l4_msg_tag_t *tag, l4_word_t label)
 {
   tag->label = label;
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_msg_tag (void)
 {
   l4_msg_tag_t tag;
@@ -75,7 +100,8 @@ l4_msg_tag (void)
   return tag;
 }
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_msg_tag (l4_msg_tag_t tag)
 {
   l4_load_mr (0, tag.raw);
@@ -101,7 +127,8 @@ typedef union
 } l4_map_item_t;
 
 
-_L4_EXTERN_INLINE l4_map_item_t
+static inline l4_map_item_t
+__attribute__((__always_inline__))
 l4_map_item (l4_fpage_t fpage, l4_word_t send_base)
 {
   l4_map_item_t map_item;
@@ -114,7 +141,8 @@ l4_map_item (l4_fpage_t fpage, l4_word_t send_base)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_map_item (l4_map_item_t map_item)
 {
   return map_item._four == 4;
@@ -140,7 +168,8 @@ typedef union
 } l4_grant_item_t;
 
 
-_L4_EXTERN_INLINE l4_grant_item_t
+static inline l4_grant_item_t
+__attribute__((__always_inline__))
 l4_grant_item (l4_fpage_t fpage, l4_word_t send_base)
 {
   l4_grant_item_t grant_item;
@@ -153,7 +182,8 @@ l4_grant_item (l4_fpage_t fpage, l4_word_t send_base)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_grant_item (l4_grant_item_t grant_item)
 {
   return grant_item._five == 5;
@@ -190,7 +220,8 @@ typedef struct
   ((l4_cache_allocation_hint_t) { .cache_hint = 0 })
 
 
-_L4_EXTERN_INLINE l4_string_item_t
+static inline l4_string_item_t
+__attribute__((__always_inline__))
 l4_string_item (int length, void *address)
 {
   l4_string_item_t string_item;
@@ -205,28 +236,32 @@ l4_string_item (int length, void *address)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_string_item (l4_string_item_t *string_item)
 {
   return string_item->_zero == 0;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_compound_string (l4_string_item_t *string_item)
 {
   return string_item->cont;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_substrings (l4_string_item_t *string_item)
 {
   return string_item->nr_substrings + 1;
 }
 
 
-_L4_EXTERN_INLINE void *
+static inline void *
+__attribute__((__always_inline__))
 l4_substring (l4_string_item_t *string_item, l4_word_t nr)
 {
   return (void *) string_item->string[nr];
@@ -235,7 +270,8 @@ l4_substring (l4_string_item_t *string_item, l4_word_t nr)
 
 /* Append the string described by string item SOURCE to the string
    described by string item STRING_ITEM.  */
-_L4_EXTERN_INLINE l4_string_item_t *
+static inline l4_string_item_t *
+__attribute__((__always_inline__))
 l4_add_substring_address_to (l4_string_item_t *string_item,
 			     l4_string_item_t *source)
 {
@@ -269,7 +305,8 @@ l4_add_substring_address_to (l4_string_item_t *string_item,
 
 /* Append the string described by string item SOURCE as a substring
    (of the same length) to the string item STRING_ITEM.  */
-_L4_EXTERN_INLINE l4_string_item_t *
+static inline l4_string_item_t *
+__attribute__((__always_inline__))
 l4_add_substring_to (l4_string_item_t *string_item, void *source)
 {
   l4_string_item_t *target = string_item;
@@ -287,7 +324,8 @@ l4_add_substring_to (l4_string_item_t *string_item, void *source)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_cache_allocation_hint_equal (l4_cache_allocation_hint_t hint1,
 				   l4_cache_allocation_hint_t hint2)
 {
@@ -295,7 +333,8 @@ l4_is_cache_allocation_hint_equal (l4_cache_allocation_hint_t hint1,
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_cache_allocation_hint_not_equal (l4_cache_allocation_hint_t hint1,
 				       l4_cache_allocation_hint_t hint2)
 {
@@ -303,7 +342,8 @@ l4_is_cache_allocation_hint_not_equal (l4_cache_allocation_hint_t hint1,
 }
 
 
-_L4_EXTERN_INLINE l4_cache_allocation_hint_t
+static inline l4_cache_allocation_hint_t
+__attribute__((__always_inline__))
 l4_cache_allocation_hint (l4_string_item_t *string_item)
 {
   l4_cache_allocation_hint_t hint;
@@ -312,7 +352,8 @@ l4_cache_allocation_hint (l4_string_item_t *string_item)
 }
 
 
-_L4_EXTERN_INLINE l4_string_item_t
+static inline l4_string_item_t
+__attribute__((__always_inline__))
 l4_add_cache_allocation_hint (l4_string_item_t string_item,
 			      l4_cache_allocation_hint_t hint)
 {
@@ -321,7 +362,8 @@ l4_add_cache_allocation_hint (l4_string_item_t string_item,
 }
 
 
-_L4_EXTERN_INLINE l4_string_item_t *
+static inline l4_string_item_t *
+__attribute__((__always_inline__))
 l4_add_cache_allocation_hint_to (l4_string_item_t *string_item,
 				 l4_cache_allocation_hint_t hint)
 {
@@ -352,7 +394,8 @@ typedef union
 } l4_msg_buffer_t;
 
 
-_L4_EXTERN_INLINE l4_acceptor_t
+static inline l4_acceptor_t
+__attribute__((__always_inline__))
 l4_map_grant_items (l4_fpage_t rcv_window)
 {
   l4_acceptor_t acceptor;
@@ -363,7 +406,8 @@ l4_map_grant_items (l4_fpage_t rcv_window)
 }
 
 
-_L4_EXTERN_INLINE l4_acceptor_t
+static inline l4_acceptor_t
+__attribute__((__always_inline__))
 l4_add_acceptor (l4_acceptor_t acceptor1, l4_acceptor_t acceptor2)
 {
   acceptor1.string_items |= acceptor2.string_items;
@@ -373,7 +417,8 @@ l4_add_acceptor (l4_acceptor_t acceptor1, l4_acceptor_t acceptor2)
 }
 
 
-_L4_EXTERN_INLINE l4_acceptor_t *
+static inline l4_acceptor_t *
+__attribute__((__always_inline__))
 l4_add_acceptor_to (l4_acceptor_t *acceptor1, l4_acceptor_t acceptor2)
 {
   acceptor1->string_items |= acceptor2.string_items;
@@ -383,7 +428,8 @@ l4_add_acceptor_to (l4_acceptor_t *acceptor1, l4_acceptor_t acceptor2)
 }
 
 
-_L4_EXTERN_INLINE l4_acceptor_t
+static inline l4_acceptor_t
+__attribute__((__always_inline__))
 l4_remove_acceptor (l4_acceptor_t acceptor1, l4_acceptor_t acceptor2)
 {
   acceptor1.string_items &= ~acceptor2.string_items;
@@ -393,7 +439,8 @@ l4_remove_acceptor (l4_acceptor_t acceptor1, l4_acceptor_t acceptor2)
 }
 
 
-_L4_EXTERN_INLINE l4_acceptor_t *
+static inline l4_acceptor_t *
+__attribute__((__always_inline__))
 l4_remove_acceptor_from (l4_acceptor_t *acceptor1, l4_acceptor_t acceptor2)
 {
   acceptor1->string_items &= ~acceptor2.string_items;
@@ -403,21 +450,24 @@ l4_remove_acceptor_from (l4_acceptor_t *acceptor1, l4_acceptor_t acceptor2)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_has_string_items (l4_acceptor_t acceptor)
 {
   return acceptor.string_items;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_has_map_grant_items (l4_acceptor_t acceptor)
 {
   return acceptor.rcv_window;
 }
 
 
-_L4_EXTERN_INLINE l4_fpage_t
+static inline l4_fpage_t
+__attribute__((__always_inline__))
 l4_rcv_window (l4_acceptor_t acceptor)
 {
   l4_fpage_t fpage;
@@ -427,14 +477,16 @@ l4_rcv_window (l4_acceptor_t acceptor)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_accept (l4_acceptor_t acceptor)
 {
   l4_load_br (0, acceptor.raw);
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_accept_strings (l4_acceptor_t acceptor, l4_msg_buffer_t *msg_buffer)
 {
   l4_string_item_t *string_item = msg_buffer->string_item;
@@ -454,7 +506,8 @@ l4_accept_strings (l4_acceptor_t acceptor, l4_msg_buffer_t *msg_buffer)
 }
 
 
-_L4_EXTERN_INLINE l4_acceptor_t
+static inline l4_acceptor_t
+__attribute__((__always_inline__))
 l4_accepted (void)
 {
   l4_acceptor_t acceptor;
@@ -463,14 +516,16 @@ l4_accepted (void)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_buffer_clear (l4_msg_buffer_t *msg_buffer)
 {
   msg_buffer->br[0] = 0;
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_buffer_append_simple_rcv_string (l4_msg_buffer_t *msg_buffer,
 					l4_string_item_t string_item)
 {
@@ -493,7 +548,8 @@ l4_msg_buffer_append_simple_rcv_string (l4_msg_buffer_t *msg_buffer,
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_buffer_append_rcv_string (l4_msg_buffer_t *msg_buffer,
 				 l4_string_item_t *string_item)
 {
@@ -539,7 +595,8 @@ typedef union
 } l4_msg_t;
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_put (l4_msg_t *msg, l4_word_t label, int untyped_nr, l4_word_t *untyped,
 	    int typed_nr, l4_word_t *typed)
 {
@@ -561,7 +618,8 @@ l4_msg_put (l4_msg_t *msg, l4_word_t label, int untyped_nr, l4_word_t *untyped,
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_get (l4_msg_t *msg, l4_word_t *untyped, l4_word_t *typed)
 {
   l4_word_t *mr = msg->mr;
@@ -576,42 +634,48 @@ l4_msg_get (l4_msg_t *msg, l4_word_t *untyped, l4_word_t *typed)
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_msg_msg_tag (l4_msg_t *msg)
 {
   return msg->tag;
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_msg_msg_tag (l4_msg_t *msg, l4_msg_tag_t tag)
 {
   msg->tag = tag;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_msg_label (l4_msg_t *msg)
 {
   return msg->tag.label;
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_msg_label (l4_msg_t *msg, l4_word_t label)
 {
   msg->tag.label = label;
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_load (l4_msg_t *msg)
 {
   l4_load_mrs (0, 1 + msg->tag.untyped + msg->tag.typed, msg->mr);
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_store (l4_msg_tag_t tag, l4_msg_t *msg)
 {
   msg->tag = tag;
@@ -619,14 +683,16 @@ l4_msg_store (l4_msg_tag_t tag, l4_msg_t *msg)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_clear (l4_msg_t *msg)
 {
   msg->tag = l4_niltag;
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_append_word (l4_msg_t *msg, l4_word_t data)
 {
   l4_word_t new_untyped_nr = ++msg->tag.untyped;
@@ -647,7 +713,8 @@ l4_msg_append_word (l4_msg_t *msg, l4_word_t data)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_append_map_item (l4_msg_t *msg, l4_map_item_t map_item)
 {
   /* The "not last" bit is ignored for sending.  */
@@ -658,7 +725,8 @@ l4_msg_append_map_item (l4_msg_t *msg, l4_map_item_t map_item)
 }
     
   
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_append_grant_item (l4_msg_t *msg, l4_grant_item_t grant_item)
 {
   /* The "not last" bit is ignored for sending.  */
@@ -669,7 +737,8 @@ l4_msg_append_grant_item (l4_msg_t *msg, l4_grant_item_t grant_item)
 }
     
   
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_append_simple_string_item (l4_msg_t *msg, l4_string_item_t string_item)
 {
   /* The "not last" bit is ignored for sending.  */
@@ -682,7 +751,8 @@ l4_msg_append_simple_string_item (l4_msg_t *msg, l4_string_item_t string_item)
 }
     
   
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_append_string_item (l4_msg_t *msg, l4_string_item_t *string_item)
 {
   /* The "not last" bit is ignored for sending.  */
@@ -706,13 +776,15 @@ l4_msg_append_string_item (l4_msg_t *msg, l4_string_item_t *string_item)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_put_word (l4_msg_t *msg, l4_word_t nr, l4_word_t data)
 {
   msg->mr[1 + nr] = data;
 }
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_put_map_item (l4_msg_t *msg, l4_word_t nr, l4_map_item_t map_item)
 {
   l4_word_t pos = 1 + msg->tag.untyped + nr;
@@ -721,7 +793,8 @@ l4_msg_put_map_item (l4_msg_t *msg, l4_word_t nr, l4_map_item_t map_item)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_put_grant_item (l4_msg_t *msg, l4_word_t nr, l4_grant_item_t grant_item)
 {
   l4_word_t pos = 1 + msg->tag.untyped + nr;
@@ -730,7 +803,8 @@ l4_msg_put_grant_item (l4_msg_t *msg, l4_word_t nr, l4_grant_item_t grant_item)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_put_simple_string_item (l4_msg_t *msg, l4_word_t nr,
 			       l4_string_item_t string_item)
 {
@@ -742,7 +816,8 @@ l4_msg_put_simple_string_item (l4_msg_t *msg, l4_word_t nr,
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_put_string_item (l4_msg_t *msg, l4_word_t nr,
 			l4_string_item_t *string_item)
 {
@@ -764,21 +839,24 @@ l4_msg_put_string_item (l4_msg_t *msg, l4_word_t nr,
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_msg_word (l4_msg_t *msg, l4_word_t nr)
 {
   return msg->mr[1 + nr];
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_get_word (l4_msg_t *msg, l4_word_t nr, l4_word_t *data)
 {
   *data = l4_msg_word (msg, nr);
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_get_map_item (l4_msg_t *msg, l4_word_t nr, l4_map_item_t *map_item)
 {
   l4_word_t pos = 1 + msg->tag.untyped + nr;
@@ -787,7 +865,8 @@ l4_msg_get_map_item (l4_msg_t *msg, l4_word_t nr, l4_map_item_t *map_item)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_get_grant_item (l4_msg_t *msg, l4_word_t nr,
 		       l4_grant_item_t *grant_item)
 {
@@ -797,7 +876,8 @@ l4_msg_get_grant_item (l4_msg_t *msg, l4_word_t nr,
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_msg_get_string_item (l4_msg_t *msg, l4_word_t nr,
 			l4_string_item_t *string_item)
 {
@@ -821,14 +901,16 @@ l4_msg_get_string_item (l4_msg_t *msg, l4_word_t nr,
 
 /* l4_ipc convenience interface.  */
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_timeouts (l4_time_t send_timeout, l4_time_t receive_timeout)
 {
   return (send_timeout.raw << 16) | receive_timeout.raw;
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_call_timeouts (l4_thread_id_t dest, l4_time_t send_timeout,
 		  l4_time_t receive_timeout)
 {
@@ -838,14 +920,16 @@ l4_call_timeouts (l4_thread_id_t dest, l4_time_t send_timeout,
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_call (l4_thread_id_t dest)
 {
   return l4_call_timeouts (dest, l4_never, l4_never);
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_send_timeout (l4_thread_id_t dest, l4_time_t send_timeout)
 {
   l4_thread_id_t dummy;
@@ -854,21 +938,24 @@ l4_send_timeout (l4_thread_id_t dest, l4_time_t send_timeout)
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_send (l4_thread_id_t dest)
 {
   return l4_send_timeout (dest, l4_never);
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_reply (l4_thread_id_t dest)
 {
   return l4_send_timeout (dest, l4_zero_time);
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_receive_timeout (l4_thread_id_t from, l4_time_t receive_timeout)
 {
   l4_thread_id_t dummy;
@@ -877,14 +964,16 @@ l4_receive_timeout (l4_thread_id_t from, l4_time_t receive_timeout)
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_receive (l4_thread_id_t from)
 {
   return l4_receive_timeout (from, l4_never);
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_wait_timeout (l4_time_t receive_timeout, l4_thread_id_t *from)
 {
   return l4_ipc (l4_nilthread, l4_anythread,
@@ -892,14 +981,16 @@ l4_wait_timeout (l4_time_t receive_timeout, l4_thread_id_t *from)
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_wait (l4_thread_id_t *from)
 {
   return l4_wait_timeout (l4_never, from);
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_reply_wait_timeout (l4_thread_id_t dest, l4_time_t receive_timeout,
 		       l4_thread_id_t *from)
 {
@@ -908,21 +999,24 @@ l4_reply_wait_timeout (l4_thread_id_t dest, l4_time_t receive_timeout,
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_reply_wait (l4_thread_id_t dest, l4_thread_id_t *from)
 {
   return l4_reply_wait_timeout (dest, l4_never, from);
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_sleep (l4_time_t time)
 {
   l4_set_msg_tag (l4_receive_timeout (l4_my_local_id (), time));
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_lcall (l4_thread_id_t dest)
 {
   l4_thread_id_t dummy;
@@ -930,7 +1024,8 @@ l4_lcall (l4_thread_id_t dest)
 }
 
 
-_L4_EXTERN_INLINE l4_msg_tag_t
+static inline l4_msg_tag_t
+__attribute__((__always_inline__))
 l4_lreply_wait (l4_thread_id_t dest, l4_thread_id_t *from)
 {
   return l4_lipc (dest, dest, l4_timeouts (l4_time_period (0), l4_never),
@@ -938,42 +1033,48 @@ l4_lreply_wait (l4_thread_id_t dest, l4_thread_id_t *from)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_ipc_succeeded (l4_msg_tag_t tag)
 {
   return !tag.error;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_ipc_failed (l4_msg_tag_t tag)
 {
   return tag.error;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_ipc_propagated (l4_msg_tag_t tag)
 {
   return tag.propagated;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_ipc_redirected (l4_msg_tag_t tag)
 {
   return tag.redirected;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_ipc_xcpu (l4_msg_tag_t tag)
 {
   return tag.cross_cpu;
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_propagation (l4_msg_tag_t *tag)
 {
   tag->propagated = 1;

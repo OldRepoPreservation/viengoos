@@ -1,13 +1,32 @@
+/* vregs.h - L4 virtual registers for ia32.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_VREGS_H
 # error "Never use <l4/bits/vregs.h> directly; include <l4/vregs.h> instead."
 #endif
 
-#ifndef _L4_EXTERN_INLINE
-#define _L4_EXTERN_INLINE extern __inline
-#endif
-
+
 /* Retrieve the UTCB address.  */
 static inline l4_word_t *
+__attribute__((__always_inline__, __const__))
 __l4_utcb (void)
 {
   l4_word_t *utcb;
@@ -37,7 +56,8 @@ __l4_utcb (void)
 
 
 /* Get the local thread ID.  */
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_my_local_id (void)
 {
   l4_thread_id_t id;
@@ -50,7 +70,8 @@ l4_my_local_id (void)
 
 
 /* Get the global thread ID.  */
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_my_global_id (void)
 {
   l4_thread_id_t id;
@@ -61,7 +82,8 @@ l4_my_global_id (void)
 }
 
 
-_L4_EXTERN_INLINE int
+static inline int
+__attribute__((__always_inline__))
 l4_processor_no (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -70,7 +92,8 @@ l4_processor_no (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_user_defined_handle (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -79,7 +102,8 @@ l4_user_defined_handle (void)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_user_defined_handle (l4_word_t data)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -88,7 +112,8 @@ l4_set_user_defined_handle (l4_word_t data)
 }
 
 
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_pager (void)
 {
   l4_thread_id_t thread;
@@ -99,7 +124,8 @@ l4_pager (void)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_pager (l4_thread_id_t thread)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -108,7 +134,8 @@ l4_set_pager (l4_thread_id_t thread)
 }
 
 
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_exception_handler (void)
 {
   l4_thread_id_t thread;
@@ -119,7 +146,8 @@ l4_exception_handler (void)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_exception_handler (l4_thread_id_t thread)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -128,7 +156,8 @@ l4_set_exception_handler (l4_thread_id_t thread)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_clr_cop_flag (l4_word_t n)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -142,7 +171,8 @@ l4_clr_cop_flag (l4_word_t n)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_cop_flag (l4_word_t n)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -156,7 +186,8 @@ l4_set_cop_flag (l4_word_t n)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_disable_preemption_fault_exception (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -173,7 +204,8 @@ l4_disable_preemption_fault_exception (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_enable_preemption_fault_exception (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -190,7 +222,8 @@ l4_enable_preemption_fault_exception (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_disable_preemption (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -207,7 +240,8 @@ l4_disable_preemption (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_enable_preemption (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -224,7 +258,8 @@ l4_enable_preemption (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_preemption_pending (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -241,7 +276,8 @@ l4_preemption_pending (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_error_code (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -250,7 +286,8 @@ l4_error_code (void)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_xfer_timeout (void)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -259,7 +296,8 @@ l4_xfer_timeout (void)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_xfer_timeout (l4_word_t time)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -268,7 +306,8 @@ l4_set_xfer_timeout (l4_word_t time)
 }
 
 
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_intended_receiver (void)
 {
   l4_thread_id_t thread;
@@ -279,7 +318,8 @@ l4_intended_receiver (void)
 }
 
 
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_actual_sender (void)
 {
   l4_thread_id_t thread;
@@ -290,7 +330,8 @@ l4_actual_sender (void)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_virtual_sender (l4_thread_id_t thread)
 {
   l4_word_t *utcb = __l4_utcb ();
@@ -306,7 +347,8 @@ l4_set_virtual_sender (l4_thread_id_t thread)
    mapped.  */
 
 /* Set message register NR to DATA.  */
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_load_mr (int nr, l4_word_t data)
 {
   l4_word_t *mr = __l4_utcb () + __L4_UTCB_MR0;
@@ -317,7 +359,8 @@ l4_load_mr (int nr, l4_word_t data)
 
 /* Set COUNT message registers beginning from START to the values in
    DATA.  */
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_load_mrs (int start, int count, l4_word_t *data)
 {
   l4_word_t *mr = __l4_utcb () + __L4_UTCB_MR0 + start;
@@ -328,7 +371,8 @@ l4_load_mrs (int start, int count, l4_word_t *data)
 
 
 /* Store message register NR in DATA.  */
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_store_mr (int nr, l4_word_t *data)
 {
   l4_word_t *mr = __l4_utcb () + __L4_UTCB_MR0;
@@ -338,7 +382,8 @@ l4_store_mr (int nr, l4_word_t *data)
 
 
 /* Store COUNT message registers beginning from START in DATA.  */
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_store_mrs (int start, int count, l4_word_t *data)
 {
   l4_word_t *mr = __l4_utcb () + __L4_UTCB_MR0 + start;
@@ -352,7 +397,8 @@ l4_store_mrs (int start, int count, l4_word_t *data)
    downward.  */
 
 /* Set message register NR to DATA.  */
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_load_br (int nr, l4_word_t data)
 {
   l4_word_t *br = __l4_utcb () + __L4_UTCB_BR0;
@@ -363,7 +409,8 @@ l4_load_br (int nr, l4_word_t data)
 
 /* Set COUNT message registers beginning from START to the values in
    DATA.  */
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_load_brs (int start, int count, l4_word_t *data)
 {
   l4_word_t *br = __l4_utcb () + __L4_UTCB_BR0 - start;
@@ -374,7 +421,8 @@ l4_load_brs (int start, int count, l4_word_t *data)
 
 
 /* Store message register NR in DATA.  */
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_store_br (int nr, l4_word_t *data)
 {
   l4_word_t *br = __l4_utcb () + __L4_UTCB_BR0;
@@ -384,7 +432,8 @@ l4_store_br (int nr, l4_word_t *data)
 
 
 /* Store COUNT message registers beginning from START in DATA.  */
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_store_brs (int start, int count, l4_word_t *data)
 {
   l4_word_t *br = __l4_utcb () + __L4_UTCB_BR0 - start;

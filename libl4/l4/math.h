@@ -1,24 +1,38 @@
+/* math.h - Public interface to L4 mathematical support functions.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_MATH_H
 #define _L4_MATH_H	1
 
 #include <l4/types.h>
 
-/* <l4/bits/math.h> defines __l4_msb_().  */
+/* <l4/bits/math.h> defines__l4_msb() and __l4_lsb().  */
 #include <l4/bits/math.h>
 
-
-#ifndef _L4_EXTERN_INLINE
-#define _L4_EXTERN_INLINE extern __inline
-#endif
-
-
-_L4_EXTERN_INLINE l4_word_t
-__l4_msb (l4_word_t data) __attribute__((__const__));
 
 /* Return 0 if DATA is 0, or the bit number of the most significant
    bit set in DATA.  The least significant bit is 1, the most
    significant bit 32 resp. 64.  */
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_msb (l4_word_t data)
 {
   if (__builtin_constant_p (data))
@@ -57,7 +71,8 @@ l4_msb (l4_word_t data)
 /* Return 0 if DATA is 0, or the bit number of the least significant
    bit set in DATA.  The least significant bit is 1, the most
    significant bit 32 resp. 64.  */
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_lsb (l4_word_t data)
 {
   if (__builtin_constant_p (data))
@@ -88,6 +103,5 @@ l4_lsb (l4_word_t data)
     }
   return data ? __l4_lsb (data) : 0;
 }
-
 
 #endif	/* l4/math.h */

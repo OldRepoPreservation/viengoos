@@ -1,3 +1,24 @@
+/* thread.h - Public interface to L4 threads.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_THREAD_H
 #define _L4_THREAD_H	1
 
@@ -14,12 +35,8 @@
 	((l4_thread_id_t) { .local.local = -1, .local._all_zero = 0 })
 
 
-#ifndef _L4_EXTERN_INLINE
-#define _L4_EXTERN_INLINE extern __inline
-#endif
-
-
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline  l4_thread_id_t
+__attribute__((__always_inline__))
 l4_global_id (l4_word_t thread_no, l4_word_t version)
 {
   l4_thread_id_t thread;
@@ -31,63 +48,72 @@ l4_global_id (l4_word_t thread_no, l4_word_t version)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_version (l4_thread_id_t thread)
 {
   return thread.version;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_thread_no (l4_thread_id_t thread)
 {
   return thread.thread_no;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_thread_equal (l4_thread_id_t thread1, l4_thread_id_t thread2)
 {
   return thread1.raw == thread2.raw;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_thread_not_equal (l4_thread_id_t thread1, l4_thread_id_t thread2)
 {
   return thread1.raw != thread2.raw;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_nil_thread (l4_thread_id_t thread)
 {
   return thread.raw == 0;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_local_id (l4_thread_id_t thread)
 {
   return thread._all_zero == 0;
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_is_global_id (l4_thread_id_t thread)
 {
   return thread._all_zero != 0;
 }
 
 
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_myself (void)
 {
   return l4_my_global_id ();
 }
 
 
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_global_id_of (l4_thread_id_t thread)
 {
   if (l4_is_global_id (thread))
@@ -106,7 +132,8 @@ l4_global_id_of (l4_thread_id_t thread)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_same_threads (l4_thread_id_t thread1, l4_thread_id_t thread2)
 {
   l4_thread_id_t global1 = l4_global_id_of (thread1);
@@ -116,7 +143,8 @@ l4_same_threads (l4_thread_id_t thread1, l4_thread_id_t thread2)
 }
 
 
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_local_id_of (l4_thread_id_t thread)
 {
   if (l4_is_local_id (thread))
@@ -135,7 +163,8 @@ l4_local_id_of (l4_thread_id_t thread)
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_user_defined_handle_of (l4_thread_id_t thread)
 {
   l4_thread_id_t dest = thread;
@@ -150,7 +179,8 @@ l4_user_defined_handle_of (l4_thread_id_t thread)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_user_defined_handle_of (l4_thread_id_t thread, l4_word_t handle)
 {
   l4_thread_id_t dest = thread;
@@ -164,7 +194,8 @@ l4_set_user_defined_handle_of (l4_thread_id_t thread, l4_word_t handle)
 }
 
 
-_L4_EXTERN_INLINE l4_thread_id_t
+static inline l4_thread_id_t
+__attribute__((__always_inline__))
 l4_pager_of (l4_thread_id_t thread)
 {
   l4_thread_id_t dest = thread;
@@ -178,7 +209,8 @@ l4_pager_of (l4_thread_id_t thread)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_set_pager_of (l4_thread_id_t thread, l4_thread_id_t pager_thread)
 {
   l4_thread_id_t dest = thread;
@@ -191,7 +223,8 @@ l4_set_pager_of (l4_thread_id_t thread, l4_thread_id_t pager_thread)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_start (l4_thread_id_t thread)
 {
   l4_thread_id_t dest = thread;
@@ -204,7 +237,8 @@ l4_start (l4_thread_id_t thread)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_start_sp_ip (l4_thread_id_t thread, l4_word_t sp_data, l4_word_t ip_data)
 {
   l4_thread_id_t dest = thread;
@@ -219,7 +253,8 @@ l4_start_sp_ip (l4_thread_id_t thread, l4_word_t sp_data, l4_word_t ip_data)
 }
 
 
-_L4_EXTERN_INLINE void
+static inline void
+__attribute__((__always_inline__))
 l4_start_sp_ip_flags (l4_thread_id_t thread, l4_word_t sp_data,
 		      l4_word_t ip_data, l4_word_t flags_data)
 {
@@ -237,7 +272,8 @@ l4_start_sp_ip_flags (l4_thread_id_t thread, l4_word_t sp_data,
 
 
 #define __L4_STOP(name, extra_control)				\
-_L4_EXTERN_INLINE l4_word_t					\
+static inline l4_word_t						\
+__attribute__((__always_inline__))				\
 name (l4_thread_id_t thread)					\
 {								\
   l4_thread_id_t dest = thread;					\
@@ -252,7 +288,8 @@ name (l4_thread_id_t thread)					\
 }								\
 								\
 								\
-_L4_EXTERN_INLINE l4_word_t					\
+static inline l4_word_t						\
+__attribute__((__always_inline__))				\
 name ## _sp_ip_flags (l4_thread_id_t thread, l4_word_t *sp,	\
                       l4_word_t *ip, l4_word_t *flags)		\
 {								\
@@ -276,14 +313,16 @@ __L4_STOP (l4_abort_ipc_and_stop, L4_XCHG_REGS_CANCEL_IPC)
 
 /* Convenience interface for l4_thread_control.  */ 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_associate_interrupt (l4_thread_id_t irq, l4_thread_id_t handler)
 {
   return l4_thread_control (irq, irq, l4_nilthread, handler, (void *) -1);
 }
 
 
-_L4_EXTERN_INLINE l4_word_t
+static inline l4_word_t
+__attribute__((__always_inline__))
 l4_deassociate_interrupt (l4_thread_id_t irq)
 {
   return l4_thread_control (irq, irq, l4_nilthread, irq, (void *) -1);
