@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 Free Software Foundation, Inc.
+/* cap-user.c - User side of the capability implementation.
+   Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -28,14 +29,18 @@
 #include "cap-intern.h"
 
 
+/* This hash table maps server thread IDs to server connections.  */
 static struct hurd_ihash server_to_sconn
   = HURD_IHASH_INITIALIZER (HURD_IHASH_NO_LOCP);
+
+/* This lock protects SERVER_TO_SCONN.  You can also lock server
+   connection objects while holding this lock.  */
 static pthread_mutex_t server_to_sconn_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 /* Deallocate one reference for SCONN, which must be locked.
-   SERVER_TO_SCONN_LOCK is not locked.  Afterwards, SCONN is
-   unlocked.  */
+   SERVER_TO_SCONN_LOCK is not locked.  Afterwards, SCONN is unlocked
+   (if it still exists).  */
 void
 _hurd_cap_sconn_dealloc (hurd_cap_sconn_t sconn)
 {
@@ -71,7 +76,8 @@ _hurd_cap_sconn_dealloc (hurd_cap_sconn_t sconn)
   pthread_mutex_unlock (&sconn->lock);
   pthread_mutex_destroy (&sconn->lock);
   hurd_ihash_destroy (&sconn->id_to_cap);
-  hurd_cap_deallocate (sconn->server_task_id);
+  if (sconn->server_task_id)
+    hurd_cap_deallocate (sconn->server_task_id);
   free (sconn);
 }
 
@@ -95,13 +101,12 @@ _hurd_cap_sconn_remove (sconn, scid)
 
 /* Enter a new send capability provided by the server SERVER_THREAD
    (with the task ID reference SERVER_TASK_ID) and the cap ID SCID.
-   The SERVER_TASK_ID reference is _not_ consumed but copied if
-   necessary.  If successful, the locked capability is returned with
-   one (additional) reference in CAP.  The server connection and
+   If successful, the locked capability is returned with one
+   (additional) reference in CAP.  The server connection and
    capability object are created if necessary.  */
 error_t
 _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
-		       task_id_t server_task_id, hurd_cap_t *cap)
+		       hurd_cap_t *cap)
 {
   hurd_cap_sconn_t sconn;
   int sconn_created = 0;
@@ -111,6 +116,11 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
   if (!sconn)
     {
       error_t err;
+      hurd_task_id_t server_task = hurd_task_id_from_thread_id (server_thread);
+      hurd_task_id_t taskserver_task;
+
+      taskserver_task = hurd_task_id_from_thread_id
+	(hurd_cap_get_thread_id (hurd_task_self()));
 
       sconn = malloc (sizeof (*sconn));
       if (!sconn)
@@ -125,10 +135,25 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
 	  pthread_mutex_unlock (&server_to_sconn_lock);
 	  return errno;
 	}
-      hurd_ihash_init (&sconn->id_to_cap);
+	 
+      if (server_task != taskserver_task)
+	{
+	  err = hurd_task_info_create (hurd_task_self (),
+				       server_task,
+				       &sconn->server_task_id);
+	  if (err)
+	    {
+	      pthread_mutex_destroy (&sconn->lock);
+	      free (sconn);
+	      pthread_mutex_unlock (&server_to_sconn_lock);
+	      return errno;
+	    }
+	}
+      else
+	sconn->server_task_id = 0;
 
+      hurd_ihash_init (&sconn->id_to_cap);
       sconn->server_thread = server_thread;
-      sconn->server_task_id = server_task_id;
       sconn->refs = 0;
 
       /* Enter the new server connection object.  */
@@ -141,9 +166,6 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
 	  pthread_mutex_unlock (&server_to_sconn_lock);
 	  return errno;
 	}
-
-      /* FIXME: This could, theoretically, overflow.  */
-      hurd_cap_mod_refs (server_task_id, +1);
     }
   pthread_mutex_lock (&sconn->lock);
   sconn->refs++;

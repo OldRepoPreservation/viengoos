@@ -36,7 +36,8 @@ struct hurd_cap_sconn
   /* The server thread to which messages should be sent.  */
   l4_thread_id_t server_thread;
 
-  /* A reference for the servers task ID to prevent reuse.  */
+  /* A reference for the servers task ID to prevent reuse.  This is 0
+     if this is the connection to the task server itself.  */
   task_id_t server_task_id;
 
   /* The lock protecting the variable members of the server connection
@@ -81,7 +82,7 @@ struct hurd_cap
      the capability is dead.  */
   hurd_cap_sconn_t sconn;
 
-  /* The task-specific ID for this capability.  Only valid id SCONN is
+  /* The task-specific ID for this capability.  Only valid if SCONN is
      not NULL.  */
   hurd_cap_scid_t scid;
 
