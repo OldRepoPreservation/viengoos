@@ -29,8 +29,6 @@
 
 #include <l4.h>
 
-#include "zalloc.h"
-
 #define __STD_C 1
 #define LACKS_UNISTD_H
 #define LACKS_SYS_PARAM_H
@@ -47,6 +45,7 @@
 #define malloc_getpagesize l4_min_page_size ()
 #define MMAP_AS_MORECORE_SIZE (16 * malloc_getpagesize)
 #define DEFAULT_MMAP_THRESHOLD (4 * malloc_getpagesize)
+#define USE_MALLOC_LOCK 1
 
 /* Suppress debug output in mstats().  */
 #define fprintf(...)

@@ -1,3 +1,8 @@
+2004-10-20  Marcus Brinkmann  <marcus@gnu.org>
+
+	* malloc-wrap.c: Do not include zalloc.h here.
+	(USE_MALLOC_LOCK): Define.
+
 2004-07-16  Bas Wijnen  <b.wijnen@phys.rug.nl>
 
 	* physmem.c (physmem_server): Added missing parameter.
