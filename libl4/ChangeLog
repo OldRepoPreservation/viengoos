@@ -1,5 +1,18 @@
 2005-02-10  Marcus Brinkmann  <marcus@gnu.org>
 
+	* tests/environment.h: Insert a second processor and adjust
+	descriptor offsets.
+	(check): Print newline after error.
+	(check_nr): New macro.
+	* tests/t-l4-kip.c: Include <string.h> and <stddef.h>.
+	(test_magic): Change return type to _L4_kip_t and return kip.
+	(test_api_and_kernel_id, test_kernel_gen_date,
+	test_kernel_version, test_kernel_supplier, test_version_string,
+	test_kernel_feature, test_processor_info, test_page_info): New
+	functions.
+	(main): Call all these new functions with the kip returned from
+	test_magic.
+
 	* l4/kip.h (_L4_proc_desc): Fix parenthesis to suppress wrong
 	pointer arithmetic.
 	(__L4_page_info_t): Add a new interpretation of the bit-field
