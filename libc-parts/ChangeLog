@@ -1,0 +1,8 @@
+2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ctype.h, errno.h, errno.c: New files.
+	* c-ctype.h, c-ctype.c, strtol.c: New files from gnulib.
+	* Makefile.am (libc_parts_a_SOURCES): Add ctype.h, c-ctype.h,
+	c-ctype.c, errno.h, errno.c, strtol.c, strtoll.c, strtoul.c and
+	strtoull.c.
+	(routines): Add atoi, atoll, strtoimax and strtoumax.

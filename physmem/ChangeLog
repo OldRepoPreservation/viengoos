@@ -1,0 +1,19 @@
+2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* physmem.c: Include "zalloc.h".
+	* zalloc.c: Include <string.h>, not <strings.h>.
+	(add_block): Add missing return type.
+	(zalloc_dump_zones): Use %p for pointer.
+
+	* zalloc.c (L4_MIN_PAGE_SHIFT): Remove macro.
+	(ZONE_SIZE): Use L4_MIN_PAGE_SIZE_LOG2 instead of L4_MIN_PAGE_SHIFT.
+	(ZONES): Likewise.
+	(zfree): Likewise.
+	(zalloc): Likewise.
+
+	* physmem/Makefile.am (physmem_SOURCES): Remove getpagesize.c.
+	* getpagesize.c: File removed.
+	* physmem/zalloc.c (zfree): Use l4_min_page_size() instead
+	getpagesize().
+	(zalloc): Likewise.
+	(zalloc_dump_zones): Likewise.

@@ -1,0 +1,25 @@
+2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* output-serial.c: Include <stdlib.h>.
+
+	* Makefile.am (wortel_SOURCES): Remove getpagesize.c.
+	* getpagesize.c: File removed.
+	* wortel.c (make_fpages): Use l4_min_page_size, not getpagesize().
+	(load_components): Likewise.
+	(serve_bootstrap_requests): Likewise.
+	(MAX_FPAGES): Use L4_MIN_PAGE_SIZE_LOG2 instead
+	hard-coded 10.
+	(serve_bootstrap_requests): Likewise.
+
+	* Makefile.am (wortel_CFLAGS): Add -I$(top_srcdir)/libc-parts.
+	* output.c: Include <stdlib.h> and <string.h>.
+	* output.h (struct output_driver): Add CFG argument to INIT
+	function.
+	(output_init): Make NAME argument const, rename it to DRIVER.
+	* output.c (output_init): Likewise.  Only check if the prefix of
+	DRIVER is a driver name.  Then skip a trailing comma and pass the
+	remainder via the new variable DRIVER_CFG to the init function of
+	the driver.
+	* output-vga.c (vga_init): Add CFG argument.
+	* output-serial.c: New file by Daniel Wagner <wagi@gmx.de>.
+
