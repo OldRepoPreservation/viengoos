@@ -166,26 +166,23 @@ _hurd_cap_client_dealloc (hurd_cap_bucket_t bucket, _hurd_cap_client_t client)
 }
 
 
-/* Release a reference for the client with the ID IDX in class
-   CLASS.  */
+/* Release a reference for the client with the ID IDX in bucket
+   BUCKET.  */
 void
 _hurd_cap_client_release (hurd_cap_bucket_t bucket, _hurd_cap_client_id_t idx)
 {
-  _hurd_cap_client_entry_t entry;
+  _hurd_cap_client_t client;
 
   pthread_mutex_lock (&bucket->lock);
-  entry = (_hurd_cap_client_entry_t) HURD_TABLE_LOOKUP (&bucket->clients,
-							idx);
+  client = *(_hurd_cap_client_t *) HURD_TABLE_LOOKUP (&bucket->clients, idx);
 
-  if (EXPECT_TRUE (entry->refs > 1))
+  if (EXPECT_TRUE (client->refs > 1))
     {
-      entry->refs--;
+      client->refs--;
       pthread_mutex_unlock (&bucket->lock);
     }
   else
     {
-      _hurd_cap_client_t client = entry->client;
-
       hurd_table_remove (&bucket->clients, idx);
       hurd_ihash_locp_remove (&bucket->clients_reverse, client->locp);
 

@@ -37,7 +37,6 @@ _hurd_cap_client_death (void *hook, hurd_task_id_t task_id)
 {
   hurd_cap_bucket_t bucket = (hurd_cap_bucket_t) hook;
   _hurd_cap_client_t client;
-  _hurd_cap_client_entry_t entry;
 
   pthread_mutex_lock (&bucket->lock);
   client = (_hurd_cap_client_t) hurd_ihash_find (&bucket->clients_reverse,
@@ -50,9 +49,7 @@ _hurd_cap_client_death (void *hook, hurd_task_id_t task_id)
 	 extra reference now.  However, we must mark the client entry
 	 as dead, so that no further references are acquired by
 	 anybody else.  */
-      entry = (_hurd_cap_client_entry_t)
-	HURD_TABLE_LOOKUP (&bucket->clients, client->id);
-      entry->dead = 1;
+      client->dead = 1;
     }
   pthread_mutex_unlock (&bucket->lock);
 
@@ -75,13 +72,8 @@ _hurd_cap_client_death (void *hook, hurd_task_id_t task_id)
 
 #ifndef NDEBUG
       pthread_mutex_lock (&bucket->lock);
-      /* Reacquire the table entry for this client.  Table entry
-	 addresses are not stable under table resize operations.  */
-      entry = (_hurd_cap_client_entry_t)
-	HURD_TABLE_LOOKUP (&bucket->clients, client->id);
-
       /* Now, we should have the last reference for this client.  */
-      assert (entry->refs == 1);
+      assert (client->refs == 1);
       pthread_mutex_unlock (&bucket->lock);
 #endif
 
@@ -143,7 +135,7 @@ hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket)
 		   offsetof (struct _hurd_cap_list_item, locp));
 
   err = hurd_table_init (&bucket->clients,
-			 sizeof (struct _hurd_cap_client_entry));
+			 sizeof (_hurd_cap_client_t));
   if (err)
     goto err_clients;
 

@@ -101,17 +101,17 @@ lookup_client (hurd_cap_bucket_t bucket, _hurd_cap_client_id_t client_id,
 	       hurd_task_id_t task_id, _hurd_cap_client_t *r_client)
 {
   error_t err = 0;
-  _hurd_cap_client_entry_t entry;
+  _hurd_cap_client_t *clientp;
 
   pthread_mutex_lock (&bucket->lock);
   /* Look up the client by its ID.  */
-  entry = hurd_table_lookup (&bucket->clients, client_id);
-  if (!entry || entry->dead || entry->client->task_id != task_id)
+  clientp = hurd_table_lookup (&bucket->clients, client_id);
+  if (!clientp || (*clientp)->dead || (*clientp)->task_id != task_id)
     err = ECAP_NOREPLY;
   else
     {
-      entry->refs++;
-      *r_client = entry->client;
+      (*clientp)->refs++;
+      *r_client = *clientp;
     }
   pthread_mutex_unlock (&bucket->lock);
 
@@ -166,14 +166,14 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
     return err;
 
   /* At this point, CLIENT_ID and CLIENT are valid, and we have one
-     reference for the client entry.  */
+     reference for the client.  */
 
   pthread_mutex_lock (&client->lock);
   /* First, we have to check if the class is inhibited, and if it is,
      we have to wait until it is uninhibited.  */
-  if (client->state == _HURD_CAP_STATE_BLACK)
+  if (EXPECT_FALSE (client->state == _HURD_CAP_STATE_BLACK))
     err = ECAP_NOREPLY;
-  else if (client->state != _HURD_CAP_STATE_GREEN)
+  else if (EXPECT_FALSE (client->state != _HURD_CAP_STATE_GREEN))
     {
       pthread_mutex_unlock (&client->lock);
       pthread_mutex_lock (&bucket->client_cond_lock);
@@ -211,9 +211,9 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
       {
 	obj_entry = *entry;
 
-	if (!obj_entry->external_refs)
+	if (EXPECT_FALSE (!obj_entry->external_refs))
 	  err = ECAP_NOREPLY;
-	else if (obj_entry->dead)
+	else if (EXPECT_FALSE (obj_entry->dead))
 	  err = ECAP_DIED;
 	else
 	  {
@@ -296,10 +296,10 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
   /* At this point, we have looked up the capability, acquired an
      internal reference for its entry in the client table (which
      implicitely keeps a reference acquired for the object itself),
-     acquired a reference for the capability client entry in the
-     bucket, and have added an item to the pending_rpcs lists in the
-     client, class and object.  The object is locked.  With all this,
-     we can finally start to process the message for real.  */
+     acquired a reference for the capability client in the bucket, and
+     have added an item to the pending_rpcs lists in the client, class
+     and object.  The object is locked.  With all this, we can finally
+     start to process the message for real.  */
 
   /* FIXME: Call the internal demuxer here, for things like reference
      counter modification, cap passing etc.  */

@@ -1,5 +1,16 @@
 2004-12-01  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-server-intern.h (struct _hurd_cap_client): Fold the struct
+	_hurd_cap_client_entry into the struct _hurd_cap_client.
+	* bucket-create.c (_hurd_cap_client_death): Change all uses of
+	_hurd_cap_client_entry_t to use the merged _hurd_cap_client_t.
+	(hurd_cap_bucket_create): Likewise.
+	* bucket-manage-mt.c (lookup_client): Likewise.
+	* client-create.c (_hurd_cap_client_create): Likewise.
+	* client-release.c (_hurd_cap_client_release): Likewise.
+
+2004-12-01  Neal H. Walfield  <neal@gnu.org>
+
 	* cap-server-intern.h (_HURD_CAP_CLIENT_ID_BITS): Move from
 	../hurd/types.h.  Prepend underscore and update names in
 	definition as needed.

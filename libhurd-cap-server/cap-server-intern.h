@@ -224,10 +224,29 @@ error_t _hurd_cap_obj_copy_out (hurd_cap_obj_t obj, hurd_cap_bucket_t bucket,
 
 /* Client connections. */
 
-/* This data type holds all the information about a client
+
+/* Instances of the following data type are pointed to by the client
+   table of a bucket.  Its members are protected by the same lock as
+   the table.  The data type holds all the information about a client
    connection.  */
 struct _hurd_cap_client
 {
+  /* A flag that indicates if this capability client is dead.  This
+     data structure is valid until all references have been removed,
+     though.  Note that because there is one reference for the task
+     info capability, this means that CLIENT is valid until a task
+     death notification has been processed for this client.  Protected
+     by the containing bucket's lock LOCK. */
+  unsigned int dead : 1;
+
+  /* Reference counter.  A reference is held if the client is live
+     (and removed by the task death handler).  One reference is held
+     by each pending RPC.  Temporarily, additional references may be
+     held by RPCs that have just started, but they will rip themselves
+     when they see the DEAD flag.  Protected by the containing
+     bucket's lock LOCK.  */
+  unsigned int refs : 31;
+
   /* The task ID of the client.  */
   hurd_task_id_t task_id;
 
@@ -324,31 +343,6 @@ void _hurd_cap_client_end (hurd_cap_bucket_t bucket,
      __attribute__((visibility("hidden")));
 
 
-/* The following data type is used as an entry in the client table of
-   a bucket.  Its members are protected by the same lock as the
-   table.  */
-struct _hurd_cap_client_entry
-{
-  /* This pointer has to be the first element of the struct.  */
-  _hurd_cap_client_t client;
-
-  /* A flag that indicates if this capability client is dead.  CLIENT
-     is valid until all references have been removed, though.  Note
-     that because there is one reference for the task info capability,
-     this means that CLIENT is valid until a task death notification
-     has been processed for this client.  */
-  unsigned int dead : 1;
-
-  /* Reference counter.  There is one reference for the fact that the
-     child lives, and one reference for each pending RPC.
-     Temporarily, there can be additional references for RPC that have
-     just yet started, but they will rip themselves when they see the
-     DEAD flag.  */
-  unsigned int refs : 31;
-};
-typedef struct _hurd_cap_client_entry *_hurd_cap_client_entry_t;
-
-
 /* Buckets are a set of capabilities, on which RPCs are managed
    collectively.  */
 
@@ -431,7 +425,7 @@ struct _hurd_cap_bucket
      to just one RPC at one time.  */
   struct hurd_ihash senders;
 
-  /* Mapping from hurd_cap_client_id_t to _hurd_cap_client_entry_t.  */
+  /* Mapping from hurd_cap_client_id_t to _hurd_cap_client_t.  */
   struct hurd_table clients;
 
   /* Reverse lookup from hurd_task_id_t to _hurd_cap_client_t.  */

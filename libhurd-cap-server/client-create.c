@@ -128,22 +128,18 @@ _hurd_cap_client_create (hurd_cap_bucket_t bucket,
 {
   error_t err = 0;
   _hurd_cap_client_t client;
-  _hurd_cap_client_entry_t entry;
-  struct _hurd_cap_client_entry new_entry;
 
   pthread_mutex_lock (&bucket->lock);
   client = (_hurd_cap_client_t) hurd_ihash_find (&bucket->clients_reverse,
 						 task_id);
   if (client)
     {
-      entry = (_hurd_cap_client_entry_t)
-	HURD_TABLE_LOOKUP (&bucket->clients, client->id);
-      if (entry->dead)
+      if (client->dead)
 	err = EINVAL;	/* FIXME: A more appropriate code?  */
       else
 	{
-	  entry->refs++;
-	  *r_client = entry->client;
+	  client->refs++;
+	  *r_client = client;
 	}
       pthread_mutex_unlock (&bucket->lock);
       return err;
@@ -171,9 +167,7 @@ _hurd_cap_client_create (hurd_cap_bucket_t bucket,
 						 task_id);
   if (client)
     {
-      entry = (_hurd_cap_client_entry_t)
-	HURD_TABLE_LOOKUP (&bucket->clients, client->id);
-      if (entry->dead)
+      if (client->dead)
 	{
 	  err = EINVAL;	/* FIXME: A more appropriate code?  */
 	  pthread_mutex_unlock (&bucket->lock);
@@ -181,23 +175,21 @@ _hurd_cap_client_create (hurd_cap_bucket_t bucket,
       else
 	{
 	  /* Somebody else was indeed faster.  Use the existing entry.  */
-	  entry->refs++;
+	  client->refs++;
 	  pthread_mutex_unlock (&bucket->lock);
 	  _hurd_cap_client_dealloc (bucket, *r_client);
-	  *r_client = entry->client;
+	  *r_client = client;
 	}
       return err;
     }
 
   client = *r_client;
 
-  /* Enter the new client.  */
-  new_entry.client = client;
   /* One reference for the fact that the client task lives, one for
      the caller. */
-  new_entry.refs = 2;
+  client->refs = 2;
 
-  err = hurd_table_enter (&bucket->clients, &new_entry, &client->id);
+  err = hurd_table_enter (&bucket->clients, &client, &client->id);
   if (!err)
     {
       err = hurd_ihash_add (&bucket->clients_reverse, task_id, client);
