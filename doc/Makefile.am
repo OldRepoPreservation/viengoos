@@ -20,9 +20,9 @@
 
 pkgdata_DATA = hurd-on-l4.dvi hurd-on-l4.ps hurd-on-l4.pdf
 
-# _DEPENDENCIES does not work with _DATA.
-hurd-on-l4.dvi: \
-	hurd-on-l4.tex \
+EXTRA_DIST=${fig_files} ${eps_files} ${tex_files} hurd-on-l4.ps hurd-on-l4.pdf
+
+tex_files= hurd-on-l4.tex \
 	introduction.tex \
 	booting.tex \
 	ipc.tex \
@@ -32,7 +32,15 @@ hurd-on-l4.dvi: \
 	debugging.tex \
 	device-drivers.tex
 
-SUFFIXES = .ps .dvi .tex
+fig_files=ddf_insert_event.fig
+
+eps_files=$(patsubst %.fig,%.eps,${fig_files})
+eps_cleanfiles=${eps_files}
+
+# _DEPENDENCIES does not work with _DATA.
+hurd-on-l4.dvi: ${eps_files} ${tex_files}
+
+SUFFIXES = .ps .dvi .tex .eps .fig .pdf
 
 .tex.dvi:
 	$(LATEX) $< -o $@
@@ -48,6 +56,10 @@ SUFFIXES = .ps .dvi .tex
 .ps.pdf:
 	$(PS2PDF) $<
 
+.fig.eps:
+	$(FIG2DEV) -L eps $< $@
+
 clean:
 	rm -f *.aux *.ps *.dvi *.pdf *.log *.toc
 
+MAINTAINERCLEANFILES=${eps_cleanfiles}

@@ -29,6 +29,8 @@ AC_CONFIG_SRCDIR([laden/laden.c])
 AC_CONFIG_HEADER([config.h])
 AC_GNU_SOURCE
 
+maintainer_mode=${enable_maintainer_mode-no}
+
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_AS
@@ -50,6 +52,12 @@ fi
 AC_PATH_PROG([PS2PDF], [ps2pdf], no)
 if test "x$PS2PDF" = xno; then
   missing_progs="$missing_progs ps2pdf"
+fi
+AC_PATH_PROG([FIG2DEV], [fig2dev], no)
+if test "x$FIG2DEV" = xno; then
+  if test "x$maintainer_mode" = xyes; then
+    missing_progs="missing_progs fig2dev"
+  fi
 fi
 
 # Checks for libraries.

@@ -1,3 +1,13 @@
+2004-03-09  Daniel Wagner  <wagi@gmx.ch>
+
+	* configure.ac: Add check for fig2dev.
+	* doc/Makefile.am (EXTRA_DIST): New target.
+	(tex_files, fig_files, eps_files, eps_cleanfiles): New variable
+	(SUFFIXES): Add eps, fig and pdf to the list.
+	(.fig.eps): New generic rule.
+	(MAINTAINERCLEANFILES): New target.
+	* doc/ddf_insert_event.fig: New file.
+	
 2003-10-12  Marcus Brinkmann  <marcus@gnu.org>
 
 	* acinclude.m4: New file.

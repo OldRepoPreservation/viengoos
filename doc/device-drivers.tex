@@ -29,13 +29,6 @@ The framework consists of:
 \item Service servers (plugin managers, $\omega_0$, deva)
 \end{itemize}
 
-\subsection{Drivers and the filesystem}
-
-The device driver framework will only offer a physical device view.
-Ie. it will be a tree with devices as the leaves connected by
-various bus technologies.  Any logical view and naming persistence
-will have to be build on top of this (translator).
-
 \subsection{Layer of the drivers}
 
 The device driver framework consists only of the lower level drivers
@@ -60,7 +53,10 @@ is small enough to do so.
 It is assumed that there are no differences between physical memory
 pages. For example each physical memory page can be used for DMA
 transfers. Of course, older hardware like ISA devices can so not be
-supported. Who cares?
+supported.  
+
+Still some support for ISA devices like serial ports and PS/2 for
+keyboard is needed.  
   
 With this assumption, the device driver framework can be given any
 physical memory page for DMA operation.  This physical memory page
@@ -112,11 +108,14 @@ perform the following tasks:
   1 insertion event for every device connected to it when the bus
   driver is started.  Drivers which don't support autoprobing of
   devices will probably have to read some configuration data from a
-  file or if the driver is a needed for bootstrapping configuration
-  can be given as argument on its stack.  In some cases the bus
-  doesn't generate insertion/removal events, but can still support
-  some form of hotplug functionality if the user tells the driver when
-  a change to the bus configuration has happened (eg. SCSI).
+  file\footnote{It might be a good idea, if the device driver has no
+  notion how the configuraiton is stored.  It just asks the bus driver
+  which should know how to get the configuration.} or if the driver is
+  a needed for bootstrapping configuration can be given as argument on
+  its stack.  In some cases the bus doesn't generate insertion/removal
+  events, but can still support some form of hotplug functionality if
+  the user tells the driver when a change to the bus configuration has
+  happened (eg. SCSI).
 \item Configure client device drivers
 
   The bus driver should start the appropriate client device driver
@@ -139,8 +138,9 @@ perform the following tasks:
   can get access to the memory range or is allowed to access the I/O
   addresses.  The client device driver should use a library, which is
   bus dependant, to access the device on the bus.  This library hides
-  the platform specific details of accessing the bus.
-  
+  the platform specific details of accessing the bus.  
+\item Rescans
+
   Furthermore the bus driver must also support rescans for hardware.
   It might be that not all drivers are found during bootstrapping and
   hence later on drivers could be loaded.  This is done by regenerate
@@ -148,16 +148,13 @@ perform the following tasks:
   manager loads then if possible a new driver.  A probe funtion is not
   needed since all supported hardware can be identified by
   vendor/device identifactions (unlike ISA hardware).  For hardware
-  busses which don't support such identifaction (ISA) only static
+  busses which don't support such identifaction only static
   configuration is possible (configuration scripts etc.)
 \end{itemize}
 
 \subsection{Root bus driver}
 
-The root bus is the entrypoint to look up devices. 
-
-XXX There should be iterators/visitors for operating on
-busses/devices.  (daniel)
+The root bus is the entrypoint to look up devices.
 
 \subsection{Generic Bus Driver}
 
@@ -167,10 +164,6 @@ Operations:
 \item string enumerate
 \end{itemize}
 
-XXX Extract generic bus services from the PCI Bus Driver section
-which could be also be used other PCI related busses (ISA) be used.
-The name for this service is missleading, since a SCSI Bus Driver
-does not have anything in common with a PCI bus.  (daniel)
 
 \subsection{ISA Bus Driver}
 
@@ -184,7 +177,6 @@ Operations:
 \item (none)
 \end{itemize}
 
-XXX The interface has not been defined up to now. (daniel)
 
 \subsection{PCI Bus Driver}
 
@@ -263,11 +255,9 @@ Inherits from:
 Supported devices
 \begin{itemize}
 \item Keyboard (ps2)
-\item serial port (mainly for debugging purposses)
-\item parallel port
+\item Serial port (mainly for debugging purposses)
 \end{itemize}
 
-XXX interface definition for each device driver is missing. (daniel)
 
 \subsection{PCI Devices}
 
@@ -279,10 +269,7 @@ Inherits from:
 Supported devices:
 \begin{itemize}
 \item block devices
-\item ...
 \end{itemize}
-
-XXX interface definition for each device driver is missing. (daniel)
 
 
 \section{Service Servers}
@@ -294,9 +281,16 @@ are send.  The owner of the handle/refence must then take
 appropriate action like loading the drivers.  These actors are
 called plugin managers.
 
+The plugin manager is also the pager for the loaded driver.
+
+\begin{comment}
+Obviously, the plugin manager needs some sort of exec format
+support.  Maybe it's own ELF loader.
+\end{comment}
+
 \subsection{Deva}
 
-Deva stands for Device Access Server.  This server implements basic
+Deva stands for \emph{Device Access Server}.  This server implements basic
 services for the device driver framework like thread creation, thread
 deletion, etc.  The device driver framework itself doesn't depend on
 any Hurd code.  The interaction with the Hurd system will be
@@ -311,6 +305,8 @@ Which services must deva provide:
 \item bootstrapping
 \end{itemize}
 
+%% Deva is also the pager for the first plugin manager.
+
 \subsection{$\omega_0$}
 
 $\omega_0$ is a system-central IRQ-logic server. It runs in the
@@ -319,7 +315,7 @@ privileged AS space in order to be allowed rerouting IRQ IPC.
 If an IRQ is shared between several devices, the drivers are daisy
 chained and have to notify their peers if an IRQ IPC has arrived.
 
-For more details see http://os.inf.tu-dresden.de/~hohmuth/prj/omega0.ps.gz
+For more details see http://os.inf.tu-dresden.de/\~hohmuth/prj/omega0.ps.gz
 
 Operations:
 \begin{itemize}
@@ -417,11 +413,6 @@ The device driver framework will be started by deva, which is started
 by wortel.  All drivers and server (e.g. the plugin manager) are
 stored in a archive which will be extracted by deva.
 
-\subsection{Plugin Manager}
-
-A Plugin manager handles driver loading for devices.  It ask for drivers
-deva.  
-
 \subsection{deva}
 
 For bootstrapping deva will only have a subset of drivers ready.  
@@ -429,6 +420,16 @@ As soon the filesystem runs deva can ask for drivers from the harddisk.
 If new drivers are available it has to inform the plugin manager to ask
 for unresolved drivers again.
 
+Deva starts as first task a plugin server.  The plugin server does
+then the rest of the bootstrapping process.
+
+\subsection{Plugin Manager}
+
+A Plugin manager handles driver loading for devices.  It ask for drivers
+deva.  
+
+The first plugin server does also some bootstrapping.  First, it starts
+the root bus driver.
 
 \section{Order of implementation}
 
@@ -441,3 +442,56 @@ for unresolved drivers again.
 \item console 
 \end{enumerate}
 
+\section{Scenarios}
+\subsection{Insert Event}
+
+\begin{figure}
+  \begin{center}
+    \includegraphics{ddf_insert_event.eps}
+  \end{center}
+  \caption{A new hardware device is detected.}
+  \label{fig:ddf_insert_event}
+\end{figure}
+
+If a simple hardware device is found the ddf will load an driver for
+the new hardware device as follows (see Figure~\ref{fig:ddf_insert_event}):
+
+\begin{enumerate}
+\item The PCI Bus Driver detects a hardware device for which now driver
+has been loaded yet.  It generates an insert event which is sends to
+one (all?) registered entity.  The interface for the event handler has
+not been decided yet.
+\item The Root Bus Driver receives the event signal.  Note it is not
+necessary that the Root Bus Driver handles for all drivers the insert
+signal.  It forwards the signal to the/a Plugin Manager (PLM).
+\item The/a Plugin Manager (PLM) asks Deva to load the driver binary
+for the new device.
+\item Deva forwards the loading request to the ext2 filesystem
+process.  During bootstrapping Deva will handle the request by itself.
+Deva has an archive of drivers loaded by grub.
+\item The ext2 process decides where it finds the device driver binary
+(block address)
+\item The ddwrapper (device driver wrapper) forwards the read call
+from the ext2 process to the IDE Driver.
+\item After checking if the caller is allowed start a read command,
+the IDE Driver reads the device driver from the disk.
+\item The IDE Driver returns the data.
+\item ddwrapper returns the data. XXX This might be wrong.  IFRC, the
+data is return in a container and only the handle of the container is
+transfered.
+\item Ext2 returns the device driver (data).
+\item Deva returns the device driver (data).
+\item Ask Deva to create a new address space.
+\item Deva asks wortel to create new address space.
+\item wortel returns ``a new address space''.
+\item Deva returns ``a new address space''.
+\item PLM is registered as pagefault handler for the new driver
+address space.  The bootstrap thread starts to run an generated a
+page fault.
+\item PLM asks Deva for memory.
+\item Deva asks physmem for memory.
+\item physmem returns memory pages.
+\item Deva returns memory pages.
+\item PLM maps the device driver binary into the address space of the
+new driver.
+\end{enumerate}
