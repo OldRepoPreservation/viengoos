@@ -41,10 +41,6 @@ help_arch (void)
 /* Check if the bit BIT in FLAGS is set.  */
 #define CHECK_FLAG(flags,bit)	((flags) & (1 << (bit)))
 
-/* The following must be defined and are used to calculate the extents
-   of the laden binary itself.  */
-extern char _start;
-extern char _end;
 
 /* Setup the argument vector and pass control over to the main
    function.  */
@@ -162,6 +158,12 @@ debug_dump (void)
 }
 
 
+/* The following must be defined and are used to calculate the extents
+   of the laden binary itself.  */
+extern char _start;
+extern char _end;
+
+
 /* Find the kernel, the initial servers and the other information
    required for booting.  */
 void
@@ -326,7 +328,7 @@ find_components (void)
 
   /* Now protect ourselves and the mulitboot info (at least the module
      configuration.  */
-  loader_add_region ("laden", (l4_word_t) &_start, (l4_word_t) &_end);
+  loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end);
 
   start = (l4_word_t) mbi;
   end = start + sizeof (*mbi) - 1;
