@@ -1,26 +1,307 @@
 \chapter{Virtual Memory Management}
 
-Traditionally, monolithical kernels, but even kernels like Mach,
-provide a virtual memory management system in the kernel.  All paging
-decisions are made by the kernel itself.  This requires good
-heuristics.  Smart paging decisions are often not possible because the
-kernel lacks the information about how the data is used.
+\begin{quote}
+\emph{The mind and memory are more sharply exercised in comprehending
+another man's things than our own.}
 
-In the Hurd, paging will be done locally in each task.  A physical
-memory server provides a number of guaranteed physical pages to tasks.
-It will also provide a number of excess pages (over-commit).  The task
-might have to return any number of excess pages on short notice.  If
-the task does not comply, all mappings are revoked (essentially
-killing the task).
-
-A problem arises when data has to be exchanged between a client and a
-server, and the server wants to have control over the content of the
-pages (for example, pass it on to other servers, like device drivers).
-The client can not map the pages directly into the servers address
-space, as it is not trusted.  Container objects created in the
-physical memory server and mapped into the client and/or the servers
-address space will provide the necessary security features to allow
-this.  This can be used for DMA and zero-copying in the data exchange
-between device drivers and (untrusted) user tasks.
+\begin{flushright}
+\emph{Timber} or \emph{Discoveries} by Ben Jonson
+\end{flushright}
+\end{quote}
 
 
+\section{Introduction}
+
+The goal of an operating system is simply, perhaps reductively,
+stated: manage the available resources.  In other words, it is the
+operating system's job to dictate the policy for obtaining resources
+and to provide mechanisms to use them.  Most resources which the
+operating system manages are sparse resources, for instance the CPUs,
+the memory and the various peripherals including graphics cards and
+hard drives.  Any given process, therefore, needs to compete with the
+other processes in the system for some subset of the available
+resources at any given time.  As can be imagined, the policy to access
+and the mechanisms to use these resources determines many important
+characteristics of the system.
+
+A simple single user system may use a trivial first come first serve
+policy for allocating resources, a device abstraction layer and no
+protection domains.  Although this design may be very light-weight and
+the thin access layer conducive to high speed, this design will only
+work on a system where all programs can be trusted: a single malicious
+or buggy program can potentially halt all others from making progress
+simply by refusing to yield the CPU or allocating and not releasing
+resources in a timely fashion.
+
+The Hurd, like Unix, aims to provide strong protection domains thereby
+preventing processes from accidentally or maliciously harming the rest
+of the system.  Unix has shown that this can be done efficiently.  But
+more than Unix, the Hurd desires to identify pieces of the system
+which Unix placed in the kernel but which need not be there as they
+could be done in user space and provide additional user flexibility.
+Through our experience and analysis, we are convinced that one area is
+much of the virtual memory system: tasks are often allocating as much
+memory without regard---because Unix provides them with no mechanism
+to do so---for the rest of the system.  But it is not a cooperative
+model which we wish to embrace but a model which holds the users of
+the resource responsible for it and when asked to release some of its
+memory will or violate the social contract and face exile.  Not only
+will this empower users but it will force them to make smarter
+decisions.
+
+\subsection{Learning from Unix}
+
+Unix was designed as a multiuser timesharing system with protection
+domains thereby permitting process separation, i.e. allowing different
+users to concurrently run processes in the system and gain access to
+resources in a controlled fashion such that any one process cannot
+hurt or excessively starve any other.  Unix achieved this through a
+monolithic kernel design wherein both policy and mechanism are
+provided by the kernel.  Due to the limited hardware available at the
+time and the state of Multics\footnote{Multics was seen as a system
+which would never realize due to its overly ambitious feature set.},
+Unix imposed a strong policy on how resources could be used: a program
+could access files, however, lower level mechanism such as the file
+system, the virtual file system, network protocol stacks and devices
+drivers all existed in the kernel proper.  This approach made sense
+for the extremely limited hardware that Unix was targeted for in the
+1970s.  As hardware performance increased, however, a separation
+between mechanism and policy never took place and today Unix-like
+operating systems are in a very similar state to those available two
+decades ago; certainly, the implementations have been vastly improved
+and tuned, however, the fundamental design remains the same.
+
+One of the most important of the policy/mechanism couplings in the
+kernel is the virtual memory subsystem: every component in the system
+needs memory for a variety of reasons and with different priorities.
+The system must attempt to meet a given allocation criteria.  However,
+as the kernel does not and cannot know how how a task will use its
+memory except based on the use of page fault statistics is bound to
+make sub-ideal eviction decisions.  It is in part through years of
+fine tuning that Unix is able to perform as well as it does for the
+general applications which fit its assumed statistical model.
+
+\subsection{Learning from Mach}
+
+The faults of Unix became clear through the use of Mach.  The
+designers of Mach observed that there was too much mechanism in the
+kernel and attempted to export the file systems, network stack and
+much of the system API into user space servers.  They left a very
+powerful VMM in the kernel with the device drivers and a novel IPC
+system.  Our experience shows that the VMM although very flexible, is
+unable to make smart paging decisions: because Unix was tied to so
+many subsystems, it had a fair knowledge of how a lot of the memory in
+the system was being used.  It could therefore make good guesses about
+what memory could be evicted and not be needed in the near future.
+Mach, however, did not have this advantage and relied strictly on page
+fault statistics and access pattern detection for its page eviction
+policy.
+
+Based on this observation, it is imperitive that the page eviction
+scheme have good knowledge about how pages are being used as it only
+requires a few bad decisions to destroy performance.  Thus, a new
+design can either choose to return to the monolithic design and add
+even more knowledge to the kernel to increase performance or the page
+eviction scheme can be remove from the kernel completely and placed in
+user space and make all tasks self paged.
+
+\subsection{Following the Hurd Philosophy}
+
+As the Hurd aims, like Unix, to be a multiuser system for mutually
+untrusted users, security is an absolute necessity.  But it is not the
+object of the system to limit users excessively: as long as operations
+can be done securely, they should be permitted.  It is based on this
+philosophy that we have adopted a self paging design for the new Hurd
+VMM: who knows better how a task will use its memory than the task
+itself?  This is clear from the problems that have been encountered
+with LRU, the basic page evition algorithm, by database developers,
+language designers implementing garbage collectors and soft realtime
+application developers such as multimedia developers: they all wrestle
+with the underlying operating system's page eviction scheme.  By
+putting the responsibility to page on tasks we think that tasks will
+be forced to make smart decisions as they can only hurt themselves.
+
+\section{Memory Allocation}
+
+If memory was infinite and the only problem was worrying about one
+program accessing the memory of another, memory allocation would be
+trivial.  This is not, however, the case: memory is visibly finite and
+a well designed system will exploit it all.  As memory is a system
+resource, a system wide memory allocation policy must be established
+which maximizes memory usage according to a given set of criteria.
+
+In a typical Unix-like VMM, allocating memory (e.g. using
+\function{sbrk} or \function{mmap}) does not allocate physical memory
+but \keyword{virtual memory}.  In order to increase the amount of
+memory available to users, the kernel uses a \keyword{backing store},
+typically a hard disk, to temporarily free physical memory thereby
+allowing other processes to make progress.  The sum of these two is
+referred to as virtual memory.  The use of backing store ensures data
+integrity when physical memory must be freed and application
+transparency is required.  A variety of criteria are used to determine
+which frames are \keyword{paged out}, however, most often some form of
+a priority based least recently used, LRU, algorithm is applied.  Upon
+\keyword{memory pressure}, the system steals pages from low priority
+processes which have not been used recently or drain pages from an
+internal cache.
+
+This design has a major problem: the kernel has to evict the pages but
+only the applications know which pages they really need in the near
+term.  The kernel could ask the applications for this data, however,
+it is unable to trust the applications as they could, for instance,
+not respond, and the kernel would have to forcefully evict pages
+anyway.  As such, the kernel relies on page fault statistics to make
+projections about how the memory will be used, thus the LRU eviction
+scheme.  An additional result of this scheme is that as applications
+never know if mapped memory is in core, they are unable to make
+guarantees about deadlines.
+
+These problems are grounded in the way the Unix VMM allocates memory:
+it does not allocate physical memory but virtual memory.  This is
+illustated by the following scenario: when a process starts and begins
+to use memory, the allocator will happily give it all of memory in the
+system as long as no other process wants it.  What happens, however,
+when a second memory hungry process starts is that the kernel has no
+way to take back memory it allocated to the first process.  At this
+point, it has two options: it can either return failure to the second
+process or it can steal memory from the first process and send it to
+backing store.
+
+One way to solve these problems is to have the VMM allocate phsyical
+memory and make applications completely self-paged.  Thus, the burden
+of paging lies the application themselves.  When application request
+memory, they no longer request virutal memory but physical memory.
+Once the application has exhausted its available frames, it is its
+responsibility to multiplex the available frames.  Thus, virtual
+memory is done in the application itself.  It is important to note
+that a standard manager or managers should be supplied by the
+operating system.  This is important for implementing something like a
+POSIX personality.  This should not, however, be hard coded: certain
+application may greatly benefit by being able to control their own
+eviction schemes.  At its most basic level, hints could be provided to
+the manager by introducing extentions on basic function calls.  For
+instance, \function{malloc} could take an extra parameter indicating
+the class of data being allocated.  These class would provide hints
+about the expected usage pattern and life time of the data.
+
+\subsection{Bootstrap}
+
+When the Hurd starts up, all physical memory is eventually transfered
+to the physical memory server by the root server.  At this point, the
+physical memory server will control all of the physical pages in the
+system.
+
+\subsection{Allocation Policy}
+
+The physical memory server maintains a concept of \keyword{guaranteed
+pages} and \keyword{extra pages}.  The former are pages that a given
+task is guaranteed to map in a very short amount of time.  Given this
+predicate, the total number of guaranteed pages can never exceed the
+total number of frames in the system.  Extra pages are pages which are
+given to clients who have reached their guaranteed page allocation
+limit.  The phsyical memory server may request that a client
+relinquish a number of extant extra pages at any time.  The client
+must return the pages to the physical memory (i.e. free them) in a
+short amount of time.  Should a task fail to do this, it risks having
+all of its memory dropped (i.e. not swapped out or saved in anyway)
+and reclaimed by the physical memory server.
+
+Readers familiar with VMS will see a striking difference between these
+two systems.  This is not without reason.  Yet, differences remains:
+VMS does not have extra pages and the number of pages is fixed at task
+creation time.  VMS than maintains a dirty list of pages thereby
+having a very fast backing store and essentially allowing tasks to
+have more than their quota of memory if there is no memory pressure.
+One reason that this is copied in this design is that unlike in VMS,
+the file systems and device drivers are in user space.  Thus, the
+caching that was being done by VMS can not be done intelligently by
+the physical memory server.
+
+The number of guaranteed pages that a given task has access to is not
+determined by the physical memory server but by the \keyword{memory
+policy server}.  This division allows the physical memory server to
+only concern itself with the mechanisms and means that it must know
+essentially nothing about how the underlying operating system
+functions.  (The implication is that although tailored for Hurd
+specific needs, the physical memory server is completely separate from
+the Hurd and can be used by other operating systems running on the
+microkernel.)  Thus, it is the memory policy server's responsibility
+to determine who gets how much memory.  This may be determined as a
+function of the user or looking in file on disk for e.g. quotas.  As
+can be seen this type of data acquisition could add significant
+complexity to the physical memory server and require blocking states
+(e.g. waiting for a read operation on file i/o) and could create
+circular dependencies.
+
+The physical memory server and the memory policy server will contain a
+shared buffer of tupples indexed by task id containing the number of
+allocated pages, the number of guaranteed page, and a boolean
+indicating whether or not this task is eligible for guaranteed pages.
+The guaranteed page field and the extra page predicate may only be
+written to by the memory policy server.  The number of allocated pages
+may only be written to by the physical memory server.  This scheme
+means that no locking in required.  (On some architectures where a
+read of a given field cannot be performed in a single operation, the
+read may have to be done twice).
+
+Until the memory policy server makes the intial contact with the
+physical memory server, memory will be allocated on a first come first
+serve basis.  The memory policy server shall use the following remote
+procedure call to contact the physical memory server:
+
+\begin{code}
+error\_t physical\_memory\_server\_introduce (void)
+\end{code}
+
+\noindent
+This function will succeed the first time it is called.  It will fail
+all subsequent times.  The physical memory server will record the
+sender of this rpc as the memory policy server and begin allocating
+memory according to the previously described protocol.
+
+The shared policy buffer may be obtained from the physical memory
+server by the policy by calling:
+
+\begin{code}
+error\_t physical\_memory\_server\_get\_policy\_buffer (out l4\_map\_t buffer)
+\end{code}
+
+\noindent
+The returned buffer is mapped with read and write access into the
+policy memory server's address space.  It may need to be resized.  If
+this is the case, the physical memory server shall unmap the buffer
+from the policy memory server's address space, copy the buffer
+internally as required.  The policy memory server will fault on the
+memory region on its next access and it may repeat the call.  This
+call will succeed when the sender is the memory policy server, it will
+fail otherwise.
+
+\subsection{Allocation Mechanisms}
+
+Applications are able allocate memory by  Memory allocation will be 
+
+
+% Traditionally, monolithical kernels, but even kernels like Mach,
+% provide a virtual memory management system in the kernel.  All paging
+% decisions are made by the kernel itself.  This requires good
+% heuristics.  Smart paging decisions are often not possible because the
+% kernel lacks the information about how the data is used.
+% 
+% In the Hurd, paging will be done locally in each task.  A physical
+% memory server provides a number of guaranteed physical pages to tasks.
+% It will also provide a number of excess pages (over-commit).  The task
+% might have to return any number of excess pages on short notice.  If
+% the task does not comply, all mappings are revoked (essentially
+% killing the task).
+% 
+% A problem arises when data has to be exchanged between a client and a
+% server, and the server wants to have control over the content of the
+% pages (for example, pass it on to other servers, like device drivers).
+% The client can not map the pages directly into the servers address
+% space, as it is not trusted.  Container objects created in the
+% physical memory server and mapped into the client and/or the servers
+% address space will provide the necessary security features to allow
+% this.  This can be used for DMA and zero-copying in the data exchange
+% between device drivers and (untrusted) user tasks.
+% 
+% 

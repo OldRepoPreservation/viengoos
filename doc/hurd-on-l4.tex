@@ -4,14 +4,25 @@
 
 \newenvironment{comment}{\footnotesize \begin{quote}}{\end{quote}}
 
+\newenvironment{code}
+	       {\begin{quote}}
+	       {\end{quote}}
+\newcommand{\keyword}[1]{\texttt{#1}}
+\newcommand{\function}[1]{\texttt{#1}}
+
+
 \title{Porting the GNU Hurd to the L4 Microkernel}
 \author{Marcus Brinkmann}
 \date{August 2003}
 
 \begin{document}
 
+\frontmatter
 \maketitle
 \tableofcontents
+
+\mainmatter
+
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex plus 0.5ex minus 0.2ex}
 
@@ -23,5 +34,7 @@
 \include{posix}
 \include{debugging}
 \include{device-drivers}
+
+% \backmatter
 
 \end{document}
