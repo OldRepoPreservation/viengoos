@@ -1,3 +1,8 @@
+2005-01-30  Marcus Brinkmann  <marcus@gnu.org>
+
+	* hurd-l4/sysdeps/l4/hurd/read.c: New file.
+	* hurd-l4/sysdeps/l4/hurd/write.c: New file.
+
 2005-01-28  Marcus Brinkmann  <marcus@gnu.org>
 
 	* gcc-3.4.3-i686-gnu.dpatch: New file.
