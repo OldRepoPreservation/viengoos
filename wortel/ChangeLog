@@ -1,3 +1,9 @@
+2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* startup.c (map): Loop over map requests until we mapped the
+	whole range in case not all map items fit into a single reply
+	message.	
+
 2005-01-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.c (start_elf): Calculate the size of the file part of a

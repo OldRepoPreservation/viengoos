@@ -79,18 +79,38 @@ map (l4_thread_id_t server, hurd_cap_handle_t container,
       allocate (server, container, offset, size, 0, &amount);
     }
 
-  l4_msg_clear (msg);
-  l4_set_msg_label (msg, 134 /* XXX: Magic number for container_map_id.  */);
-  l4_msg_append_word (msg, container);
-  l4_msg_append_word (msg, offset | rights);
-  l4_msg_append_word (msg, size);
-  l4_msg_append_word (msg, (l4_word_t) vaddr);
-  l4_msg_load (msg);
+  /* SIZE better is a multiple of the page size!  */
+  while (size > 0)
+    {
+      int i;
 
-  tag = l4_call (server);
-  l4_msg_store (tag, msg);
+      l4_msg_clear (msg);
+      l4_set_msg_label (msg, 134 /* XXX: Magic for container_map_id.  */);
+      l4_msg_append_word (msg, container);
+      l4_msg_append_word (msg, offset | rights);
+      l4_msg_append_word (msg, size);
+      l4_msg_append_word (msg, (l4_word_t) vaddr);
+      l4_msg_load (msg);
 
-  return l4_msg_label (msg);
+      tag = l4_call (server);
+      l4_msg_store (tag, msg);
+
+      /* Now check how much we actually got.  */
+      i = 0;
+      while (i < l4_typed_words (tag))
+	{
+	  l4_map_item_t map_item;
+
+	  i += l4_msg_get_map_item (msg, i, &map_item);
+
+	  /* This better doesn't underflow!  */
+	  size -= l4_size (l4_map_item_snd_fpage (map_item));
+	  offset += l4_size (l4_map_item_snd_fpage (map_item));
+	  vaddr = (void *)
+	    (((l4_word_t) vaddr) + l4_size (l4_map_item_snd_fpage (map_item)));
+	}
+    }
+  return 0;
 }
 
 /* Initialize libl4, setup the task, and pass control over to the main
