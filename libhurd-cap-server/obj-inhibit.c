@@ -119,13 +119,13 @@ hurd_cap_obj_resume (hurd_cap_obj_t obj)
   hurd_cap_class_t cap_class = obj->cap_class;
 
   pthread_mutex_lock (&cap_class->obj_cond_lock);
-  pthread_mutex_lock (&cap_class->lock);
+  pthread_mutex_lock (&obj->lock);
 
   obj->state = _HURD_CAP_STATE_GREEN;
 
   /* Broadcast the change to all potential waiters.  */
   pthread_cond_broadcast (&cap_class->obj_cond);
 
-  pthread_mutex_unlock (&cap_class->lock);
+  pthread_mutex_unlock (&obj->lock);
   pthread_mutex_unlock (&cap_class->obj_cond_lock);
 }

@@ -1,3 +1,10 @@
+2004-10-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* client-inhibit.c (_hurd_cap_client_resume): Lock CLIENT->lock,
+	not BUCKET->lock.
+	* obj-inhibit.c (hurd_cap_obj_resume): Lock OBJ->lock, not
+	CAP_CLASS->lock.
+
 2004-10-07  Marcus Brinkmann  <marcus@gnu.org>
 
 	* bucket-manage-mt.c (reply_err): Don't set propagation flag.

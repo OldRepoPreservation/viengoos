@@ -116,14 +116,14 @@ void
 _hurd_cap_client_resume (hurd_cap_bucket_t bucket, _hurd_cap_client_t client)
 {
   pthread_mutex_lock (&bucket->client_cond_lock);
-  pthread_mutex_lock (&bucket->lock);
+  pthread_mutex_lock (&client->lock);
 
   client->state = _HURD_CAP_STATE_GREEN;
 
   /* Broadcast the change to all potential waiters.  */
   pthread_cond_broadcast (&bucket->client_cond);
 
-  pthread_mutex_unlock (&bucket->lock);
+  pthread_mutex_unlock (&client->lock);
   pthread_mutex_unlock (&bucket->client_cond_lock);
 }
 
