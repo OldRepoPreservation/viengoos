@@ -1,5 +1,8 @@
 2004-03-30  Wolfgang Jährling  <wolfgang@pro-linux.de>
 
+	* l4/compat/types.h (L4_Word32_t): New type, as required by
+	the L4 specification.
+
 	* README: Doc fixes.
 
 2003-03-30  Wolfgang Jährling  <wolfgang@pro-linux.de>

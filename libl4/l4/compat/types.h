@@ -25,6 +25,7 @@
 
 typedef _L4_word_t L4_Word_t;
 typedef _L4_uint16_t L4_Word16_t;
+typedef _L4_uint32_t L4_Word32_t;
 typedef _L4_uint64_t L4_Word64_t;
 typedef _L4_word_t L4_Bool_t;
 
