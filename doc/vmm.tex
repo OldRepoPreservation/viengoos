@@ -199,64 +199,67 @@ The physical memory server maintains a concept of \keyword{guaranteed
 frames} and \keyword{extra frames}.  The former are virtual frames
 that a given task is guaranteed to map in a very short amount of time.
 Given this predicate, the total number of guaranteed frames can never
-exceed the total number of physical frames in the system.  Extra frames
-are frames which are given to clients who have reached their guaranteed
-frame allocation limit.  The physical memory server may request that a
-client relinquish a number of extant extra frames at any time.  The
-client must return the frames to the physical memory (i.e. free them)
-in a short amount of time.  The task should not assume that it has
-enough time to send frames to backing store.  As such, extra frames
-should only contain remanufacturable data (i.e. cached data).  Should
-a task fail to return the frames in a reasonable amount of time, it
-risks having all of its memory dropped---not swapped out or saved in
-anyway---and reclaimed by the physical memory server.  Note that the
-physical memory server does not know if a given frame is considered
-guaranteed or extra: it knows that a given task has $G$ guaranteed
-frames and $G + E$ allocated frames, it has $E$ extra frames.  The
-distinction between guaranteed and extra frames must be made by the
-task itself.  One strategy is to remember which frames can be
-remanufactured (e.g. reread from disk or recalculated) and promote
-them to guaranteed frames when the frame becomes dirty being careful to
-never have less than $E$ clean frames in the task.  Given these
-semantics, guanteed frames should not be thought of as wired
-(e.g. \function{mlock}ed in the POSIX sense)---although they can have
-this property---but as frames which the task itself must multiplex.
-Thus the idea of self-paged tasks.
+exceed the total number of physical frames in the system.  Extra
+frames are frames which are given to clients who have reached their
+guaranteed frame allocation limit.  The physical memory server may
+request that a client relinquish a number of extant extra frames at
+any time.  The client must return the frames to the physical memory
+(i.e. free them) in a short amount of time.  The task should not
+assume that it has enough time to send frames to backing store.  As
+such, extra frames should only contain remanufacturable data
+(i.e. cached data).  Should a task fail to return the frames in a
+reasonable amount of time, it risks having all of its memory
+dropped---not swapped out or saved in any way---and reclaimed by the
+physical memory server.  Note that the physical memory server does not
+know if a given frame is considered guaranteed or extra: it knows that
+a given task has $G$ guaranteed frames and $G + E$ allocated frames,
+and $E$ extra frames.  The distinction between guaranteed and extra
+frames must be made by the task itself.  One strategy is to remember
+which frames can be remanufactured (e.g. reread from disk or
+recalculated) and internally promote them to guaranteed frames when
+the frame becomes dirty being careful to never have less than $E$
+clean frames in the task.  Given these semantics, guanteed frames
+should not be thought of as wired (e.g. \function{mlock}ed in the
+POSIX sense)---although they can have this property---but as frames
+which the task itself must multiplex.  Thus the idea of self-paged
+tasks.
 
 Readers familiar with VMS will see striking similarities with the
 self-paging and guaranteed frame paradigms.  This is not without
 reason.  Yet, differences remain: VMS does not have extra frames and
-the number of guaranteed frames is fixed at task creation time.  Frames
-returned to VMS (in order to allocate a new frame) are placed in a
-dirty list (thus the actual multiplexing of frames is done in VMS, not
-in user space) thereby simulating a two level backing store: a fast
-memory backing store where frames are waylaid and swap, where they are
-sent when memory pressure forces out.  It is in this way that a given
-task may get at more than its quota of memory when there is low memory
-contention.  Our divergence from VMS is motivated by the location of
-file systems and device drivers in the Hurd: unlike in VMS, the file
-systems and device drivers are in user space.  Thus, the caching that
-was being done by VMS cannot be done intelligently by the physical
-memory server.
+the number of guaranteed frames is fixed at task creation time.
+Frames returned to VMS (in order to allocate a new frame) are placed
+in a dirty list (thus the actual multiplexing of frames is done in
+VMS, not in user space) thereby simulating a two level backing store:
+a fast memory backing store where frames are waylaid and swap, where
+they are sent to when sufficient memory pressure forces them out.  It
+is in this way that a given task may access more than its quota of
+memory when there is low memory contention (e.g. if there are two
+tasks each with 100 frames and there are 1000 frames in the system for
+tasks, the remaining 800 are not dormant).  Our divergence from VMS is
+motivated by the location of file systems and device drivers in the
+Hurd: unlike in VMS, the file systems and device drivers are in user
+space.  Thus, the caching that was being done by VMS cannot be done
+intelligently by the physical memory server.
 
 \subsubsection{An External Memory Policy Server}
 
 The number of guaranteed frames that a given task has access to is not
 determined by the physical memory server but by the \keyword{memory
-policy server}.  This division allows the physical memory server to
-concern itself primarily with the allocation mechanisms and delegate
-all the policy decisions to the underlying operating system.  (An
-important implication is that although tailored for Hurd specific
-needs, the physical memory server is completely separate from the Hurd
-and can be used by other operating systems running on the L4
-microkernel.)  It is the memory policy server's responsibility to
-determine who gets how much memory.  This may be determined as a
-function of the user or looking in a file on disk for e.g. quotas.  As
-can be seen this type of data acquisition could add significant
-complexity to the physical memory server and require blocking states
-(e.g. waiting for a read operation on file i/o) and could create
-circular dependencies.  The default memory policy server's mechanisms
-and policies will be discussed later.
+policy server}.  This division means the physical memory server need
+only concern itself with allocation mechanisms; all policy decisions
+are delegated to the policy server provided by the underlying
+operating system.  (An important implication is that although tailored
+for Hurd specific needs, the physical memory server is essentially
+separate from the Hurd and can be used by other operating systems
+running on the L4 microkernel.)  It is the memory policy server's
+responsibility to determine who gets how much memory.  This may be
+calculated as a function of the user or looking in a file on disk for
+e.g. quotas.  As can be seen this type of data acquisition could add
+significant complexity to the physical memory server and require
+blocking states (e.g. waiting for a read operation on file i/o) and
+could create circular dependencies.  The default memory policy
+server's mechanisms and policies will be discussed later.
 
 The physical memory server and the memory policy server will contain a
 shared buffer of tupples indexed by task id containing the number of
@@ -286,11 +289,11 @@ control capability.  It will fail all subsequent times.  By using a
 capability, the acquiring task may move or copy the capability to
 another task.  This permits replacing the policy server on a live
 system.  At this point, the physical memory server will begin
-allocating memory according to the previously described protocol.
-Note that the inital buffer will be initialized with the current total
-allocations but the guaranteed frames will be set to zero.  The memory
-policy server must request the shared policy buffer as soon as
-possible and adjust these values.
+allocating memory according to the described protocol.  Note that the
+inital buffer will be initialized with the current total allocations
+while the guaranteed frames will be set to zero.  The memory policy
+server must request the shared policy buffer as soon as possible and
+adjust these values.
 
 The shared policy buffer may be obtained from the physical memory
 server by the policy by calling:
@@ -309,7 +312,75 @@ The memory policy server will fault on the memory region on its next
 access and it may rerequest the buffer.  This call will succeed when
 the sender is the memory policy server, it will fail otherwise.
 
-\subsection{Allocation Mechanisms}
+\subsubsection{Containers}
+
+Containers are the basic abstraction used for allocating, addressing
+and sharing memory.  Conceptually, containers contain a set of
+integers identifying \keyword{virtual frame}s in the physical memory
+server.  A virtual frame references a physical frame but is not bound
+to a particular physical frame (this allows the physical memory server
+to move the contents of frames around).  Multiple physical frames may
+reference the same physical frame in which case the memory is shared.
+Sharing may be either real, e.g. System V shared memory, or logical,
+e.g. copy on write.
+
+When a virtual frame is allocated into a container, there may be no
+physical frame associated with it.  The physical memory server
+guarantees that when the contents of the virtual frame is accessed a
+physical frame will be provided in a short amount of time
+(cf. guaranteed virtual frames above).
+
+Each virtual frame in a container counts against the container's
+owner's total allocated frames.  Only the owner of a container may
+allocate frames into a container.
+
+Containers only hold virtual frames.  When the contents of a frame are
+copied to backing store, no association between the data on the
+backing store and the the frame identifier in the container is
+maintained by the physical memory server.
+
+When a task starts, it will allocate an initial contain and several
+frames into it.  Typically, the total amount of memory used by an
+application will exceed the total number of guaranteed frames.  When
+the task reaches its maximum permitted allocation, it must reuse an
+available frame.  Typically, the task will choose a victim page, unmap
+any pages that point to the associated frame, swap the frame out, mark
+the frame as swapped out and save the swap identifier in the mapping
+database.  At this point, the task may reuse the frame.  This example
+illustrates that imagining a virtual frame as bound to a page in a
+task's address space for its entire lifetime is incorrect.  It should
+also now be clear that when the data is eventually brought back into
+memory from backing store, it may reside in a different virtual frame.
+
+Containers are used for passing data between tasks.  Typically there
+will be two tasks, a client and a server.  L4 provides a mechanism to
+map pages from one address space to another.  This mechanism could be
+used when a file is mapped into a task's address space, however, this
+can present several problems.  If the server dies before the client,
+the mappings in the client's address space will suddenly disappear.
+Similarly, if the server is malicious, it may revoke the mappings at
+some inconvenient (i.e. unrecoverable) time for the client causing it
+to crash.  If a server allocates resources on behalf of the the client
+it becomes impossible to do system wide resource accounting as many
+servers are not trusted by the system.  All of these problems are
+solved by containers.  When a client needs to obtain a memory mapping
+from a server, it creates a container and adds to it container the
+number of frames that the server will require for the operation.  It
+then shares the container with the server and the server copies the
+data into the frames.  It is important to understand that the server
+does not ``fill'' the container: the number of frames remains constant
+but the state of the bits changes.  When the server returns to the
+client, the client unshares the container and is now able to map the
+frames into its address space by contacting the physical memory
+server.  Should the server die, the client remains uneffected as the
+data is cached in the physical memory server.  The physical memory
+server is also trusted thus if a task is malicious, it can only be
+malicious during the initial copy of the data into the container,
+i.e. before the client starts using the data.  Finally, as the
+resources are allocated by the client via system servers, resource
+accounting is possible.
+
+\subsection{Creating Containers}
 
 Applications are able allocate memory into containers.  Containers may
 be created using:
@@ -328,25 +399,37 @@ How to get frames.  Type of frames (e.g. DMA) or fixed physical address.
 Memory is not allocate until map time (and not always then,
 e.g. logical copies).
 
-\section{Mapping Memory from Containers}
+\section{Mapping Memory in Containers}
 
-A map will occur in a short amount of time: this is not guaranteed to
-happen immediately as the frames are only allocated at this point.
-They may currently be in the form of extra frames for another task.
+The physical memory server guarantees that a mapping operation will
+take a short amount of time: this is not guaranteed to happen
+immediately as the virtual frames may only be allocated at this point
+and they may have to be reaped from other tasks' extra frame
+allocations.
 
-Pages may be unmapped at any time by the physical memory server.  This
-allows vitual frames to be moved between physical frames by the
-physical memory server thereby permitting page blocking (i.e. the
-construction of superpages), opening up DMAable memory areas or other
-specific physical address, and to create contiguous blocks of memory
-(i.e. to defragment the memory).  The task must always be read to
-reestablish a mapping.
+The physical memory server may unmap pages at any time.  This allows
+the contents of vitual frames to be moved between physical frames by
+the physical memory server which permits page blocking (i.e. the
+construction of superpages), the creation of DMAable memory areas or
+other specific physical address and the creation of contiguous blocks
+of memory (e.g. to defragment physical memory).  Tasks must be
+prepared to reestablish a mapping with the physical memory server at
+any time.
 
-Mapping can be made readable.  A task may request that a mapping be
-read/write, however, the physical memory server may not grant a
-read/write mapping if the frame is copy on write, COW.  In this case, a
-read mapping will be returned.  In order to get a read/write mapping,
-the task must request add the enforced flag.
+Mappings may be granted readonly evil if the a read/write mapping was
+requested: the physical memory server will not grant a read/write
+mapping if the frame is marked copy on write.  In order to get a
+read/write mapping (and thus force the copy on write early), the task
+must request add the enforced write flag when mapping.
+
+\begin{code}
+error\_t pm\_container\_map (in container\_t container, in frame\_t
+start, in int nr\_frames, in int flags)
+\end{code}
+
+\noindent
+Flags may is a bit wise or of: CONTAINER\_MAP\_READ,
+CONTAINER\_MAP\_WRITE and CONTAINER\_MAP\_ENFORCE\_WRITE.
 
 \section{Moving Data}
 
