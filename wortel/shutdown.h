@@ -51,6 +51,7 @@ extern const char program_name[];
     printf ("%s: error: ", program_name);	\
     printf (__VA_ARGS__);			\
     putchar ('\n');				\
+    asm ("int $3");\
     shutdown ();				\
   })
 

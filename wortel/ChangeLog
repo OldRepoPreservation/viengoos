@@ -1,3 +1,15 @@
+2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.c (serve_bootstrap_requests): Replace start and end in
+	the WORTEL_MSG_GET_CAP_REQUEST reply with startup.
+	(physmem_master): Change type to hurd_cap_handle_t.
+	(hurd_task_id_t): Remove typedef.
+	(HURD_TASK_ID_NULL): Remove macro.
+
+	* wortel.h: Include <hurd/types.h>, not <hurd/caps.h>.
+	(struct wortel_module): New member startup and startup_cont.
+	Change typ of member mem_cont and task_ctrl to hurd_cap_handle_t.
+
 2004-03-30  Marcus Brinkmann  <marcus@gnu.org>
 
 	* loader.c (loader_elf_dest, loader_elf_load): Use 32 and 64

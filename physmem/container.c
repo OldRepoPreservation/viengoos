@@ -57,6 +57,9 @@ struct container
 
   /* The number of entries in FPAGES.  */
   l4_word_t nr_fpages;
+
+  /* True if mapped.  */
+  bool mapped;
 };
 typedef struct container *container_t;
 
@@ -84,7 +87,7 @@ container_class_init ()
 /* Allocate a new container object covering the NR_FPAGES fpages
    listed in FPAGES.  The object is locked and has one reference.  */
 error_t
-container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
+container_alloc (l4_word_t nr_fpages, l4_word_t *fpages, bool mapped,
 		 hurd_cap_obj_t *r_obj)
 {
   error_t err;
@@ -97,6 +100,7 @@ container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
   assert (nr_fpages <= MAX_FPAGES);
   container->nr_fpages = nr_fpages;
   memcpy (container->fpages, fpages, sizeof (l4_fpage_t) * nr_fpages);
+  container->mapped = mapped;
 
   *r_obj = &container->obj;
   return 0;

@@ -24,7 +24,7 @@
 
 #include <string.h>
 
-#include <hurd/cap.h>
+#include <hurd/types.h>
 
 #include <l4.h>
 
@@ -78,10 +78,18 @@ struct wortel_module
      module.  Valid for all modules except for the physical memory
      server itself.  Initialized after the physical memory server
      starts up.  */
-  hurd_cap_scid_t mem_cont;
+  hurd_cap_handle_t mem_cont;
 
   /* The following informartion is only valid if a task will be
      created from the module.  */
+
+  /* The FPAGE that contains the startup code.  Initialized before
+     requesting MEM_CONT and STARTUP_CONT from physmem.  */
+  l4_fpage_t startup;
+
+  /* The container capability that contains the startup code.
+     Provided by physmem.  */
+  l4_fpage_t startup_cont;
 
   /* The entry point of the executable.  Initialized just before the
      task is started.  */
@@ -95,7 +103,7 @@ struct wortel_module
   /* The task control capability for this module.  Only valid if this
      is not the task server task itself.  Initialized after the task
      server starts up.  */
-  hurd_cap_scid_t task_ctrl;
+  hurd_cap_handle_t task_ctrl;
 
   /* Server thread and the initial main thread of the task made from
      this module.  Initialized just before the task is started.  */
@@ -106,7 +114,6 @@ struct wortel_module
      while they have the same version ID.  Initialized just before the
      task is started.  */
   unsigned int nr_extra_threads;
-
 };
 
 

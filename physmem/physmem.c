@@ -24,6 +24,7 @@
 #endif
 
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <pthread.h>
 
 #include "physmem.h"
@@ -105,9 +106,10 @@ void
 create_bootstrap_caps (hurd_cap_bucket_t bucket)
 {
   error_t err;
-  hurd_cap_t cap;
-  hurd_cap_obj_t obj;
   hurd_task_id_t task_id;
+  hurd_cap_handle_t cap;
+  hurd_cap_handle_t startup_cap;
+  hurd_cap_obj_t obj;
   l4_word_t nr_fpages;
   l4_word_t fpages[MAX_FPAGES];
 
@@ -155,15 +157,15 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	  /* This is the last request made.  */
 	  return;
 	}
-      else if (l4_untyped_words (tag) != 3
+      else if (l4_untyped_words (tag) != 2
 	       || l4_typed_words (tag) == 0)
 	panic ("Invalid format of wortel get cap request reply");
 
       task_id = l4_msg_word (msg, 0);
 
-      debug ("Creating cap for 0x%x covering 0x%x to 0x%x:",
-	     task_id, l4_msg_word (msg, 1), l4_msg_word (msg, 2));
+      debug ("Creating cap for 0x%x:", task_id);
 
+      /* Create memory container for the provided grant items.  */
       nr_fpages = l4_typed_words (tag) / 2;
       for (i = 0; i < nr_fpages; i++)
 	{
@@ -186,7 +188,7 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	  debug ("0x%x ", fpages[i]);
 	}
 
-      err = container_alloc (nr_fpages, fpages, &obj);
+      err = container_alloc (nr_fpages, fpages, false, &obj);
       if (err)
 	panic ("container_alloc: %i\n", err);
       hurd_cap_obj_unlock (obj);
@@ -195,7 +197,41 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
       if (err)
 	panic ("hurd_cap_bucket_inject: %i\n", err);
 
-      debug (": %u\n", cap);
+      hurd_cap_obj_lock (obj);
+      hurd_cap_obj_drop (obj);
+
+      debug (": %u", cap);
+
+      /* Create startup code memory container.  */
+      fpages[0] = l4_msg_word (msg, 1);
+      if (fpages[0] != L4_NILPAGE)
+	{
+	  void *startup = mmap (0, l4_size (fpages[0]), PROT_READ | PROT_WRITE,
+				MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+	  if (startup == (void *) -1)
+	    panic ("can not allocate startup fpage for task %i\n", task_id);
+
+	  /* The startup code will be mapped into the new task by
+	     wortel.  */
+	  err = container_alloc (1, fpages, true, &obj);
+	  if (err)
+	    panic ("container_alloc: %i\n", err);
+	  hurd_cap_obj_unlock (obj);
+
+	  err = hurd_cap_bucket_inject (bucket, obj, task_id, &startup_cap);
+	  if (err)
+	    panic ("hurd_cap_bucket_inject: %i\n", err);
+
+	  hurd_cap_obj_lock (obj);
+	  hurd_cap_obj_drop (obj);
+
+	  debug ("/%u", startup_cap);
+	}
+      else
+	/* Doesn't matter what value.  */
+	startup_cap = ~0;
+
+      debug ("\n");
 
       /* Return CAP.  */
       
@@ -205,6 +241,7 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
       /* FIXME: Use our wortel cap here.  */
       l4_msg_append_word (msg, 0);
       l4_msg_append_word (msg, cap);
+      l4_msg_append_word (msg, startup_cap);
       l4_msg_load (msg);
       /* FIXME: Hard coded thread ID.  */
       l4_send (l4_global_id (l4_thread_user_base () + 2, 1));

@@ -1,5 +1,10 @@
 2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
 
+	* physmem.h: Include <stdbool.h>.
+	* container.c (struct container): Add member mapped.
+	(container_alloc): Add new argument mapped.  Initialize
+	CONTAINER->mapped.
+
 	* Makefile.am (physmem_LDADD): Add
 	../libhurd-cap-server/libhurd-cap-server.a and
 	../libhurd-slab/libhurd-slab.a.

@@ -62,15 +62,11 @@ unsigned int mods_count;
 
 /* The physical memory server master control capability for the root
    filesystem.  */
-hurd_cap_scid_t physmem_master;
+hurd_cap_handle_t physmem_master;
 
 
 /* The maximum number of tasks allowed to use the rootserver.  */
 #define MAX_USERS 16
-
-/* FIXME: Needs to be somewhere else.  */
-typedef l4_word_t hurd_task_id_t;
-#define HURD_TASK_ID_NULL 0
 
 /* The allowed user tasks.  */
 static hurd_task_id_t cap_list[MAX_USERS];
@@ -475,7 +471,8 @@ serve_bootstrap_requests (void)
       l4_msg_store (tag, msg);
       if (!WORTEL_CAP_VALID (l4_msg_word (msg, 0), l4_version (from)))
 	/* FIXME: Shouldn't be a panic of course.  */
-	panic ("Unprivileged user attemps to access wortel rootserver");
+	panic ("Unprivileged user 0x%x attemps to access wortel rootserver",
+	       from);
 
 #define WORTEL_MSG_PUTCHAR		1
 #define WORTEL_MSG_SHUTDOWN		2
@@ -578,20 +575,38 @@ serve_bootstrap_requests (void)
 	      nr_fpages = make_fpages (mods[mod_idx].start,
 				       mods[mod_idx].end, fpages);
 
-	      /* We can not pass more than 30 grant items in our
+	      /* We can not pass more than 31 grant items in our
 		 message, because there are only 64 message registers,
-		 we need 4 for the label, the task ID, the start and
-		 end address, and each grant item takes up two message
-		 registers.  */
-	      if (nr_fpages > 30)
+		 we need 2 for the task ID and the startup fpage, and
+		 each grant item takes up two message registers.  */
+	      if (nr_fpages > 31)
 		panic ("%s: Module %s is too large and has an "
 		       "unfortunate alignment", __func__, mods[mod_idx].name);
+
+#if 0
+	      if (current_mod_idx_points_to_a_task)
+		{
+#endif
+		  /* FIXME: We need to find some (temporary) free
+		     virtual address space of size startup_code_size *
+		     number of modules.  For now, use something a bit
+		     below 3 GB.  */
+		  mods[mod_idx].startup = l4_fpage (3UL * 1024 * 1024 * 1024
+						    -2* 32 * 1024 * mods_count
+						    + 32 * 1024 * mod_idx,
+						    32 * 1024);
+#if 0
+		}
+	      else
+		{
+		  mods[mod_idx].startup = l4_nilpage;
+		}
+#endif
 
 	      l4_msg_clear (msg);
 	      l4_set_msg_label (msg, 0);
 	      l4_msg_append_word (msg, server_task);
-	      l4_msg_append_word (msg, mods[mod_idx].start);
-	      l4_msg_append_word (msg, mods[mod_idx].end);
+	      l4_msg_append_word (msg, mods[mod_idx].startup);
 	      while (nr_fpages--)
 		{
 		  l4_grant_item_t grant_item;
@@ -606,16 +621,27 @@ serve_bootstrap_requests (void)
 	}
       else if (label == WORTEL_MSG_GET_CAP_REPLY)
 	{
-	  if (l4_untyped_words (tag) != 2
-	      || l4_typed_words (tag) != 0)
-	    panic ("Invalid format of get cap reply msg");
-
 	  if (mod_idx > mods_count)
 	    panic ("Invalid get cap reply message");
 	  else if (mod_idx == mods_count)
-	    physmem_master = l4_msg_word (msg, 1);
+	    {
+	      if (l4_untyped_words (tag) != 2
+		  || l4_typed_words (tag) != 0)
+		panic ("Invalid format of get cap reply msg");
+
+	      physmem_master = l4_msg_word (msg, 1);
+	    }
 	  else
-	    mods[mod_idx].mem_cont = l4_msg_word (msg, 1);
+	    {
+	      if (l4_untyped_words (tag) != 3
+		  || l4_typed_words (tag) != 0)
+		panic ("Invalid format of get cap reply msg");
+
+	      mods[mod_idx].mem_cont = l4_msg_word (msg, 1);
+	      
+	      /* Only valid if current module is a task.  */
+	      mods[mod_idx].startup_cont = l4_msg_word (msg, 2);
+	    }
 
 	  /* Does not require a reply.  */
 	  mod_idx++;
@@ -659,7 +685,8 @@ serve_requests (void)
       l4_msg_store (msg_tag, msg);
       if (!WORTEL_CAP_VALID (l4_msg_word (msg, 0), l4_version (from)))
 	/* FIXME: Shouldn't be a panic of course.  */
-	panic ("Unprivileged user attemps to access wortel rootserver");
+	panic ("Unprivileged user 0x%x attemps to access wortel rootserver",
+	       from);
 
 #define WORTEL_MSG_PUTCHAR 1
       if (label == WORTEL_MSG_PUTCHAR)
