@@ -1,3 +1,9 @@
+2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* startup.h (struct hurd_startup_data): New member UTCB_AREA.
+	(struct hurd_startup_cap): Rename member cap_id to cap_handle, and
+	change its type accordingly.
+
 2004-10-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* startup.h: New file.

@@ -47,7 +47,7 @@ struct hurd_startup_cap
 
   /* The capability ID.  FIXME: Should actually be a box ID (or a
      union with a box ID).  */
-  hurd_cap_id_t cap_id;
+  hurd_cap_handle_t cap_handle;
 };
 
 
@@ -77,6 +77,9 @@ struct hurd_startup_data
      compatible.  */
   unsigned short version_major;
   unsigned short version_minor;
+
+  /* The UTCB area of this task.  */
+  l4_fpage_t utcb_area;
 
   /* The argument vector.  */
   char *argz;
