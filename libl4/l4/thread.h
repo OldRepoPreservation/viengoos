@@ -329,6 +329,7 @@ __L4_STOP (_L4_stop, 0)
 __L4_STOP (_L4_abort_receive_and_stop, _L4_XCHG_REGS_CANCEL_RECV)
 __L4_STOP (_L4_abort_send_and_stop, _L4_XCHG_REGS_CANCEL_SEND)
 __L4_STOP (_L4_abort_ipc_and_stop, _L4_XCHG_REGS_CANCEL_IPC)
+#undef __L4_STOP
 
 
 /* Convenience interface for l4_thread_control.  */ 

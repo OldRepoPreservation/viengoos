@@ -1,3 +1,16 @@
+2004-03-17  Johan Rydberg  <jrydberg@night.trouble.net>
+
+	* l4/gnu/kip.h (l4_utcb_alignment_log2): Use void as argument type.
+	(l4_utcb_alignment): Likewise.
+
+	* l4/gnu/ipc.h (l_map_item): Rename to ...
+	(l4_map_item): ... this.
+	(l_is_map_item): Rename to ...
+	(l4_is_map_item): ... this.
+	(l4_add_cache_allocation_hint_to): Put attribute properly behind type.
+
+	* l4/thread.h (__L4_STOP): Undefine after last use.
+
 2004-03-16  Marcus Brinkmann  <marcus@gnu.org>
 
 	Total overhaul, and I am not going to list all the changes.  Every

@@ -242,14 +242,14 @@ l4_utcb_alignment_log2_from (l4_kip_t kip)
 
 static inline l4_word_t
 _L4_attribute_always_inline
-l4_utcb_alignment_log2 ()
+l4_utcb_alignment_log2 (void)
 {
   return l4_utcb_alignment_log2_from (l4_kip ());
 }
 
 static inline l4_word_t
 _L4_attribute_always_inline
-l4_utcb_alignment ()
+l4_utcb_alignment (void)
 {
   return L4_WORD_C(1) << l4_utcb_alignment_log2 ();
 }

@@ -107,7 +107,7 @@ typedef _L4_map_item_t l4_map_item_t;
 
 static inline l4_map_item_t
 _L4_attribute_always_inline
-l_map_item (l4_fpage_t fpage, l4_word_t send_base)
+l4_map_item (l4_fpage_t fpage, l4_word_t send_base)
 {
   return _L4_map_item (fpage, send_base);
 }
@@ -115,7 +115,7 @@ l_map_item (l4_fpage_t fpage, l4_word_t send_base)
 
 static inline l4_word_t
 _L4_attribute_always_inline
-l_is_map_item (l4_map_item_t map_item)
+l4_is_map_item (l4_map_item_t map_item)
 {
   return _L4_is_map_item (map_item);
 }
@@ -250,9 +250,8 @@ l4_add_cache_allocation_hint (l4_string_item_t string_item,
 }
 
 
-static inline l4_string_item_t
+static inline l4_string_item_t *
 _L4_attribute_always_inline
-*
 l4_add_cache_allocation_hint_to (l4_string_item_t *string_item,
 				 l4_cache_allocation_hint_t hint)
 {
