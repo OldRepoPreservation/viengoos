@@ -23,7 +23,7 @@
 # For the module MODULE, set the default link address to
 # DEFAULT-LINK-ADDRESS, and add an option --with-MODULE-load-address.
 
-AC_DEFUN(HURD_LOAD_ADDRESS,
+AC_DEFUN([HURD_LOAD_ADDRESS],
 	[AC_ARG_WITH([$1-loadaddr],
 	AC_HELP_STRING([--with-$1-loadaddr],
 	[$1 load address @<:@$2@:>@]),
