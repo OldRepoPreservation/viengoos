@@ -33,6 +33,7 @@ maintainer_mode=${enable_maintainer_mode-no}
 
 # Checks for programs.
 AC_PROG_CC
+
 # FIXME: We should support setting the CFLAGS by the user.  But
 # -std=gnu99 and -O2 are required.
 CFLAGS="-std=gnu99 -Wall -g -O3"
@@ -63,10 +64,25 @@ if test "x$FIG2DEV" = xno; then
   fi
 fi
 
+# Set up the host information.
+
+AC_CANONICAL_HOST
+
 # Checks for libraries.
+
 AC_MSG_CHECKING([for static GNU C library])
-STATIC_GLIBC=`$CC -print-file-name=libc.a`
-if test "x$STATIC_GLIBC" = xlibc.a; then
+static_libc=libc.a
+echo $host_os
+case $host_os in
+  gnu*)
+    echo HALLO
+    # On the GNU/Hurd, libc.a is a linker script, the real C library
+    # can be found in libcrt.a instead.
+    static_libc=libcrt.a
+    ;;
+esac
+STATIC_GLIBC=`$CC -print-file-name=$static_libc`
+if test "x$STATIC_GLIBC" = "x$static_libc"; then
   AC_MSG_RESULT([none])
   AC_MSG_ERROR([Could not find static version of the GNU C library])
 else
@@ -78,7 +94,6 @@ AC_SUBST(STATIC_GLIBC)
 # Checks for header files.
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_CANONICAL_HOST
 AC_C_CONST
 AC_C_VOLATILE
 

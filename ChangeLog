@@ -1,5 +1,7 @@
 2005-01-22  Marcus Brinkmann  <marcus@gnu.org>
 
+	* configure.ac: Support ripping parts from libcrt.a on GNU/Hurd.
+
 	* README: Add patch for L4 TLS support.
 
 	* configure.ac (AC_CONFIG_FILES): Add ruth/Makefile.
