@@ -1,3 +1,7 @@
+2004-04-21  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/gnu/space.h (L4_FPAGE_SPAN_MAX): Increase value.
+
 2004-04-19  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/ipc.h (l4_msg_tag_set_label,

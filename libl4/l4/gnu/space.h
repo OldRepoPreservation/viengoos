@@ -211,18 +211,25 @@ l4_space_control (l4_thread_id_t space, l4_word_t control,
 #include <l4/kip.h>
 
 /* The maximum number of fpages required to cover a page aligned range
-   of memory.  This is k if the maximum memory range size to cover is
-   2^(k + min_page_size_log2), which can be proven easily by
-   induction.  The minimum page size in L4 is at least
-   L4_MIN_PAGE_SIZE.  We also need to have each fpage aligned to a
-   multiple of its own size.  This makes the proof by induction a bit
-   more convoluted, but does not change the result.  */
+   of memory.  If 2^X is the minimum page size, and 2^Y is the size of
+   the virtual address space, then this is 1 if X == Y and 2 * (Y - X
+   - 1) otherwise.  Why this is the case is best illustrated by the
+   following picture, which uses one character for the minimum page
+   size, and 64 characters for the whole address space (for example, X
+   == 10, Y == 16).  The second line indicates a range of memory, and
+   the third line its separation in spanning fpages.
+
+   0123456789012345678901234567890123456789012345678901234567890123
+    --------------------------------------------------------------
+    12233334444444455555555555555556666666666666666777777778888990
+
+   Required fpages is thus 10 == 2 * (16 - 10 - 1).  */
 
 #if _L4_WORDSIZE == 32
-#define L4_FPAGE_SPAN_MAX	(32 - L4_MIN_PAGE_SIZE_LOG2)
+#define L4_FPAGE_SPAN_MAX	(2 * (32 - L4_MIN_PAGE_SIZE_LOG2 - 1))
 #define _L4_MAX_PAGE_SIZE_LOG2	(32)
 #else
-#define L4_FPAGE_SPAN_MAX	(64 - L4_MIN_PAGE_SIZE_LOG2)
+#define L4_FPAGE_SPAN_MAX	(2 * (64 - L4_MIN_PAGE_SIZE_LOG2 - 1))
 #define _L4_MAX_PAGE_SIZE_LOG2	(64)
 #endif
 
