@@ -1,5 +1,7 @@
 2005-01-31  Marcus Brinkmann  <marcus@gnu.org>
 
+	* README: Revert last change for now.
+	
 	* README: Add patch for L4 local and remote xfer timeouts support.
 
 2005-01-23  Marcus Brinkmann  <marcus@gnu.org>
