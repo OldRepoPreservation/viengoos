@@ -1,3 +1,9 @@
+2004-04-06  Marcus Brinkmann  <marcus@gnu.org>
+
+	* physmem.c (setup_threads): Add threads to pool after creating
+	main thread.  Don't overwrite server_thread with an incorrect
+	value at the end.
+
 2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
 
 	* physmem.c (WORTEL_MSG_GET_THREADS): New macro.
