@@ -529,6 +529,30 @@ Flags may is a bitwise or of: \constant{CONT\_MAP\_READ},
 \constant{CONT\_MAP\_FORCE\_WRITE} will only be respected if
 \constant{CONT\_MAP\_WRITE} is also set.
 
+\paragraph{Doing It All At Once}
+
+When reading to or writing data from a server, the task will normally:
+allocate a new container, fill it with memory and share the container
+with the server.  Since this is such a common operation, short cuts
+are provided to reduce the required number of rpcs:
+
+\begin{code}
+error\_t pm\_container\_create\_with (out container\_t container, in
+in int frame\_count, out container\_t weak\_ref)
+\end{code}
+
+\begin{code}
+error\_t pm\_container\_create\_from (out container\_t container, in
+container\_t source, in frame\_t start, in int count, out container\_t
+weak\_ref)
+\end{code}
+
+\begin{code}
+error\_t pm\_container\_create\_grather (out container\_t container,
+in container\_t source, in frame\_t [] frames, out container\_t
+weak\_ref)
+\end{code}
+
 \paragraph{Copying Data Into or Out of Containers}
 
 It is possible to copy data into containers by mapping the frames in
@@ -540,20 +564,20 @@ of one container to another:
 
 \begin{code}
 error\_t pm\_container\_copy (in container\_t src, in frame\_t
-src\_start, in src\_count, in countainer\_t dest, in frame\_t
-dest\_start, in int dest\_count, out frame\_t frame\_error)
+src\_start, in countainer\_t dest, in frame\_t dest\_start, in int
+frame\_count, out frame\_t frame\_error)
 \end{code}
 
 \begin{code}
-error\_t pm\_container\_copy\_scatter (in container\_t src, in frame\_t
-src\_start, in src\_count, in countainer\_t dest, in frame\_t []
+error\_t pm\_container\_copy\_scatter (in container\_t src, in
+frame\_t src\_start, in countainer\_t dest, in frame\_t []
 dest\_frames, out frame\_t frame\_error)
 \end{code}
 
 \begin{code}
 error\_t pm\_container\_copy\_gather (in container\_t src, in frame\_t
-[] src\_frames, in countainer\_t dest, in frame\_t dest\_start, in int
-dest\_count, out frame\_t frame\_error)
+[] src\_frames, in countainer\_t dest, in frame\_t dest\_start, out
+frame\_t frame\_error)
 \end{code}
 
 \begin{code}
@@ -806,18 +830,91 @@ Swap quotas (put the policy in the memory policy server).
 
 \section{Self Paging}
 
-Tasks multiplex guaranteed frames.  Must manage their own memory.  How
-to get data (e.g. extend malloc via the slab mechanism, extend fopen).
+As already explained, tasks are self-paged.  The default
+implementation provided with the hurd has each thread in a task set
+its pager (i.e. its fault handler) to a common pager thread in the
+same address space.  This thread maintains a mapping database which
+associates virtual addresses with either a frame of memory in a
+container or information on how to retrieve the data, e.g. from swap
+or a file server.
 
-Multiplexing guaranteed frames: say the contents of a frame are sent
-to swap in order to reuse the frame for something else.  The frame
-itself must be cleared, i.e. disassocitated with any logical copies.
-This is done using:
+Normally, there is a single primary container for virtual frames that
+is created at start up.  A task may choose to use more containers and
+generally will for short periods of time (for instance, for reading to
+and writing from servers).  The pager must always be able to handle
+multiple containers.  When using additional containers, frames need to
+be added to them to be shared with the server.  The pager must provide
+a mechanism to allow the caller to steal guaranteed frames for this
+purpose and return them upon deallocation of the container.
+
+\subsection{The Pager}
+
+The pager itself may require a fair amount of memory for its database
+and all of the code and supporting libraries.  This presents a
+problem: if the pager handles page faults, who will handle its faults?
+One of two solutions are possible: either all of the text and data
+must be wired into memory (thereby reducing the number of frames
+available for multiplexing application memory) or the pager is itself
+paged.  The default self-pager implementation uses the latter option:
+the pager, now referred to as the primary pager, is backed by a final
+pager.  The final pager only maps the pagers text and data thus it has
+a significantly smaller memory footprint.  Care must be taken to be
+sure that the primary pager does not accidently allocate memory from
+common memory pools: in the very least it needs its own private
+\function{malloc} arena.  As the primary pager will call, for
+instance, routines to manipulate capabilities, this text must be
+backed by the final pager.  Other code can also, however, makes calls
+to the capability library.  This means that the primary pager must
+also have a copy of these mappings in its database.
+
+The purpose of the final pager is to allow the data and some of the
+text of the primary pager to be swapped.  As such, the final pager
+must be able to at least read data from file servers and retrieve data
+from backing store.  This may imply significant overlap of the text
+for the primary and final pagers.  In some case, however, it may be
+useful to have a second implementation of a function only for the
+final pager which is optimized for size or avoids making calls to
+certain libraries.
+
+\subsubsection{Managing Mappings}
+
+Mappings are normally made via calls to \function{mmap}.  Unlike in
+Unix, this is not a system trap: instead it is almost always
+implemented locally.  \function{mmap} must associate a region with
+either anonymous memory or with a file on disk.  This is only a matter
+of creating a few entries in the mapping database so that faults will
+brings the data in lazily.
+
+Rather than have the caller manipulate the mapping database directly,
+instead, a local ipc sent to the primary pager.  If there is only ever
+a single thread which manipulates the mapping database, there will be
+locking requirements.  If the pager thread is busy, then the local ipc
+call blocks in the kernel.
+
+It is not always useful to fault memory in lazily: when a task has
+received data from a server, it will normally be in a container from
+where it must be consumed.  The task will generally map the container
+into memory and then proceed to use or at least copy the data to some
+other location.  Clearly, the faulting the pages in is a waste.  As
+such, the pager should provide a mechanism which allows the caller to
+not only establish a mapping from a container but also to map the
+pages immediately in the address space.
+
+\subsection{Reusing Virtual Frames}
+
+Multiplexing frames: say the contents of a frame are sent to swap in
+order to reuse the frame for something else.  The frame itself must be
+cleared, i.e. disassocitated with any logical copies.  This is done
+using:
 
 \begin{code}
 error\_t pm\_release\_data (in pm\_container\_t container, in pm\_frame\_t[] frames)
 \end{code}
 
+\subsection{Taking Advantage of Self-Paging}
+
+extend malloc via e.g. the slab mechanism, extend fopen (how a file is
+used).
 
 % Traditionally, monolithical kernels, but even kernels like Mach,
 % provide a virtual memory management system in the kernel.  All paging
