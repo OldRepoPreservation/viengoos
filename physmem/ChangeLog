@@ -1,3 +1,9 @@
+2004-03-16  Marcus Brinkmann  <marcus@gnu.org>
+
+	* output.c (putchar): Replace all &msg with msg.  Update
+	everything to new API.
+	* physmem.c: Likewise.
+
 2003-10-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (physmem_CPPFLAGS): Use top_builddir for include
