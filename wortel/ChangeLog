@@ -1,3 +1,8 @@
+2005-01-10  Bas Wijnen  <shevek@fmf.nl>
+
+	* wortel.h (wortel_get_mem): Change grant_items to map_items to
+	match their use.
+
 2005-01-07  Neal H. Walfield  <neal@gnu.org>
 
 	* output.h (debug): Preface __VA_ARGS__ with ## thereby making it

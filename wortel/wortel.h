@@ -235,7 +235,7 @@ wortel_get_mem (void)
 {
   l4_msg_tag_t tag;
   l4_word_t mrs[2];
-  l4_grant_item_t grant_item;
+  l4_map_item_t map_item;
   
   l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
 
@@ -246,9 +246,9 @@ wortel_get_mem (void)
 
   l4_store_mr (1, &mrs[0]);
   l4_store_mr (2, &mrs[1]);
-  grant_item = *((l4_grant_item_t *) mrs);
+  map_item = *((l4_map_item_t *) mrs);
 
-  return l4_grant_item_snd_fpage (grant_item);
+  return l4_map_item_snd_fpage (map_item);
 }
 
 
