@@ -33,27 +33,10 @@
 
 
 
-struct container
-{
-  /* The capability object must be the first member of this
-     struct.  */
-  struct hurd_cap_obj obj;
-
-  /* For now, a container is nothing more than a contiguous,
-     page-aligned range of memory.  This is the reason why
-     L4_FPAGE_SPAN_MAX fpages are sufficient.  */
-  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
-
-  /* The number of entries in FPAGES.  */
-  l4_word_t nr_fpages;
-};
-typedef struct container *container_t;
-
-
 static void
 container_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 {
-  container_t container = (container_t) obj;
+  container_t container = hurd_cap_obj_to_user (container_t, obj);
   l4_word_t nr_fpages;
 
   nr_fpages = container->nr_fpages;
@@ -71,7 +54,7 @@ container_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 error_t
 container_map (hurd_cap_rpc_context_t ctx)
 {
-  container_t container = (container_t) ctx->obj;
+  container_t container = hurd_cap_obj_to_user (container_t, ctx->obj);
   l4_word_t offset = l4_page_trunc (l4_msg_word (ctx->msg, 1));
   l4_word_t rights = l4_msg_word (ctx->msg, 1) & 0x7;
   l4_word_t size = l4_page_round (l4_msg_word (ctx->msg, 2));
@@ -142,8 +125,7 @@ static struct hurd_cap_class container_class;
 error_t
 container_class_init ()
 {
-  return hurd_cap_class_init (&container_class, sizeof (struct container),
-			      __alignof__ (struct container),
+  return hurd_cap_class_init (&container_class, container_t,
 			      NULL, NULL, container_reinit, NULL,
 			      container_demuxer);
 }
@@ -154,19 +136,21 @@ container_class_init ()
    reference.  */
 error_t
 container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
-		 hurd_cap_obj_t *r_obj)
+		 container_t *r_container)
 {
   error_t err;
+  hurd_cap_obj_t obj;
   container_t container;
 
-  err = hurd_cap_class_alloc (&container_class, (hurd_cap_obj_t *) &container);
+  err = hurd_cap_class_alloc (&container_class, &obj);
   if (err)
     return err;
 
+  container = hurd_cap_obj_to_user (container_t, obj);
   assert (nr_fpages <= L4_FPAGE_SPAN_MAX);
   container->nr_fpages = nr_fpages;
   memcpy (container->fpages, fpages, sizeof (l4_fpage_t) * nr_fpages);
 
-  *r_obj = &container->obj;
+  *r_container = container;
   return 0;
 }

@@ -258,9 +258,8 @@ struct hurd_cap_obj
 
 /* Operations on capability classes.  */
 
-/* Create a new capability class for objects with the size SIZE,
-   including the struct hurd_cap_obj, which has to be placed at the
-   beginning of each capability object.
+/* Create a new capability class for objects with the size SIZE and
+   alignment requirement ALIGNMENT.
 
    The callback OBJ_INIT is used whenever a capability object in this
    class is created.  The callback OBJ_REINIT is used whenever a
@@ -276,13 +275,20 @@ struct hurd_cap_obj
 
    The new capability class is returned in R_CLASS.  If the creation
    fails, an error value will be returned.  */
-error_t hurd_cap_class_create (size_t size, size_t alignment,
-			       hurd_cap_obj_init_t obj_init,
-			       hurd_cap_obj_alloc_t obj_alloc,
-			       hurd_cap_obj_reinit_t obj_reinit,
-			       hurd_cap_obj_destroy_t obj_destroy,
-			       hurd_cap_class_demuxer_t demuxer,
-			       hurd_cap_class_t *r_class);
+error_t hurd_cap_class_create_untyped (size_t size, size_t alignment,
+				       hurd_cap_obj_init_t obj_init,
+				       hurd_cap_obj_alloc_t obj_alloc,
+				       hurd_cap_obj_reinit_t obj_reinit,
+				       hurd_cap_obj_destroy_t obj_destroy,
+				       hurd_cap_class_demuxer_t demuxer,
+				       hurd_cap_class_t *r_class);
+
+/* Define a capability class for the pointer type TYPE.  */
+#define hurd_cap_class_create(type,init,alloc,reinit,destroy,demuxer,r_class) \
+  hurd_cap_class_create_untyped (({ type t; sizeof (*t); }),		      \
+				 ({ type t; __alignof__ (*t); }),	      \
+				 init, alloc, reinit, destroy, demuxer,	      \
+				 r_class);
 
 
 /* Destroy the capability class CAP_CLASS and release all associated
@@ -295,13 +301,19 @@ error_t hurd_cap_class_free (hurd_cap_class_t cap_class);
 
 /* Same as hurd_cap_class_create, but doesn't allocate the storage for
    CAP_CLASS.  Instead, you have to provide it.  */
-error_t hurd_cap_class_init (hurd_cap_class_t cap_class,
-			     size_t size, size_t alignment,
-			     hurd_cap_obj_init_t obj_init,
-			     hurd_cap_obj_alloc_t obj_alloc,
-			     hurd_cap_obj_reinit_t obj_reinit,
-			     hurd_cap_obj_destroy_t obj_destroy,
-			     hurd_cap_class_demuxer_t demuxer);
+error_t hurd_cap_class_init_untyped (hurd_cap_class_t cap_class,
+				     size_t size, size_t alignment,
+				     hurd_cap_obj_init_t obj_init,
+				     hurd_cap_obj_alloc_t obj_alloc,
+				     hurd_cap_obj_reinit_t obj_reinit,
+				     hurd_cap_obj_destroy_t obj_destroy,
+				     hurd_cap_class_demuxer_t demuxer);
+
+/* Define a capability class for the pointer type TYPE.  */
+#define hurd_cap_class_init(cclass,type,init,alloc,reinit,destroy,demuxer)    \
+  hurd_cap_class_init_untyped (cclass, ({ type t; sizeof (*t); }),	      \
+			       ({ type t; __alignof__ (*t); }),		      \
+			       init, alloc, reinit, destroy, demuxer);
 
 
 /* Destroy the capability class CAP_CLASS and release all associated
@@ -321,6 +333,62 @@ error_t hurd_cap_class_alloc (hurd_cap_class_t cap_class,
 			      hurd_cap_obj_t *r_obj);
 
 
+/* Get the size of the header, given the alignment requirement
+   ALIGNMENT of the user object following it.  */
+static inline size_t
+__attribute__((__always_inline__))
+hurd_cap_obj_get_size (size_t alignment)
+{
+  size_t obj_size = sizeof (struct hurd_cap_obj);
+  size_t rest = sizeof (struct hurd_cap_obj) % alignment;
+
+  if (rest)
+    obj_size += alignment - rest;
+
+  return obj_size;
+}
+
+
+/* Find the user object of the pointer type TYPE after the capability
+   object OBJ.  Note that in conjunction with the hurd_cap_obj_to_user
+   macro below, all of this can and will be computed at compile time,
+   if optimization is enabled.  OBJ already fulfills the alignment
+   requirement ALIGNMENT.  */
+static inline void *
+__attribute__((__always_inline__))
+hurd_cap_obj_to_user_untyped (hurd_cap_obj_t obj, size_t alignment)
+{
+  uintptr_t obj_addr = (uintptr_t) obj;
+
+  obj_addr += hurd_cap_obj_get_size (alignment);
+
+  return (void *) obj_addr;
+}
+
+#define hurd_cap_obj_to_user(type,obj)					     \
+  ((type) hurd_cap_obj_to_user_untyped (obj, ({ type t; __alignof (*t); })))
+
+
+/* Find the hurd cap object before the user object OBJ of the pointer
+   type TYPE.  Note that in conjunction with the hurd_cap_obj_from_user
+   macro below, all of this can and will be computed at compile time,
+   if optimization is enabled.  OBJ already fulfills the alignment
+   requirement ALIGNMENT.  */
+static inline hurd_cap_obj_t
+__attribute__((__always_inline__))
+hurd_cap_obj_from_user_untyped (void *obj, size_t alignment)
+{
+  uintptr_t obj_addr = (uintptr_t) obj;
+
+  obj_addr -= hurd_cap_obj_get_size (alignment);
+
+  return (hurd_cap_obj_t) obj_addr;
+}
+
+#define hurd_cap_obj_from_user(type,obj)				     \
+  hurd_cap_obj_from_user_untyped (obj, ({ type t; __alignof (*t); }))
+
+
 /* Inhibit all RPCs on the capability class CAP_CLASS (which must not
    be locked).  You _must_ follow up with a hurd_cap_class_resume
    operation, and hold at least one reference to the object
@@ -334,7 +402,7 @@ void hurd_cap_class_resume (hurd_cap_class_t cap_class);
 
 /* Operations on capability objects.  */
 
-/* Lock the object OBJ, which must be locked.  */
+/* Lock the object OBJ.  */
 static inline void
 hurd_cap_obj_lock (hurd_cap_obj_t obj)
 {

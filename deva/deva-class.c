@@ -34,11 +34,8 @@
 
 struct deva
 {
-  /* The capability object must be the first member of this
-     struct.  */
-  struct hurd_cap_obj obj;
-
   /* FIXME: More stuff.  */
+  int foo;
 };
 typedef struct deva *deva_t;
 
@@ -46,7 +43,7 @@ typedef struct deva *deva_t;
 static void
 deva_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 {
-  deva_t deva = (deva_t) obj;
+  deva_t deva = hurd_cap_obj_to_user (deva_t, obj);
 
   /* FIXME: Release resources.  */
 }
@@ -86,8 +83,7 @@ static struct hurd_cap_class deva_class;
 error_t
 deva_class_init ()
 {
-  return hurd_cap_class_init (&deva_class, sizeof (struct deva),
-			      __alignof__ (struct deva),
+  return hurd_cap_class_init (&deva_class, deva_t,
 			      NULL, NULL, deva_reinit, NULL,
 			      deva_demuxer);
 }
@@ -99,14 +95,17 @@ error_t
 deva_alloc (hurd_cap_obj_t *r_obj)
 {
   error_t err;
+  hurd_cap_obj_t obj;
   deva_t deva;
 
-  err = hurd_cap_class_alloc (&deva_class, (hurd_cap_obj_t *) &deva);
+  err = hurd_cap_class_alloc (&deva_class, &obj);
   if (err)
     return err;
 
+  deva = hurd_cap_obj_to_user (deva_t, obj);
+
   /* FIXME: Add some stuff.  */
 
-  *r_obj = &deva->obj;
+  *r_obj = obj;
   return 0;
 }

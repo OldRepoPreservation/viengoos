@@ -1,3 +1,16 @@
+2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* task.h (struct task): Remove member OBJ.
+	(task_alloc): Change type of last argument to pointer to task_t.
+	(task_id_get_task): Use hurd_cap_obj_from_user.
+	* task.c (create_bootstrap_caps): Remove variable STARTUP_CAP.
+	Add variable TASK.  Use hurd_cap_obj_to_user.
+	* task-class.c (task_reinit): Use hurd_cap_obj_to_user instead of
+	cast.
+	(task_class_init): Use type instead size and alignment.
+	(task_alloc): Change type of last argument to pointer to task_t.
+	Add new variable OBJ and use it as a temporary placeholder.
+
 2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (task_SOURCES): Add task-id.c.

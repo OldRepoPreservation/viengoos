@@ -1,5 +1,28 @@
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
+	* cap-server.h (hurd_cap_class_create): Rename to ...
+	(hurd_cap_class_create_untyped): ... this.
+	(hurd_cap_class_create): New macro.
+	(hurd_cap_class_init): Rename to ...
+	(hurd_cap_class_init_untyped): ... this.
+	(hurd_cap_class_init): New macro.
+	(hurd_cap_get_obj_size): New inline function.
+	(hurd_cap_obj_to_user_untyped, hurd_cap_obj_from_user_untyped):
+	New inline function.
+	(hurd_cap_obj_to_user, hurd_cap_obj_from_user): New macro.
+	* class-alloc.c (hurd_cap_class_alloc): New variable NEW_OBJ, use
+	it as a temporary placeholder.
+	* class-create.c (hurd_cap_class_create): Rename to ...
+	(hurd_cap_class_create_untyped): ... this.
+	Use hurd_cap_class_init_untyped.
+	* class-init.c (hurd_cap_class_init): Rename to ...
+	(hurd_cap_class_init_untyped): ... this.
+	Add the size of struct hurd_cap_obj to SIZE.
+	* client-create.c (_hurd_cap_client_alloc): New variable
+	NEW_CLIENT, use it as a temporary placeholder.
+	* obj-copy-out.c (_hurd_cap_obj_copy_out): New variable NEW_ENTRY,
+	use it as a temporary placeholder.
+	
 	* bucket-inhibit.c (hurd_cap_bucket_end): Return something.
 
 	* cap-server-intern.h (_hurd_cap_bucket_cond_check): Fix

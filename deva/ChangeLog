@@ -1,3 +1,12 @@
+2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* deva-class.c (struct deva): Remove member obj (and add dummy
+	member foo).
+	(deva_reinit): Use hurd_cap_obj_to_user instead of cast.
+	(deva_class_init): Replace size and alignment with type.
+	(deva_alloc): New variable OBJ.  Use it with hurd_cap_class_alloc.
+	Use hurd_cap_obj_to_user to get at the deva object.
+
 2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32-cmain.c (switch_thread): Correct start of small sub stack

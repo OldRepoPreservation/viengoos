@@ -37,11 +37,13 @@ error_t
 hurd_cap_class_alloc (hurd_cap_class_t cap_class, hurd_cap_obj_t *r_obj)
 {
   error_t err;
+  void *new_obj;
   hurd_cap_obj_t obj;
 
-  err = hurd_slab_alloc (&cap_class->obj_space, (void **) &obj);
+  err = hurd_slab_alloc (&cap_class->obj_space, &new_obj);
   if (err)
     return err;
+  obj = new_obj;
 
   /* Let the user do their extra initialization.  */
   if (cap_class->obj_alloc)

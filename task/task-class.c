@@ -35,7 +35,7 @@
 static void
 task_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 {
-  task_t task = (task_t) obj;
+  task_t task = hurd_cap_obj_to_user (task_t, obj);
   unsigned int i;
 
   /* Destroy all threads.  */
@@ -87,8 +87,7 @@ static struct hurd_cap_class task_class;
 error_t
 task_class_init ()
 {
-  return hurd_cap_class_init (&task_class, sizeof (struct task),
-			      __alignof__ (struct task),
+  return hurd_cap_class_init (&task_class, task_t,
 			      NULL, NULL, task_reinit, NULL,
 			      task_demuxer);
 }
@@ -100,20 +99,22 @@ task_class_init ()
    reference.  */
 error_t
 task_alloc (l4_word_t task_id, unsigned int nr_threads,
-	    l4_thread_id_t *threads, hurd_cap_obj_t *r_obj)
+	    l4_thread_id_t *threads, task_t *r_task)
 {
   error_t err;
+  hurd_cap_obj_t obj;
   task_t task;
 
-  err = hurd_cap_class_alloc (&task_class, (hurd_cap_obj_t *) &task);
+  err = hurd_cap_class_alloc (&task_class, &obj);
   if (err)
     return err;
+  task = hurd_cap_obj_to_user (task_t, obj);
 
   task->task_id = task_id;
   assert (nr_threads <= MAX_THREADS);
   task->nr_threads = nr_threads;
   memcpy (task->threads, threads, sizeof (l4_thread_id_t) * nr_threads);
 
-  *r_obj = &task->obj;
+  *r_task = task;
   return 0;
 }

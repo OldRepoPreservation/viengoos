@@ -87,17 +87,20 @@ _hurd_cap_obj_destructor (void *hook, void *buffer)
 /* Same as hurd_cap_class_create, but doesn't allocate the storage for
    CAP_CLASS.  Instead, you have to provide it.  */
 error_t
-hurd_cap_class_init (hurd_cap_class_t cap_class,
-		     size_t size, size_t alignment,
-		     hurd_cap_obj_init_t obj_init,
-		     hurd_cap_obj_alloc_t obj_alloc,
-		     hurd_cap_obj_reinit_t obj_reinit,
-		     hurd_cap_obj_destroy_t obj_destroy,
-		     hurd_cap_class_demuxer_t demuxer)
+hurd_cap_class_init_untyped (hurd_cap_class_t cap_class,
+			     size_t size, size_t alignment,
+			     hurd_cap_obj_init_t obj_init,
+			     hurd_cap_obj_alloc_t obj_alloc,
+			     hurd_cap_obj_reinit_t obj_reinit,
+			     hurd_cap_obj_destroy_t obj_destroy,
+			     hurd_cap_class_demuxer_t demuxer)
 {
   error_t err;
 
-  assert (size >= sizeof (struct hurd_cap_obj));
+  size += hurd_cap_obj_get_size (alignment);
+
+  /* FIXME: Find the smallest possible alignment common to the user
+     object and a struct hurd_cap_obj.  */
   assert (alignment >= __alignof__(struct hurd_cap_obj));
 
   /* Capability object management.  */

@@ -70,8 +70,8 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 {
   error_t err;
   hurd_cap_handle_t cap;
-  hurd_cap_handle_t startup_cap;
   hurd_cap_obj_t obj;
+  task_t task;
 
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
@@ -98,13 +98,14 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	{
 	  debug ("Creating task cap for 0x%x:", task_id);
 
-	  err = task_alloc (task_id, nr_threads, threads, &obj);
+	  err = task_alloc (task_id, nr_threads, threads, &task);
 	  if (err)
 	    panic ("task_alloc: %i\n", err);
 
+	  obj = hurd_cap_obj_from_user (task_t, task);
 	  hurd_cap_obj_unlock (obj);
 
-	  err = task_id_enter ((task_t) obj);
+	  err = task_id_enter (task);
 	  if (err)
 	    panic ("task_id_enter: %i\n", err);
 

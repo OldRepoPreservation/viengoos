@@ -96,11 +96,14 @@ _hurd_cap_client_alloc (hurd_task_id_t task_id,
 			_hurd_cap_client_t *r_client)
 {
   error_t err;
+  void *new_client;
   _hurd_cap_client_t client;
 
-  err = hurd_slab_alloc (&_hurd_cap_client_space, (void **) &client);
-  if (!client)
-    return errno;
+  err = hurd_slab_alloc (&_hurd_cap_client_space, &new_client);
+  if (err)
+    return err;
+
+  client = new_client;
 
   /* CLIENT->id will be initialized by the caller when adding the
      client to the client table of the class.  */

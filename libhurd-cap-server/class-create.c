@@ -46,13 +46,13 @@
    The new capability class is returned in R_CLASS.  If the creation
    fails, an error value will be returned.  */
 error_t
-hurd_cap_class_create (size_t size, size_t alignment,
-		       hurd_cap_obj_init_t obj_init,
-		       hurd_cap_obj_alloc_t obj_alloc,
-		       hurd_cap_obj_reinit_t obj_reinit,
-		       hurd_cap_obj_destroy_t obj_destroy,
-		       hurd_cap_class_demuxer_t demuxer,
-		       hurd_cap_class_t *r_class)
+hurd_cap_class_create_untyped (size_t size, size_t alignment,
+			       hurd_cap_obj_init_t obj_init,
+			       hurd_cap_obj_alloc_t obj_alloc,
+			       hurd_cap_obj_reinit_t obj_reinit,
+			       hurd_cap_obj_destroy_t obj_destroy,
+			       hurd_cap_class_demuxer_t demuxer,
+			       hurd_cap_class_t *r_class)
 {
   error_t err;
   hurd_cap_class_t cap_class = malloc (sizeof (struct hurd_cap_class));
@@ -60,8 +60,9 @@ hurd_cap_class_create (size_t size, size_t alignment,
   if (!cap_class)
     return errno;
 
-  err = hurd_cap_class_init (cap_class, size, alignment, obj_init, obj_alloc,
-			     obj_reinit, obj_destroy, demuxer);
+  err = hurd_cap_class_init_untyped (cap_class, size, alignment, obj_init,
+				     obj_alloc, obj_reinit, obj_destroy,
+				     demuxer);
   if (err)
     {
       free (cap_class);

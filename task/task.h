@@ -50,10 +50,6 @@ void switch_thread (l4_thread_id_t from, l4_thread_id_t to);
 
 struct task
 {
-  /* The capability object must be the first member of this
-     struct.  */
-  struct hurd_cap_obj obj;
-
   /* This is for fast removal from the task_id_to_task hash table.  */
   hurd_ihash_locp_t locp;
 
@@ -80,7 +76,7 @@ error_t task_class_init ();
    for that task.  The object returned is locked and has one
    reference.  */
 error_t task_alloc (l4_word_t task_id, unsigned int nr_threads,
-		    l4_thread_id_t *threads, hurd_cap_obj_t *r_obj);
+		    l4_thread_id_t *threads, task_t *r_task);
 
 
 extern pthread_mutex_t task_id_to_task_lock;
@@ -99,7 +95,10 @@ task_id_get_task (hurd_task_id_t task_id)
   pthread_mutex_lock (&task_id_to_task_lock);
   task = hurd_ihash_find (&task_id_to_task, task_id);
   if (task)
-    hurd_cap_obj_ref (&task->obj);
+    {
+      hurd_cap_obj_t obj = hurd_cap_obj_from_user (task_t, task);
+      hurd_cap_obj_ref (obj);
+    }
   pthread_mutex_unlock (&task_id_to_task_lock);
 
   return task;

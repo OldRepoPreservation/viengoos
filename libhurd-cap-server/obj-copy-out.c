@@ -38,6 +38,7 @@ error_t
 _hurd_cap_obj_copy_out (hurd_cap_obj_t obj, hurd_cap_bucket_t bucket,
 			_hurd_cap_client_t client, hurd_cap_id_t *r_id)
 {
+  void *new_entry;
   _hurd_cap_obj_entry_t entry;
 
   pthread_mutex_lock (&client->lock);
@@ -57,9 +58,10 @@ _hurd_cap_obj_copy_out (hurd_cap_obj_t obj, hurd_cap_bucket_t bucket,
       error_t err;
 
       pthread_mutex_unlock (&client->lock);
-      err = hurd_slab_alloc (&_hurd_cap_obj_entry_space, (void **) &entry);
+      err = hurd_slab_alloc (&_hurd_cap_obj_entry_space, &new_entry);
       if (err)
 	return err;
+      entry = new_entry;
 
       entry->cap_obj = obj;
       /* ID is filled in when adding the object to the table.  */

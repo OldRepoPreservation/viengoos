@@ -1,6 +1,20 @@
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
+	* container.c (struct container, container_t): Remove member OBJ.
+	Move struct and typedef to ...
+	* physmem.h (struct container, container_t): ... here.
+	(container_alloc): Change type of last argument in prototype to a
+	pointer to a container_t.
+	* container.c (container_reinit, container_map): Use
+	hurd_cap_obj_to_user instead cast.
+	(container_class_init): Provide type instead size and alignment.
+	(container_alloc): Add new variable OBJ and use hurd_cap_obj_to_user.
+	Change type of last argument to a pointer to container_t.
+	* physmem.c (create_bootstrap_caps): New variable CONTAINER.
+	Use hurd_cap_obj_from_user to get at the object.
+
 	* container.c: Include "zalloc.h".
+
 	* physmem.c (create_bootstrap_caps): Remove unused variables
 	STARTUP_CAP, NR_FPAGES, FPAGES.
 

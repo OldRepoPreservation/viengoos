@@ -45,11 +45,25 @@ void switch_thread (l4_thread_id_t from, l4_thread_id_t to);
 
 /* Container objects.  */
 
+struct container
+{
+  /* For now, a container is nothing more than a contiguous,
+     page-aligned range of memory.  This is the reason why
+     L4_FPAGE_SPAN_MAX fpages are sufficient.  */
+  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
+
+  /* The number of entries in FPAGES.  */
+  l4_word_t nr_fpages;
+};
+typedef struct container *container_t;
+
+
 /* Initialize the container class subsystem.  */
 error_t container_class_init ();
+
 
 /* Allocate a new container object covering the NR_FPAGES fpages
    listed in FPAGES.  The object returned is locked and has one
    reference.  */
 error_t container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
-			 hurd_cap_obj_t *r_obj);
+			 container_t  *r_container);
