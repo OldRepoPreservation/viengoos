@@ -29,7 +29,7 @@ physmem_CPPFLAGS = -I$(top_builddir)/include			\
 
 physmem_SOURCES = $(ARCH_SOURCES)				\
 	output.h output.c					\
-	zalloc.h zalloc.c malloc-wrap.c				\
+	zalloc.h zalloc.c mmap.c malloc-wrap.c			\
 	physmem.h physmem.c
 
 # Doug Lea's malloc is included by malloc-wrap.c.

@@ -1,4 +1,4 @@
-/* malloc-wrap.c - Doug Lea's malloc for the physical memory server.
+/* mmap.c - A simple mmap for anonymous memory allocations in physmem.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -23,33 +23,31 @@
 #include <config.h>
 #endif
 
-/* Configuration of Doug Lea's malloc.  */
+#include <sys/mman.h>
 
-#include <errno.h>
-
-#include <l4.h>
-
+#include "output.h"
 #include "zalloc.h"
 
-#define __STD_C 1
-#define LACKS_UNISTD_H
-#define LACKS_SYS_PARAM_H
-#define LACKS_FCNTL_H
+
+void *
+mmap (void *address, size_t length, int protect, int flags,
+      int filedes, off_t offset)
+{
+  if (address)
+    panic ("mmap called with non-zero ADDRESS");
+  if (flags != (MAP_PRIVATE | MAP_ANONYMOUS))
+    panic ("mmap called with invalid flags");
+  if (protect != (PROT_READ | PROT_WRITE))
+    panic ("mmap called with invalid protection");
 
-/* We want to use optimized versions of memset and memcpy.  */
-#define HAVE_MEMCPY
+  /* At this point, we can safely ignore FILEDES and OFFSET.  */
+  return (((void *) zalloc (length)) ?: (void *) -1);
+}
 
-/* We always use the supplied mmap emulation.  */
-#define MORECORE(x) MORECORE_FAILURE
-#define HAVE_MMAP 1
-#define HAVE_MREMAP 0
-#define MMAP_CLEARS 1
-#define malloc_getpagesize l4_min_page_size ()
-#define MMAP_AS_MORECORE_SIZE (16 * malloc_getpagesize)
-#define DEFAULT_MMAP_THRESHOLD (4 * malloc_getpagesize)
 
-/* Suppress debug output in mstats().  */
-#define fprintf(...)
-
-/* Now include Doug Lea's malloc.  */
-#include "malloc.c"
+int
+munmap (void *addr, size_t length)
+{
+  zfree ((l4_word_t) addr, length);
+  return 0;
+}

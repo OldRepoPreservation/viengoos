@@ -1,3 +1,11 @@
+2003-09-24  Marcus Brinkmann  <marcus@gnu.org>
+
+	* mmap.c: New file.
+	* Makefile.am (physmem_SOURCES): Add mmap.c.
+	* malloc-wrap.c (LACKS_SYS_MMAN_H, mmap, munmap, PROT_READ,
+	PROT_WRITE, MAP_PRIVATE, MAP_ANONYMOUS, MUNMAP_FAILURE): Remove
+	macros.
+
 2003-09-22  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (AM_CPPFLAGS, physmem_CFLAGS): Removed.

@@ -27,7 +27,6 @@
 
 #include "zalloc.h"
 
-#define panic(...) do { printf (__VA_ARGS__); l4_sleep (l4_never); } while (0)
 
 #ifndef NDEBUG
 #define DODEBUG(level, func) \
