@@ -1,3 +1,7 @@
+2004-04-11  Marco Gerards  <metgerards@student.han.nl>
+
+	* table.c (hurd_table_init): Return an error code.
+
 2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
 
 	* bucket-manage-mt.c (manage_mt_worker): Use

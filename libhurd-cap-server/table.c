@@ -36,6 +36,7 @@ hurd_table_init (hurd_table_t table, unsigned int entry_size)
   assert (sizeof (entry_size) >= sizeof (void *));
 
   *table = (struct hurd_table) HURD_TABLE_INITIALIZER (entry_size);
+  return 0;
 }
 
 
