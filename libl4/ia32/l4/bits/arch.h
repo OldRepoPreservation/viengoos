@@ -23,6 +23,8 @@
 # error "Never use <l4/bits/arch.h> directly; include <l4/arch.h> instead."
 #endif
 
+#include <l4/syscall.h>
+
 
 /* Now incorporate the public interfaces the user has selected.  */
 #ifdef _L4_INTERFACE_L4
