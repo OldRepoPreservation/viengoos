@@ -38,10 +38,18 @@ help_arch (void)
 }
 
 
-/* Start kernel by simply jumping to the entry point.  */
+/* Start kernel.  */
 void
 start_kernel (l4_word_t ip)
 {
+  /* Flush the data cache, so that the kernel code instructions can be
+     found.  Actually, ia32 does this automatically for backwards
+     compatibility, but other architectures may not.  If you are
+     porting this file, make sure that the instruction fetcher gets to
+     see the loaded kernel code.  */
+  asm volatile ("wbinvd");
+
+  /* Jump to the entry point.  */
   (*(void (*) (void)) ip) ();
 }
 

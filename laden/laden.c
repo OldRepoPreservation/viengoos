@@ -206,12 +206,10 @@ main (int argc, char *argv[])
 
   output_deinit ();
 
-  /* FIXME.  Flush D-cache?  */
-
   start_kernel (kernel.ip);
 
   /* Should not be reached.  */
-  shutdown ();
+  panic ("kernel returned to bootloader");
 
   /* Never reached.  */
   return 0;
