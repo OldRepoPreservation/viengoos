@@ -118,7 +118,7 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
   hurd_cap_bucket_t bucket = ctx->bucket;
   l4_thread_id_t from = ctx->from;
   _hurd_cap_client_t client;
-  hurd_cap_t cap;
+  hurd_cap_handle_t cap;
   hurd_cap_class_t cap_class;
   hurd_cap_obj_t obj;
   _hurd_cap_obj_entry_t obj_entry;

@@ -2,6 +2,7 @@
 
 	* cap-server.h (hurd_cap_bucket_inject): Change hurd_cap_t to
 	hurd_cap_handle_t in R_CAP argument type.
+	* bucket-manage-mt.c (manage_demuxer): Likewise.
 	* bucket-inject.c (hurd_cap_bucket_inject): Likewise.  Use
 	hurd_cap_handle_make instead hurd_cap_make.
 
