@@ -72,8 +72,6 @@
 
 * libhurd-slab
 ** Ideally this would be a feature in glibc.
-** Should support alignment requirements properly.
-** Should check return value from constructor.
 ** Support having the pager reap stuff (needs a wrapper around reap()
    that does locking).
 
