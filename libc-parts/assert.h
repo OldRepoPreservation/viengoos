@@ -1,4 +1,4 @@
-/* errno.h - Dummy assert declaration for libc-pars.
+/* assert.h - Dummy assert declaration for libc-pars.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Johan Rydberg.
 
