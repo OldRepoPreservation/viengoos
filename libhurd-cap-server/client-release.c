@@ -169,7 +169,7 @@ _hurd_cap_client_dealloc (hurd_cap_bucket_t bucket, _hurd_cap_client_t client)
 /* Release a reference for the client with the ID IDX in class
    CLASS.  */
 void
-_hurd_cap_client_release (hurd_cap_bucket_t bucket, hurd_cap_client_id_t idx)
+_hurd_cap_client_release (hurd_cap_bucket_t bucket, _hurd_cap_client_id_t idx)
 {
   _hurd_cap_client_entry_t entry;
 

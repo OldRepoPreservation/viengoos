@@ -40,7 +40,7 @@ hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
 {
   error_t err;
   _hurd_cap_client_t client;
-  hurd_cap_id_t cap_id;
+  _hurd_cap_id_t cap_id;
 
   err = _hurd_cap_client_create (bucket, task_id, &client);
   if (err)
@@ -53,6 +53,6 @@ hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
   if (err)
     return err;
 
-  *r_cap = hurd_cap_handle_make (client->id, cap_id);
+  *r_cap = _hurd_cap_handle_make (client->id, cap_id);
   return 0;
 }

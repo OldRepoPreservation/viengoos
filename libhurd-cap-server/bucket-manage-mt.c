@@ -38,7 +38,7 @@
 /* When using propagation, the from thread ID returned can differ from
    the one we used for the closed receive.  */
 #define l4_xreceive_timeout(from,timeout,fromp) \
-  (l4_ipc (l4_nilthread, from, timeout,fromp))
+  (l4_ipc (l4_nilthread, from, timeout, fromp))
 #define l4_xreceive(from,fromp) \
   l4_xreceive_timeout (from, l4_timeouts (L4_ZERO_TIME, L4_NEVER), fromp)
 
@@ -97,7 +97,7 @@ reply_err (l4_thread_id_t to, error_t err)
    TASK_ID.  */
 static error_t
 __attribute__((always_inline))
-lookup_client (hurd_cap_bucket_t bucket, hurd_cap_client_id_t client_id,
+lookup_client (hurd_cap_bucket_t bucket, _hurd_cap_client_id_t client_id,
 	       hurd_task_id_t task_id, _hurd_cap_client_t *r_client)
 {
   error_t err = 0;
@@ -160,7 +160,8 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
     return ECAP_NOREPLY;
   cap = l4_msg_word (ctx->msg, 0);
 
-  err = lookup_client (bucket, hurd_cap_client_id (cap), ctx->sender, &client);
+  err = lookup_client (bucket, _hurd_cap_client_id (cap),
+		       ctx->sender, &client);
   if (err)
     return err;
 
@@ -203,7 +204,7 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
     _hurd_cap_obj_entry_t *entry;
 
     entry = (_hurd_cap_obj_entry_t *) hurd_table_lookup (&client->caps,
-							 hurd_cap_id (cap));
+							 _hurd_cap_id (cap));
     if (!entry)
       err = ECAP_NOREPLY;
     else

@@ -34,6 +34,53 @@
 
 /* FIXME: For now.  */
 #define hurd_cond_wait pthread_cond_wait
+
+/* Every capability hurd_cap_handle_t consists of two parts: The upper
+   part is a client ID and the lower part is a capability object ID.
+   The client ID is as long as the task ID (which is as long as the
+   version ID).  The cap ID occupies the remainder.  We intimately
+   know that even on 64 bit architectures, both fit into a 32 bit
+   integer value.  */
+#define _HURD_CAP_CLIENT_ID_BITS	HURD_TASK_ID_BITS
+#define _HURD_CAP_ID_BITS ((sizeof (hurd_cap_handle_t) * 8) \
+			   - HURD_TASK_ID_BITS)
+
+#define _HURD_CAP_CLIENT_ID_MASK \
+  ((L4_WORD_C(1) << _HURD_CAP_CLIENT_ID_BITS) - 1)
+#define _HURD_CAP_ID_MASK ((L4_WORD_C(1) << _HURD_CAP_ID_BITS) - 1)
+
+typedef l4_uint32_t _hurd_cap_id_t;
+typedef l4_uint32_t _hurd_cap_client_id_t;
+
+
+/* Get the capability ID from a user capability.  The capabililty ID
+   is an index into the caps table of a client.  */
+static inline _hurd_cap_client_id_t
+__attribute__((always_inline))
+_hurd_cap_client_id (hurd_cap_handle_t cap)
+{
+  return cap >> _HURD_CAP_ID_BITS;
+}
+
+
+/* Get the capability ID from a user capability.  The capabililty ID
+   is an index into the caps table of a client.  */
+static inline _hurd_cap_id_t
+__attribute__((always_inline))
+_hurd_cap_id (hurd_cap_handle_t cap)
+{
+  return cap & _HURD_CAP_ID_MASK;
+}
+
+
+/* Create a new capability handle from the client and cap ID.  */
+static inline hurd_cap_handle_t
+__attribute__((always_inline))
+_hurd_cap_handle_make (_hurd_cap_client_id_t client_id, _hurd_cap_id_t cap_id)
+{
+  return ((client_id & _HURD_CAP_CLIENT_ID_MASK) << _HURD_CAP_ID_BITS)
+    | (cap_id & _HURD_CAP_ID_MASK);
+}
 
 
 /* This is a simple list item, used to maintain lists of pending RPC
@@ -134,7 +181,7 @@ struct _hurd_cap_obj_entry
   hurd_cap_obj_t cap_obj;
 
   /* The index in the capability table.  */
-  hurd_cap_id_t id;
+  _hurd_cap_id_t id;
   
   /* A list item that is used for reverse lookup from the capability
      object to the client.  Protected by the lock of the capability
@@ -171,7 +218,7 @@ extern struct hurd_slab_space _hurd_cap_obj_entry_space
    Returns the capability ID (valid only for this user) in *R_ID, or
    an error.  OBJ must be locked.  */
 error_t _hurd_cap_obj_copy_out (hurd_cap_obj_t obj, hurd_cap_bucket_t bucket,
-				_hurd_cap_client_t client, hurd_cap_id_t *r_id)
+				_hurd_cap_client_t client, _hurd_cap_id_t *r_id)
      __attribute__((visibility("hidden")));
 
 
@@ -189,7 +236,7 @@ struct _hurd_cap_client
      in the clients_reverse hash of the bucket, and still get the
      index number.  This allows us to use a location pointer for
      removal (locp) for fast hash removal.  */
-  hurd_cap_client_id_t id;
+  _hurd_cap_client_id_t id;
 
   /* The location pointer for fast removal from the reverse lookup
      hash BUCKET->clients_reverse.  This is protected by the bucket
@@ -219,7 +266,7 @@ struct _hurd_cap_client
      notification handler.  */
   struct _hurd_cap_list_item *pending_rpcs;
 
-  /* The hurd_cap_id_t to _hurd_cap_obj_entry_t mapping.  */
+  /* The _hurd_cap_id_t to _hurd_cap_obj_entry_t mapping.  */
   struct hurd_table caps;
 
   /* Reverse lookup from hurd_cap_obj_t to _hurd_cap_obj_entry_t.  */
@@ -250,7 +297,7 @@ void _hurd_cap_client_dealloc (hurd_cap_bucket_t bucket,
 /* Release a reference for the client with the ID IDX in class
    CLASS.  */
 void _hurd_cap_client_release (hurd_cap_bucket_t bucket,
-			       hurd_cap_client_id_t idx)
+			       _hurd_cap_client_id_t idx)
      __attribute__((visibility("hidden")));
 
 
@@ -458,8 +505,8 @@ _hurd_cap_client_cond_busy (_hurd_cap_client_t client)
 }
 
 
-/* Check if the inhibition state of the capability client CLIENT has
-   to be changed.  CLIENT must be locked.  */
+/* Check if the inhibited state of the capability client CLIENT has to
+   be changed.  CLIENT must be locked.  */
 static inline void
 __attribute__((always_inline))
 _hurd_cap_client_cond_check (hurd_cap_bucket_t bucket,

@@ -36,7 +36,7 @@
    this capability is allocated for the caller.  */
 error_t
 _hurd_cap_obj_copy_out (hurd_cap_obj_t obj, hurd_cap_bucket_t bucket,
-			_hurd_cap_client_t client, hurd_cap_id_t *r_id)
+			_hurd_cap_client_t client, _hurd_cap_id_t *r_id)
 {
   void *new_entry;
   _hurd_cap_obj_entry_t entry;

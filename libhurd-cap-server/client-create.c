@@ -117,7 +117,7 @@ _hurd_cap_client_alloc (hurd_task_id_t task_id,
 }
 
 
-/* Look up the client with the task ID TASK in the class CLASS, and
+/* Look up the client with the task ID TASK in the bucket BUCKET, and
    return it in R_CLIENT, with one additional reference.  If it is not
    found, create it.  */
 error_t

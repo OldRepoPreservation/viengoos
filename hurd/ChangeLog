@@ -1,3 +1,17 @@
+2004-12-01  Neal H. Walfield  <neal@gnu.org>
+
+	* types.h (HURD_CAP_CLIENT_ID_BITS): Move to
+	../libhurd-cap-server/cap-server-internal.h.  Prepend
+	underscore.
+	(HURD_CAP_ID_BITS): Likewise.
+	(_HURD_CAP_CLIENT_ID_MASK): Likewise.
+	(_HURD_CAP_ID_MASK): Likewise.
+	(hurd_cap_id_t): Likewise.
+	(hurd_cap_client_id_t): Likewise.
+	(hurd_cap_client_id): Likewise.
+	(hurd_cap_id): Likewise.
+	(hurd_cap_handle_make): Likewise.
+
 2004-11-02  Marcus Brinkmann  <marcus@gnu.org>
 
 	* startup.h (struct hurd_startup_data): Add new member task.

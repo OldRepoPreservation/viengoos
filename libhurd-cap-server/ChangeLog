@@ -1,3 +1,27 @@
+2004-12-01  Neal H. Walfield  <neal@gnu.org>
+
+	* cap-server-intern.h (_HURD_CAP_CLIENT_ID_BITS): Move from
+	../hurd/types.h.  Prepend underscore and update names in
+	definition as needed.
+	(_HURD_CAP_ID_BITS): Likewise.
+	(_HURD_CAP_CLIENT_ID_MASK): Likewise.
+	(_HURD_CAP_ID_MASK): Likewise.
+	(_hurd_cap_id_t): Likewise.
+	(_hurd_cap_client_id_t): Likewise.
+	(_hurd_cap_client_id): Likewise.
+	(_hurd_cap_id): Likewise.
+	(_hurd_cap_handle_make): Likewise.
+
+	* bucket-inject.c (hurd_cap_bucket_inject): Update CAP_ID's type.
+	* bucket-manage-mt.c (lookup_client): Likewise for CLIENT_ID.
+	* cap-server-intern.h (struct _hurd_cap_obj_entry): Likewise for
+	ID.
+	(_hurd_cap_obj_copy_out): Likewise for CLIENT.
+	(struct _hurd_cap_client): Likewise for ID.
+	(_hurd_cap_client_release): Likewise for IDX.
+	* client-release.c (_hurd_cap_client_release): Likewise for IDX.
+	* obj-copy-out.c (_hurd_cap_obj_copy_out): Likewise for CLIENT.
+
 2004-12-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* client-create.c (_hurd_cap_client_constructor): Do not

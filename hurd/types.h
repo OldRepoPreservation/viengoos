@@ -42,51 +42,7 @@ hurd_task_id_from_thread_id (l4_thread_id_t tid)
 }
 
 
-/* The type used for a user-side capability ID.  */
+/* Client-side capability handle.  */
 typedef l4_word_t hurd_cap_handle_t;
-
-/* Every capability hurd_cap_handle_t consists of two parts: The upper
-   part is a client ID and the lower part is a capability object ID.
-   The client ID is as long as the task ID (which is as long as the
-   version ID).  The cap ID occupies the remainder.  We intimately
-   know that even on 64 bit architectures, both fit into a 32 bit
-   integer value.  */
-#define HURD_CAP_CLIENT_ID_BITS	HURD_TASK_ID_BITS
-#define HURD_CAP_ID_BITS ((sizeof (hurd_cap_handle_t) * 8) - HURD_TASK_ID_BITS)
-
-#define _HURD_CAP_CLIENT_ID_MASK \
-  ((L4_WORD_C(1) << HURD_CAP_CLIENT_ID_BITS) - 1)
-#define _HURD_CAP_ID_MASK ((L4_WORD_C(1) << HURD_CAP_ID_BITS) - 1)
-
-typedef l4_uint32_t hurd_cap_id_t;
-typedef l4_uint32_t hurd_cap_client_id_t;
-
-
-/* Get the capability ID from a user capability.  The capabililty ID
-   is an index into the caps table of a client.  */
-static inline hurd_cap_client_id_t
-hurd_cap_client_id (hurd_cap_handle_t cap)
-{
-  return cap >> HURD_CAP_ID_BITS;
-}
-
-
-/* Get the capability ID from a user capability.  The capabililty ID
-   is an index into the caps table of a client.  */
-static inline hurd_cap_id_t
-hurd_cap_id (hurd_cap_handle_t cap)
-{
-  return cap & _HURD_CAP_ID_MASK;
-}
-
-
-/* Create a new capability handle from the client and cap ID.  */
-static inline hurd_cap_handle_t
-hurd_cap_handle_make (hurd_cap_client_id_t client_id, hurd_cap_id_t cap_id)
-{
-  return ((client_id & _HURD_CAP_CLIENT_ID_MASK) << HURD_CAP_ID_BITS)
-    | (cap_id & _HURD_CAP_ID_MASK);
-}
-
 
 #endif	/* _HURD_TYPES_H */
