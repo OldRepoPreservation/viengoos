@@ -10,7 +10,6 @@
 
 * Implement:
 ** l4_time_point.
-** Implement l4_time_add, l4_time_sub, l4_time_add_usec, l4_time_sub_usec.
 ** Support for all those architectures.
 
 * Extend:
@@ -36,7 +35,7 @@
    for use with our linker, but what about compatibility?).
 
 
-Copyright 2003, 2004 Free Software Foundation, Inc.
+Copyright 2003, 2004, 2005 Free Software Foundation, Inc.
 Written by Marcus Brinkmann <marcus@gnu.org>
 
 This file is free software; as a special exception the author gives
