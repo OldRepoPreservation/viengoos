@@ -25,7 +25,7 @@ endif
 
 noinst_PROGRAMS = laden
 
-laden_CFLAGS = -I$(srcdir) $(AM_CFLAGS)
+laden_CFLAGS = -I$(srcdir) -I$(top_srcdir)/include $(AM_CFLAGS)
 
 laden_SOURCES =  $(ARCH_SOURCES) string.h string.c		\
 	output.h output.c output-none.c				\

@@ -24,7 +24,7 @@ endif
 
 noinst_PROGRAMS = physmem
 
-physmem_CFLAGS = -I$(srcdir) $(AM_CFLAGS)
+physmem_CFLAGS = -I$(srcdir) -I$(top_srcdir)/include $(AM_CFLAGS)
 
 physmem_SOURCES = $(ARCH_SOURCES)				\
 	output.h output.c					\

@@ -60,6 +60,7 @@ AC_C_VOLATILE
 case $host_cpu in
   i386 | i486 | i586 | i686)
     AM_CONDITIONAL([ARCH_IA32], true)
+    m4_include([libl4/headers-ia32.m4])
     ;;
   *)
     AC_MSG_ERROR([unsupported architecture])
@@ -67,8 +68,9 @@ case $host_cpu in
 esac
 
 # Create links for header file.
-m4_include([libhurd-slab/headers.m4])
+m4_include([libl4/headers.m4])
 m4_include([libhurd-ihash/headers.m4])
+m4_include([libhurd-slab/headers.m4])
 
 if test "x$missing_progs" != "x"; then
   AC_MSG_ERROR([The following programs were not found:$missing_progs])

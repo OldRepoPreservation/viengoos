@@ -11,18 +11,18 @@ This is work in progress.
 How to build
 ------------
 
-It is not yet straightforward.  Something like the below should work:
+Building the code is straight forward:
 
 $ autoreconf -f -i -s
 $ ./configure --enable-maintainer-mode --prefix=/l4
-$ cd libl4
-$ make; make install
-$ cd ..
-$ make CFLAGS=-I/l4/include\ -g\ -O3
+$ make CFLAGS="-g -O3"
+$ make install
 $ mkdir /l4/boot
 $ cp laden/laden /l4/boot
 $ cp wortel/wortel /l4/boot
 $ cp physmem/physmem /l4/boot
+
+Note that use of optimization is mandatory, not optional.
 
 You also need the L4 kernel and sigma0.  sigma0 must be built with a
 different link base than the default value 0x20000, because that

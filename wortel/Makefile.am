@@ -25,7 +25,7 @@ endif
 
 noinst_PROGRAMS = wortel
 
-wortel_CFLAGS = -I$(srcdir) $(AM_CFLAGS)
+wortel_CFLAGS = -I$(srcdir) -I$(top_srcdir)/include $(AM_CFLAGS)
 
 wortel_SOURCES = $(ARCH_SOURCES) string.h string.c		\
 	output.h output.c output-none.c				\
