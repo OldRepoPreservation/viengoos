@@ -1,5 +1,8 @@
 2004-04-05  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/gnu/ipc.h (l4_lwait_timeout, l4_lwait, l4_lreply): New
+	functions.
+
 	* l4/syscall.h (_L4_IPC_TIMEOUT, _L4_IPC_NO_PARTNER,
 	_L4_IPC_CANCELED, _L4_IPC_MSG_OVERFLOW,
 	_L4_IPC_XFER_TIMEOUT_INVOKER, _L4_IPC_XFER_TIMEOUT_PARTNER,

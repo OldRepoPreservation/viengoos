@@ -705,6 +705,34 @@ l4_lcall (l4_thread_id_t dest)
 
 static inline l4_msg_tag_t
 _L4_attribute_always_inline
+l4_lreply (l4_thread_id_t dest)
+{
+  _L4_thread_id_t dummy;
+  return _L4_lipc (dest, _L4_nilthread,
+		   _L4_timeouts (_L4_zero_time, _L4_zero_time),
+		   &dummy);
+}
+
+
+static inline l4_msg_tag_t
+_L4_attribute_always_inline
+l4_lwait_timeout (l4_time_t receive_timeout, l4_thread_id_t *from)
+{
+  return _L4_lipc (_L4_nilthread, _L4_anylocalthread,
+		   _L4_timeouts (_L4_zero_time, receive_timeout), from);
+}
+
+
+static inline l4_msg_tag_t
+_L4_attribute_always_inline
+l4_lwait (l4_thread_id_t *from)
+{
+  return l4_lwait_timeout (_L4_never, from);
+}
+
+
+static inline l4_msg_tag_t
+_L4_attribute_always_inline
 l4_lreply_wait (l4_thread_id_t dest, l4_thread_id_t *from)
 {
   return _L4_lreply_wait (dest, from);
