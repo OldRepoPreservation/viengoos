@@ -219,7 +219,7 @@ hurd_cap_obj_ref (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 static inline void
 hurd_cap_obj_rele (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 {
-  assert (obj->refs > 0);
+  assert (obj->refs > 1);
 
   obj->refs--;
 }
