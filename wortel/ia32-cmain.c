@@ -176,7 +176,7 @@ find_components (void)
       /* Add the argument string of the first module to the list of
 	 unused pages.  */
       add_unused_area ((l4_word_t) mod[0].string,
-		       strlen ((char *) mod[0].string));
+		       strlen ((char *) mod[0].string) + 1);
 
       mods_count = mbi->mods_count - 1;
       if (mods_count > MOD_NUMBER)
