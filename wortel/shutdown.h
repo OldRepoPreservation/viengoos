@@ -29,17 +29,18 @@
 /* Reset the machine.  */
 void reset (void);
 
-/* Halt the machine.  */
-void halt (void);
-
 
 /* The generic code defines these functions.  */
 
 /* Reset the machine at failure, instead halting it.  */
 extern int shutdown_reset;
 
+/* Halt the machine.  */
+void halt (void);
+
 /* End the program with a failure.  This can halt or reset the
    system.  */
 void shutdown (void);
+
 
 #endif	/* _SHUTDOWN_H */

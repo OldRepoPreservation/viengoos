@@ -27,20 +27,11 @@
 #include "shutdown.h"
 
 
-void
-halt (void)
-{
-  while (1)
-    asm volatile ("hlt");
-}
-
-
 /* There are three ways to reset an ia32 machine.  The first way is to
    make the corresponding BIOS call in real mode.  The second way is
    to program the keyboard controller to do it.  The third way is to
    triple fault the CPU by using an empty IDT and then causing a
    fault.  Any of these can fail on odd hardware.  */
-
 void
 reset (void)
 {

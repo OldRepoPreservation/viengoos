@@ -25,6 +25,7 @@
 
 
 #define PROGRAM_NAME	"wortel"
+#define BUG_ADDRESS	"<bug-hurd@gnu.org>"
 
 /* Print an error message and fail.  */
 #define panic(...)				\

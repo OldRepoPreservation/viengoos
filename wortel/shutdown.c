@@ -22,6 +22,8 @@
 #include <config.h>
 #endif
 
+#include <l4.h>
+
 #include "shutdown.h"
 
 
@@ -29,6 +31,13 @@
 int shutdown_reset;
 
 
+void
+halt (void)
+{
+  l4_sleep (l4_never);
+}
+
+
 void
 shutdown (void)
 {
