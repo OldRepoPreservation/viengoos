@@ -14,7 +14,7 @@ threads, and to destroy them.
 
 The \texttt{task} server provides three different capability types.
 
-\subsubsection{Task control capabilities}
+\paragraph{Task control capabilities}
 If a new task is created, it is always associated with a task control
 capability.  The task control capability can be used to create and
 destroy threads in the task, and destroy the task itself.  So the task
@@ -31,7 +31,7 @@ that task.
   capability reference is released.
 \end{comment}
 
-\subsubsection{Task info capabilities}
+\paragraph{Task info capabilities}
 \label{taskinfocap}
 Any task can create task info capabilities for other tasks.  Such task
 info capabilities are used mainly in the IPC system (see section
@@ -74,7 +74,7 @@ capabilities for that task.
   do not need anymore.
 \end{comment}
 
-\subsubsection{Task manager capability}
+\paragraph{Task manager capability}
 A task is a relatively simple object, compared to a full blown POSIX
 process, for example.  As the \texttt{task} server is enforced system
 code, the Hurd does not impose POSIX process semantics in the task

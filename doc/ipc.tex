@@ -236,7 +236,7 @@ is to give both participants a chance to acquire a task info cap for
 the other participants task ID, so they can be sure that from there on
 they will always talk to the same task as they talked to before.
 
-\subsubsection{Preconditions}
+\paragraph{Preconditions}
 The client knows the thread ID of the server thread that receives and
 processes the bootstrap messages.  Some other task might hold a task
 info capability to the server the client wants to connect to.
@@ -373,7 +373,7 @@ have to take it out of the long version.
   \end{comment}
 \end{enumerate}
 
-\subsubsection{Result}
+\paragraph{Result}
 The client has a task info capability for the server and an
 authenticated capability.  The server has a task info capability for
 the client and seen some sort of authentication for the capability it
@@ -419,7 +419,7 @@ also robust and secure.  If any of the participants dies unexpectedly,
 or any of the untrusted participants is malicious, the others should
 not be harmed.
 
-\subsubsection{Preconditions}
+\paragraph{Preconditions}
 The client $C$ has a capability from server $S$ (this implies that $C$
 has a task info cap for $S$ and $S$ has a task info cap for $C$).  It
 wants to copy the capability to the destination task $D$.  For this,
@@ -615,7 +615,7 @@ have to take it out of the long version.
 
 \end{enumerate}
 
-\subsubsection{Result}
+\paragraph{Result}
 For the client $C$, nothing has changed.  The destination task $D$
 either did not accept the capability, and nothing has changed for it,
 and also not for the server $S$.  Or $D$ accepted the capability, and
@@ -671,7 +671,7 @@ If you find any other problematic scenario, again, let us know.
   important information about how, and more importantly, why it works.
 \end{comment}
 
-\subsubsection{The server $S$ dies}
+\paragraph{The server $S$ dies}
 What happens if the server $S$ dies unexpectedly sometime throughout
 the protocol?
 
@@ -700,7 +700,7 @@ send messages to $S$.
 Eventually, $C$ (and $D$ if it already got the task info cap for $S$)
 will process the task death notification and clean up their state.
 
-\subsubsection{The client $C$ dies}
+\paragraph{The client $C$ dies}
 The server $S$ and the destination task $D$ hold a task info cap for
 $C$, so no imposter can get its task ID.  $S$ and $D$ will get errors
 when trying to send messages to $C$.  Depending on when $C$ dies, the
@@ -720,7 +720,7 @@ include the empty reference container, if any.
   suggests that.
 \end{comment}
 
-\subsubsection{The destination task $D$ dies}
+\paragraph{The destination task $D$ dies}
 
 The client $C$ holds a task info cap for $D$ over the whole operation,
 so no imposter can get its task ID.  Depending on when $D$ dies, it
@@ -728,7 +728,7 @@ has either not yet accepted the capability, then $C$ will clean up by
 destroying the reference container, or it has, and then $S$ will clean
 up its state when it processes the task death notification for $D$.
 
-\subsubsection{The client $C$ and the destination task $D$ die}
+\paragraph{The client $C$ and the destination task $D$ die}
 
 This scenario is the reason why the server acquires its own task info
 cap for $D$ so early, and why it must do that under the constraint
@@ -761,7 +761,7 @@ is processed.  Either way no imposter can get at the capability.
 Of course, if the capability was already copied at the time $C$ and
 $D$ die, the server will just do the normal cleanup.
 
-\subsubsection{The client $C$ and the server $S$ die}
+\paragraph{The client $C$ and the server $S$ die}
 
 This scenario does not cause any problems, because on the one hand,
 the destination task $D$ holds a task info cap for $C$, and it
@@ -774,14 +774,14 @@ possible to get because $C$ died early, would not receive any message
 from $D$ because $D$ uses $C$ as its constraint in acquireing the task
 info cap for $S$.
 
-\subsubsection{The destination task $D$ and the server $S$ die}
+\paragraph{The destination task $D$ and the server $S$ die}
 
 As $C$ holds task info caps for $S$ and $D$, there is nothing that can
 go wrong here.  Eventually, the task death notifications are
 processed, but the task info caps are not released until the protocol
 is completed or aborted because of errors.
 
-\subsubsection{The client $C$, the destination task $D$ and the server $S$ die}
+\paragraph{The client $C$, the destination task $D$ and the server $S$ die}
 
 Before the last one of these dies, you are in one of the scenarios
 which already have been covered.  After the last one dies, there is
@@ -812,7 +812,7 @@ in the following paragraphs.
   server $S$.
 \end{comment}
 
-\subsubsection{The client $C$ is malicious}
+\paragraph{The client $C$ is malicious}
 
 If the client $C$ wants to break the protocol, it has numerous
 possibilities to do so.  The first thing it can do is to provide a
@@ -908,7 +908,7 @@ cap for an imposter of $D$.  But if the client wants to achieve that,
 it could just follow the protocol with the imposter as the destination
 task.
 
-\subsubsection{The destination task $D$ is malicious}
+\paragraph{The destination task $D$ is malicious}
 
 The destination task has not as many possibilities as $C$ to attack
 the protocol.  This is because it is trusted by $C$.  So the only
@@ -937,7 +937,7 @@ it can only cause other transactions in its own task to fail.
   The destination task $D$ is welcome to shoot itself in its foot.
 \end{comment}
 
-\subsubsection{The client $C$ and the destination task $D$ are malicious}
+\paragraph{The client $C$ and the destination task $D$ are malicious}
 
 The final question we want to raise is what can happen if the client
 $C$ and the destination task $D$ are malicious.  Can $C$ and $D$

@@ -5,6 +5,164 @@ implemented in the GNU C library which uses the services provided by
 the Hurd servers.  Several system servers support the C library.
 
 
+\section{Authentication}
+\label{auth}
+
+Capabilities are a good way to give access to protected objects and
+services.  They are flexible, lightweight and generic.  However, Unix
+traditionally uses access control lists (ACL) to restrict access to
+objects like files.  Any task running with a certain user ID can
+access all files that are readable for the user with that user ID.
+Although all objects are implemented as capabilities in the Hurd, the
+Hurd also supports the use of user IDs for access control.
+
+The system authentication server \texttt{auth} implements the Unix
+authentication scheme using capabilities.  It provides auth
+capabilities, which are associated with a list of effective and
+available user and group IDs.  The holder of such a capability can use
+it to authenticate itself to other servers, using the protocol below.
+
+Of course, these other servers must use (and trust) the same
+\texttt{auth} server as the user.  Otherwise, the authentication will
+fail.  Once a capability is authenticated in the server, the server
+will know the user IDs of the client, and can use them to validate
+further operations.
+
+The \texttt{auth} server provides two types of capabilities:
+
+\paragraph{Auth capabilities}
+An auth capability is associated with four vectors of IDs: The
+effective user and group IDs, which should be used by other servers to
+authenticate operations that require certain user or group IDs, and
+the available user and group IDs.  Available IDs should not be used
+for authentication purposes, but can be turned into effective IDs by
+the holder of an auth capability at any time.
+
+New auth capabilities can be created from existing auth capabilities,
+but only if the requested IDs are a subsets from the union of the
+(effective and available) IDs in the provided auth capabilities.  If
+an auth capability has an effective or available user ID 0, then
+arbitrary new auth objects can be created from that.
+
+\paragraph{Passport capabilities}
+A passport capability can be created from an auth capability and is
+only valid for the task that created it.  It can be provided to a
+server in an authentication process (see below).  For the client, the
+passport capability does not directly implement any useful operation.
+For the server, it can be used to verify the identity of a user and
+read out the effective user and group IDs.
+
+The auth server should always create new passport objects for
+different tasks, even if the underlying auth object is the same, so
+that a task having the passport capability can not spy on other tasks
+unless they were given the passport capability by that task.
+
+\subsection{Authenticating a client to a server}
+
+A client can authenticate itself to a server with the following
+protocol:
+
+\paragraph{Preconditions}
+The client $C$ has an auth capability implemented by the \texttt{auth}
+server $A$.  It also has a capability implemented by the server $S$.
+It wants to reauthenticate this capability with the auth capability,
+so the server associates the new user and group IDs with it.
+
+The server also has an auth capability implemented by its trusted
+\texttt{auth} server.  For the reauthentication to succeed, the
+\texttt{auth} server of the client and the server must be identical.
+If this is the case, the participating tasks hold task info caps for
+all other participating tasks (because of the capabilities they hold).
+
+\begin{enumerate}
+\item The client $C$ requests the passport capability for itself from
+  the auth capability from $A$.
+
+  \begin{comment}
+    Normally, the client will request the passport capability only
+    once and store it together with the auth capability.
+  \end{comment}
+  
+\item The \texttt{auth} server receives the request and creates a new
+  passport capability for this auth capability and this client.  The
+  passport capability is returned to the user.
+  
+\item The user receives the reply from the \texttt{auth} server.
+  
+  It then sends the reauthentication request to the server $S$, which
+  is invoked on the capability the client wants to reauthenticate.  It
+  provides the passport capability as an argument.
+  
+\item The server $S$ can accept the passport capability, if it
+  verifies that it is really implemented by the \texttt{auth} server
+  it trusts.  If the client does not provide a passport capability to
+  the trusted \texttt{auth} server, the authentication process is
+  aborted with an error.
+  
+  Now the server can send a request to the \texttt{auth} server to
+  validate the passport capability.  The RPC is invoked on the
+  passport capability.
+  
+\item The \texttt{auth} server receives the validation request on the
+  passport capability and returns the task ID of the client $C$ that
+  this passport belongs to, and the effective user and group IDs for
+  the auth cap to which this passport cap belongs.
+
+  \begin{comment}
+    The Hurd on Mach returned the available IDs as well.  This feature
+    is not used anywhere in the Hurd, and as the available IDs should
+    not be used for authentication anyway, this does not seem to be
+    useful.  If it is needed, it can be added in an extended version
+    of the validation RPC.
+  \end{comment}
+  
+\item The server receives the task ID and the effective user and group
+  IDs.  The server now verifies that the task ID is the same as the
+  task ID of the sender of the reauthentication request.  Only then
+  was the reauthentication request made by the owner of the auth cap.
+  It can then return a new capability authenticated with the new user
+  and group IDs.
+
+  \begin{comment}
+    The verification of the client's task ID is necessary.  As the
+    passport cap is copied to other tasks, it can not serve as a proof
+    of identity alone.  It is of course absolutely crucial that the
+    server holds the task info cap for the client task $C$ for the
+    whole time of the protocol.  But the same is actually true for any
+    RPC, as the server needs to be sure that the reply message is sent
+    to the sender thread (and not any imposter).
+  \end{comment}
+  
+\item The client receives the reply with the new, reauthenticated
+  capability.  Usually this capability is associated in the server
+  with the same abstract object, but different user credentials.
+
+  \begin{comment}
+    Of course a new capability must be created.  Otherwise, all other
+    users holding the same capability would be affected as well.
+  \end{comment}
+
+  The client can now deallocate the passport cap.
+
+  \begin{comment}
+    As said before, normally the passport cap is cached by the client
+    for other reauthentications.
+  \end{comment}
+\end{enumerate}
+
+\paragraph{Result}
+The client $C$ has a new capability that is authenticated with the new
+effective user and group IDs.  The server has obtained the effective
+user and group IDs from the \texttt{auth} server it trusts.
+
+\begin{comment}
+  The Hurd on Mach uses a different protocol, which is more complex
+  and is vulnerable to DoS attacks.  The above protocol can not
+  readily be used on Mach, because the sender task of a message can
+  not be easily identified.
+\end{comment}
+
+
 \section{Process Management}
 \label{proc}
 
