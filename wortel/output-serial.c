@@ -107,7 +107,7 @@ serial_init (const char *driver_cfg)
     }
 
   /* Parity bit.  */
-  outb (UART_LCR, 0x80);
+  outb (0x80, UART_LCR);
 
   /* FIXME: How long do we have to wait? */
   l4_sleep (l4_time_period (L4_WORD_C (100000)));

@@ -1,5 +1,8 @@
 2003-09-21  Marco Gerards  <metgerards@student.han.nl>
 
+	* output-serial.c (serial_init): Make sure the order of the
+	arguments of outb are correct.
+
 	* Makefile.am (AM_CPPFLAGS): New variable.
 
 2003-09-20  Marcus Brinkmann  <marcus@gnu.org>

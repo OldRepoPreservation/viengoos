@@ -106,7 +106,7 @@ serial_init (const char *driver_cfg)
     }
 
   /* Parity bit.  */
-  outb (UART_LCR, 0x80);
+  outb (0x80, UART_LCR);
 
   /* FIXME: Wait a bit.  Would be nice to have a real sleep function.  */
   for (busy_wait_var = 0; busy_wait_var < 1000000; busy_wait_var++);
