@@ -41,34 +41,6 @@ int memory_map_size;
 int debug;
 
 
-/* Reset the machine at failure, instead halting it.  */
-static int shutdown_reset;
-
-
-void
-shutdown (void)
-{
-  if (shutdown_reset)
-    {
-      /* FIXME: Sleep here for a couple of seconds.  */
-      reset ();
-    }
-  else
-    halt ();
-
-  /* Never reached.  */
-  if (shutdown_reset)
-    {
-      printf ("Unable to reset this machine.\n");
-      halt ();
-    }
-
-  printf ("Unable to halt this machine.\n");
-  while (1)
-    ;
-}
-
-
 static void
 parse_args (int argc, char *argv[])
 {

@@ -20,16 +20,18 @@
 
 if ARCH_IA32
   ARCH_SOURCES = multiboot.h ia32-crt0.S ia32-cmain.c \
-    ia32-output.c ia32-shutdown.c output-vga.c
+    ia32-output.c output-vga.c ia32-shutdown.c
 endif
 
 noinst_PROGRAMS = laden
 
 laden_CFLAGS = -I$(srcdir) $(AM_CFLAGS)
 
-laden_SOURCES =  $(ARCH_SOURCES) elf.h laden.h string.h string.c \
-	output.h output.c output-none.c \
-	laden.c loader.c kip-fixup.c
+laden_SOURCES =  $(ARCH_SOURCES) string.h string.c		\
+	output.h output.c output-none.c				\
+	shutdown.h shutdown.c					\
+	elf.h loader.c						\
+	laden.h laden.c kip-fixup.c
 
 /* FIXME: Make linkbase configurable.  */
 laden_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x180000

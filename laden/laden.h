@@ -21,6 +21,7 @@
 #include <l4.h>
 #include "string.h"
 #include "output.h"
+#include "shutdown.h"
 
 
 #define PROGRAM_NAME	"laden"
@@ -68,12 +69,6 @@ extern int memory_map_size;
 /* Return a help text for this architecture.  */
 const char *help_arch (void);
 
-/* Reset the machine.  */
-void reset (void);
-
-/* Halt the machine.  */
-void halt (void);
-
 /* Load the system's memory descriptors into MEMDESC and return the
    number of memory descriptors loaded.  NR is the maximum number of
    descriptors to be loaded.  */
@@ -82,14 +77,10 @@ int load_mem_info (l4_memory_desc_t memdesc, int nr);
 
 /* The generic code defines these functions.  */
 
-/* End the program with a failure.  This can halt or reset the
-   system.  */
-void shutdown (void);
-
 /* Print an error message and fail.  */
 #define panic(...)				\
   ({						\
-    printf ("laden: error: ");			\
+    printf (PROGRAM_NAME ": error: ");		\
     printf (__VA_ARGS__);			\
     putchar ('\n');				\
     shutdown ();				\

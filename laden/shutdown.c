@@ -1,4 +1,4 @@
-/* ia32-shutdown.c - Shutdown routines for the ia32.
+/* shutdown.c - System shutdown functions.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -18,40 +18,36 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#include <sys/io.h>
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include "shutdown.h"
 
+
+/* Reset the machine at failure, instead halting it.  */
+int shutdown_reset;
+
 
 void
-halt (void)
+shutdown (void)
 {
+  if (shutdown_reset)
+    {
+      /* FIXME: Sleep here for a couple of seconds.  */
+      reset ();
+    }
+  else
+    halt ();
+
+  /* Never reached.  */
+  if (shutdown_reset)
+    {
+      printf ("Unable to reset this machine.\n");
+      halt ();
+    }
+
+  printf ("Unable to halt this machine.\n");
   while (1)
-    asm volatile ("hlt");
-}
-
-
-/* There are three ways to reset an ia32 machine.  The first way is to
-   make the corresponding BIOS call in real mode.  The second way is
-   to program the keyboard controller to do it.  The third way is to
-   triple fault the CPU by using an empty IDT and then causing a
-   fault.  Any of these can fail on odd hardware.  */
-
-void
-reset (void)
-{
-  /* We only try to program the keyboard controller.  But if that
-     fails, we should try to triple fault.  Alternatively, we could
-     also try to make the BIOS call.  */
-
-  outb_p (0x70, 0x80);
-  inb_p (0x71);
-
-  while (inb (0x64) & 0x02)
     ;
-
-  outb_p (0x70, 0x8F);
-  outb_p (0x71, 0x00);
-
-  outb_p (0x64, 0xFE);
 }
