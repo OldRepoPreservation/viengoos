@@ -71,19 +71,23 @@ AC_CANONICAL_HOST
 AC_C_CONST
 AC_C_VOLATILE
 
+arch_ia32=false
+arch_powerpc=false
 case $host_cpu in
   i386 | i486 | i586 | i686)
-    AM_CONDITIONAL([ARCH_IA32], true)
     arch=ia32
+    arch_ia32=true
     ;;
   powerpc)
-    AM_CONDITIONAL([ARCH_POWERPC], true)
     arch=powerpc
+    arch_powerpc=false
     ;;
   *)
     AC_MSG_ERROR([unsupported architecture])
     ;;
 esac
+AM_CONDITIONAL([ARCH_IA32], $arch_ia32)
+AM_CONDITIONAL([ARCH_POWERPC], $arch_powerpc)
 
 # Create links for header file.
 m4_include([libl4/headers.m4])

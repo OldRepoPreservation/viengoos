@@ -1,9 +1,10 @@
 2003-09-22  Marcus Brinkmann  <marcus@gnu.org>
 
+	* configure.ac: Always define the automake conditionals ARCH_* to
+	true or false.
+
 	* configure.ac: Define $arch to ia32 or powerpc.  Do not include
 	arch specific libl4/headers.m4.
-
-2003-09-22  Marcus Brinkmann  <marcus@gnu.org>
 
 	* configure.ac: Add detection of powerpc architecture.
 	(AC_CONFIG_FILES): Add libl4/powerpc/Makefile.
