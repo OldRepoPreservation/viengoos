@@ -1264,6 +1264,16 @@ _L4_set_propagation (_L4_msg_tag_t *tag)
   _tag->propagated = 1;
 }
 
+
+static inline void
+_L4_attribute_always_inline
+_L4_clear_propagation (_L4_msg_tag_t *tag)
+{
+  __L4_msg_tag_t *_tag = (__L4_msg_tag_t *) tag;
+
+  _tag->propagated = 0;
+}
+
 
 /* Now incorporate the public interfaces the user has selected.  */
 #ifdef _L4_INTERFACE_L4

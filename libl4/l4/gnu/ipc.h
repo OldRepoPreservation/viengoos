@@ -789,3 +789,11 @@ l4_set_propagation (l4_msg_tag_t *tag)
 {
   return _L4_set_propagation (tag);
 }
+
+
+static inline void
+_L4_attribute_always_inline
+l4_clear_propagation (l4_msg_tag_t *tag)
+{
+  return _L4_clear_propagation (tag);
+}

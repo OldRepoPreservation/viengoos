@@ -1,3 +1,8 @@
+2004-10-07  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/ipc.h (_L4_clear_propagation): New function.
+	* l4/gnu/ipc.h (l4_clear_propagation): New function.
+
 2004-08-04  Peter Bruin  <pjbruin@dds.nl>
 
 	* l4/schedule.h (_L4_set_priority): Use mask consisting of
