@@ -7,11 +7,11 @@ L4.
 Configuring and Building
 ------------------------
 
-This directory is only built if you specify "--enable-libc" at
-configure time.
+This directory is only built if you specify "--with-libc" at configure
+time.
 
 Before you do this, you should first compile and install the software
-with "--disable-libc" (which is the default), to make sure that the
+with "--without-libc" (which is the default), to make sure that the
 Hurd and libl4 header files are installed and available to the
 compiler.
 
