@@ -28,7 +28,6 @@ hurd-on-l4.dvi: \
 	ipc.tex \
 	threads-tasks.tex \
 	vmm.tex \
-	authentication.tex \
 	posix.tex \
 	debugging.tex \
 	device-drivers.tex
