@@ -1,0 +1,6 @@
+2004-03-22  Daniel Wagner  <wagi@gmx.ch>
+
+	* device-drivers.tex (subsection{Several Plugin Managers}): 
+	New section.
+	* ddf_several_plms.fig: New file.
+	* Makefile.am (fig_files): Add new figure.

@@ -32,7 +32,7 @@ tex_files= hurd-on-l4.tex \
 	debugging.tex \
 	device-drivers.tex
 
-fig_files=ddf_insert_event.fig
+fig_files=ddf_insert_event.fig ddf_several_plms.fig
 
 eps_files=$(patsubst %.fig,%.eps,${fig_files})
 eps_cleanfiles=${eps_files}

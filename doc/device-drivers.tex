@@ -442,14 +442,20 @@ the root bus driver.
 \item console 
 \end{enumerate}
 
+
 \section{Scenarios}
+
 \subsection{Insert Event}
 
 \begin{figure}
   \begin{center}
-    \includegraphics{ddf_insert_event.eps}
+    \leavevmode 
+    \includegraphics[scale=0.8]{ddf_insert_event.eps}
   \end{center}
-  \caption{A new hardware device is detected.}
+  \caption[New hardware detected]{A new hardware device is detected (a
+  network card) by the PCI root bus driver.  The PCI root bus driver
+  initiates the loading of the correct driver for the new hardware
+  device.}
   \label{fig:ddf_insert_event}
 \end{figure}
 
@@ -495,3 +501,24 @@ page fault.
 \item PLM maps the device driver binary into the address space of the
 new driver.
 \end{enumerate}
+
+\subsection{Several Plugin Managers}
+
+\begin{figure}
+  \begin{center}
+    \leavevmode 
+    \includegraphics{ddf_several_plms.eps}
+  \end{center}
+  \caption[Several plugin managers]{For the new NIC driver a
+  specialised plugin manager is loaded first.}
+  \label{fig:ddf_several_plms}
+\end{figure}
+
+For certain drivers it makes sense to have specialised plugin
+managers.  The default plugin manger (dPLM) has to be asked to create
+a new plugin manager.  It is loaded like a normal driver.  The default
+plugin manager will also act as pager for the new plugin manager.
+When the new plugin manager is activated it registers itself to the
+Deva as new plugin manager.  Deva will send all signal/messages from
+outside of the ddf to all registered plugin managers.
+
