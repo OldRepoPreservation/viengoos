@@ -105,9 +105,8 @@ struct wortel_module
   l4_word_t header_loc;
   l4_word_t header_size;
 
-  /* The task control capability for this module.  Not used for the
-     task server task.  Initialized after the task server starts
-     up.  */
+  /* The task control capability for this module.  Initialized after
+     the task server starts up.  */
   hurd_cap_handle_t task_ctrl;
 
   /* Server thread and the initial main thread of the task made from

@@ -122,16 +122,13 @@ struct hurd_cap_class
      Note that step 2 can occur several times, or not at all.
      This is the state diagram for each object:
 
-	  (1.) START == OBJ_INIT --(3.)--> OBJ_DESTROY == END
-			  |		       ^
-			  |		       |
-			(2.1.)		      (3.)
-			  |		       |
-			  v		       |
-		       OBJ_ALLOC -(2.2.)--> OBJ_REINIT
-			  ^		       |
-			  |		       |
-			  +-------(2.1.)-------+
+         (START) --(1.)-> initialized --(3.)--> destroyed (END)
+			    |     ^
+			    |     |
+                         (2.1.)  (2.2.)
+			    |     |
+			    v     |
+		           allocated
 
      Note that OBJ_INIT will be called in bursts for pre-allocation of
      several objects.  */

@@ -121,8 +121,6 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	    }
 	  else
 	    {
-	      unsigned int i;
-
 	      err = container_alloc (nr_fpages, fpages, &obj);
 
 	      if (err)
@@ -210,7 +208,10 @@ physmem_server (void *arg)
   hurd_cap_bucket_worker_alloc (bucket, true);
 
   /* No root object is provided by the physmem server.  */
-  /* FIXME: Use a worker timeout (eventually).  */
+  /* FIXME: Use a worker timeout (there is no issue: even if they
+     timeout before the task server is up and running, the threads
+     will be cached in pthread and are still available for
+     allocation).  */
   err = hurd_cap_bucket_manage_mt (bucket, NULL, 0, 0);
   if (err)
     debug ("bucket_manage_mt failed: %i\n", err);
@@ -267,6 +268,8 @@ main (int argc, char *argv[])
   pthread_detach (manager);
 
   get_task_cap ();
+
+  /* FIXME: get device cap.  */
 
   /* FIXME: Eventually, add shutdown support on wortels(?)
      request.  */
