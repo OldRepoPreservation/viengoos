@@ -1,5 +1,11 @@
 2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
 
+	* loader.c [HAVE_CONFIG_H]: Include <config.h>.
+	(loader_elf_load): Rewritten architecture check of ELF binary,
+	support PPC now.
+
+2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
+
 	* elf.h: Remove cruft.
 
 2003-09-21  Marco Gerards  <metgerards@student.han.nl>

@@ -18,6 +18,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <string.h>
 
 #include "loader.h"
@@ -183,14 +187,28 @@ loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
   if (!elf->e_phoff)
     panic ("%s has no valid program header offset", name);
 
-#ifdef i386
-  if (elf->e_ident[EI_CLASS] != ELFCLASS32
-      || elf->e_ident[EI_DATA] != ELFDATA2LSB
-      || elf->e_machine != EM_386)
-    panic ("%s is not for this architecture", name);
+  /* FIXME: Some architectures support both word sizes.  */
+  if (!((elf->e_ident[EI_CLASS] == ELFCLASS32
+	 && L4_WORD_SIZE == 32)
+	|| (elf->e_ident[EI_CLASS] == ELFCLASS64
+	    && L4_WORD_SIZE == 64)))
+    panic ("%s has invalid word size", name);
+  if (!((elf->e_ident[EI_DATA] == ELFDATA2LSB
+	 && L4_BYTE_ORDER == L4_LITTLE_ENDIAN)
+	|| (elf->e_ident[EI_DATA] == ELFDATA2MSB
+	    && L4_BYTE_ORDER == L4_BIG_ENDIAN)))
+    panic ("%s has invalid byte order", name);
+
+#if i386
+# define elf_machine EM_386
+#elif PPC
+# define elf_machine EM_PPC
 #else
-#error Not ported to this architecture!
+# error Not ported to this architecture!
 #endif
+
+  if (elf->e_machine != elf_machine)
+    panic ("%s is not for this architecture", name);
 
   for (i = 0; i < elf->e_phnum; i++)
     {
