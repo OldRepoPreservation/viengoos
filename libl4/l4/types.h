@@ -1,3 +1,24 @@
+/* types.h - Public interface for L4 types.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_TYPES_H
 #define _L4_TYPES_H	1
 
@@ -134,6 +155,7 @@ typedef _L4_RAW
       _L4_BITFIELD_32_64 (local, 26, 58));
  } local)) l4_thread_id_t;
 
+
 
 /* The clock is 64 bits on all architectures.  The clock base is
    undefined.  The base unit is 1 microsecond.  */
@@ -206,45 +228,12 @@ typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
      _L4_BITFIELD (propagated, 1),
      _L4_BITFIELD (redirected, 1),
      _L4_BITFIELD (cross_cpu, 1),
-     _L4_BITFIELD (error, 4),
+     _L4_BITFIELD (error, 1),
      _L4_BITFIELD_32_64 (label, 16, 48));
 })) l4_msg_tag_t;
 
 
 #ifndef _L4_NO_COMPAT
-/* Compatibility interfaces.  */
-
-typedef l4_word_t L4_Word_t;
-typedef l4_uint64_t L4_Word64_t;
-typedef l4_word_t L4_Bool_t;
-
-
-/* Clock interface.  */
-
-typedef _L4_RAW
-(L4_Word64_t, _L4_STRUCT1
- ({
-   l4_clock_t clock;
- })) L4_Clock_t;
-
-#define L4_ClockAddUsec(clock, usec) \
- ({ return ((L4_Clock_t) { .clock = (clock).clock + (usec) }); })
-
-#define L4_ClockSubUsec(clock, usec) \
- ({ return ((L4_Clock_t) { .clock = clock - usec }); })
-
-#define L4_IsClockEarlier(clock1, clock2) \
- ({ return (clock1).clock < (clock2).clock; })
-
-#define L4_IsClockLater(clock1, clock2) \
- ({ return (clock1).clock > (clock2).clock; })
-
-#define L4_IsClockEqual(clock1, clock2) \
- ({ return (clock1).clock == (clock2).clock; })
-
-#define L4_IsClockNotEqual(clock1, clock2) \
- ({ return (clock1).clock != (clock2).clock; })
-
 
 #include <l4/compat/types.h>
 
