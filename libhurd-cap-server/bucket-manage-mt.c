@@ -128,7 +128,6 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
 {
   error_t err = 0;
   hurd_cap_bucket_t bucket = ctx->bucket;
-  l4_thread_id_t from = ctx->from;
   _hurd_cap_client_t client;
   hurd_cap_handle_t cap;
   hurd_cap_class_t cap_class;
@@ -555,8 +554,6 @@ manage_mt_worker (void *arg, bool async)
 	    }
 	  else
 	    {
-	      bool demuxed = false;
-
 	      _hurd_cap_list_item_add (inhibited ? &bucket->waiting_rpcs
 				       : &bucket->pending_rpcs, worker);
 	      pthread_mutex_unlock (&bucket->lock);
@@ -825,7 +822,6 @@ worker_alloc_async (void *arg)
 	{
 	  l4_thread_id_t worker = l4_nilthread;
 	  pthread_t worker_thread;
-	  _hurd_cap_list_item_t worker_item;
 
 	  pthread_mutex_unlock (&bucket->lock);
 
@@ -842,7 +838,7 @@ worker_alloc_async (void *arg)
 	      pthread_detach (worker_thread);
 
 	      pthread_mutex_lock (&bucket->lock);
-	      bucket->worker_alloc_state == _HURD_CAP_STATE_YELLOW;
+	      bucket->worker_alloc_state = _HURD_CAP_STATE_YELLOW;
 	      /* We ignore any error, as the only error that can occur
 		 is ECANCELED, and only if the bucket state goes to
 		 black for shutdown.  But particularly in that case we
@@ -858,7 +854,7 @@ worker_alloc_async (void *arg)
 	  else
 	    {
 	      pthread_mutex_lock (&bucket->lock);
-	      bucket->worker_alloc_state == _HURD_CAP_STATE_RED;
+	      bucket->worker_alloc_state = _HURD_CAP_STATE_RED;
 	    }
 
 	  if (bucket->state == _HURD_CAP_STATE_BLACK)
@@ -866,7 +862,7 @@ worker_alloc_async (void *arg)
 	}
     }
 
-  bucket->worker_alloc_state == _HURD_CAP_STATE_BLACK;
+  bucket->worker_alloc_state = _HURD_CAP_STATE_BLACK;
   pthread_mutex_unlock (&bucket->lock);
 
   return NULL;

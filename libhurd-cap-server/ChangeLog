@@ -1,3 +1,18 @@
+2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* cap-server-intern.h (_hurd_cap_bucket_cond_check): Fix
+	assignemnt.
+	* table.h (hurd_table_lookup): Remove unused variable ERR.
+	* table.c (hurd_table_enter): Likewise.
+	* bucket-manage-mt.c (manage_demuxer): Remove unused variable
+	FROM.
+	(manage_mt_worker): Remove unused variable DEMUXED.
+	(worker_alloc_async): Remove unused variable WORKER_ITEM.  Fix
+	assignments.
+	* client-release.c (_hurd_cap_client_dealloc): Remove unused
+	variables DONE, CURRENT_IDX.
+	(_hurd_cap_client_release): Remove unused variable FOUND.
+
 2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* cap-server.h: Include <atomic.h>.

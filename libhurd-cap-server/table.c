@@ -59,7 +59,6 @@ hurd_table_destroy (hurd_table_t table)
 error_t
 hurd_table_enter (hurd_table_t table, void *data, unsigned int *r_idx)
 {
-  error_t err;
   unsigned int idx;
 
   if (table->used == table->size)

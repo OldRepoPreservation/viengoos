@@ -432,7 +432,7 @@ _hurd_cap_bucket_cond_check (hurd_cap_bucket_t bucket)
   if (bucket->state == _HURD_CAP_STATE_YELLOW
       && !_hurd_cap_bucket_cond_busy (bucket))
     {
-      bucket->state == _HURD_CAP_STATE_RED;
+      bucket->state =_HURD_CAP_STATE_RED;
       pthread_cond_broadcast (&bucket->cond);
     }
 }

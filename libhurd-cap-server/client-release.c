@@ -34,8 +34,6 @@
 void
 _hurd_cap_client_dealloc (hurd_cap_bucket_t bucket, _hurd_cap_client_t client)
 {
-  unsigned int done;
-  unsigned int current_idx;
   unsigned int nr_caps = 0;
 
   /* This function is only invoked if the reference count for the
@@ -184,7 +182,6 @@ _hurd_cap_client_release (hurd_cap_bucket_t bucket, hurd_cap_client_id_t idx)
     }
   else
     {
-      int found;
       _hurd_cap_client_t client = entry->client;
 
       hurd_table_remove (&bucket->clients, idx);

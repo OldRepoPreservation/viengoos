@@ -139,7 +139,6 @@ error_t hurd_table_enter (hurd_table_t table, void *data, unsigned int *r_idx);
 static inline void *
 hurd_table_lookup (hurd_table_t table, unsigned int idx)
 {
-  error_t err;
   void *result;
 
   if (idx >= table->init_size)
