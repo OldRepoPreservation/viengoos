@@ -1,13 +1,16 @@
 The bunch of it was written by:
-Marcus Brinkmann <marcus@gnu.org>
+Marcus Brinkmann  <marcus@gnu.org>
 
 The libhurd-slab allocator implementation (libhurd-slab/slab.c):
 Johan Rydberg  <jrydberg@night.trouble.net>
 
 The zone allocator physmem/zalloc.h, physmem/zalloc.c was originally
 written by:
-Neal H Walfield <neal@walfield.org>
+Neal H Walfield  <neal@walfield.org>
+
+The malloc implementation in physmem/malloc.c was written by:
+Doug Lea  <dl@cs.oswego.edu>
 
 The serial output driver for laden and wortel (laden/output-serial.c,
 wortel/output-serial.c) was written by:
-Daniel Wagner <wagi@gmx.ch>
+Daniel Wagner  <wagi@gmx.ch>
