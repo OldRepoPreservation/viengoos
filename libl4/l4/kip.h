@@ -23,6 +23,8 @@
 #define _L4_KIP_H	1
 
 #include <l4/types.h>
+#include <l4/math.h>
+
 #include <l4/bits/kip.h>
 
 
@@ -455,16 +457,9 @@ __attribute__((__always_inline__))
 l4_min_page_size_log2 (void)
 {
   l4_word_t page_size_mask = l4_kip ()->page_info.page_size_mask;
-  unsigned int page_size_log2 = L4_MIN_PAGE_SIZE_LOG2;
-  
-  /* There'd better be one bit set.  */
-  while (!(page_size_mask & 1))
-    {
-      page_size_log2++;
-      page_size_mask >>= 1;
-    }
 
-  return page_size_log2;
+  /* There'd better be one bit set.  */
+  return l4_lsb (page_size_mask) - 1 + L4_MIN_PAGE_SIZE_LOG2;
 }
 
 

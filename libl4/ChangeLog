@@ -1,5 +1,8 @@
 2003-10-05  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/kip.h: Include <l4/math.h>.
+	(l4_min_page_size_log2): Reimplement using l4_lsb().
+
 	* l4/math.h (l4_msb): Use __builtin_expect for optimization.
 	(l4_lsb): Likewise.
 
