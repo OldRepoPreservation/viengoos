@@ -1,0 +1,128 @@
+Test suite for GNU libl4
+========================
+
+This test suite for GNU libl4 contains extensive checks for all
+aspects of the interfaces provided by libl4.  The goal is to verify
+all public interfaces and some internal interfaces, as well as
+performing consistency checks.  It should also contain tests for bugs
+that have been found and fixed, to make sure that they never sneak
+back again.
+
+
+Status
+------
+
+* Chapter 1: Basic Kernel Interfaces
+  l4/kip.h: Almost complete.  Only testing the memory descriptors is missing.
+            Testing the processor descriptors and kernel features must be
+            improved though to not require the internal interface.
+  l4/message.h: Complete.
+
+All other interfaces are not tested.
+
+
+Limitations
+-----------
+
+* Only the C interface is tested.  A test of the C++ interface is not
+  planned.
+
+* Side effects beyond the actual purpose of a function are hardly checked.
+
+* For completeness, see the "Status" section above.
+
+
+How does this work?
+-------------------
+
+The file "environment.h" contains a fake L4 environment, including a
+kernel interface page and a UTCB.  It also overrides the functions in
+libl4 to access this environment (minimal support in libl4 is required
+for this).  This makes all other functions in libl4 use the fake
+environment for operation.
+
+In addition to this fake environment, support routines are provided
+that makes it easier to write tests and allows to access the fake
+environment directly for better evaluation.
+
+The file "environment.h" is included in all test files before any
+libl4 header file to activate and make use of the fake environment.
+The test files then are written just as any other libl4 using
+programs, except that they may call additional support functions to
+evaluate the test results.
+
+
+How do I add new tests?
+-----------------------
+
+Just follow the existing examples.  It is pretty simple.  Features are
+added to the fake environment on an "as-needed" basis, so don't be shy
+to hack it.
+
+Please make sure that all three interfaces (intern, GNU, L4) are
+tested, but independently of each other.
+
+Here some hints:
+
+* Check all macro symbols if they have the correct value.
+
+* Check all inline functions (to make sure they actually compile).
+
+* Check all data types (to make sure they have the proper size and structure).
+
+* If a function allows a variable argument, loop over a sample set of
+  values for that argument.  Test border cases as well as random
+  samples of common values.
+
+* If a function allows multiple variable arguments, loop over all
+  combinations of such samples.  Note that the number of such
+  combinations can be very high, so keep the data sets small in this case.
+  Of course this makes only sense if you can compute the correct
+  result from the individual data sets.  If this is not possible, and
+  you have to include the result into your data sets, then it is better
+  to only have one small data set for all variable arguments (ie treat
+  them as one logical unit).
+
+* If you add a new function to libl4, add tests for this new function, too!
+
+* If you modify a function in libl4, make sure that the existing tests
+  are modified to take this into account.  If your modification does not
+  affect any existing test, then try to add a test that would fail
+  before your change and succeeds afterwards.
+
+* If you fix a bug, try to add a test that fails if the bug is present and
+  succeeds if it is not.
+
+
+Other libl4 implementations
+---------------------------
+
+Other implementations of the L4 API can not be tested with this test
+suite without modifications, as the fake environment needs to be
+tightly integrated with the implementation at three points:
+
+* The UTCB address used must be the one provided by "environment.h".
+
+* The kernel interface system call stub must return the address of the
+  KIP and the other values provided by "environment.h".
+
+* The system call links provided by "environment.h" must be used.
+
+If you implement these integration measures, you can try to add
+support for your libl4 in environment.h where _L4_TEST_EXTERNAL_LIBL4
+is checked and define the C preprocessor symbol _L4_TEST_EXTERNAL_LIBL4
+when compiling.  Good luck.  Let us know how it works, and send in
+patches for any remaining glitches.
+
+
+Copyright 2005 Free Software Foundation, Inc.
+Written by Marcus Brinkmann <marcus@gnu.org>
+
+This file is free software; as a special exception the author gives
+unlimited permission to copy and/or distribute it, with or without
+modifications, as long as this notice is preserved.
+ 
+This file is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+

@@ -7,20 +7,21 @@
    whole libl4 headers via pthread (which currently fails as pthread
    doesn't include the header files).  Ouch!  */
 extern char *getenv (const char *name);
+extern void exit (int status) __attribute__ ((__noreturn__));
 
 
 /* A type that behaves like char * alias-wise, but has the width of
    the system word size.  */
 #ifdef __i386__
-typedef unsigned int __attribute__((__mode__ (__SI__), __may_alias__))
-     big_char_like;
+typedef unsigned int __attribute__((__mode__ (__SI__))) word_t;
+typedef word_t __attribute__((__may_alias__)) word_ma_t;
 #else
 #error not ported to this architecture
 #endif
 
 /* Our kernel interface page.  */
 #ifdef __i386__
-static const big_char_like environment_kip[] = 
+static const word_ma_t environment_kip[] = 
   {
     /* 0x0000 */ 0x4be6344c, 0x84050000, 0x00000000, 0x00000140,
     /* 0x0010 */ 0x0014fab0, 0xf0129720, 0x00000000, 0x00000000,
@@ -61,38 +62,68 @@ static const big_char_like environment_kip[] =
        contains the system call stubs.  */
   };
 
-static unsigned int environment_api_version = 0x84050000;
-static unsigned int environment_api_flags = 0x00000000;
-static unsigned int environment_kernel_id = 0x04020000;
+static word_t __attribute__((__unused__)) environment_api_version = 0x84050000;
+static word_t __attribute__((__unused__)) environment_api_flags = 0x00000000;
+static word_t __attribute__((__unused__)) environment_kernel_id = 0x04020000;
 
 /* 64 MRs forwards, 16 UTCB words and 33 BRs backwards.  */
-static big_char_like environment_utcb[64 + 16 + 33];
-static big_char_like *environment_utcb_address = &environment_utcb[33 + 16];
+static word_t environment_utcb[64 + 16 + 33];
+static word_t *environment_utcb_address = &environment_utcb[33 + 16];
 #else
 #error not ported to this architecture
 #endif
 
+
+#ifdef _L4_TEST_EXTERNAL_LIBL4
 
+#warning Add support for your external libl4 here.
+
+/* Only check the official interface.  */
+#undef _L4_INTERFACE_INTERN
+#undef _L4_INTERFACE_GNU
+#define _L4_INTERFACE_L4	1
+
+#else	/* _L4_TEST_EXTERNAL_LIBL4 */
+
+/* This signals to libl4 that we are running in a fake test
+   environment.  */
+#define _L4_TEST_ENVIRONMENT	1
+
+/* Our implementation of the kernel interface system call.  */
 #define _L4_TEST_KERNEL_INTERFACE_IMPL		\
   *api_version = environment_api_version;	\
   *api_flags = environment_api_flags;		\
   *kernel_id = environment_kernel_id;		\
   return (_L4_kip_t) environment_kip;
 
+/* Our implementation of the "get utcb address" function.  */
 #define _L4_TEST_UTCB_IMPL \
   return (_L4_word_t *) environment_utcb_address;
 
-/* This signals to libl4 that we are running in a fake test
-   environment.  */
-#define _L4_TEST_ENVIRONMENT	1
-
-
 /* Enable all interfaces.  */
+#define _L4_INTERFACE_INTERN	1
 #define _L4_INTERFACE_L4	1
 #define _L4_INTERFACE_GNU	1
 
-
 #include <l4/features.h>
+
+/* If you want to test if you wrote the tests for the various
+   interfaces independently of each other, enable one of these.  */
+#if 0
+/* Only the official interface.  */
+#undef _L4_INTERFACE_INTERN
+#undef _L4_INTERFACE_GNU
+#elsif 0
+/* Only the GNU interface.  */
+#undef _L4_INTERFACE_INTERN
+#undef _L4_INTERFACE_L4
+#elsif 0
+/* Only the internal interface.  */
+#undef _L4_INTERFACE_GNU
+#undef _L4_INTERFACE_L4
+#endif
+
+#endif	/* _L4_TEST_EXTERNAL_LIBL4 */
 
 
 #ifdef _L4_INTERFACE_GNU
@@ -170,7 +201,6 @@ static inline environment_init (int argc, char *argv[])
 /* Support macros.  */
 
 #include <stdio.h>
-#include <stdlib.h>
 
 #define check(prefix,msg,cond,...) \
   do								\

@@ -1,4 +1,4 @@
-/* t-vregs.c - A test for the interfaces to the L4 message registers.
+/* t-message.c - A test for the interfaces to the L4 message registers.
    Copyright (C) 2005 Free Software Foundation, Inc.
    Written by Matthieu Lemerre <racin@free.fr> and
    Marcus Brinkmann <marcus@gnu.org>.
@@ -35,10 +35,15 @@
 #include <l4/message.h>
 
 
+#define L4_NUM_MRS_OK 64
+#define L4_NUM_BRS_OK 33
+
+
 /* Test the message register MR with value VAL_OK.  */
 void
-test_one_mr (int mr, _L4_word_t val_ok)
+test_one_mr (int mr, word_t val_ok)
 {
+#ifdef _L4_INTERFACE_INTERN
   {
     _L4_word_t val;
     char *msg;
@@ -53,6 +58,7 @@ test_one_mr (int mr, _L4_word_t val_ok)
     _L4_store_mr (mr, &val);
     check_nr ("[intern]", msg, val, val_ok);
   }
+#endif
 
 #ifdef _L4_INTERFACE_GNU
   {
@@ -95,6 +101,7 @@ test_one_mr (int mr, _L4_word_t val_ok)
 void
 test_many_mrs (int start_mr, int nr, _L4_word_t *values_ok)
 {
+#ifdef _L4_INTERFACE_INTERN
   {
     _L4_word_t values[nr];
     int i;
@@ -117,6 +124,7 @@ test_many_mrs (int start_mr, int nr, _L4_word_t *values_ok)
 	check_nr ("[intern]", msg, values[i], values_ok[i]);
       }
   }
+#endif
 
 #ifdef _L4_INTERFACE_GNU
   {
@@ -177,7 +185,7 @@ test_mrs (void)
   {
     int start_mr;
     int nr;
-    _L4_word_t values[L4_NUM_MRS];
+    word_t values[L4_NUM_MRS_OK];
   } tests[] =
     {
       {  0, 1, { 22 } },
@@ -195,9 +203,11 @@ test_mrs (void)
   int nr = sizeof (tests) / sizeof (tests[0]);
   int i;
 
-  check_nr ("[intern]", "_L4_NUM_MRS", _L4_NUM_MRS, 64);
+#ifdef _L4_INTERFACE_INTERN
+  check_nr ("[intern]", "_L4_NUM_MRS", _L4_NUM_MRS, L4_NUM_MRS_OK);
+#endif
 #ifdef _L4_INTERFACE_GNU
-  check_nr ("[GNU]", "L4_NUM_MRS", L4_NUM_MRS, 64);
+  check_nr ("[GNU]", "L4_NUM_MRS", L4_NUM_MRS, L4_NUM_MRS_OK);
 #endif
   /* FIXME: There is no L4 interface for this.  */
 
@@ -213,6 +223,7 @@ test_mrs (void)
 void
 test_one_br (int br, _L4_word_t val_ok)
 {
+#ifdef _L4_INTERFACE_INTERN
   {
     _L4_word_t val;
     char *msg;
@@ -227,6 +238,7 @@ test_one_br (int br, _L4_word_t val_ok)
     _L4_store_br (br, &val);
     check_nr ("[intern]", msg, val, val_ok);
   }
+#endif
 
 #ifdef _L4_INTERFACE_GNU
   {
@@ -269,6 +281,7 @@ test_one_br (int br, _L4_word_t val_ok)
 void
 test_many_brs (int start_br, int nr, _L4_word_t *values_ok)
 {
+#ifdef _L4_INTERFACE_INTERN
   {
     _L4_word_t values[nr];
     int i;
@@ -291,6 +304,7 @@ test_many_brs (int start_br, int nr, _L4_word_t *values_ok)
 	check_nr ("[intern]", msg, values[i], values_ok[i]);
       }
   }
+#endif
 
 #ifdef _L4_INTERFACE_GNU
   {
@@ -351,7 +365,7 @@ test_brs (void)
   {
     int start_br;
     int nr;
-    _L4_word_t values[L4_NUM_BRS];
+    word_t values[L4_NUM_BRS_OK];
   } tests[] =
     {
       {  0, 1, { 24 } },
@@ -366,9 +380,11 @@ test_brs (void)
   int nr = sizeof (tests) / sizeof (tests[0]);
   int i;
 
-  check_nr ("[intern]", "_L4_NUM_BRS", _L4_NUM_BRS, 33);
+#ifdef _L4_INTERFACE_INTERN
+  check_nr ("[intern]", "_L4_NUM_BRS", _L4_NUM_BRS, L4_NUM_BRS_OK);
+#endif
 #ifdef _L4_INTERFACE_GNU
-  check_nr ("[GNU]", "L4_NUM_BRS", L4_NUM_BRS, 33);
+  check_nr ("[GNU]", "L4_NUM_BRS", L4_NUM_BRS, L4_NUM_BRS_OK);
 #endif
   /* FIXME: There is no L4 interface for this.  */
 

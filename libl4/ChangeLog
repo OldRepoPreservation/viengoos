@@ -1,3 +1,20 @@
+2005-02-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	Everywhere: Add support for disabling/enabling testing individual
+	interfaces, including the internal interface.
+	* README: New file.
+
+	* tests/t-l4-kip.c (test_utcb_info): New function.
+	(test_boot_info): Likewise.
+	(test_clock_info): Likewise.
+	(test_kip_area_info): Likewise.
+	(test_thread_info): Likewise.
+	(test_syscalls): Likewise.
+	(test): Call test_utcb_info, test_clock_info, test_kip_area_info,
+	test_thread_info, test_boot_info and test_syscalls.
+	(test_processor_info): Test the RAW member of an L4_ProcDesc_t.
+	(test_magic): Also check L4_GetKernelInterface.
+
 2005-02-15  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32/l4/bits/vregs.h (_L4_utcb) [_L4_TEST_ENVIRONMENT]: Use
