@@ -1392,6 +1392,19 @@ ignoring the kernel queue limit.  In L4, no messages are queued and
 such places need to be rewritten in a different way (for example using
 extra threads).
 
+\begin{comment}
+  What happens if a client does not go into the receive phase after a
+  send, but instead does another send, and another one, quickly many
+  sends, as fast as possible?  A carelessly written server might
+  create worker threads for each request.  Instead, the server should
+  probably reject to accept a request from a client thread that
+  already has a pending request, so the number of worker threads is
+  limited to the number of client threads.
+  
+  This also makes interrupting an RPC operation easier (the client
+  thread ID can be used to identify the request to interrupt).
+\end{comment}
+
 
 \subsection{Notifications}
 
