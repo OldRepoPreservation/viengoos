@@ -1,5 +1,11 @@
 2004-11-02  Marcus Brinkmann  <marcus@gnu.org>
 
+	* wortel.c (deva_master): New global variable.
+	(serve_bootstrap_requests): New variable CUR_DEVA.  Handle
+	WORTEL_MSG_GET_DEVA_CAP_REQUEST and WORTEL_MSG_GET_DEVA_CAP_REPLY.
+	When replying to deva's bootstrap request, give it all the info we
+	have.
+	
 	* wortel.c (start_elf): Initialize PHYS_STARTUP->task.
 
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>

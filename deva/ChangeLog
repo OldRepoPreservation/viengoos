@@ -1,5 +1,13 @@
 2004-11-02  Marcus Brinkmann  <marcus@gnu.org>
 
+	* deva-class.c (SIMPLE_CONSOLE): Define.
+	[SIMPLE_CONSOLE]: A lot of new code that is only used for testing.
+	(deva_io_read): New function.
+	(deva_demuxer): Add handling for deva_io_read.
+	* deva.c (create_bootstrap_caps): Allocate only one object, and
+	copy it out several times.  Call wortel_get_deva_cap_reply, not
+	wortel_get_task_cap_reply.
+
 	* Makefile.am (deva_SOURCES): Add task-user.h and task-user.c.
 	* task-user.h, task-user.c: New files.
 	* deva.c: Include "task-user.h".

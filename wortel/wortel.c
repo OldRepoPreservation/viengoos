@@ -70,10 +70,11 @@ struct wortel_module mods[MOD_NUMBER];
    MOD_NUMBER.  */
 unsigned int mods_count;
 
-/* The physical memory and task server master control capabilities for
-   the root filesystem.  */
+/* The physical memory, task and deva server master control
+   capabilities for the root filesystem.  */
 hurd_cap_handle_t physmem_master;
 hurd_cap_handle_t task_master;
+hurd_cap_handle_t deva_master;
 
 /* The wortel task capability object handle.  */
 hurd_cap_handle_t task_wortel;
@@ -881,6 +882,9 @@ serve_bootstrap_requests (void)
   /* This is to keep information about created task caps.  */
   unsigned int cur_task = (unsigned int) -1;
 
+  /* This is to keep information about created deva caps.  */
+  unsigned int cur_deva = 0;
+
   /* Make a list of all the containers we want.  */
   for (i = 0; i < mods_count; i++)
     {
@@ -1138,6 +1142,10 @@ serve_bootstrap_requests (void)
 	      l4_reply (bootstrap_final_task);
 
 	      /* Send the reply to deva's bootstrap final RPC.  */
+	      l4_msg_append_word (msg, l4_nilthread);
+	      l4_msg_append_word (msg, 0);
+	      l4_msg_append_word (msg, mods[MOD_DEVA].server_thread);
+	      l4_msg_append_word (msg, mods[MOD_DEVA].deva);
 	      l4_msg_clear (msg);
 	      /* It already has its caps.  */
 	      l4_msg_load (msg);
@@ -1245,6 +1253,56 @@ serve_bootstrap_requests (void)
 	  do
 	    cur_task++;
 	  while (cur_task < mods_count && !MOD_IS_TASK (cur_task));
+
+	  l4_msg_clear (msg);
+	  l4_msg_load (msg);
+	  l4_reply (from);
+	}
+      else if (label == WORTEL_MSG_GET_DEVA_CAP_REQUEST)
+	{
+	  if (cur_deva > mods_count)
+	    panic ("deva does not stop requesting capability requests");
+	  else if (cur_deva == mods_count)
+	    {
+	      /* Request the global control capability now.  */
+	      l4_msg_clear (msg);
+	      l4_msg_append_word
+		(msg, l4_version (mods[MOD_ROOT_FS].server_thread));
+	      /* Is master?  */
+	      l4_msg_append_word (msg, 1);
+	      l4_msg_load (msg);
+	      l4_reply (from);
+	    }
+	  else
+	    {
+	      /* We are allowed to make a capability request now.  */
+
+	      /* We know that cur_deva == 0 is one of the good
+		 cases.  */
+	      l4_msg_clear (msg);
+	      l4_set_msg_label (msg, 0);
+	      l4_msg_append_word (msg, mods[cur_deva].task_id);
+	      /* Is master? */
+	      l4_msg_append_word (msg, 0);
+	      l4_msg_load (msg);
+	      l4_reply (from);
+	    }
+	}
+      else if (label == WORTEL_MSG_GET_DEVA_CAP_REPLY)
+	{
+	  if (l4_untyped_words (tag) != 1 || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of get deva cap reply msg");
+
+	  if (cur_deva > mods_count)
+	    panic ("Invalid get deva cap reply message");
+	  else if (cur_deva == mods_count)
+	    deva_master = l4_msg_word (msg, 0);
+	  else
+	    mods[cur_deva].deva = l4_msg_word (msg, 0);
+
+	  do
+	    cur_deva++;
+	  while (cur_deva < mods_count && !MOD_IS_TASK (cur_deva));
 
 	  l4_msg_clear (msg);
 	  l4_msg_load (msg);

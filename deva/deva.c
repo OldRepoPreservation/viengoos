@@ -76,6 +76,12 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
+  /* FIXME: Allocate a system console driver.  */
+  err = deva_alloc (&obj);
+  if (err)
+    panic ("deva_alloc: %i\n", err);
+  hurd_cap_obj_unlock (obj);
+
   while (1)
     {
       hurd_task_id_t task_id;
@@ -88,7 +94,7 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 
 	  /* FIXME: Create capability.  */
 	  /* FIXME: Use our control cap for this task here.  */
-	  wortel_get_task_cap_reply (0xf00);
+	  wortel_get_deva_cap_reply (0xf00);
 
 	  /* This is the last request made.  */
 	  return;
@@ -97,19 +103,9 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	{
 	  debug ("Creating deva cap for 0x%x:", task_id);
 
-	  /* FIXME: Allocate a system console driver.  */
-	  err = deva_alloc (&obj);
-
-	  if (err)
-	    panic ("deva_alloc: %i\n", err);
-	  hurd_cap_obj_unlock (obj);
-
 	  err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
 	  if (err)
 	    panic ("hurd_cap_bucket_inject: %i\n", err);
-
-	  hurd_cap_obj_lock (obj);
-	  hurd_cap_obj_drop (obj);
 
 	  debug (" 0x%x\n", cap);
 
@@ -117,6 +113,10 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	  wortel_get_deva_cap_reply (cap);
 	}
     }
+
+  hurd_cap_obj_lock (obj);
+  hurd_cap_obj_drop (obj);
+
 }
 
 
