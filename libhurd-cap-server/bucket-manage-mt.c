@@ -168,12 +168,28 @@ manage_demuxer (hurd_cap_rpc_context_t ctx, _hurd_cap_list_item_t worker)
      reference for the client entry.  */
 
   pthread_mutex_lock (&client->lock);
-  while (!err && client->state != _HURD_CAP_STATE_GREEN)
+  /* First, we have to check if the class is inhibited, and if it is,
+     we have to wait until it is uninhibited.  */
+  if (client->state == _HURD_CAP_STATE_BLACK)
+    err = ECAP_NOREPLY;
+  else if (client->state != _HURD_CAP_STATE_GREEN)
     {
-      if (client->state == _HURD_CAP_STATE_BLACK)
-	err = ECAP_NOREPLY;
-      else
-	err = hurd_cond_wait (&bucket->cond, &bucket->lock);
+      pthread_mutex_unlock (&client->lock);
+      pthread_mutex_lock (&bucket->client_cond_lock);
+      pthread_mutex_lock (&client->lock);
+      while (!err && client->state != _HURD_CAP_STATE_GREEN)
+	{
+	  if (client->state == _HURD_CAP_STATE_BLACK)
+	    err = ECAP_NOREPLY;
+	  else
+	    {
+	      pthread_mutex_unlock (&client->lock);
+	      err = hurd_cond_wait (&bucket->client_cond,
+				    &bucket->client_cond_lock);
+	      pthread_mutex_lock (&client->lock);
+	    }
+	}
+      pthread_mutex_unlock (&bucket->client_cond_lock);
     }
   if (err)
     {
