@@ -1,1 +1,3 @@
-SUBDIRS = libl4 libc-parts laden wortel physmem libhurd-slab libhurd-ihash
+SUBDIRS = libl4 libhurd-ihash libhurd-slab libhurd-cap \
+	libc-parts laden wortel physmem \
+	doc

@@ -29,7 +29,14 @@
 /* The program name.  */
 char *program_name = "wortel";
 
-rootserver_t physmem;
+const char *mod_names[] = { "physmem-mod", "task-mod", "root-fs-mod" };
+
+/* For the boot components, find_components() must fill in the start
+   and end address of the ELF images in memory.  The end address is
+   one more than the last byte in the image.  */
+struct wortel_module mods[MOD_NUMBER];
+
+unsigned int mods_count;
 
 
 /* Return the number of memory descriptors.  */
@@ -52,13 +59,58 @@ loader_get_memory_desc (l4_word_t nr)
 static void
 load_components (void)
 {
-  if (!physmem.low)
-    panic ("No physical memory server found");
-  loader_add_region ("physmem-mod", physmem.low, physmem.high);
+  unsigned int i;
 
-  loader_elf_load ("physmem-server", physmem.low, physmem.high,
-		   &physmem.low, &physmem.high, &physmem.ip);
+  for (i = 0; i < mods_count; i++)
+    loader_add_region (mods[i].name, mods[i].start, mods[i].end);
+
+  if (!mods[MOD_PHYSMEM].start)
+    panic ("No physical memory server found");
+
+  loader_elf_load ("physmem-server", mods[MOD_PHYSMEM].start,
+		   mods[MOD_PHYSMEM].end,
+		   &mods[MOD_PHYSMEM].start, &mods[MOD_PHYSMEM].end,
+		   &mods[MOD_PHYSMEM].ip);
   loader_remove_region ("physmem-mod");
+}
+
+
+/* The maximum number of fpages required to cover a page aligned range
+   of memory.  This is k if the maximum memory range size to cover is
+   2^(k + min_page_size_log2), which can be easily proved by
+   induction.  The minimum page size in L4 is at least 2^10.  */
+#define MAX_FPAGES (sizeof (l4_word_t) * 8 - 10)
+
+
+/* Determine the fpages required to cover the bytes from START to END,
+   which must be aligned to the minimal page size supported by the
+   system.  Returns the number of fpages required to cover the range,
+   and returns that many fpages (with maximum accessibility) in
+   FPAGES.  At most MAX_FPAGES fpages will be returned.  */
+unsigned int
+make_fpages (l4_word_t start, l4_word_t size, l4_fpage_t *fpages)
+{
+  l4_word_t min_page_size = getpagesize ();
+  l4_word_t end = (start + size + min_page_size - 1) & ~(min_page_size - 1);
+  unsigned int nr_fpages = 0;
+
+  if (!size)
+    return 0;
+
+  if (start & ~(min_page_size - 1))    
+    panic ("make_fpages: START is not aligned to minimum page size");
+  if (end & ~(min_page_size - 1))    
+    panic ("make_fpages: START is not aligned to minimum page size");
+
+  /* END is at least one MIN_PAGE_SIZE larger than START.  */
+  nr_fpages = 0;
+  while (start < end)
+    {
+      fpages[nr_fpages] = l4_fpage (start, end - start);
+      start += l4_size (fpages[nr_fpages]);
+      nr_fpages++;
+    }
+  return nr_fpages;
 }
 
 
@@ -71,18 +123,18 @@ start_components (void)
   l4_msg_t msg;
   l4_msg_tag_t msg_tag;
   
-  if (physmem.low & (min_page_size - 1))
+  if (mods[MOD_PHYSMEM].start & (min_page_size - 1))
     panic ("physmem is not page aligned on this architecture");
-  if (physmem.low > physmem.high)
+  if (mods[MOD_PHYSMEM].start > mods[MOD_PHYSMEM].end)
     panic ("physmem has invalid memory range");
-  if (physmem.ip < physmem.low || physmem.ip > physmem.high)
+  if (mods[MOD_PHYSMEM].ip < mods[MOD_PHYSMEM].start
+      || mods[MOD_PHYSMEM].ip > mods[MOD_PHYSMEM].end)
     panic ("physmem has invalid IP");
 
   /* Thread nr is next available after rootserver thread nr,
      version part is 2 (rootserver is 1).  */
   l4_thread_id_t physmem_server
-    = l4_global_id (l4_thread_no (l4_myself ()) + 2,
-		    2);
+    = l4_global_id (l4_thread_no (l4_myself ()) + 2, 2);
   /* The UTCB location below is only a hack.  We also need a way to
      specify the maximum number of threads (ie the size of the UTCB
      area), for example via ELF symbols, or via the command line.
@@ -109,7 +161,7 @@ start_components (void)
 
   l4_msg_clear (&msg);
   l4_set_msg_label (&msg, 0);
-  l4_msg_append_word (&msg, physmem.ip);
+  l4_msg_append_word (&msg, mods[MOD_PHYSMEM].ip);
   l4_msg_append_word (&msg, 0);
   l4_msg_load (&msg);
   msg_tag = l4_send (physmem_server);
@@ -118,36 +170,18 @@ start_components (void)
 	   l4_error_code ());
 
   {
-    l4_fpage_t *fpages;
-    unsigned int nr_fpages = 0;
-    l4_word_t start = physmem.low;
-    l4_word_t end = (physmem.high + min_page_size) & ~(min_page_size - 1);
-    l4_word_t region;
+    l4_fpage_t fpages[MAX_FPAGES];
+    unsigned int nr_fpages;
+    l4_word_t start = mods[MOD_PHYSMEM].start;
+    l4_word_t size = (mods[MOD_PHYSMEM].end - start + min_page_size)
+      & ~(min_page_size - 1);
 
     /* We want to grant all the memory for the physmem binary image
        with the first page fault, but we might have to send several
        fpages.  So we first create a list of all fpages we need, then
        we serve one after another, providing the one containing the
        fault address last.  */
-
-    /* A page-aligned region of size up to 2^k * min_page_size can be
-       covered by k fpages at most (proof by induction).  At this
-       point, END is at least one MIN_PAGE_SIZE larger than START.  */
-    region = (end - start) / min_page_size;
-    while (region > 0)
-      {
-	nr_fpages++;
-	region >>= 1;
-      }
-    fpages = alloca (sizeof (l4_fpage_t) * nr_fpages);
-
-    nr_fpages = 0;
-    while (start < end)
-      {
-	fpages[nr_fpages] = l4_fpage (start, end - start);
-	start += l4_size (fpages[nr_fpages]);
-	nr_fpages++;
-      }
+    nr_fpages = make_fpages (start, size, fpages);
 
     /* Now serve page requests.  */
     while (nr_fpages)
@@ -167,9 +201,9 @@ start_components (void)
 	if (l4_untyped_words (msg_tag) != 2 || l4_typed_words (msg_tag) != 0)
 	  panic ("Invalid format of page fault message");
 	addr = l4_msg_word (&msg, 0);
-	if (addr != physmem.ip)
+	if (addr != mods[MOD_PHYSMEM].ip)
 	  panic ("Page fault at unexpected address 0x%x (expected 0x%x)",
-		 addr, physmem.ip);
+		 addr, mods[MOD_PHYSMEM].ip);
 
 	if (nr_fpages == 1)
 	  i = 0;

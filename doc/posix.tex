@@ -248,26 +248,26 @@ and \texttt{auth} capability of a running task, etc).
 To be written.
 
 
-\subsection{The \texttt{exec()} function}
+\subsection{The \texttt{exec} functions}
 \label{exec}
 
-The \texttt{exec()} operation will be done locally in a task.
-Traditionally, \texttt{exec()} overlays the same task with a new
+The \texttt{exec} operation will be done locally in a task.
+Traditionally, \texttt{exec} overlays the same task with a new
 process image, because creating a new task and transferring the
 associated state is expensive.  In L4, only the threads and virtual
 memory mappings are actually kernel state associated with a task, and
-exactly those have to be destroyed by \texttt{exec()} anyway.  There
+exactly those have to be destroyed by \texttt{exec} anyway.  There
 is a lot of Hurd specific state associated with a task (capabilities,
 for example), but it is difficult to preserve that.  There are
 security concerns, because POSIX programs do not know about Hurd
 features like capabilities, so inheriting all capabilities across
-\texttt{exec()} unconditionally seems dangerous.
+\texttt{exec} unconditionally seems dangerous.
 
 \begin{comment}
   One could think that if a program is not Hurd-aware, then it will
   not make any use of capabilities except through the normal POSIX
   API, and thus there are no capabilities except those that the GNU C
-  library uses itself, which \texttt{exec()} can take care of.
+  library uses itself, which \texttt{exec} can take care of.
   However, this is only true if code that is not Hurd-aware is never
   mixed with Hurd specific code, even libraries (unless the library
   intimately cooperates with the GNU C library).  This would be a high
@@ -280,9 +280,9 @@ features like capabilities, so inheriting all capabilities across
   executable.
   
   For \verb/posix_spawn()/, this is straight-forward.  For
-  \texttt{exec()}, it is not. either specific capabilities could be
-  markes as ``do not close on \texttt{exec()}'', or variants of the
-  \texttt{exec()} function could be provided which take further
+  \texttt{exec}, it is not. either specific capabilities could be
+  markes as ``do not close on \texttt{exec}'', or variants of the
+  \texttt{exec} function could be provided which take further
   arguments.
 \end{comment}
 
@@ -294,16 +294,16 @@ binary image is installed and used (not to speak of the actual program
 snippet that runs during the transition).
 
 So the decision was made to always create a new task with
-\texttt{exec()}, and copy the desired state from the current task to
-the new task.  This is a clean solution, because a new task will
-always start out without any capabilities in servers, etc, and thus
-there is no need for the old task to try to destroy all unneeded
-capabilities and other local state before \texttt{exec()}.  Also, in
-case the exec fails, the old program can continue to run, even if the
-exec fails at a very late point (there is no ``point of no return''
-until the new task is actually up and running).
+\texttt{exec}, and copy the desired state from the current task to the
+new task.  This is a clean solution, because a new task will always
+start out without any capabilities in servers, etc, and thus there is
+no need for the old task to try to destroy all unneeded capabilities
+and other local state before \texttt{exec}.  Also, in case the
+\texttt{exec} fails, the old program can continue to run, even if the
+\texttt{exec} fails at a very late point (there is no ``point of no
+return'' until the new task is actually up and running).
 
-For suid and sgid applications, the actual \texttt{exec()} has to be
+For suid and sgid applications, the actual \texttt{exec} has to be
 done by the filesystem.  However, the filesystem can not be bothered
 to also transfer all the user state into the new task.  It can not
 even do that, because it can not accept capabilities implemented by
@@ -313,7 +313,7 @@ necessarily trust the code, if is is owned by an untrusted user.
 
 \begin{enumerate}
 \item The user creates a new task and a container with a single
-  physical page, and makes the \texttt{exec()} call to the file
+  physical page, and makes the \texttt{exec} call to the file
   capability, providing the task control capability.  Before that, it
   creates a task info capability from it for its own use.
 \item The filesystem checks permission and then revokes all other
@@ -352,6 +352,63 @@ necessarily trust the code, if is is owned by an untrusted user.
 
 This is a coarse and incomplete description, but it shows the general
 idea.  The details will depend a lot on the actual implementation.
+
+
+\subsubsection{The startup information}
+
+The following information is passed to the new task by the parent (the
+filesystem in the suid case).  Every item is a machine word.
+
+\begin{enumerate}
+\item \texttt{magic}
+  
+  The first four bytes are \texttt{E}, \texttt{X}, \texttt{E},
+  \texttt{C}.
+
+\item \texttt{program header location}
+\item \texttt{program header size}
+  
+  The location and size of the program header.  The meaning of this
+  field depends on the binary format.
+
+\item \texttt{feature flags}
+  
+  This bit-field indicates which of the following information is
+  present.  If the information is not present, the corresponding
+  machine words are undefined.  This provides simple version control.
+
+  \begin{comment}
+    They could also be undefined.
+  \end{comment}
+
+\item \texttt{wortel thread ID}
+\item \texttt{wortel control cap ID}
+  
+  The thread ID of the \texttt{wortel} rootserver, and the local ID of
+  the \texttt{wortel} control cap.  The \texttt{wortel} control cap
+  allows the user to make privileged system calls.  This field is only
+  present if the user has this capability.  Usually, this is only the
+  case for some initial servers at bootstrap.
+
+\item \texttt{physmem thread ID}
+\item \texttt{physmem control cap ID}
+  
+  The thread ID physical memory server, and the local ID of the
+  \texttt{physmem} control cap.  This cap can be used to manage the
+  physical memory of this task.
+
+\item \texttt{physmem startup page container cap ID}
+  
+  The container cap ID for the startup code, containing this
+  information, the initial pager, and other startup code.  This
+  container is mapped into the address space of the task outside of
+  the actual program, and can be unmapped by the program after it has
+  used this information and installed its own pager, by destroying
+  this container, to reclaim the virtual address space and physical
+  memory it occupies.
+
+\item (More to come.)
+\end{enumerate}
 
 
 \section{Unix Domain Sockets}
@@ -489,18 +546,18 @@ root directory capability in exchange).
 \end{comment}
 
 The actual creation of the child filesystem can be performed much like
-a suid exec, just without any client to follow up with further
-capabilities and startup info.  The only problem that remains is how
-the parent filesystem can know which thread in the child filesystem
-implements the initial handshake protocol for the clients to use.  The
-only safe way here seems to be that the parent filesystem requires the
-child to use the main thread for that, or that the parent filesystem
-creates a second thread in the child at startup (passing its thread ID
-in the startup data), requiring that this second thread is used.  In
-either case the parent filesystem will know the thread ID in advance
-because it created the thread in the first place.  This looks a bit
-ugly, and violates good taste, so we might try to look for alternative
-solutions.
+a suid \texttt{exec}, just without any client to follow up with
+further capabilities and startup info.  The only problem that remains
+is how the parent filesystem can know which thread in the child
+filesystem implements the initial handshake protocol for the clients
+to use.  The only safe way here seems to be that the parent filesystem
+requires the child to use the main thread for that, or that the parent
+filesystem creates a second thread in the child at startup (passing
+its thread ID in the startup data), requiring that this second thread
+is used.  In either case the parent filesystem will know the thread ID
+in advance because it created the thread in the first place.  This
+looks a bit ugly, and violates good taste, so we might try to look for
+alternative solutions.
 
 
 \subsection{Reparenting}

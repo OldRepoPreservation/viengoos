@@ -25,6 +25,7 @@
 #include <hurd/slab.h>
 #include <l4/types.h>
 
+typedef l4_word_t hurd_task_info_t;
 
 /* Initialize the capability system.  */
 error_t hurd_cap_init (void);
@@ -38,7 +39,7 @@ struct hurd_cap_sconn
 
   /* A reference for the servers task ID to prevent reuse.  This is 0
      if this is the connection to the task server itself.  */
-  task_id_t server_task_id;
+  hurd_task_info_t server_task_info;
 
   /* The lock protecting the variable members of the server connection
      object.  */
@@ -50,6 +51,7 @@ struct hurd_cap_sconn
   /* A hash mapping the capability IDs to capability objects.  */
   struct hurd_ihash id_to_cap;
 };
+typedef struct hurd_cap_sconn *hurd_cap_sconn_t;
 
 
 /* User capabilities.  */
@@ -57,10 +59,10 @@ struct hurd_cap_sconn
 /* The task-specific ID for this capability.  */
 typedef l4_word_t hurd_cap_scid_t;
 
-
-/* Remove the entry for the capability CAP from the user list ULIST.
-   ULIST (and the capability CAP) are locked.  */
-void _hurd_cap_ulist_remove (ulist, cap);
+
+/* Forward reference.  */
+struct hurd_cap_ulist;
+typedef struct hurd_cap_ulist *hurd_cap_ulist_t;
 
 
 /* The capability structure.  */
@@ -88,8 +90,9 @@ struct hurd_cap
 
   /* A callback for the user of the capability, invoked when the
      capability is destroyed.  */
+#if 0
   hurd_cap_dead_t dead_cb;
-
+#endif
 
   /* Information for local capabilities.  */
 
@@ -104,10 +107,26 @@ struct hurd_cap
   hurd_cap_ulist_t ouser;
 
   /* A callback invoked when the capability is destroyed.  */
+#if 0
   hurd_cap_odead_cb_t odead_cb;
+#endif
 
   /* A callback to be invoked when the capability has no more
      senders.  */
+#if 0
   hurd_cap_no_sender_cb_t no_sender_cb;
+#endif
 };
-typedef struct hurd_cap hurd_cap_t;
+typedef struct hurd_cap *hurd_cap_t;
+
+
+struct hurd_cap_ulist
+{
+  /* The lock protecting the variable members of the object.  */
+  pthread_mutex_t lock;
+};
+
+
+/* Remove the entry for the capability CAP from the user list ULIST.
+   ULIST (and the capability CAP) are locked.  */
+void _hurd_cap_ulist_remove (hurd_cap_ulist_t ulist, hurd_cap_t cap);

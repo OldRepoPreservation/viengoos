@@ -52,20 +52,6 @@ cmain (void)
   mbi = (multiboot_info_t *) l4_boot_info ();
   debug ("Multiboot Info: 0x%x\n", mbi);
 
-#if 0
-  if (CHECK_FLAG (mbi->flags, 3))
-    {
-      module_t *mod = (module_t *) mbi->mods_addr;
-      int nr;
-
-      /* FIXME: Should add all modules that we need to start up to the
-	 global, architecture independent module list.  */
-      for (nr = 0; nr < mbi->mods_count; nr++)
-	debug ("Module %i: Start 0x%x, End 0x%x, Cmd %s\n",
-	       nr + 1, mod[nr].mod_start, mod[nr].mod_end, mod[nr].string);
-    }
-#endif
-
   if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count > 0)
     {
       /* A command line is available.  */
@@ -141,31 +127,31 @@ find_components (void)
   l4_word_t start;
   l4_word_t end;
 
-#if 0
-  debug_dump ();
-#endif
-
   /* Load the module information.  */
   if (CHECK_FLAG (mbi->flags, 3))
     {
       module_t *mod = (module_t *) mbi->mods_addr;
-      
-      if (mbi->mods_count > 0)
-	{
-	  /* Skip the entry for the rootserver.  */
-	  mod++;
-	}
+      unsigned int nr_mods;
+      unsigned int i;
 
-      if (mbi->mods_count > 1)
+      mods_count = mbi->mods_count - 1;
+      if (mods_count > MOD_NUMBER)
+	mods_count = MOD_NUMBER;
+      /* Skip the entry for the rootserver.  */
+      mod++;
+
+      for (i = 0; i < nr_mods; i++)
 	{
-	  physmem.low = mod->mod_start;
-	  physmem.high = mod->mod_end;
+	  mods[i].name = mod_names[i];
+	  mods[i].start = mod[i].mod_start;
+	  mods[i].end = mod[i].mod_end;
+	  mods[i].args = (char *) mod[i].string;
 	  mod++;
 	}
     }
 
-  /* Now protect ourselves and the mulitboot info (at least the module
-     configuration.  */
+  /* Now protect ourselves and the multiboot info (at least the module
+     configuration).  */
   loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end);
 
   start = (l4_word_t) mbi;

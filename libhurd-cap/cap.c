@@ -18,9 +18,14 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include <pthread.h>
 
@@ -71,7 +76,7 @@ error_t
 hurd_cap_init (void)
 {
   return hurd_slab_create (sizeof (struct hurd_cap),
-			   cap_constructor, cap_deconstructor, &cap_space);
+			   cap_constructor, cap_destructor, &cap_space);
 }
 
 
@@ -190,7 +195,7 @@ hurd_cap_obj_mod_refs (hurd_cap_t cap, int delta)
      get a temporary reference and acquire the user list lock while
      the capability is temporarily unlocked.  Then we can check if we
      still have to deallocate the capabilty.  */
-  ulist = cap->ulist;
+  ulist = cap->ouser;
 
   cap->orefs = 1;
   pthread_mutex_unlock (&cap->lock);
@@ -200,7 +205,7 @@ hurd_cap_obj_mod_refs (hurd_cap_t cap, int delta)
   pthread_mutex_lock (&ulist->lock);
   pthread_mutex_lock (&cap->lock);
 
-  assert (cap->ulist == ulist);
+  assert (cap->ouser == ulist);
   assert (cap->orefs != 0);
   cap->orefs--;
   if (cap->orefs != 0)
@@ -208,7 +213,7 @@ hurd_cap_obj_mod_refs (hurd_cap_t cap, int delta)
       /* Someone else came in and got a reference to the almost dead
 	 capability object.  Give up.  */
       pthread_mutex_unlock (&cap->lock);
-      pthread_mutex_unlock (&sconn->lock);
+      pthread_mutex_unlock (&ulist->lock);
       return 0;
     }
   
