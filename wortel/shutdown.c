@@ -26,6 +26,9 @@
 
 #include "shutdown.h"
 
+/* Time to sleep (in seconds) before reset.  */
+
+#define SLEEP_TIME 10
 
 /* Reset the machine at failure, instead halting it.  */
 int shutdown_reset;
@@ -43,7 +46,7 @@ shutdown (void)
 {
   if (shutdown_reset)
     {
-      /* FIXME: Sleep here for a couple of seconds.  */
+      l4_sleep (SLEEP_TIME);
       reset ();
     }
   else
