@@ -26,6 +26,10 @@
 #include <errno.h>
 #include <pthread.h>
 
+/* FIXME: This is not a public header file!  So we may have to ship
+   a <hurd/atomic.h>.  */
+#include <atomic.h>
+
 #include <hurd/slab.h>
 #include <hurd/types.h>
 
@@ -213,7 +217,7 @@ struct hurd_cap_obj
   pthread_mutex_t lock;
 
   /* The reference counter for this object.  */
-  unsigned int refs;
+  uatomic32_t refs;
 
   /* The state of this object.  If this is _HURD_CAP_STATE_GREEN, you
      can use the capability object.  Otherwise, you should refrain
@@ -351,22 +355,18 @@ hurd_cap_obj_unlock (hurd_cap_obj_t obj)
 static inline void
 hurd_cap_obj_ref (hurd_cap_obj_t obj)
 {
-  assert (obj->refs < UINT_MAX);
-
-  obj->refs++;
+  atomic_increment (&obj->refs);
 }
 
 
-/* Remove one reference for the capability object OBJ, which must be
-   locked.  Note that the caller must have at least two references for
-   this capability object when using this function.  To release the
-   last reference, hurd_cap_obj_drop must be used instead.  */
+/* Remove one reference for the capability object OBJ.  Note that the
+   caller must have at least two references for this capability object
+   when using this function.  To release the last reference,
+   hurd_cap_obj_drop must be used instead.  */
 static inline void
 hurd_cap_obj_rele (hurd_cap_obj_t obj)
 {
-  assert (obj->refs > 1);
-
-  obj->refs--;
+  atomic_decrement (&obj->refs);
 }
 
 

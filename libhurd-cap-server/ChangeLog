@@ -1,3 +1,15 @@
+2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* cap-server.h: Include <atomic.h>.
+	(struct hurd_cap_obj): Change type of member refs
+	from unsigned int to uatomic32_t.
+	(hurd_cap_obj_ref): Use atomic_increment().
+	(hurd_cap_obj_rele): Use atomic_decrement().
+	* cap-server-intern.h (_hurd_cap_obj_drop): Remove unused variable
+	cap_class.  Use atomic_decrement_and_test.
+	* obj-dealloc.c (_hurd_cap_obj_dealloc): Assert that OBJ->refs is
+	0, not 1.  Do not unlock the object.
+
 2004-10-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (libhurd_cap_server_a_SOURCES): Add

@@ -114,13 +114,8 @@ void _hurd_cap_obj_dealloc (hurd_cap_obj_t obj)
 static inline void
 _hurd_cap_obj_drop (hurd_cap_obj_t obj)
 {
-  hurd_cap_class_t cap_class = obj->cap_class;
-
-  if (__builtin_expect (obj->refs > 1, 1))
-    {
-      hurd_cap_obj_rele (obj);
-      hurd_cap_obj_unlock (obj);
-    }
+  if (__builtin_expect (!atomic_decrement_and_test (&obj->refs), 1))
+    hurd_cap_obj_unlock (obj);
   else
     _hurd_cap_obj_dealloc (obj);
 }

@@ -40,7 +40,7 @@ _hurd_cap_obj_dealloc (hurd_cap_obj_t obj)
   (*cap_class->obj_reinit) (cap_class, obj);
 
   /* Now do our part of the reinitialization.  */
-  assert (obj->refs == 1);
+  assert (obj->refs == 0);
   assert (obj->state == _HURD_CAP_STATE_GREEN);
   assert (obj->pending_rpcs == NULL);
   assert (obj->clients == NULL);
