@@ -116,7 +116,7 @@ typedef l4_uint64_t l4_word_t;
 #define _L4_BITFIELD4(type, bf1, bf2, bf3, bf4) \
   type bf4; type bf3; type bf2; type bf1
 #define _L4_BITFIELD5(type, bf1, bf2, bf3, bf4, bf5) \
-  type bf5; type bf4; type bf3; type bf2 type; type bf1
+  type bf5; type bf4; type bf3; type bf2; type bf1
 #define _L4_BITFIELD6(type, bf1, bf2, bf3, bf4, bf5, bf6) \
   type bf6; type bf5; type bf4; type bf3; type bf2; type bf1
 #define _L4_BITFIELD7(type, bf1, bf2, bf3, bf4, bf5, bf6, bf7) \

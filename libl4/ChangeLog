@@ -1,3 +1,7 @@
+2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/types.h (_L4_BITFIELD5): Fix macro definition.
+
 2003-09-24  Maurizio Boriani  <debauxit@yahoo.it>
  
 	* l4/types.h (_L4_BITFIELD4): Fix macro definition.
