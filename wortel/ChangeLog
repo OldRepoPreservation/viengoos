@@ -1,3 +1,7 @@
+2004-11-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.c (start_elf): Initialize PHYS_STARTUP->task.
+
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.h (wortel_get_cap_reply, wortel_get_task_cap_reply,

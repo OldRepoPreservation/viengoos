@@ -89,6 +89,9 @@ struct hurd_startup_data
      not have permission to access wortel.  */
   struct hurd_startup_cap wortel;
 
+  /* The task that is being started.  */
+  struct hurd_startup_cap task;
+
   /* The container of the executable binary image.  */
   struct hurd_startup_cap image;
 

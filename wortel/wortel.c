@@ -712,6 +712,8 @@ start_elf (unsigned int mod)
   phys_startup->argz_len = argz_len;
   phys_startup->wortel.server = l4_my_global_id ();
   phys_startup->wortel.cap_handle = wortel_add_user (mods[mod].task_id);
+  phys_startup->task.server = mods[MOD_TASK].server_thread;
+  phys_startup->task.cap_handle = mods[mod].task_ctrl;
   phys_startup->image.server = mods[MOD_PHYSMEM].server_thread;
   phys_startup->image.cap_handle = mods[mod].mem_cont;
   phys_startup->mapc = mapc;

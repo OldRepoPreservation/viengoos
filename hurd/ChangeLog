@@ -1,3 +1,7 @@
+2004-11-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* startup.h (struct hurd_startup_data): Add new member task.
+
 2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* startup.h (struct hurd_startup_data): New member UTCB_AREA.
