@@ -1729,7 +1729,14 @@ user and group IDs from the \texttt{auth} server it trusts.
 \end{comment}
 
 
-\section{Process Management}
+\section{The POSIX personality}
+
+The Hurd offers a POSIX API to the user by default.  This is
+implemented in the GNU C library which uses the services provided by
+the Hurd servers.  Several system servers support the C library.
+
+
+\subsection{Process Management}
 \label{proc}
 
 The \texttt{proc} server implements Unix process semantics in the Hurd
@@ -1748,7 +1755,7 @@ and the task control caps.
 \end{comment}
 
 
-\subsection{Signals}
+\subsubsection{Signals}
 
 Each process can register the thread ID of a signal thread with the
 \texttt{proc} server.  The proc server will give the signal thread ID
@@ -1807,8 +1814,13 @@ The signal capability is also used for other things, like the message
 interface (which allows you to manipulate the environment variables
 and \texttt{auth} capability of a running task, etc).
 
-  
-\section{Exec}
+
+\subsubsection{The \texttt{fork()} function}
+
+To be written.
+
+
+\subsubsection{The \texttt{exec()} function}
 
 The exec() operation will be done locally in a task.  Traditionally,
 exec() overlays the same task with a new process image, because
@@ -1892,7 +1904,7 @@ This is a coarse and incomplete description, but it shows the general
 idea.  The details will depend a lot on the actual implementation.
 
 
-\section{Unix Domain Sockets}
+\subsection{Unix Domain Sockets}
 
 In the Hurd on Mach, there was a global pflocal server that provided
 unix domain sockets and pipes to all users.  This will not work very
@@ -1928,20 +1940,29 @@ for each socketpair.  However, performance should be better with a
 shared pflocal server, one per user.
 
 
-\section{Pipes}
+\subsection{Pipes}
 
-Pipes can be either implemented using Unix Domain Sockets, or maybe
-even using shared memory for extra performance.
+Pipes are implemented using \texttt{socketpair()}, that means as
+unnamed pair of Unix Domain Sockets.  The \texttt{pflocal} server will
+support this by implementing pipe semantics on the socketpair if
+requested.
 
 \begin{comment}
-  Either a shared lock has to be used (implemented inside the physical
-  memory server), or the shared memory protocol must be able to deal
-  with multiple concurrent readers and writers.
+  It was considered to use shared memory for the pipe implementation.
+  But we are not aware of a lock-free protocol using shared memory
+  with multiple readers and multiple writers.  It might be possible,
+  but it is not obvious if that would be faster: Pipes are normally
+  used with \texttt{read()} and \texttt{write()}, so the data has to
+  be copied from and to the supplied buffer.  This can be done
+  efficiently in L4 even across address spaces using string items.  In
+  the implementation using sockets, the \texttt{pflocal} server
+  handles concurrent read and write accesses with mutual exclusion.
 \end{comment}
 
 
-\section{Filesystem Translators}
+\subsection{Filesystems}
 
+\subsubsection{Directory lookup across filesystems}
 \label{xfslookup}
 
 The Hurd has the ability to let users mount filesystems and other
