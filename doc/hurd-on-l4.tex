@@ -13,6 +13,8 @@
 \newpage
 \tableofcontents
 \newpage
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1ex plus 0.5ex minus 0.2ex}
 
 \section{Introduction}
 
@@ -347,10 +349,10 @@ and secure.
 
 The Hurd implements the capability system locally in each task.  A
 common default implementation will be shared by all programs.
-However, a malicious untrusted program could do nothing to disturb the
-communication of other tasks.  A capability will be identified in the
-client task by a the server thread and a local identifier (which can
-be different from client to client).  The server thread will receive
+However, a malicious untrusted program can do nothing to disturb the
+communication of other tasks.  A capability is identified in the
+client task by the server thread and a local identifier (which can be
+different from client to client).  The server thread will receive
 messages for the capabilities.  The first argument in the message is
 the capability identifier.  Although every task can get different IDs
 for the same capability, a well-behaving server will give the same ID
