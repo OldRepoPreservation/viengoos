@@ -74,7 +74,11 @@ AC_C_VOLATILE
 case $host_cpu in
   i386 | i486 | i586 | i686)
     AM_CONDITIONAL([ARCH_IA32], true)
-    m4_include([libl4/headers-ia32.m4])
+    arch=ia32
+    ;;
+  powerpc)
+    AM_CONDITIONAL([ARCH_POWERPC], true)
+    arch=powerpc
     ;;
   *)
     AC_MSG_ERROR([unsupported architecture])
@@ -93,7 +97,7 @@ fi
 
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
-		 libl4/ia32/Makefile libl4/Makefile
+		 libl4/ia32/Makefile libl4/powerpc/Makefile libl4/Makefile
 		 libc-parts/Makefile
 		 libhurd-ihash/Makefile
 		 libhurd-slab/Makefile
