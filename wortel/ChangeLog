@@ -1,3 +1,15 @@
+2004-04-15  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (startup-bin.o): Add dependency on startup.
+	* startup.c (struct map_item): New struct.
+	(physmem_map): New function.
+	(cmain): Add new arguments argc, argv, mapc, mapv.
+	Request mappings for all map items.  Do not call wortel.
+	* wortel.c: Include "elf.h".
+	(start_task): Rewritten.
+	(serve_bootstrap_requests): Zero out the unused part of the last
+	page in the data of every container.  Pass fpages in correct order.
+
 2004-04-11  Marco Gerards  <metgerards@student.han.nl>
 
 	* wortel.c (serve_requests): Initialize from specifier.

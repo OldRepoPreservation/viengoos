@@ -34,6 +34,9 @@ startup_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
 
 startup_SOURCES = $(STARTUP_ARCH_SOURCES) startup.c
 
+# Automake can not track .incbin dependencies in assembler files.
+startup-bin.o: startup
+
 # The glue code address is hard-coded to 0x8000 (see STARTUP_LOAD_ADDR
 # in wortel.c).  We use the "binary" target format to get the pure
 # content of the .text and .data section.

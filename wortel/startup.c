@@ -32,29 +32,67 @@
 #include <hurd/types.h>
 
 
-/* Initialize libl4, setup the task, and pass control over to the main
-   function.  */
+struct map_item
+{
+  /* Container offset and access permission.  */
+  l4_word_t offset;
+
+  l4_word_t size;
+
+  l4_word_t vaddr;
+
+  l4_word_t cont;
+};
+
+
 void
-cmain (l4_thread_id_t wortel_thread, l4_word_t wortel_cap_id,
-       l4_thread_id_t physmem_server, 
-       hurd_cap_handle_t startup_cont, hurd_cap_handle_t mem_cont,
-       l4_word_t entry_point, l4_word_t header_loc, l4_word_t header_size)
+physmem_map (l4_thread_id_t physmem, hurd_cap_id_t cont,
+	     l4_word_t offset, l4_word_t size,
+	     l4_word_t vaddr)
 {
   l4_msg_t msg;
   l4_msg_tag_t tag;
+
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, 128 /* PHYSMEM_MAP */);
+  l4_msg_append_word (msg, cont);
+  l4_msg_append_word (msg, offset);
+  l4_msg_append_word (msg, size);
+  l4_msg_append_word (msg, vaddr);
+  l4_msg_load (msg);
+  tag = l4_call (physmem);
+  /* Check return.  */
+}
+
+
+/* Initialize libl4, setup the task, and pass control over to the main
+   function.  */
+void
+cmain (int argc, char *argv[],
+       l4_thread_id_t wortel_thread, l4_word_t wortel_id,
+       l4_thread_id_t physmem_server, 
+       hurd_cap_handle_t startup_cont, hurd_cap_handle_t mem_cont,
+       l4_word_t mapc, struct map_item mapv[],
+       l4_word_t entry_point, l4_word_t header_loc, l4_word_t header_size)
+{
+  int i;
 
   /* Initialize the system call stubs.  */
   l4_init ();
   l4_init_stubs ();
 
-  /* Probably replace this with direct l4_mr_load statements.  */
-  l4_msg_clear (msg);
-  l4_set_msg_label (msg, 1 /* PUTCHAR */);
-  l4_msg_append_word (msg, wortel_cap_id);
-  l4_msg_append_word (msg, '@');
-  l4_msg_load (msg);
+  /* Let physmem take over the address space completely.  */
+  l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
 
-  tag = l4_call (wortel_thread);
+  physmem_map (physmem_server, startup_cont,
+	       L4_FPAGE_FULLY_ACCESSIBLE, 32*1024, 32*1024);
+
+  for (i = 0; i < mapc; i++)
+    physmem_map (physmem_server, mapv[i].cont,
+		 mapv[i].offset, mapv[i].size, mapv[i].vaddr);
+
+  (*(void (*) (void)) entry_point) ();
+
   while (1)
     l4_sleep (L4_NEVER);
 }

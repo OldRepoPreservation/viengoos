@@ -420,6 +420,8 @@ extern void startup_bin_end;
 
 #define STARTUP_LOAD_ADDR	0x8000
 
+#include "elf.h"
+
 /* Start up the physical memory server.  */
 static void
 start_task (void)
@@ -429,44 +431,268 @@ start_task (void)
      followed by the UTCB area.  */
   l4_word_t start = l4_address (mods[MOD_TASK].startup);
   l4_word_t size = l4_size (mods[MOD_TASK].startup);
-  l4_word_t *stack;
+  l4_word_t stack;
   l4_word_t startup_bin_size;
   l4_word_t entry_point;
   l4_thread_id_t task;
   l4_word_t ret;
   l4_word_t control;
+  l4_word_t argc;
+  l4_word_t argv;
+  l4_word_t mapc;
+  l4_word_t mapv;
+  l4_word_t task_entry_point;
 
   /* First clear everything.  This ensures that the .bss section is
      initialized to zero.  */
   memset ((void *) start, 0, size);
 
-  /* FIXME: This assumes a stack that grows downwards.  */
+  /* FIXME: This assumes that the stack grows downwards.  */
 #define STACK_GROWS_DOWNWARDS	1
 
+#define STARTUP_TO_PHYS(addr) ((char *) (start + addr))
+#define STARTUP_TO_VIRT(addr) ((char *) (STARTUP_LOAD_ADDR + addr))
+
 #if STACK_GROWS_DOWNWARDS
-  stack = (l4_word_t *) (start + size);
-#define PUSH(x) do { *(--stack) = x; } while (0)
+  stack = size;
+#define PUSH(val)						\
+  do								\
+    {								\
+      stack -= sizeof (l4_word_t);				\
+      *((l4_word_t *) STARTUP_TO_PHYS (stack)) = val;		\
+    }								\
+  while (0)
+#define ALLOCA(nr)						\
+  do								\
+    {								\
+      unsigned int c;						\
+      c = ((nr) + sizeof (l4_word_t) - 1)			\
+          & ~(sizeof (l4_word_t) - 1);				\
+      stack -= c;						\
+    }								\
+  while (0)
+  entry_point = 0;
 #else
-  stack = (l4_word_t *) start;
-#define PUSH(x) do { *(++stack) = x; } while (0)
+  stack = 0;
+#define PUSH(val)						\
+  do								\
+    {								\
+      stack += sizeof (l4_word_t);				\
+      *((l4_word_t *) STARTUP_TO_PHYS (stack)) = val;		\
+    }								\
+  while (0)
+#define ALLOCA(nr)						\
+  do								\
+    {								\
+      unsigned int c;						\
+      c = ((nr) + sizeof (l4_word_t) - 1)			\
+          & ~(sizeof (l4_word_t) - 1);				\
+      stack += c;						\
+    }								\
+  while (0)
+  entry_point = STARTUP_STACK_TOTAL;
 #endif
 
   /* The stack layout is in accordance to the following startup prototype:
-     void start (l4_thread_id_t wortel_thread, l4_word_t wortel_cap_id,
-     l4_thread_id_t physmem_server, 
+     void start (int argc, char *argv[], l4_thread_id_t wortel_thread,
+     l4_word_t wortel_cap_id, l4_thread_id_t physmem_server,
      hurd_cap_handle_t startup_cont, hurd_cap_handle_t mem_cont,
+     l4_word_t mapc, struct map_item mapv[],
      l4_word_t entry_point, l4_word_t header_loc, l4_word_t header_size).  */
 
-  /* FIXME: Determine ELF program headers etc.  */
+    /* Prepare the argument vectors.  */
+  if (mods[MOD_TASK].args)
+    {
+      /* This variable holds the stack address of the argument line.  */
+      l4_word_t args;
 
-  PUSH (mods[MOD_TASK].header_size);
-  PUSH (mods[MOD_TASK].header_loc);
-  PUSH (mods[MOD_TASK].ip);
+      /* This variable holds the length of the argument line
+	 (excluding the trailing zero.  */
+      l4_word_t args_len;
+
+      /* These variables are used to access the argument line on the
+	 stack from wortel.  */
+      char *phys_args_start;
+      char *phys_args_end;
+
+      /* Copy the argument line to the stack.  */
+      args_len = strlen (mods[MOD_TASK].args);
+
+      ALLOCA (args_len + 1);
+      args = stack;
+      phys_args_start = ((char *) STARTUP_TO_PHYS (args));
+      phys_args_end = phys_args_start + args_len;
+
+      memcpy (phys_args_start, mods[MOD_TASK].args, args_len + 1);
+
+      /* Now walk the argument line backwards, separating arguments
+	 with binary zeroes and push the argument vector onto the
+	 stack.  */
+      PUSH (0);
+
+      while (phys_args_end > phys_args_start)
+	{
+	  while (phys_args_end > phys_args_start
+		 && (phys_args_end[-1] == ' ' || phys_args_end[-1] == '\t'))
+	    *(--phys_args_end) = '\0';
+	  
+	  if (phys_args_end > phys_args_start)
+	    {
+	      /* Found the end of an argument.  */
+	      argc++;
+
+	      while (phys_args_end > phys_args_start
+		     && !(phys_args_end[-1] == ' '
+			  || phys_args_end[-1] == '\t'))
+		phys_args_end--;
+
+	      /* Push the beginning of this string onto the stack.  */
+	      PUSH ((l4_word_t)
+		    STARTUP_TO_VIRT (args
+				     + (phys_args_end - phys_args_start)));
+	    }
+	}
+      /* argv is a pointer to the argument vector.  */
+      argv = stack;
+    }
+  else
+    {
+      /* If no arguments exist, we just make sure that ARGV is valid.  */
+      argc = 0;
+      PUSH (0);
+      argv = stack;
+    }
+
+  {
+    /* Prepare the map items.  Map items have the following structure:
+       fpage (offset into the container as base address, size of the
+       mapping, access rights) to be mapped, fpage (corresponding
+       receive window to be used), word (container).  */
+
+    /* We have to arrange the map items so that the receive windows
+       are proper fpages.  We don't know the physical memory layout of
+       the container, so there is nothing we can do about choosing
+       appropriate offsets to go along with.  The physmem server will
+       take care of that - which means that he may return a smaller
+       mapping than requested.  */
+    l4_word_t min_page_size = l4_min_page_size ();
+    /* Get the memory range to which the ELF image from START to END
+       (exclusive) will be loaded.  NAME is used for panic
+       messages.  */
+    const char *name = mods[MOD_TASK].name;
+    Elf32_Ehdr *elf = (Elf32_Ehdr *) mods[MOD_TASK].start;
+    int i;
+
+    mapc = 0;
+
+    if (elf->e_ident[EI_MAG0] != ELFMAG0
+	|| elf->e_ident[EI_MAG1] != ELFMAG1
+	|| elf->e_ident[EI_MAG2] != ELFMAG2
+	|| elf->e_ident[EI_MAG3] != ELFMAG3)
+      panic ("%s is not an ELF file", name);
+
+    if (elf->e_type != ET_EXEC)
+      panic ("%s is not an executable file", name);
+
+    if (!elf->e_phoff)
+      panic ("%s has no valid program header offset", name);
+
+    /* FIXME: Some architectures support both word sizes.  */
+    if (!((elf->e_ident[EI_CLASS] == ELFCLASS32
+	   && L4_WORDSIZE == 32)
+	  || (elf->e_ident[EI_CLASS] == ELFCLASS64
+	      && L4_WORDSIZE == 64)))
+      panic ("%s has invalid word size", name);
+    if (!((elf->e_ident[EI_DATA] == ELFDATA2LSB
+	   && L4_BYTE_ORDER == L4_LITTLE_ENDIAN)
+	  || (elf->e_ident[EI_DATA] == ELFDATA2MSB
+	      && L4_BYTE_ORDER == L4_BIG_ENDIAN)))
+      panic ("%s has invalid byte order", name);
+
+#if i386
+# define elf_machine EM_386
+#elif PPC
+# define elf_machine EM_PPC
+#else
+# error Not ported to this architecture!
+#endif
+
+    if (elf->e_machine != elf_machine)
+      panic ("%s is not for this architecture", name);
+
+    if (!elf->e_phnum)
+      panic ("%s does not have any program headers", name);
+
+    /* We walk the program headers backwards, as we are pushing the
+       items onto the list backwards as well.  */
+    i = elf->e_phnum;
+    do
+      {
+	Elf32_Phdr *ph;
+
+	i--;
+
+	ph = (Elf32_Phdr *) (((char *) elf) + elf->e_phoff
+			     + i * elf->e_phentsize);
+	if (ph->p_type == PT_LOAD)
+	  {
+	    /* We add first the extra allocated memory map item
+	       because the array is built up in the reversed
+	       order.  */
+	    if (ph->p_memsz > ph->p_filesz)
+	      {
+		/* The file may need some extra memory allocated.  */
+		l4_word_t memsz = l4_page_round (ph->p_memsz);
+		l4_word_t filesz = l4_page_round (ph->p_filesz);
+
+		if (memsz > filesz)
+		  {
+		    /* Now find the mappings for the mem part.  */
+
+		    /* FIXME When we have physical mem containers for
+		       allocation, use them.  */
+		    PUSH (mods[MOD_TASK].mem_cont);
+		    PUSH (l4_page_trunc (ph->p_vaddr) + filesz);
+		    PUSH (memsz - filesz);
+		    PUSH (l4_page_trunc (ph->p_vaddr) + filesz
+			  | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
+			  | ((ph->p_flags & PF_W) ? L4_FPAGE_WRITABLE : 0)
+			  | ((ph->p_flags & PF_R) ? L4_FPAGE_READABLE : 0));
+		    mapc++;
+		  }
+	      }
+	    if (ph->p_filesz)
+	      {
+		/* First find the mappings for the file part.  */
+		PUSH (mods[MOD_TASK].mem_cont);
+		PUSH (l4_page_trunc (ph->p_vaddr));
+		PUSH (l4_page_round (ph->p_filesz));
+		PUSH (l4_page_trunc (ph->p_offset)
+		      | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
+		      | ((ph->p_flags & PF_W) ? L4_FPAGE_WRITABLE : 0)
+		      | ((ph->p_flags & PF_R) ? L4_FPAGE_READABLE : 0));
+		mapc++;
+	      }
+	  }
+      }
+    while (i > 0);
+    mapv = stack;
+
+    PUSH (mods[MOD_TASK].header_size);
+    PUSH (mods[MOD_TASK].header_loc);
+    /* Set the main entry point.  */
+    PUSH (elf->e_entry);
+    PUSH ((l4_word_t) STARTUP_TO_VIRT (mapv));
+    PUSH (mapc);
+  }
+
   PUSH (mods[MOD_TASK].mem_cont);
   PUSH (mods[MOD_TASK].startup_cont);
   PUSH (mods[MOD_PHYSMEM].server_thread);
   PUSH (wortel_add_user (mods[MOD_TASK].task_id));
   PUSH (l4_my_global_id ());
+  PUSH ((l4_word_t) STARTUP_TO_VIRT (argv));
+  PUSH (argc);
 
   /* FIXME: We can not check for .bss section overflow.  So we just
      reserve 2K for .bss which should be plenty.  Normally, .bss only
@@ -480,11 +706,6 @@ start_task (void)
   if (startup_bin_size + STARTUP_BSS > size - STARTUP_STACK_TOTAL)
     panic ("startup binary does not fit into startup area");
 
-#if STACK_GROWS_DOWNWARDS
-  entry_point = 0;
-#else
-  entry_point = STARTUP_STACK_TOTAL;
-#endif
   memcpy ((void *) (start + entry_point),
 	  &startup_bin_start, startup_bin_size);
 
@@ -528,9 +749,8 @@ start_task (void)
 
   /* Calculate the new entry point and stack address
      (virtual addresses of the task).  */
-  entry_point = STARTUP_LOAD_ADDR + entry_point;
-  stack = (l4_word_t *) (((l4_word_t) stack) - start + STARTUP_LOAD_ADDR);
-  ret = l4_thread_start (task, (l4_word_t) stack, entry_point);
+  ret = l4_thread_start (task, (l4_word_t) STARTUP_TO_VIRT (stack),
+			 (l4_word_t) STARTUP_TO_VIRT (entry_point));
   if (!ret)
     panic ("Sending startup message to task thread failed: %u",
 	   l4_error_code ());
@@ -551,9 +771,9 @@ start_task (void)
     if (!l4_is_pagefault (tag))
       panic ("Message from task thread is not a page fault");
     addr = l4_pagefault (tag, NULL, NULL);
-    if (addr != entry_point)
+    if (addr != (l4_word_t) STARTUP_TO_VIRT (entry_point))
       panic ("Page fault at unexpected address 0x%x (expected 0x%x)",
-	     addr, entry_point);
+	     addr, STARTUP_TO_VIRT (entry_point));
 
     /* The memory was already requested from sigma0 by
        load_components, so map it right away.  The mapping will be
@@ -622,9 +842,24 @@ serve_bootstrap_requests (void)
 
       container[nr_cont].module = i;
       container[nr_cont].start = mods[i].start;
+      /* FIXME: Make damn sure somewhere that every module contains at
+	 least one byte.  */
       container[nr_cont].end = mods[i].end - 1;
       container[nr_cont].cont = &mods[i].mem_cont;
+
+      {
+	/* We zero out the unused bytes on the last page, because they
+	   may be part of a .bss section.  This could be somewhere
+	   else, of course, but this place is just as good as any
+	   other.  */
+	l4_word_t start = container[nr_cont].end;
+	l4_word_t end = start | (l4_min_page_size () - 1);
+
+	memset ((char *) (start + 1), 0, end - start);
+      }
+
       nr_cont++;
+
     }
 
 
@@ -764,6 +999,7 @@ serve_bootstrap_requests (void)
 	      /* We are allowed to make a capability request now.  */
 	      l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
 	      unsigned int nr_fpages;
+	      unsigned int i;
 
 	      nr_fpages = l4_fpage_span (container[cur_cont].start,
 					 container[cur_cont].end, fpages);
@@ -781,10 +1017,10 @@ serve_bootstrap_requests (void)
 	      l4_set_msg_label (msg, 0);
 	      l4_msg_append_word (msg,
 				  mods[container[cur_cont].module].task_id);
-	      while (nr_fpages--)
+	      for (i = 0; i < nr_fpages; i++)
 		{
 		  l4_map_item_t map_item;
-		  l4_fpage_t fpage = fpages[nr_fpages];
+		  l4_fpage_t fpage = fpages[i];
 
 		  map_item = l4_map_item (fpage, l4_address (fpage));
 		  l4_msg_append_map_item (msg, map_item);
