@@ -36,11 +36,6 @@ typedef error_t (*hurd_slab_constructor_t) (void *hook, void *buffer);
 /* Destroy the slab object pointed to by BUFFER.  HOOK is as provided
    to hurd_slab_create.  */
 typedef void (*hurd_slab_destructor_t) (void *hook, void *buffer);
-/* Initialize the slab object pointed to by BUFFER.  */
-typedef error_t (*hurd_slab_constructor_t) (void *buffer);
-
-/* Destroy the slab object pointed to by BUFFER.  */
-typedef void (*hurd_slab_destructor_t) (void *buffer);
 
 
 /* Create a new slab space with the given object size, alignment,
