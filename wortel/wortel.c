@@ -60,6 +60,10 @@ struct wortel_module mods[MOD_NUMBER];
 
 unsigned int mods_count;
 
+/* The physical memory server master control capability for the root
+   filesystem.  */
+hurd_cap_scid_t physmem_master;
+
 
 /* The maximum number of tasks allowed to use the rootserver.  */
 #define MAX_USERS 16
@@ -254,10 +258,22 @@ static void
 start_components (void)
 {
   l4_msg_t msg;
-  l4_msg_tag_t msg_tag;
+  l4_msg_tag_t tag;
   l4_word_t ret;
   l4_word_t control;
-  int cap_id;
+  unsigned int cap_id;
+  unsigned int i;
+  l4_word_t thread_no = l4_thread_no (l4_myself ()) + 1;
+  hurd_task_id_t task_id = 2;
+  l4_thread_id_t server;
+
+  for (i = 0; i < mods_count; i++)
+    {
+      /* FIXME: Should only be done for modules turned into tasks.  */
+      mods[i].main_thread = l4_global_id (thread_no++, task_id);
+      mods[i].server_thread = l4_global_id (thread_no++, task_id);
+      task_id++;
+    }
   
   if (mods[MOD_PHYSMEM].start > mods[MOD_PHYSMEM].end)
     panic ("physmem has invalid memory range");
@@ -265,25 +281,22 @@ start_components (void)
       || mods[MOD_PHYSMEM].ip > mods[MOD_PHYSMEM].end)
     panic ("physmem has invalid IP");
 
-  cap_id = wortel_add_user (2);
+  server = mods[MOD_PHYSMEM].main_thread;
   /* FIXME: Pass cap_id to physmem.  */
-  /* Thread nr is next available after rootserver thread nr,
-     version part is 2 (rootserver is 1).  */
-  l4_thread_id_t physmem_server
-    = l4_global_id (l4_thread_no (l4_myself ()) + 2, 2);
+  cap_id = wortel_add_user (l4_version (server));
   /* The UTCB location below is only a hack.  We also need a way to
      specify the maximum number of threads (ie the size of the UTCB
      area), for example via ELF symbols, or via the command line.
      This can also be used to actually create these threads up
      front.  */
-  ret = l4_thread_control (physmem_server, physmem_server, l4_myself (),
-			   l4_nilthread, (void *) -1);
+  ret = l4_thread_control (server, server, l4_myself (), l4_nilthread,
+			   (void *) -1);
   if (!ret)
     panic ("Creation of initial physmem thread failed");
 
   /* The UTCB area must be controllable in some way, see above.  Same
      for KIP area.  */
-  ret = l4_space_control (physmem_server, 0,
+  ret = l4_space_control (server, 0,
 			  l4_fpage_log2 (wortel_start,
 					 l4_kip_area_size_log2 ()),
 			  l4_fpage_log2 (wortel_start + l4_kip_area_size (),
@@ -292,10 +305,9 @@ start_components (void)
   if (!ret)
     panic ("Creation of physmem address space failed");
 
-  ret = l4_thread_control (physmem_server, physmem_server, l4_nilthread,
-			   l4_myself (),
+  ret = l4_thread_control (server, server, l4_nilthread, l4_myself (),
 			   (void *) (wortel_start + l4_kip_area_size ()));
-  if (!ret)
+  if (!ret) 
     panic ("Activation of initial physmem thread failed");
 
   l4_msg_clear (&msg);
@@ -303,8 +315,8 @@ start_components (void)
   l4_msg_append_word (&msg, mods[MOD_PHYSMEM].ip);
   l4_msg_append_word (&msg, 0);
   l4_msg_load (&msg);
-  msg_tag = l4_send (physmem_server);
-  if (l4_ipc_failed (msg_tag))
+  tag = l4_send (server);
+  if (l4_ipc_failed (tag))
     panic ("Sending startup message to physmem thread failed: %u",
 	   l4_error_code ());
 
@@ -328,14 +340,14 @@ start_components (void)
 	l4_word_t addr;
 	unsigned int i;
 
-	msg_tag = l4_receive (physmem_server);
-	if (l4_ipc_failed (msg_tag))
+	tag = l4_receive (server);
+	if (l4_ipc_failed (tag))
 	  panic ("Receiving messages from physmem thread failed: %u",
 		 (l4_error_code () >> 1) & 0x7);
-	if ((l4_label (msg_tag) >> 4) != 0xffe)
+	if ((l4_label (tag) >> 4) != 0xffe)
 	  panic ("Message from physmem thread is not a page fault");
-	l4_msg_store (msg_tag, &msg);
-	if (l4_untyped_words (msg_tag) != 2 || l4_typed_words (msg_tag) != 0)
+	l4_msg_store (tag, &msg);
+	if (l4_untyped_words (tag) != 2 || l4_typed_words (tag) != 0)
 	  panic ("Invalid format of page fault message");
 	addr = l4_msg_word (&msg, 0);
 	if (addr != mods[MOD_PHYSMEM].ip)
@@ -368,7 +380,7 @@ start_components (void)
 	grant_item = l4_grant_item (fpage, l4_address (fpage));
 	l4_msg_append_grant_item (&msg, grant_item);
 	l4_msg_load (&msg);
-	l4_reply (physmem_server);
+	l4_reply (server);
       }
   }
 
@@ -377,7 +389,12 @@ start_components (void)
 }
 
 
-/* Serve rootserver bootstrap requests.  */
+/* Serve rootserver bootstrap requests.  We do everything within this
+   loop, because this allows the other servers to print messages and
+   panic while we are performing the bootstrap.  If we were to make
+   calls to the other servers, we would have to poll for the reply in
+   a special server loop anyway to allow debug output and other
+   interleaved communication.  */
 static void
 serve_bootstrap_requests (void)
 {
@@ -385,6 +402,14 @@ serve_bootstrap_requests (void)
      for GET_MEM requests.  If this is smaller than L4_MIN_PAGE_SIZE,
      no more memory is available.  */
   unsigned int get_mem_size = sizeof (l4_word_t) * 8 - 1;
+
+  /* The current module for which we want to create the memory
+     container.  We skip the physical memory container itself.
+     SERVER_TASK must be the task ID of the owner of that module
+     data.  */
+  unsigned int mod_idx = 1;
+  hurd_task_id_t server_task = (mod_idx < mods_count)
+    ? l4_version (mods[mod_idx].main_thread) : 0;
 
   /* Allocate a single page at address 0, because we don't want to
      bother anybody with that silly page.  */
@@ -395,25 +420,32 @@ serve_bootstrap_requests (void)
       l4_thread_id_t from;
       l4_word_t label;
       l4_msg_t msg;
-      l4_msg_tag_t msg_tag;
+      l4_msg_tag_t tag;
 
-      msg_tag = l4_wait (&from);
-      if (l4_ipc_failed (msg_tag))
+      tag = l4_wait (&from);
+      if (l4_ipc_failed (tag))
 	panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
 
-      label = l4_label (msg_tag);
-      l4_msg_store (msg_tag, &msg);
-      /* We don't do any access control in the bootstrap loop.  */
+      label = l4_label (tag);
+      /* FIXME: Shouldn't store the whole msg before checking access
+	 rights.  */
+      l4_msg_store (tag, &msg);
+      if (!WORTEL_CAP_VALID (l4_msg_word (&msg, 0), l4_version (from)))
+	/* FIXME: Shouldn't be a panic of course.  */
+	panic ("Unprivileged user attemps to access wortel rootserver");
 
-#define WORTEL_MSG_PUTCHAR 1
-#define WORTEL_MSG_GET_MEM 2
+#define WORTEL_MSG_PUTCHAR		1
+#define WORTEL_MSG_SHUTDOWN		2
+#define WORTEL_MSG_GET_MEM		3
+#define WORTEL_MSG_GET_CAP_REQUEST	4
+#define WORTEL_MSG_GET_CAP_REPLY	5
       if (label == WORTEL_MSG_PUTCHAR)
 	{
 	  int chr;
 
 	  /* This is a putchar() message.  */
-	  if (l4_untyped_words (msg_tag) != 2
-	      || l4_typed_words (msg_tag) != 0)
+	  if (l4_untyped_words (tag) != 2
+	      || l4_typed_words (tag) != 0)
 	    panic ("Invalid format of putchar msg");
 
 	  chr = (int) l4_msg_word (&msg, 1);
@@ -421,13 +453,15 @@ serve_bootstrap_requests (void)
 	  /* No reply needed.  */
 	  continue;
 	}
+      else if (label == WORTEL_MSG_SHUTDOWN)
+	panic ("Bootstrap failed");
       else if (label == WORTEL_MSG_GET_MEM)
 	{
 	  l4_fpage_t fpage;
 	  l4_grant_item_t grant_item;
 
-	  if (l4_untyped_words (msg_tag) != 1
-	      || l4_typed_words (msg_tag) != 0)
+	  if (l4_untyped_words (tag) != 1
+	      || l4_typed_words (tag) != 0)
 	    panic ("Invalid format of get_mem msg");
 
 	  if (get_mem_size < L4_MIN_PAGE_SIZE_LOG2)
@@ -447,21 +481,100 @@ serve_bootstrap_requests (void)
 	    while (fpage.raw == l4_nilpage.raw
 		   && get_mem_size >= L4_MIN_PAGE_SIZE_LOG2);
 
+	  /* When we get the nilpage, then this is an indication that
+	     we grabbed all possible conventional memory.  We still
+	     own our own memory we run on, and whatever memory the
+	     output driver is using (for example VGA mapped
+	     memory).  */
 	  grant_item = l4_grant_item (fpage, l4_address (fpage));
 	  l4_msg_clear (&msg);
 	  l4_msg_append_grant_item (&msg, grant_item);
 	  l4_msg_load (&msg);
 	  l4_reply (from);
 	}
+      else if (label == WORTEL_MSG_GET_CAP_REQUEST)
+	{
+	  if (l4_untyped_words (tag) != 1
+	      || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of get cap request msg");
+
+	  if (mod_idx == mods_count)
+	    {
+	      /* Request the global control capability now.  */
+	      l4_msg_clear (&msg);
+	      l4_set_msg_label (&msg, 0);
+
+	      l4_msg_append_word (&msg,
+				  l4_version (mods[MOD_ROOT_FS].main_thread));
+	      l4_msg_load (&msg);
+	      l4_reply (from);
+	    }
+	  else if (mod_idx > mods_count)
+	    panic ("physmem does not stop requesting capabilities");
+	  else
+	    {
+	      /* We are allowed to make a capability request now.  */
+	      l4_fpage_t fpages[MAX_FPAGES];
+	      unsigned int nr_fpages;
+
+	      nr_fpages = make_fpages (mods[mod_idx].start,
+				       mods[mod_idx].end, fpages);
+
+	      /* We can not pass more than 30 grant items in our
+		 message, because there are only 64 message registers,
+		 we need 4 for the label, the task ID, the start and
+		 end address, and each grant item takes up two message
+		 registers.  */
+	      if (nr_fpages > 30)
+		panic ("%s: Module %s is too large and has an "
+		       "unfortunate alignment", __func__, mods[mod_idx].name);
+
+	      l4_msg_clear (&msg);
+	      l4_set_msg_label (&msg, 0);
+	      l4_msg_append_word (&msg, server_task);
+	      l4_msg_append_word (&msg, mods[mod_idx].start);
+	      l4_msg_append_word (&msg, mods[mod_idx].end);
+	      while (nr_fpages--)
+		{
+		  l4_grant_item_t grant_item;
+		  l4_fpage_t fpage = fpages[nr_fpages];
+
+		  grant_item = l4_grant_item (fpage, l4_address (fpage));
+		  l4_msg_append_grant_item (&msg, grant_item);
+		}
+	      l4_msg_load (&msg);
+	      l4_reply (from);
+	    }
+	}
+      else if (label == WORTEL_MSG_GET_CAP_REPLY)
+	{
+	  if (l4_untyped_words (tag) != 2
+	      || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of get cap reply msg");
+
+	  if (mod_idx > mods_count)
+	    panic ("Invalid get cap reply message");
+	  else if (mod_idx == mods_count)
+	    physmem_master = l4_msg_word (&msg, 1);
+	  else
+	    mods[mod_idx].mem_cont = l4_msg_word (&msg, 1);
+
+	  /* Does not require a reply.  */
+	  mod_idx++;
+	  /* FIXME: Only do this if the next module in the list is
+	     a new task.  */
+	  if (mod_idx < mods_count)
+	    server_task = l4_version (mods[mod_idx].main_thread);
+	}
       else if ((label >> 4) == 0xffe)
 	{
-	  if (l4_untyped_words (msg_tag) != 2 || l4_typed_words (msg_tag) != 0)
+	  if (l4_untyped_words (tag) != 2 || l4_typed_words (tag) != 0)
 	    panic ("Invalid format of page fault message");
 	  panic ("Unexpected page fault from 0x%x at address 0x%x (IP 0x%x)",
 		 from.raw, l4_msg_word (&msg, 0), l4_msg_word (&msg, 1));
 	}
       else
-	panic ("Invalid message with tag 0x%x", msg_tag.raw);
+	panic ("Invalid message with tag 0x%x", tag.raw);
     }
   while (1);
 }
@@ -505,6 +618,8 @@ serve_requests (void)
 	  /* No reply needed.  */
 	  continue;
 	}
+      else if (label == WORTEL_MSG_SHUTDOWN)
+	panic ("Bootstrap failed");
       else
 	panic ("Invalid message with tag 0x%x", msg_tag.raw);
     }
@@ -599,79 +714,6 @@ parse_args (int argc, char *argv[])
 }
 
 
-
-#define STACK_SIZE 4096
-char exception_handler_stack[STACK_SIZE];
-
-void
-exception_handler (void)
-{
-  int count = 0;
-
-  while (count < 10)
-    {
-      l4_msg_tag_t tag;
-      l4_thread_id_t from;
-      l4_word_t mr[12];
-
-      tag = l4_wait (&from);
-      debug ("EXCEPTION HANDLER: Received message from: ");
-      debug ("0x%x", from.raw);
-      debug ("\n");
-      debug ("Tag: 0x%x", tag.raw);
-      debug ("Label: %u  Untyped: %u  Typed: %u\n",
-	      l4_label (tag), l4_untyped_words (tag), l4_typed_words (tag));
-
-      l4_store_mrs (1, 12, mr);
-      debug ("Succeeded: %u  Propagated: %u  Redirected: %u  Xcpu: %u\n",
-	      l4_ipc_succeeded (tag), l4_ipc_propagated (tag),
-	      l4_ipc_redirected (tag), l4_ipc_xcpu (tag));
-      debug ("Error Code: 0x%x\n", l4_error_code ());
-      debug ("EIP: 0x%x  EFLAGS: 0x%x  Exception: %u  ErrCode: %u\n",
-	      mr[0], mr[1], mr[2], mr[3]);
-      debug ("EDI: 0x%x  ESI: 0x%x  EBP: 0x%x  ESP: 0x%x\n",
-	      mr[4], mr[5], mr[6], mr[7]);
-      debug ("EAX: 0x%x  EBX: 0x%x  ECX: 0x%x  EDX: 0x%x\n",
-	      mr[11], mr[8], mr[10], mr[9]);
-    }
-  
-  debug ("EXCEPTION HANDLER: Too many exceptions.\n");
-
-  while (1)
-    l4_sleep (l4_never);
-}
-
-
-static void
-setup (void)
-{
-  l4_thread_id_t thread;
-  l4_word_t result;
-  void *utcb;
-
-  /* FIXME: This is not specified by the standard.  We don't know
-     where and how much space we have for other thread's UTCB
-     areas in the root server.  */
-  utcb = (void *) ((l4_my_local_id ().raw & ~(l4_utcb_size () - 1))
-		   + l4_utcb_size ());
-  thread = l4_global_id (l4_thread_no (l4_myself ()) + 1, 1);
-  debug ("Creating exception handler thread at utcb 0x%x: ",
-	  (l4_word_t) utcb);
-  result = l4_thread_control (thread, l4_myself (), l4_myself (),
-			      l4_global_id (l4_thread_no (l4_myself()) - 2, 1),
-			      utcb);
-  debug ("%s\n", result ? "successful" : "failed");
-  /* Set the priority of the other thread to our priority.  Otherwise
-     it is 100 and will never be scheduled as long as we are not in a
-     blocking receive.  */
-  l4_set_priority (thread, 255);
-  l4_start_sp_ip (thread, ((l4_word_t) exception_handler_stack)
-		  + sizeof (exception_handler_stack),
-		  (l4_word_t) exception_handler);
-  l4_set_exception_handler (thread);
-}
-
-
 int
 main (int argc, char *argv[])
 {
@@ -679,15 +721,18 @@ main (int argc, char *argv[])
 
   debug ("%s " PACKAGE_VERSION "\n", program_name);
 
-  setup ();
-
   find_components ();
+
+  if (mods_count < MOD_NUMBER)
+    panic ("Some modules are missing");
 
   load_components ();
 
   start_components ();
 
   serve_bootstrap_requests ();
+
+  serve_requests ();
 
   return 0;
 }

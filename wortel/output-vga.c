@@ -85,6 +85,10 @@ vga_init (const char *cfg)
   unsigned int pos = vga_get_cursor_pos ();
   col = pos % VGA_COLUMNS;
   row = pos / VGA_COLUMNS;
+
+  /* FIXME: We are faulting in the video memory here.  We must have a
+     way to give it back to the system eventually, for example to the
+     physical memory server.  */
   video = (char *) VGA_VIDEO_MEM_BASE_ADDR;
 }
 

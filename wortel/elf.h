@@ -2435,6 +2435,4 @@ typedef Elf32_Addr Elf32_Conflict;
 
 #define R_X86_64_NUM		24
 
-__END_DECLS
-
 #endif	/* elf.h */

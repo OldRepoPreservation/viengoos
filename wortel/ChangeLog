@@ -1,3 +1,7 @@
+2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
+
+	* elf.h: Remove cruft.
+
 2003-09-21  Marco Gerards  <metgerards@student.han.nl>
 
 	* output-serial.c (serial_init): Make sure the order of the
