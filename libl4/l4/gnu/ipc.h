@@ -28,7 +28,7 @@ typedef _L4_msg_tag_t l4_msg_tag_t;
 
 #define	l4_niltag	_L4_niltag
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_msg_tag_equal (l4_msg_tag_t l, l4_msg_tag_t r)
 {
@@ -36,7 +36,7 @@ l4_is_msg_tag_equal (l4_msg_tag_t l, l4_msg_tag_t r)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_msg_tag_not_equal (l4_msg_tag_t l, l4_msg_tag_t r)
 {
@@ -145,7 +145,7 @@ l4_map_item (l4_fpage_t fpage, l4_word_t send_base)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_map_item (l4_map_item_t map_item)
 {
@@ -181,7 +181,7 @@ l4_grant_item (l4_fpage_t fpage, l4_word_t send_base)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_grant_item (l4_grant_item_t grant_item)
 {
@@ -214,7 +214,7 @@ typedef _L4_cache_allocation_hint_t l4_cache_allocation_hint_t;
 #define L4_use_default_cache_line_allocation \
   _L4_use_default_cache_line_allocation
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_string_item (l4_string_item_t *string_item)
 {
@@ -222,7 +222,7 @@ l4_is_string_item (l4_string_item_t *string_item)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_compound_string (l4_string_item_t *string_item)
 {
@@ -341,7 +341,7 @@ l4_remove_acceptor_from (l4_acceptor_t *acceptor1, l4_acceptor_t acceptor2)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_has_string_items (l4_acceptor_t acceptor)
 {
@@ -349,7 +349,7 @@ l4_has_string_items (l4_acceptor_t acceptor)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_has_map_grant_items (l4_acceptor_t acceptor)
 {
@@ -761,7 +761,7 @@ l4_lreply_wait (l4_thread_id_t dest, l4_thread_id_t *from)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_ipc_succeeded (l4_msg_tag_t tag)
 {
@@ -769,7 +769,7 @@ l4_ipc_succeeded (l4_msg_tag_t tag)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_ipc_failed (l4_msg_tag_t tag)
 {
@@ -777,7 +777,7 @@ l4_ipc_failed (l4_msg_tag_t tag)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_ipc_propagated (l4_msg_tag_t tag)
 {
@@ -785,7 +785,7 @@ l4_ipc_propagated (l4_msg_tag_t tag)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_ipc_redirected (l4_msg_tag_t tag)
 {
@@ -793,7 +793,7 @@ l4_ipc_redirected (l4_msg_tag_t tag)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_ipc_xcpu (l4_msg_tag_t tag)
 {

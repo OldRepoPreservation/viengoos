@@ -59,7 +59,7 @@ l4_thread_no (l4_thread_id_t thread)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_thread_equal (l4_thread_id_t thread1, l4_thread_id_t thread2)
 {
@@ -67,7 +67,7 @@ l4_is_thread_equal (l4_thread_id_t thread1, l4_thread_id_t thread2)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_thread_not_equal (l4_thread_id_t thread1, l4_thread_id_t thread2)
 {
@@ -75,7 +75,7 @@ l4_is_thread_not_equal (l4_thread_id_t thread1, l4_thread_id_t thread2)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_same_threads (l4_thread_id_t thread1, l4_thread_id_t thread2)
 {
@@ -83,7 +83,7 @@ l4_same_threads (l4_thread_id_t thread1, l4_thread_id_t thread2)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_nil_thread (l4_thread_id_t thread)
 {
@@ -91,7 +91,7 @@ l4_is_nil_thread (l4_thread_id_t thread)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_local_id (l4_thread_id_t thread)
 {
@@ -99,7 +99,7 @@ l4_is_local_id (l4_thread_id_t thread)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_global_id (l4_thread_id_t thread)
 {

@@ -1,5 +1,22 @@
 2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/gnu/types.h: Include <stdbool.h>.
+	* l4/gnu/ipc.h (l4_is_msg_tag_equal, l4_is_msg_tag_not_equal) 
+	(l4_is_map_item, l4_is_grant_item, l4_is_string_item) 
+	(l4_compound_string, l4_has_string_items, l4_has_map_grant_items) 
+	(l4_ipc_succeeded, l4_ipc_failed, l4_ipc_propagated) 
+	(l4_ipc_redirected, l4_ipc_xcpu): Change return type to bool.
+	* l4/gnu/kip.h (l4_is_memory_desc_virtual): Likewise.
+	* l4/gnu/schedule.h (l4_is_time_shorter, l4_is_time_equal) 
+	(l4_is_time_not_equal, l4_enable_preemption_fault_exception) 
+	(l4_disable_preemption_fault_exception, l4_enable_preemption) 
+	(l4_disable_preemption, l4_preemptionpending): Likewise.
+	* l4/gnu/space.h (l4_is_nil_fpage, l4_was_referenced) 
+	(l4_was_written, l4_was_executed): Likewise.
+	* l4/gnu/thread.h (l4_is_thread_equal, l4_is_thread_not_equal) 
+	(l4_same_threads, l4_is_nil_thread, l4_is_local_id) 
+	(l4_is_global_id): Likewise.
+
 	* l4/compat/thread.h (L4_ThreadId_t): Move to ...
 	* l4/compat/types.h (L4_ThreadId_t): ... here.
 

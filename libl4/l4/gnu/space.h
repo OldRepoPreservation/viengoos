@@ -36,7 +36,7 @@
 #define L4_COMPLETE_ADDRESS_SPACE	_L4_complete_address_space
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_nil_fpage (l4_fpage_t fpage)
 {
@@ -172,7 +172,7 @@ l4_get_status (l4_fpage_t fpage)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_was_referenced (l4_fpage_t fpage)
 {
@@ -180,7 +180,7 @@ l4_was_referenced (l4_fpage_t fpage)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_was_written (l4_fpage_t fpage)
 {
@@ -188,7 +188,7 @@ l4_was_written (l4_fpage_t fpage)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_was_executed (l4_fpage_t fpage)
 {

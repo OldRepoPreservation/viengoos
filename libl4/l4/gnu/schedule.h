@@ -112,7 +112,7 @@ l4_is_time_longer (l4_time_t l, l4_time_t r)
 }
 
 
-static inline l4_time_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_time_shorter (l4_time_t l, l4_time_t r)
 {
@@ -120,7 +120,7 @@ l4_is_time_shorter (l4_time_t l, l4_time_t r)
 }
 
 
-static inline l4_time_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_time_equal (l4_time_t l, l4_time_t r)
 {
@@ -128,7 +128,7 @@ l4_is_time_equal (l4_time_t l, l4_time_t r)
 }
 
 
-static inline l4_time_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_time_not_equal (l4_time_t l, l4_time_t r)
 {
@@ -208,7 +208,7 @@ l4_set_preemption_delay (l4_thread_id_t dest, l4_word_t sensitive_prio,
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_enable_preemption_fault_exception (void)
 {
@@ -216,7 +216,7 @@ l4_enable_preemption_fault_exception (void)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_disable_preemption_fault_exception (void)
 {
@@ -224,7 +224,7 @@ l4_disable_preemption_fault_exception (void)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_enable_preemption (void)
 {
@@ -232,7 +232,7 @@ l4_enable_preemption (void)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_disable_preemption (void)
 {
@@ -240,7 +240,7 @@ l4_disable_preemption (void)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_preemptionpending (void)
 {

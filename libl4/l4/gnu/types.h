@@ -23,6 +23,8 @@
 # error "Never use <l4/gnu/types.h> directly; include <l4/types.h> instead."
 #endif
 
+#include <stdbool.h>
+
 
 #define L4_BYTE_ORDER		_L4_BYTE_ORDER
 #define L4_WORDSIZE		_L4_WORDSIZE

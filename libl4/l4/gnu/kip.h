@@ -442,7 +442,7 @@ l4_memory_desc (l4_word_t num)
 }
 
 
-static inline l4_word_t
+static inline bool
 _L4_attribute_always_inline
 l4_is_memory_desc_virtual (l4_memory_desc_t *mem)
 {
