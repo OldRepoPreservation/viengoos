@@ -63,7 +63,7 @@ struct hurd_slab
 
   /* The reference counter holds the number of allocated chunks in
      the slab.  When the counter is zero, all chunks are free and
-     the slab can be reqlinquished.  */
+     the slab can be relinquished.  */
   int refcount;
 
   /* Single linked list of free buffers in the slab.  */
@@ -341,6 +341,16 @@ hurd_slab_create (size_t size, size_t alignment,
 }
 
 
+/* Destroy all objects and the slab space SPACE.  Returns EBUSY if
+   there are still allocated objects in the slab.  */
+error_t
+hurd_slab_destroy (hurd_slab_space_t space)
+{
+  /* FIXME: Implement me.  */
+  return ENOSYS;
+}
+
+
 /* Allocate a new object from the slab space SPACE.  */
 error_t
 hurd_slab_alloc (hurd_slab_space_t space, void **buffer)

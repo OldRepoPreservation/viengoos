@@ -47,6 +47,10 @@ error_t hurd_slab_create (size_t size, size_t alignment,
 			  void *hook,
 			  hurd_slab_space_t *space);
 
+/* Destroy all objects and the slab space SPACE.  Returns EBUSY if
+   there are still allocated objects in the slab.  */
+error_t hurd_slab_destroy (hurd_slab_space_t space);
+
 /* Allocate a new object from the slab space SPACE.  */
 error_t hurd_slab_alloc (hurd_slab_space_t space, void **buffer);
 
