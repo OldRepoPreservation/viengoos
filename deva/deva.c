@@ -70,40 +70,60 @@ void
 create_bootstrap_caps (hurd_cap_bucket_t bucket)
 {
   error_t err;
-  hurd_cap_handle_t cap;
-  hurd_cap_obj_t obj;
-  bool master;
+  hurd_cap_obj_t console;
 
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
   /* FIXME: Allocate a system console driver.  */
-  err = device_alloc (&obj, DEVICE_CONSOLE);
+  err = device_alloc (&console, DEVICE_CONSOLE);
   if (err)
     panic ("device_alloc: %i\n", err);
-  hurd_cap_obj_unlock (obj);
+  hurd_cap_obj_unlock (console);
 
   while (1)
     {
       hurd_task_id_t task_id;
+      bool master;
 
       task_id = wortel_get_deva_cap_request (&master);
 
       if (master)
 	{
+	  hurd_cap_obj_t serial;
+	  hurd_cap_handle_t cap;
+
 	  /* This requests the master control capability.  */
 
-	  /* FIXME: Create capability.  */
-	  /* FIXME: Use our control cap for this task here.  */
-	  wortel_get_deva_cap_reply (0xf00);
+	  debug ("Creating console master device cap for 0x%x:", task_id);
+
+	  /* FIXME: For now, we allocate a serial device for the "deva
+	     master cap".  This is bogus, of course, but makes it easy
+	     to use it in the initial server application without
+	     having a proper deva interface to open new devices.  */
+	  err = device_alloc (&serial, DEVICE_SERIAL);
+	  if (err)
+	    panic ("device_alloc: %i\n", err);
+	  hurd_cap_obj_unlock (serial);
+
+	  err = hurd_cap_bucket_inject (bucket, serial, task_id, &cap);
+	  if (err)
+	    panic ("hurd_cap_bucket_inject: %i\n", err);
+
+	  debug (" 0x%x\n", cap);
+
+	  /* Return CAP.  */
+	  wortel_get_deva_cap_reply (cap);
 
 	  /* This is the last request made.  */
-	  return;
+	  break;
 	}
       else
 	{
+	  hurd_cap_handle_t cap;
+
 	  debug ("Creating console device cap for 0x%x:", task_id);
 
-	  err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
+	  err = hurd_cap_bucket_inject (bucket, console, task_id, &cap);
 	  if (err)
 	    panic ("hurd_cap_bucket_inject: %i\n", err);
 
@@ -114,9 +134,8 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	}
     }
 
-  hurd_cap_obj_lock (obj);
-  hurd_cap_obj_drop (obj);
-
+  hurd_cap_obj_lock (console);
+  hurd_cap_obj_drop (console);
 }
 
 
@@ -179,6 +198,17 @@ setup_threads (void)
 			   (void *)
 			   (l4_address (__hurd_startup_data->utcb_area)
 			    + 3 * l4_utcb_size ()),
+			   &tid);
+  if (err)
+    panic ("could not create first extra thread: %i", err);
+
+  pthread_pool_add_np (tid);
+
+  /* One more for irq handlers (blech).  */
+  err = task_thread_alloc (task->server, task->cap_handle,
+			   (void *)
+			   (l4_address (__hurd_startup_data->utcb_area)
+			    + 4 * l4_utcb_size ()),
 			   &tid);
   if (err)
     panic ("could not create first extra thread: %i", err);

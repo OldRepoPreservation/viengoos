@@ -1,5 +1,10 @@
 2005-02-03  Marcus Brinkmann  <marcus@gnu.org>
 
+	* deva.c (setup_threads): Allocate one more thread for all those
+	IRQ handlers.
+	(create_bootstrap_caps): Hand out a serial device cap as bogus
+	master.
+
 	* device-console.c (console_init): Create the kbd irq handler with
 	a higher priority than normal threads.
 
