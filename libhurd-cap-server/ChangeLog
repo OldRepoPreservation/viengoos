@@ -1,3 +1,7 @@
+2005-01-10  Bas Wijnen  <shevek@fmf.nl>
+
+	* README (TODO): Fix spelling errors.
+
 2005-01-07  Neal H. Walfield  <neal@gnu.org>
 
 	* class-init.c (hurd_cap_class_init_untyped): Supply the

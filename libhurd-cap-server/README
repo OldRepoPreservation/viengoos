@@ -20,7 +20,7 @@ An introduction to the capability system, server side.
 
 A server provides services to its clients.  In a capability system the
 right to access a given service is called a capability.  This right is
-hold by a client.  It was previously granted to the client by the
+held by a client.  It was previously granted to the client by the
 server.  The client can then make use of this right, cease it, or
 transfer (copy) it to a new client.
 
@@ -123,7 +123,7 @@ Capability Classes
 ------------------
 
 Capability classes require a capability object definition (via storage
-size and constructor/desctructor callbacks), and a demuxer for
+size and constructor/destructor callbacks), and a demuxer for
 incoming RPC messages on capability objects from this class.
 
 After creating a class, you will usually want to start a manager
