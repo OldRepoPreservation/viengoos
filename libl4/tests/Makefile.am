@@ -18,7 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-TESTS = t-l4-kip
+TESTS = t-l4-kip t-l4-message
 
 noinst_HEADERS = environment.h
 

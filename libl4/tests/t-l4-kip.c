@@ -22,7 +22,7 @@
 #include <string.h>
 #include <stddef.h>
 
-/* This must be included before anything else.  */
+/* This must be included before any libl4 header.  */
 #include "environment.h"
 
 

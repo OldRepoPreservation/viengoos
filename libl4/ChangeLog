@@ -1,3 +1,21 @@
+2005-02-15  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ia32/l4/bits/vregs.h (_L4_utcb) [_L4_TEST_ENVIRONMENT]: Use
+	_L4_TEST_UTCB_IMPL instead real implementation.
+	* tests/Makefile.am (TESTS): Add l4-message.
+	* tests/t-l4-message.c: New file.
+	* tests/environment.h: Include stdio.h.
+	(getenv): Define prototype (can't include stdlib.h, urgs).
+	(environment_utcb, environment_utcb_address): New global
+	variables.
+	(_L4_TEST_UTCB_IMPL): New macro.
+	(environment_init): Parse arguments and TESTOPTS environment
+	variable.
+	(vebose): Rename to ...
+	(opt_verbose): ... this and initialize to 0.
+	(keep_going): Rename to ...
+	(keep_going): ... this and initialize to 0.
+
 2005-02-10  Marcus Brinkmann  <marcus@gnu.org>
 
 	* tests/environment.h: Insert a second processor and adjust

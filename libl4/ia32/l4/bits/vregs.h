@@ -29,12 +29,16 @@ static inline _L4_word_t *
 _L4_attribute_always_inline
 _L4_utcb (void)
 {
+#ifndef _L4_TEST_ENVIRONMENT
   _L4_word_t *utcb;
 
   __asm__ __volatile__ ("movl %%gs:4, %[utcb]"
 			: [utcb] "=r" (utcb));
 
   return utcb;
+#else
+  _L4_TEST_UTCB_IMPL
+#endif	/* _L4_TEST_ENVIRONMENT */
 }
 
 /* Offsets of various elements in the UTCB, relativ to the UTCB

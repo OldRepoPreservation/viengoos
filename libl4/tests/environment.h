@@ -1,6 +1,13 @@
 /* environment.h - Fake test environment for testing libl4.
  */
 
+#include <stdio.h>
+
+/* FIXME: We can not include stdlib.h, as this wants to suck in the
+   whole libl4 headers via pthread (which currently fails as pthread
+   doesn't include the header files).  Ouch!  */
+extern char *getenv (const char *name);
+
 
 /* A type that behaves like char * alias-wise, but has the width of
    the system word size.  */
@@ -54,10 +61,13 @@ static const big_char_like environment_kip[] =
        contains the system call stubs.  */
   };
 
-unsigned int environment_api_version = 0x84050000;
-unsigned int environment_api_flags = 0x00000000;
-unsigned int environment_kernel_id = 0x04020000;
+static unsigned int environment_api_version = 0x84050000;
+static unsigned int environment_api_flags = 0x00000000;
+static unsigned int environment_kernel_id = 0x04020000;
 
+/* 64 MRs forwards, 16 UTCB words and 33 BRs backwards.  */
+static big_char_like environment_utcb[64 + 16 + 33];
+static big_char_like *environment_utcb_address = &environment_utcb[33 + 16];
 #else
 #error not ported to this architecture
 #endif
@@ -69,6 +79,8 @@ unsigned int environment_kernel_id = 0x04020000;
   *kernel_id = environment_kernel_id;		\
   return (_L4_kip_t) environment_kip;
 
+#define _L4_TEST_UTCB_IMPL \
+  return (_L4_word_t *) environment_utcb_address;
 
 /* This signals to libl4 that we are running in a fake test
    environment.  */
@@ -93,10 +105,10 @@ unsigned int environment_kernel_id = 0x04020000;
 
 
 /* Be verbose.  */
-static int verbose = 1;
+static int opt_verbose;
 
 /* Do not exit if errors occur.  */
-static int keep_going = 1;
+static int opt_keep_going;
 
 
 /* True if a check failed.  */
@@ -107,9 +119,51 @@ static int failed;
 void
 static inline environment_init (int argc, char *argv[])
 {
+  int i;
+
 #if _L4_INTERFACE_GNU
   __l4_kip = (_L4_kip_t) environment_kip;
 #endif
+
+  for (i = 0; i < argc; i++)
+    {
+      char *arg;
+
+      if (i == 0)
+	{
+	  arg = getenv ("TESTOPTS");
+	  if (!arg)
+	    continue;
+	}
+      else
+	{
+	  arg = argv[i];
+
+	  if (arg[0] != '-')
+	    continue;
+	  arg++;
+	}
+
+      while (*arg)
+	  {
+	    switch (*arg)
+	      {
+	      case 'v':
+		opt_verbose = 1;
+		break;
+
+	      case 'k':
+		opt_keep_going = 1;
+		break;
+
+	      default:
+		fprintf (stderr, "%s: warning: ignoring unknown option -%c\n",
+			 argv[0], *arg);
+		break;
+	      }
+	    arg++;
+	  }
+    }
 }
 
 
@@ -121,22 +175,22 @@ static inline environment_init (int argc, char *argv[])
 #define check(prefix,msg,cond,...) \
   do								\
     {								\
-      if (verbose)						\
+      if (opt_verbose)						\
         printf ("%s Checking %s... ", prefix, msg);		\
       if (cond)							\
         {							\
-          if (verbose)						\
+          if (opt_verbose)					\
             printf ("OK\n");					\
         }							\
       else							\
         {							\
-          if (verbose)						\
+          if (opt_verbose)					\
             printf ("failed\n");				\
           fprintf (stderr, "FAIL: %s ", prefix);		\
           fprintf (stderr, __VA_ARGS__);			\
           fprintf (stderr, "\n");				\
           failed = 1;						\
-          if (!keep_going)					\
+          if (!opt_keep_going)					\
 	    exit (1);						\
         }							\
     }								\
