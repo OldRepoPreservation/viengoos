@@ -328,7 +328,6 @@ extern l4_kip_t __l4_kip;
 #define _L4_EXTERN_INLINE extern __inline
 #endif
 
-_L4_EXTERN_INLINE 
 
 _L4_EXTERN_INLINE l4_api_version_t
 l4_api_version (void)
