@@ -1,3 +1,8 @@
+2005-01-22  Marcus Brinkmann  <marcus@gnu.org>
+
+	* config.m4: Change to 0x190000 to make more room for a
+	debugging-enabled kernel.
+
 2005-01-07  Neal H. Walfield  <neal@gnu.org>
 
 	* laden.c (parse_args): Argument is `--reboot', not `--reset'.
