@@ -1,3 +1,25 @@
+2005-01-06  Neal H. Walfield  <neal@gnu.org>
+
+	* slab.h (hurd_slab_allocate_buffer_t): New type.
+	(hurd_slab_deallocate_buffer_t): Likewise.
+	(struct hurd_slab_space): New fields allocate_buffer and
+	deallocate_buffer.
+	(HURD_SLAB_SPACE_INITIALIZER): Add new arguments ALLOC and DEALLOC
+	and take them into account when creating the slab.
+	(hurd_slab_create): New parameters ALLOCATE_BUFFER and
+	DEALLOCATE_BUFFER.
+	(hurd_slab_init): Likewise.
+
+	* slab.c (allocate_buffer): New function.
+	(deallocate_buffer): Likewise.
+	(reap): When deallocating a buffer, use allocate_buffer.
+	(grow): When allocating or deallocating a buffer, call
+	allocate_buffer or deallocate_buffer as appropriate.
+	(hurd_slab_init): Add new arguments ALLOCATE_BUFFER and
+	DEALLOCATE_BUFFER and take them into account when setting up
+	SPACE.
+	(hurd_slab_create): Likewise.
+
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* slab.c (hurd_slab_destroy): Remove unused variable PREVP.

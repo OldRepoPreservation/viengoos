@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 Free Software Foundation, Inc.
+/* Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -75,7 +75,7 @@ cap_destructor (void *hook, void *buffer)
 error_t
 hurd_cap_init (void)
 {
-  return hurd_slab_create (sizeof (struct hurd_cap), 0,
+  return hurd_slab_create (sizeof (struct hurd_cap), 0, NULL, NULL,
 			   cap_constructor, cap_destructor, NULL,
 			   &cap_space);
 }

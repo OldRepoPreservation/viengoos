@@ -1,5 +1,5 @@
 /* class-init.c - Initialize a capability class.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -116,7 +116,7 @@ hurd_cap_class_init_untyped (hurd_cap_class_t cap_class,
   cap_class->obj_reinit = obj_reinit;
   cap_class->obj_destroy = obj_destroy;
 
-  err = hurd_slab_init (&cap_class->obj_space, size, alignment,
+  err = hurd_slab_init (&cap_class->obj_space, size, alignment, NULL, NULL,
 			_hurd_cap_obj_constructor, _hurd_cap_obj_destructor,
 			cap_class);
   if (err)

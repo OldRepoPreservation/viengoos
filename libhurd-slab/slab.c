@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 Free Software Foundation, Inc.
+/* Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Johan Rydberg.
 
    This file is part of the GNU Hurd.
@@ -65,6 +65,40 @@ struct hurd_slab
   union hurd_bufctl *free_list;
 };
 
+/* Allocate a buffer in *PTR of size SIZE which must be a power of 2
+   and self aligned (i.e. aligned on a SIZE byte boundary) for slab
+   space SPACE.  Return 0 on success, an error code on failure.  */
+static error_t
+allocate_buffer (struct hurd_slab_space *space, size_t size, void **ptr)
+{
+  if (space->allocate_buffer)
+    return space->allocate_buffer (space->hook, getpagesize (), ptr);
+  else
+    {
+      *ptr = mmap (NULL, getpagesize (), PROT_READ|PROT_WRITE,
+		   MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+      if (*ptr == MAP_FAILED)
+	return errno;
+      else
+	return 0;
+    }
+}
+
+/* Deallocate buffer BUFFER of size SIZE which was allocated for slab
+   space SPACE.  Return 0 on success, an error code on failure.  */
+static error_t
+deallocate_buffer (struct hurd_slab_space *space, void *buffer, size_t size)
+{
+  if (space->deallocate_buffer)
+    return space->deallocate_buffer (space->hook, buffer, size);
+  else
+    {
+      if (munmap (buffer, size) == -1)
+	return errno;
+      else
+	return 0;
+    }
+}
 
 /* Insert SLAB into the list of slabs in SPACE.  SLAB is expected to
    be complete (so it will be inserted at the end).  */
@@ -143,9 +177,9 @@ reap (struct hurd_slab_space *space)
 	     in front of it), get address by masking with page size.  
 	     This frees the slab and all its buffers, since they live on
 	     the same page.  */
-	  err = munmap 
-	    ((void *) (((uintptr_t) s) & ~(getpagesize () - 1)),
-	     getpagesize ());
+	  err = deallocate_buffer (space, (void *) (((uintptr_t) s)
+						    & ~(getpagesize () - 1)),
+				   getpagesize ());
 	  if (err)
 	    break;
 	  __hurd_slab_nr_pages--;
@@ -200,6 +234,7 @@ init_space (hurd_slab_space_t space)
 static error_t
 grow (struct hurd_slab_space *space)
 {
+  error_t err;
   struct hurd_slab *new_slab;
   union hurd_bufctl *bufctl;
   int nr_objs, i;
@@ -211,10 +246,10 @@ grow (struct hurd_slab_space *space)
   if (!space->initialized)
     init_space (space);
 
-  p = mmap (NULL, getpagesize (), PROT_READ|PROT_WRITE,
-	    MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-  if (p == MAP_FAILED)
-    return errno;
+  err = allocate_buffer (space, getpagesize (), &p);
+  if (err)
+    return err;
+
   __hurd_slab_nr_pages++;
 
   new_slab = (p + getpagesize () - sizeof (struct hurd_slab));
@@ -244,7 +279,7 @@ grow (struct hurd_slab_space *space)
 		  (*space->destructor) (space->hook, buffer);
 		}
 
-	      munmap (p, getpagesize ());
+	      deallocate_buffer (space, p, getpagesize ());
 	      return err;
 	    }
 	}
@@ -270,6 +305,8 @@ grow (struct hurd_slab_space *space)
 /* Initialize the slab space SPACE.  */
 error_t
 hurd_slab_init (hurd_slab_space_t space, size_t size, size_t alignment,
+		hurd_slab_allocate_buffer_t allocate_buffer,
+		hurd_slab_deallocate_buffer_t deallocate_buffer,
 		hurd_slab_constructor_t constructor,
 		hurd_slab_destructor_t destructor,
 		void *hook)
@@ -299,6 +336,8 @@ hurd_slab_init (hurd_slab_space_t space, size_t size, size_t alignment,
   if (err)
     return err;
 
+  space->allocate_buffer = allocate_buffer;
+  space->deallocate_buffer = deallocate_buffer;
   space->constructor = constructor;
   space->destructor = destructor;
   space->hook = hook;
@@ -312,6 +351,8 @@ hurd_slab_init (hurd_slab_space_t space, size_t size, size_t alignment,
    constructor and destructor.  ALIGNMENT can be zero.  */
 error_t
 hurd_slab_create (size_t size, size_t alignment,
+		  hurd_slab_allocate_buffer_t allocate_buffer,
+		  hurd_slab_deallocate_buffer_t deallocate_buffer,
 		  hurd_slab_constructor_t constructor,
 		  hurd_slab_destructor_t destructor,
 		  void *hook,
@@ -324,7 +365,9 @@ hurd_slab_create (size_t size, size_t alignment,
   if (!space)
     return ENOMEM;
 
-  err = hurd_slab_init (space, size, alignment, constructor, destructor, hook);
+  err = hurd_slab_init (space, size, alignment,
+			allocate_buffer, deallocate_buffer,
+			constructor, destructor, hook);
   if (err)
     {
       free (space);

@@ -1,3 +1,12 @@
+2005-01-07  Neal H. Walfield  <neal@gnu.org>
+
+	* class-init.c (hurd_cap_class_init_untyped): Supply the
+	allocate_buffer and deallocate_buffer arguments to
+	hurd_slab_create to conform with the new semantics.
+	* obj-entry-space.c (_hurd_cap_obj_entry_space): Likewise for
+	HURD_SLAB_SPACE_INITIALIZER.
+	* client-create.c (_hurd_cap_client_space): Likewise.
+
 2004-12-01  Neal H. Walfield  <neal@gnu.org>
 
 	* cap-server-intern.h (struct _hurd_cap_client): Fold the struct

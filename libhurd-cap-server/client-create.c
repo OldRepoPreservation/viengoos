@@ -1,5 +1,5 @@
 /* client-create.c - Create a capability client.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -79,7 +79,7 @@ _hurd_cap_client_destructor (void *hook, void *buffer)
 
 /* The global slab for all capability clients.  */
 struct hurd_slab_space _hurd_cap_client_space
-  = HURD_SLAB_SPACE_INITIALIZER (struct _hurd_cap_client,
+  = HURD_SLAB_SPACE_INITIALIZER (struct _hurd_cap_client, NULL, NULL,
 				 _hurd_cap_client_constructor,
 				 _hurd_cap_client_destructor, NULL);
 

@@ -1,5 +1,5 @@
 /* obj-entry-space.c - The capability object entry slab space.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -48,5 +48,5 @@ _hurd_cap_obj_entry_constructor (void *hook, void *buffer)
 
 /* The global slab for all capability entries.  */
 struct hurd_slab_space _hurd_cap_obj_entry_space
-  = HURD_SLAB_SPACE_INITIALIZER (struct _hurd_cap_obj_entry,
+  = HURD_SLAB_SPACE_INITIALIZER (struct _hurd_cap_obj_entry, NULL, NULL,
 				 _hurd_cap_obj_entry_constructor, NULL, NULL);

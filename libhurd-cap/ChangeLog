@@ -1,0 +1,6 @@
+2005-01-07  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.c (hurd_cap_init): Supply the allocate_buffer and
+	deallocate_buffer arguments to hurd_slab_create to conform with
+	the new semantics.
+

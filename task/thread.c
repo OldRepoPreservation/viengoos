@@ -1,5 +1,5 @@
 /* thread.c - Manage threads.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -49,8 +49,8 @@ thread_constructor (void *hook, void *buffer)
    place where we keep track of used and free thread IDs, it must
    never be reaped (so no destructor is needed).  */
 static struct hurd_slab_space threads
-  = HURD_SLAB_SPACE_INITIALIZER (struct thread, thread_constructor,
-				 NULL, NULL);
+  = HURD_SLAB_SPACE_INITIALIZER (struct thread, NULL, NULL,
+				 thread_constructor, NULL, NULL);
 
 /* The lock protecting the threads slab.  */
 static pthread_mutex_t threads_lock = PTHREAD_MUTEX_INITIALIZER;

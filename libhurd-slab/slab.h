@@ -1,5 +1,5 @@
 /* slab.h - The GNU Hurd slab allocator interface.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -27,6 +27,18 @@
 #include <pthread.h>
 
 
+/* Allocate a buffer in *PTR of size SIZE which must be a power of 2
+   and self aligned (i.e. aligned on a SIZE byte boundary).  HOOK is
+   as provided to hurd_slab_create.  Return 0 on success, an error
+   code on failure.  */
+typedef error_t (*hurd_slab_allocate_buffer_t) (void *hook, size_t size,
+						void **ptr);
+
+/* Deallocate buffer BUFFER of size SIZE.  HOOK is as provided to
+   hurd_slab_create.  */
+typedef error_t (*hurd_slab_deallocate_buffer_t) (void *hook, void *buffer,
+						  size_t size);
+
 /* Initialize the slab object pointed to by BUFFER.  HOOK is as
    provided to hurd_slab_create.  */
 typedef error_t (*hurd_slab_constructor_t) (void *hook, void *buffer);
@@ -63,6 +75,12 @@ struct hurd_slab_space
   size_t requested_size;
   size_t requested_align;
 
+  /* The buffer allocator.  */
+  hurd_slab_allocate_buffer_t allocate_buffer;
+
+  /* The buffer deallocator.  */
+  hurd_slab_deallocate_buffer_t deallocate_buffer;
+
   /* The constructor.  */
   hurd_slab_constructor_t constructor;
 
@@ -94,15 +112,21 @@ struct hurd_slab_space
 
 
 /* Static initializer.  TYPE is used to get size and alignment of
-   objects the slab space will be used to allocate.  CTOR and DTOR is
-   constructor and destructor, respectivly.  HOOK is passed as user
-   data to the constructor and destructor.  */
-#define HURD_SLAB_SPACE_INITIALIZER(TYPE, CTOR, DTOR, HOOK) 	\
+   objects the slab space will be used to allocate.  ALLOCATE_BUFFER
+   may be NULL in which case mmap is called.  DEALLOCATE_BUFFER may be
+   NULL in which case munmap is called.  CTOR and DTOR are the slab's
+   object constructor and destructor, respectivly and may be NULL if
+   not required.  HOOK is passed as user data to the constructor and
+   destructor.  */
+#define HURD_SLAB_SPACE_INITIALIZER(TYPE, ALLOC, DEALLOC, CTOR,	\
+				    DTOR, HOOK)			\
   {								\
     false,							\
     PTHREAD_MUTEX_INITIALIZER, 					\
     sizeof (TYPE),						\
     __alignof__ (TYPE),						\
+    ALLOC,							\
+    DEALLOC,							\
     CTOR,							\
     DTOR,							\
     HOOK							\
@@ -112,9 +136,15 @@ struct hurd_slab_space
 
 
 /* Create a new slab space with the given object size, alignment,
-   constructor and destructor.  ALIGNMENT can be zero.  HOOK is passed
-   as the first argument to the constructor and destructor.  */
+   constructor and destructor.  ALIGNMENT can be zero.
+   ALLOCATE_BUFFER may be NULL in which case mmap is called.
+   DEALLOCATE_BUFFER may be NULL in which case munmap is called.  CTOR
+   and DTOR are the slabs object constructor and destructor,
+   respectivly and may be NULL if not required.  HOOK is passed as the
+   first argument to the constructor and destructor.  */
 error_t hurd_slab_create (size_t size, size_t alignment,
+			  hurd_slab_allocate_buffer_t allocate_buffer,
+			  hurd_slab_deallocate_buffer_t deallocate_buffer,
 			  hurd_slab_constructor_t constructor,
 			  hurd_slab_destructor_t destructor,
 			  void *hook,
@@ -122,6 +152,8 @@ error_t hurd_slab_create (size_t size, size_t alignment,
 
 /* Like hurd_slab_create, but does not allocate storage for the slab.  */
 error_t hurd_slab_init (hurd_slab_space_t space, size_t size, size_t alignment,
+			hurd_slab_allocate_buffer_t allocate_buffer,
+			hurd_slab_deallocate_buffer_t deallocate_buffer,
 			hurd_slab_constructor_t constructor,
 			hurd_slab_destructor_t destructor,
 			void *hook);
