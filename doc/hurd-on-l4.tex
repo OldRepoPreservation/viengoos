@@ -60,11 +60,12 @@ strategy to port the Hurd to the L4 microkernel.
 
 \section{Booting}
 
-A multiboot-compliant bootloader, for example GRUB, loads the loader
-program \texttt{laden}, the kernel, $\sigma_0$, the rootserver and
-further modules.  The loader is started, patches the kernel interface
-page, and starts the kernel.  The kernel starts $\sigma_0$ and the
-rootserver.  The rootserver has to deal with the other modules.
+A multiboot-compliant bootloader, for example GNU GRUB, loads the
+loader program \texttt{laden}, the kernel, $\sigma_0$, the rootserver
+and further modules.  The loader is started, patches the kernel
+interface page, and starts the kernel.  The kernel starts $\sigma_0$
+and the rootserver.  The rootserver has to deal with the other
+modules.
 
 
 \subsection{System bootstrap}
@@ -76,8 +77,9 @@ The initial part of the boot procedure is system specific.
 
 On the ia32, the BIOS will be one of the first things to run.
 Eventually, the BIOS will start the bootloader.  The Hurd requires a
-multiboot-compliant bootloader, such as GRUB.  A typical configuration
-file entry in the \verb/menu.list/ file of GRUB will look like this:
+multiboot-compliant bootloader, such as GNU GRUB.  A typical
+configuration file entry in the \verb/menu.list/ file of GNU GRUB will
+look like this:
 
 \begin{verbatim}
 title = The GNU Hurd on L4
@@ -94,15 +96,15 @@ module = ...more servers...
   yet.
 \end{comment}
 
-GRUB loads the binary image files into memory and jumps to the entry
-point of \texttt{laden}.
+GNU GRUB loads the binary image files into memory and jumps to the
+entry point of \texttt{laden}.
 
 
 \subsection{The loader \texttt{laden}}
 
 \texttt{laden} is a multiboot compliant kernel from the perspective of
-GRUB.  It expects at least three modules.  The first module is the L4
-kernel image, the second module is the $\sigma_0$ server image, and
+GNU GRUB.  It expects at least three modules.  The first module is the
+L4 kernel image, the second module is the $\sigma_0$ server image, and
 the third module is the rootserver image.
 
 \begin{comment}
@@ -131,10 +133,10 @@ image and modifies it in the following way:
 \begin{itemize}
 \item The memory descriptors are filled in according to the memory
   layout of the system.  On ia32, this information is -- at least
-  partially -- provided by GRUB.
+  partially -- provided by GNU GRUB.
 
   \begin{comment}
-    GRUB seems to omit information about the memory that is shared
+    GNU GRUB seems to omit information about the memory that is shared
     with the VGA card.  \texttt{laden} creates a special entry for
     that region, overriding any previous memory descriptor.
   \end{comment}
@@ -153,12 +155,12 @@ image and modifies it in the following way:
 \item The \verb/boot_info/ field is initialized.
 
   \begin{comment}
-    The \verb/boot_info/ field is currently set to the GRUB
+    The \verb/boot_info/ field is currently set to the GNU GRUB
     \verb/multiboot_info/ structure.  This only works for the ia32
     architecture of course.  We might want to have a more architecture
     independent way to pass the information about further modules to
     the rootserver.  We also might want to gather the information
-    provided by GRUB in a single page (if it is not).
+    provided by GNU GRUB in a single page (if it is not).
   \end{comment}
 \end{itemize}
 
