@@ -317,7 +317,6 @@ name ## _sp_ip_flags (_L4_thread_id_t thread, _L4_word_t *sp,		\
                       _L4_word_t *ip, _L4_word_t *flags)		\
 {									\
   _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_HALT	\
-    | _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP			\
     | (extra_control);							\
   _L4_word_t dummy = 0;							\
   _L4_thread_id_t pager = _L4_nilthread;				\

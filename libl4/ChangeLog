@@ -1,3 +1,8 @@
+2004-04-23  Marco Gerards  <metgerards@student.han.nl>
+
+	* l4/thread.h (__L4_STOP): Don't use _L4_XCHG_REGS_SET_SP and
+	_L4_XCHG_REGS_SET_IP.
+
 2004-04-21  Marco Gerards  <metgerards@student.han.nl>
 
 	* Makefile.am (common_headers, l4_headers): Add sigma0.h.
