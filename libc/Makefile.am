@@ -40,7 +40,7 @@ hurd_l4_sysdeps_l4_hurd = bits/errno.h bits/fcntl.h bits/local_lim.h \
 	fork.c fstatfs64.c fstatfs.c fstatvfs64.c fstatvfs.c fxstat64.c \
 	fxstat.c _G_config.h getdtsz.c getegid.c geteuid.c \
 	getppid.c Implies i386/init-first.c i386/static-start.S \
-	isatty.c lxstat64.c lxstat.c Makefile \
+	isatty.c lxstat64.c lxstat.c Makeconfig Makefile \
 	mremap.c opendir.c read.c readdir.c readdir_r.c rewinddir.c \
 	sigaction.c sigprocmask.c \
 	sys/param.h syscall.c telldir.c uname.c write.c xstat64.c xstat.c
