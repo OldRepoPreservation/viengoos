@@ -1,5 +1,4 @@
 * laden
-** Link base should be configurable.
 ** Overlaps between modules and destination regions should be resolved
    intelligently.
 ** Support for sigma1 needs to be added when sigma1 exists.
@@ -9,7 +8,16 @@
 ** Conventional memory overriding non-conventional memory in the
    descriptor list is not supported.
 ** Add loaded modules as bootloader specific types to memory
-   descriptor list.
+   descriptor list (for sigma0 and wortel).
+** Write and test serial output driver.
+** Steal string operations from system's libc.a.
+
+* wortel
+** Link base should be configurable.
+** Conventional memory overriding non-conventional memory in the
+   descriptor list is not supported.
+** Write and test serial output driver.
+** Steal string operations from system's libc.a.
 
 
 * libhurd-slab
