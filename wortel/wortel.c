@@ -223,7 +223,7 @@ setup_components (void)
      (because it is not a valid version ID), and we reserve 1 for
      wortel itself (incidentially, our thread version is already 1).
      Because we associate all non-task modules with the preceding
-     task, we bump up the task_id number up whenever a new task is
+     task, we bump up the task_id number whenever a new task is
      encountered.  So start with one less than 2 to compensate that
      the first time around.  */
   hurd_task_id_t task_id = 2 - 1;
