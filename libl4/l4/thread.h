@@ -44,11 +44,12 @@ typedef _L4_RAW
 
 
 #if _L4_WORDSIZE == 32
-#define _L4_THREAD_NO_BITS	(32 - 6)
+#define _L4_THREAD_VERSION_BITS	(14)
+#define _L4_THREAD_NO_BITS	(32 - _L4_THREAD_VERSION_BITS)
 #else
-#define _L4_THREAD_NO_BITS	(64 - 6)
+#define _L4_THREAD_VERSION_BITS	(32)
+#define _L4_THREAD_NO_BITS	(64 - _L4_THREAD_VERSION_BITS)
 #endif
-#define _L4_THREAD_VERSION_BITS	(6)
 
 #define _L4_THREAD_NO_MASK	((_L4_WORD_C(1) << _L4_THREAD_NO_BITS) - 1)
 #define _L4_THREAD_VERSION_MASK	((_L4_WORD_C(1) << _L4_THREAD_VERSION_BITS) -1)
@@ -56,7 +57,7 @@ typedef _L4_RAW
 /* These define the raw versions of the special thread IDs.  */
 #define _L4_nilthread		_L4_WORD_C(0)
 #define _L4_anythread		(~ _L4_WORD_C(0))
-#define _L4_anylocalthread	((~ _L4_WORD_C(0)) << _L4_THREAD_VERSION_BITS)
+#define _L4_anylocalthread	((~ _L4_WORD_C(0)) << 6)
 
 
 static inline _L4_thread_id_t

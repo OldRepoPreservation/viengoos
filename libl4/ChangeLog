@@ -1,5 +1,8 @@
 2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/thread.h (_L4_THREAD_VERSION_BITS, _L4_THREAD_NO_BITS,
+	_L4_anylocalthread): Fix macro.
+
 	* l4/pagefault.h, l4/gnu/pagefault.h: New files.
 	* Makefile.am (gnu_headers): Add pagefault.h.
 	(l4_headers): Likewise.

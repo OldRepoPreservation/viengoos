@@ -29,8 +29,8 @@
 #define l4_anythread		_L4_anythread
 #define l4_anylocalthread	_L4_anylocalthread
 
-/* The theoretical maximum number of thread no bits.  The practical
-   limit is l4_thread_id_bits().  */
+/* The theoretical maximum number of thread no bits.  The real limit
+   is l4_thread_id_bits().  */
 #define L4_THREAD_NO_BITS	_L4_THREAD_NO_BITS
 #define L4_THREAD_VERSION_BITS	_L4_THREAD_VERSION_BITS
 
