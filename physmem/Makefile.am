@@ -35,4 +35,4 @@ physmem_SOURCES = $(ARCH_SOURCES)				\
 /* FIXME: Make linkbase configurable.  */
 physmem_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x35000
 
-physmem_LDADD = -lgcc
+physmem_LDADD = -lgcc ../libc-parts/libc-parts.a

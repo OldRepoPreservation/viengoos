@@ -15,14 +15,12 @@ Building the code is straight forward:
 
 $ autoreconf -f -i -s
 $ ./configure --enable-maintainer-mode --prefix=/l4
-$ make CFLAGS="-g -O3"
+$ make
 $ make install
 $ mkdir /l4/boot
 $ cp laden/laden /l4/boot
 $ cp wortel/wortel /l4/boot
 $ cp physmem/physmem /l4/boot
-
-Note that use of optimization is mandatory, not optional.
 
 
 Installation
