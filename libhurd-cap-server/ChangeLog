@@ -1,3 +1,27 @@
+2004-10-25  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (libhurd_cap_server_a_SOURCES): Add
+	bucket-worker-alloc.c.
+	* bucket-worker-alloc.c: New file.
+	* bucket-create.c (hurd_cap_bucket_create): Initialize
+	BUCKET->worker_alloc_sync and BUCKET->worker_alloc_state.
+	* cap-server-intern.h (struct _hurd_cap_bucket): New members
+	worker_alloc_async and worker_alloc.
+	* cap-server.h (hurd_cap_bucket_worker_alloc): New prototype.
+	* bucket-manage-mt.c (hurd_cap_bucket_manage_mt): Move
+	initialization of acceptor and xfer timeouts to just before the
+	IPC (repeat it for every IPC).  Set xfer timeout to all zero.  Do
+	not pay attention to BUCKET->free_worker after cancelling the
+	current worker thread at shutdown.  Create a worker allocation
+	thread if requested, and shut it down before terminating.
+	(manage_mt_worker): Take a new argument, ASYNC.  If it is set, add
+	worker thread to free list at startup, and use a timeout for the
+	first wait.
+	(manage_mt_worker_async, manage_mt_worker_sync): New wrapper
+	functions.
+	(worker_alloc_async): New function.
+	(manage_mt_get_next_worker):
+
 2004-10-23  Marcus Brinkmann  <marcus@gnu.org>
 
 	* bucket-manage-mt.c: Include <l4.h>.

@@ -354,9 +354,9 @@ struct _hurd_cap_bucket
   bool is_managed;
 
   /* If this is true, then the manager is waiting for the free worker
-     list to become empty or filled (whatever it is not right now).
-     The first worker thread to notice that the condition is fulfilled
-     now should broadcast the condition.  */
+     list to become empty (at shutdown) or filled (else).  The first
+     worker thread to notice that the condition is fulfilled now
+     should broadcast the condition.  */
   bool is_manager_waiting;
 
   /* The state of the bucket.  */
@@ -392,6 +392,23 @@ struct _hurd_cap_bucket
 
   /* Reverse lookup from hurd_task_id_t to _hurd_cap_client_t.  */
   struct hurd_ihash clients_reverse;
+
+  /* This is true if worker threads should be allocated
+     asynchronously.  */
+  bool is_worker_alloc_async;
+
+  /* If WORKER_ALLOC_ASYNC is true, this is the state of the worker
+     thread allocation thread.  If this is _HURD_CAP_STATE_GREEN, then
+     a new thread should be allocated.  If this is
+     _HURD_CAP_STATE_YELLOW, the worker thread has allocated a new
+     thread, and is currently waiting for the thread to complete its
+     startup.  If this is _HURD_CAP_STATE_RED, the new worker thread
+     has completed its startup (if one was started) and no new thread
+     will be allocated.  */
+  _hurd_cap_state_t worker_alloc_state;
+
+  /* If WORKER_ALLOC_ASYNC is true, this is the allocator thread.  */
+  pthread_t worker_alloc;
 };
 
 

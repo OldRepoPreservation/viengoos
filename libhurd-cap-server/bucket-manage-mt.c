@@ -42,7 +42,7 @@
   l4_xreceive_timeout (from, l4_timeouts (L4_ZERO_TIME, L4_NEVER), fromp)
 
 
-/* FIXME: Throughout this file, for debugging the behaviour could be
+/* FIXME: Throughout this file, for debugging, the behaviour could be
    relaxed to return errors to callers which would otherwise be
    ignored (due to malformed requests etc).  */
 
@@ -345,7 +345,7 @@ manage_demuxer_cleanup (hurd_cap_rpc_context_t ctx)
 /* A worker thread for RPC processing.  The behaviour of this function
    is tightly integrated with the behaviour of the manager thread.  */
 static void *
-manage_mt_worker (void *arg)
+manage_mt_worker (void *arg, bool async)
 {
   struct worker_info *info = (struct worker_info *) arg;
   hurd_cap_bucket_t bucket = info->bucket;
@@ -355,19 +355,50 @@ manage_mt_worker (void *arg)
   l4_time_t timeout = info->timeout;
   l4_thread_id_t from;
   l4_msg_tag_t msg_tag;
+  bool current_worker_is_us;
 
-  /* Prepare the worker queue item.  As we are always the current
-     worker thread when we are started up, we do not add ourselves to
-     the free list.  */
+  /* Prepare the worker queue item.  [SYNC: As we are always the
+     current worker thread when we are started up, we do not add
+     ourselves to the free list.]  */
   worker->thread = pthread_self ();
   worker->tid = l4_myself ();
   worker->next = NULL;
   worker->prevp = NULL;
 
-  /* When we are started up, we are supposed to listen as soon as
-     possible to the next incoming message.  The first time, we do
-     this without a timeout.  */
-  msg_tag = l4_xreceive (manager, &from);
+  if (__builtin_expect (async, 0))
+    {
+      /* We have to add ourselves to the free list and inform the
+	 worker_alloc_async thread.  */
+      pthread_mutex_lock (&bucket->lock);
+
+      if (bucket->is_manager_waiting && !bucket->free_worker)
+	{
+	  /* The manager is starving for worker threads.  */
+	  pthread_cond_broadcast (&bucket->cond);
+	}
+      _hurd_cap_list_item_add (&bucket->free_worker, worker);
+
+      /* Notify the worker_alloc_async thread that we have started up
+	 and added ourselves to the free list.  */
+      bucket->worker_alloc_state = _HURD_CAP_STATE_RED;
+
+      /* This will wake up the worker_alloc_async thread, but also the
+	 manager in case it is blocked on getting a new worker
+	 thread.  */
+      pthread_cond_broadcast (&bucket->cond);
+      pthread_mutex_unlock (&bucket->lock);
+
+      /* We do not know if we will be the current worker thread or
+	 not, so we must wait with a timeout.  */
+      msg_tag = l4_xreceive_timeout (manager, timeout, &from);
+    }
+  else
+    {
+      /* When we are started up, we are supposed to listen as soon as
+	 possible to the next incoming message.  When we know we are the
+	 current worker thread, we do this without a timeout.  */
+      msg_tag = l4_xreceive (manager, &from);
+    }
 
   while (1)
     {
@@ -377,7 +408,6 @@ manage_mt_worker (void *arg)
 
 	  l4_word_t err_code = l4_error_code ();
 	  l4_word_t ipc_err = (err_code >> 1) & 0x7;
-	  unsigned int current_worker_is_us;
 
 	  if (ipc_err == L4_IPC_CANCELED || ipc_err == L4_IPC_ABORTED)
 	    /* We have been canceled for shutdown.  */
@@ -671,6 +701,24 @@ manage_mt_worker (void *arg)
 }
 
 
+/* A worker thread for RPC processing.  The behaviour of this function
+   is tightly integrated with the behaviour of the manager thread.  */
+static void *
+manage_mt_worker_sync (void *arg)
+{
+  return manage_mt_worker (arg, false);
+}
+
+
+/* A worker thread for RPC processing.  The behaviour of this function
+   is tightly integrated with the behaviour of the manager thread.  */
+static void *
+manage_mt_worker_async (void *arg)
+{
+  return manage_mt_worker (arg, true);
+}
+
+
 /* Return the next free worker thread.  If no free worker thread is
    available, create a new one.  If that fails, block until one
    becomes free.  If we are interrupted while blocking, return
@@ -695,7 +743,8 @@ manage_mt_get_next_worker (struct worker_info *info, pthread_t *worker_thread)
 	err = EAGAIN;
       else
 	err = pthread_create_from_l4_tid_np (worker_thread, NULL,
-					     worker, manage_mt_worker, info);
+					     worker, manage_mt_worker_sync,
+					     info);
 
       if (!err)
 	{
@@ -744,6 +793,86 @@ manage_mt_get_next_worker (struct worker_info *info, pthread_t *worker_thread)
   return worker_item->tid;
 }
 
+
+/* A worker thread for allocating new worker threads.  Only used if
+   asynchronous worker thread allocation is requested.  This is only
+   necessary (and useful) for physmem, to break out of a potential
+   dead-lock with the task server.  */
+static void *
+worker_alloc_async (void *arg)
+{
+  struct worker_info *info = (struct worker_info *) arg;
+  hurd_cap_bucket_t bucket = info->bucket;
+  error_t err;
+
+  pthread_mutex_lock (&bucket->lock);
+  if (bucket->state == _HURD_CAP_STATE_BLACK)
+    {
+      pthread_mutex_unlock (&bucket->lock);
+      return NULL;
+    }
+
+  while (1)
+    {
+      err = hurd_cond_wait (&bucket->cond, &bucket->lock);
+      /* We ignore the error, as the only error that can occur is
+	 ECANCELED, and only if the bucket state has gone to black for
+	 shutdown.  */
+      if (bucket->state == _HURD_CAP_STATE_BLACK)
+	break;
+
+      if (bucket->worker_alloc_state == _HURD_CAP_STATE_GREEN)
+	{
+	  l4_thread_id_t worker = l4_nilthread;
+	  pthread_t worker_thread;
+	  _hurd_cap_list_item_t worker_item;
+
+	  pthread_mutex_unlock (&bucket->lock);
+
+	  worker = pthread_pool_get_np ();
+	  if (worker == l4_nilthread)
+	    err = EAGAIN;
+	  else
+	    err = pthread_create_from_l4_tid_np (&worker_thread, NULL,
+						 worker,
+						 manage_mt_worker_async,
+						 info);
+	  if (!err)
+	    {
+	      pthread_detach (worker_thread);
+
+	      pthread_mutex_lock (&bucket->lock);
+	      bucket->worker_alloc_state == _HURD_CAP_STATE_YELLOW;
+	      /* We ignore any error, as the only error that can occur
+		 is ECANCELED, and only if the bucket state goes to
+		 black for shutdown.  But particularly in that case we
+		 want to wait until the thread has fully come up and
+		 entered the free list, so it's properly accounted for
+		 and will be canceled at shutdown by the manager.  */
+	      while (bucket->worker_alloc_state == _HURD_CAP_STATE_YELLOW)
+		err = hurd_cond_wait (&bucket->cond, &bucket->lock);
+
+	      /* Will be set by the started thread.  */
+	      assert (bucket->worker_alloc_state == _HURD_CAP_STATE_RED);
+	    }
+	  else
+	    {
+	      pthread_mutex_lock (&bucket->lock);
+	      bucket->worker_alloc_state == _HURD_CAP_STATE_RED;
+	    }
+
+	  if (bucket->state == _HURD_CAP_STATE_BLACK)
+	    break;
+	}
+    }
+
+  bucket->worker_alloc_state == _HURD_CAP_STATE_BLACK;
+  pthread_mutex_unlock (&bucket->lock);
+
+  return NULL;
+}
+  
+
 
 /* Start managing RPCs on the bucket BUCKET.  The ROOT capability
    object, which must be unlocked and have one reference throughout
@@ -779,27 +908,36 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
   info.timeout = (worker_timeout_sec == 0) ? L4_NEVER
     : l4_time_period (UINT64_C (1000000) * worker_timeout_sec);
 
-  /* We never accept any map or grant items.  FIXME: For now, we also
-     do not accept any string buffer items.  */
-  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
-
-  /* Because we do not accept any string items, we do not actually
-     need to set the Xfer timeouts.  But this is what we want to set
-     them to when we eventually do support string items.  */
-  l4_set_xfer_timeouts (l4_timeouts (L4_ZERO_TIME, L4_NEVER));
-
   /* We create the first worker thread ourselves, to catch any
      possible error at this stage and bail out properly if needed.  */
   worker = pthread_pool_get_np ();
   if (worker == l4_nilthread)
     return EAGAIN;
   err = pthread_create_from_l4_tid_np (&worker_thread, NULL,
-				       worker, manage_mt_worker, &info);
+				       worker, manage_mt_worker_sync, &info);
   if (err)
     return err;
   pthread_detach (worker_thread);
 
   pthread_mutex_lock (&bucket->lock);
+  if (bucket->is_worker_alloc_async)
+    {
+      /* Prevent creation of new worker threads initially.  */
+      bucket->worker_alloc_state = _HURD_CAP_STATE_RED;
+
+      /* Asynchronous worker thread allocation is requested.  */
+      err = pthread_create (&bucket->worker_alloc, NULL,
+			    worker_alloc_async, &info);
+      
+      if (err)
+	{
+	  /* Cancel the worker thread.  */
+	  pthread_cancel (worker_thread);
+	  hurd_cond_wait (&bucket->cond, &bucket->lock);
+	  pthread_mutex_unlock (&bucket->lock);
+	  return err;
+	}
+    }
   bucket->manager = pthread_self ();
   bucket->is_managed = true;
   bucket->is_manager_waiting = false;
@@ -809,6 +947,15 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
     {
       l4_thread_id_t from = l4_anythread;
       l4_msg_tag_t msg_tag;
+
+      /* We never accept any map or grant items.  FIXME: For now, we
+	 also do not accept any string buffer items.  */
+      l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+      /* Because we do not accept any string items, we do not actually
+	 need to set the Xfer timeouts.  But this is what we want to set
+	 them to when we eventually do support string items.  */
+      l4_set_xfer_timeouts (l4_timeouts (L4_ZERO_TIME, L4_ZERO_TIME));
 
       /* FIXME: Make sure we have enabled deferred cancellation, and
 	 use an L4 ipc() stub that supports that.  In fact, this must
@@ -861,7 +1008,8 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
 	  /* FIXME: Make sure to use a non-cancellable l4_lcall that
 	     does preserve any pending cancellation flag for this
 	     thread.  Alternatively, we can handle cancellation here
-	     (reply ECANCEL to user, and enter shutdown sequence.  */
+	     (reply ECANCELED to user, and enter shutdown
+	     sequence.  */
 	  msg_tag = l4_lcall (worker);
 	  assert (l4_ipc_succeeded (msg_tag));
 
@@ -885,17 +1033,24 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
 	    }
 	}
     }
-
+        
   /* At this point, bucket->lock is held.  Start the shutdown
      sequence.  */
   assert (!bucket->pending_rpcs);
 
-  /* First force all the waiting rpcs onto the free list.  They will
+  /* First shutdown the allocator thread, if any.  */
+  if (bucket->is_worker_alloc_async)
+    {
+      pthread_cancel (bucket->worker_alloc);
+      pthread_join (bucket->worker_alloc, NULL);
+    }
+      
+  /* Now force all the waiting rpcs onto the free list.  They will
      have noticed the state change to _HURD_CAP_STATE_BLACK already,
      we just have to block until the last one wakes us up.  */
   while (bucket->waiting_rpcs)
     hurd_cond_wait (&bucket->cond, &bucket->lock);
-      
+
   /* Cancel the free workers.  */
   item = bucket->free_worker;
   while (item)
@@ -904,6 +1059,7 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
       item = item->next;
     }
 
+  /* Request the condition to be broadcasted.  */
   bucket->is_manager_waiting = true;
 
   while (bucket->free_worker)
@@ -919,12 +1075,7 @@ hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
   if (worker != l4_nilthread)
     {
       pthread_cancel (worker_thread);
-      while (bucket->free_worker)
-	{
-	  /* We ignore cancellations at this point, because we are already
-	     shutting down.  */
-	  hurd_cond_wait (&bucket->cond, &bucket->lock);
-	}
+      hurd_cond_wait (&bucket->cond, &bucket->lock);
     }
 
   bucket->is_managed = false;

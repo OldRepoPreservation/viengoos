@@ -411,6 +411,21 @@ error_t hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
 				hurd_cap_handle_t *r_cap);
 
 
+/* If ASYNC is true, allocate worker threads asynchronously whenever
+   the number of worker threads is exhausted.  This is only actually
+   required for physmem (the physical memory server), to allow to
+   break out of a dead-lock between physmem and the task server.  It
+   should be unnecessary for any other server.
+
+   The default is to false, which means that worker threads are
+   allocated synchronously by the manager thread.
+
+   This function should be called before the manager is started with
+   hurd_cap_bucket_manage_mt.  It is only used for the multi-threaded
+   RPC manager.  */
+error_t hurd_cap_bucket_worker_alloc (hurd_cap_bucket_t bucket, bool async);
+
+
 /* Start managing RPCs on the bucket BUCKET.  The ROOT capability
    object, which must be unlocked and have one reference throughout
    the whole time this function runs, is used for bootstrapping client

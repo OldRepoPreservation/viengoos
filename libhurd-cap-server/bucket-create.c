@@ -150,6 +150,12 @@ hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket)
   hurd_ihash_init (&bucket->clients_reverse,
 		   offsetof (struct _hurd_cap_client, locp));
 
+  /* Do not use asynchronous thread allocation by default.  */
+  bucket->is_worker_alloc_async = false;
+  /* We have to leave bucket->worker_alloc uninitialized.  That field
+     and bucket->worker_alloc_state will be initialized if
+     asynchronous worker thread allocation is used.  */
+
   /* Finally, add the notify handler.  */
   bucket->client_death_notify.notify_handler = _hurd_cap_client_death;
   bucket->client_death_notify.hook = bucket;
