@@ -366,7 +366,7 @@ hurd_cap_obj_to_user_untyped (hurd_cap_obj_t obj, size_t alignment)
 }
 
 #define hurd_cap_obj_to_user(type,obj)					     \
-  ((type) hurd_cap_obj_to_user_untyped (obj, ({ type t; __alignof (*t); })))
+  ((type) hurd_cap_obj_to_user_untyped (obj, ({ type t; __alignof__ (*t); })))
 
 
 /* Find the hurd cap object before the user object OBJ of the pointer
@@ -386,7 +386,7 @@ hurd_cap_obj_from_user_untyped (void *obj, size_t alignment)
 }
 
 #define hurd_cap_obj_from_user(type,obj)				     \
-  hurd_cap_obj_from_user_untyped (obj, ({ type t; __alignof (*t); }))
+  hurd_cap_obj_from_user_untyped (obj, ({ type t; __alignof__ (*t); }))
 
 
 /* Inhibit all RPCs on the capability class CAP_CLASS (which must not
