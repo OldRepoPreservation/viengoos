@@ -30,24 +30,6 @@
 #include "cap-server-intern.h"
 
 
-/* Return true if there are still outstanding RPCs in this capability
-   client, and fails if not.  This is only valid if
-   hurd_cap_client_inhibit is in progress (ie, if client->state is
-   _HURD_CAP_STATE_YELLOW).  FIXME: We will need this in the RPC
-   worker thread code, where the last worker will get false as return
-   value and then has to change the state to RED and broadcast the
-   condition.  */
-static inline int
-_hurd_cap_client_cond_busy (_hurd_cap_client_t client)
-{
-  /* We have to remain in the state yellow until there are no pending
-     RPC threads except maybe the waiter.  */
-  return client->pending_rpcs
-    && (client->pending_rpcs->thread != client->cond_waiter
-	|| client->pending_rpcs->next);
-}
-
-
 /* Inhibit all RPCs on the capability client CLIENT (which must not be
    locked) in the capability bucket BUCKET.  You _must_ follow up
    with a hurd_cap_client_resume operation, and hold at least one

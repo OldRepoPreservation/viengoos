@@ -34,9 +34,6 @@
 #define hurd_cond_wait pthread_cond_wait
 
 
-/* Forward declaration.  */
-struct hurd_cap_client;
-
 /* This is a simple list item, used to maintain lists of pending RPC
    worker threads in a class, client or capability object.  */
 struct _hurd_cap_list_item
@@ -51,22 +48,58 @@ struct _hurd_cap_list_item
     struct
     {
       /* This location pointer is used for fast removal from the
-	 CAP_CLASS->client_thread hash.  Unused for classes and
-	 capability objects.  */
+	 BUCKET->senders.  */
       hurd_ihash_locp_t locp;
 
       /* The worker thread processing the RPC.  */
       pthread_t thread;
+
+      /* The worker thread L4 thread ID.  */
+      l4_thread_id_t tid;
     };
 
     /* Used for reverse lookup of capability clients using a
        capability object.  */
     struct
     {
-      struct hurd_cap_client *client;
+      _hurd_cap_client_t client;
     };
   };
 };
+
+/* Add the list item ITEM to the list LIST.  */
+static inline void
+__attribute__((always_inline))
+_hurd_cap_list_item_add (_hurd_cap_list_item_t *list,
+			 _hurd_cap_list_item_t item)
+{
+  if (*list)
+    (*list)->prevp = &item->next;
+  item->prevp = list;
+  item->next = *list;
+  *list = item;
+}
+
+
+/* Remove the list item ITEM from the list.  */
+static inline void
+__attribute__((always_inline))
+_hurd_cap_list_item_remove (_hurd_cap_list_item_t item)
+{
+  if (item->next)
+    item->next->prevp = item->prevp;
+  *(item->prevp) = item->next;
+  item->prevp = NULL;
+}
+
+
+/* Check if the item ITEM is dequeued or not.  */
+static inline bool
+__attribute__((always_inline))
+_hurd_cap_list_item_dequeued (_hurd_cap_list_item_t item)
+{
+  return item->prevp == NULL;
+}
 
 
 /* Deallocate the capability object OBJ, which must be locked and have
@@ -104,7 +137,7 @@ struct _hurd_cap_obj_entry
   hurd_cap_obj_t cap_obj;
 
   /* The index in the capability table.  */
-  hurd_cap_id_t idx;
+  hurd_cap_id_t id;
   
   /* A list item that is used for reverse lookup from the capability
      object to the client.  Protected by the lock of the capability
@@ -137,6 +170,13 @@ typedef struct _hurd_cap_obj_entry *_hurd_cap_obj_entry_t;
 extern struct hurd_slab_space _hurd_cap_obj_entry_space
 	__attribute__((visibility("hidden")));
   
+/* Copy out a capability for the capability OBJ to the user CLIENT.
+   Returns the capability ID (valid only for this user) in *R_ID, or
+   an error.  OBJ must be locked.  */
+error_t _hurd_cap_obj_copy_out (hurd_cap_obj_t obj, hurd_cap_bucket_t bucket,
+				_hurd_cap_client_t client, hurd_cap_id_t *r_id)
+     __attribute__((visibility("hidden")));
+
 
 /* Client connections. */
 
@@ -188,7 +228,6 @@ struct _hurd_cap_client
   /* Reverse lookup from hurd_cap_obj_t to _hurd_cap_obj_entry_t.  */
   struct hurd_ihash caps_reverse;
 };
-typedef struct _hurd_cap_client *_hurd_cap_client_t;
 
 
 /* The global slab space for all capability clients.  */
@@ -201,13 +240,14 @@ extern struct hurd_slab_space _hurd_cap_client_space
    found, create it.  */
 error_t _hurd_cap_client_create (hurd_cap_bucket_t bucket,
 				 hurd_task_id_t task_id,
-				 hurd_cap_id_t *r_idx,
 				 _hurd_cap_client_t *r_client)
      __attribute__((visibility("hidden")));
 
 
 /* Deallocate the connection client CLIENT.  */
-void _hurd_cap_client_dealloc (_hurd_cap_client_t client);
+void _hurd_cap_client_dealloc (hurd_cap_bucket_t bucket,
+			       _hurd_cap_client_t client)
+     __attribute__((visibility("hidden")));
 
 
 /* Release a reference for the client with the ID IDX in class
@@ -218,22 +258,22 @@ void _hurd_cap_client_release (hurd_cap_bucket_t bucket,
 
 
 /* Inhibit all RPCs on the capability client CLIENT (which must not be
-   locked) in the capability class CAP_CLASS.  You _must_ follow up
-   with a hurd_cap_client_resume operation, and hold at least one
-   reference to the object continuously until you did so.  */
+   locked) in the bucket BUCKET.  You _must_ follow up with a
+   hurd_cap_client_resume operation, and hold at least one reference
+   to the object continuously until you did so.  */
 error_t _hurd_cap_client_inhibit (hurd_cap_bucket_t bucket,
 				  _hurd_cap_client_t client)
      __attribute__((visibility("hidden")));
 
 
-/* Resume RPCs on the capability client CLIENT in the class CAP_CLASS
+/* Resume RPCs on the capability client CLIENT in the bucket BUCKET
    and wake-up all waiters.  */
 void _hurd_cap_client_resume (hurd_cap_bucket_t bucket,
 			      _hurd_cap_client_t client)
      __attribute__((visibility("hidden")));
 
 
-/* End RPCs on the capability client CLIENT in the class CAP_CLASS and
+/* End RPCs on the capability client CLIENT in the bucket BUCKET and
    wake-up all waiters.  */
 void _hurd_cap_client_end (hurd_cap_bucket_t bucket,
 			   _hurd_cap_client_t client)
@@ -307,17 +347,40 @@ struct _hurd_cap_bucket
   /* The following members are protected by this lock.  */
   pthread_mutex_t lock;
 
+  /* The manager thread for this capability class.  */
+  pthread_t manager;
+
+  /* True if MANAGER is valid and the bucket is managed.  */
+  bool is_managed;
+
+  /* If this is true, then the manager is waiting for the free worker
+     list to become empty or filled (whatever it is not right now).
+     The first worker thread to notice that the condition is fulfilled
+     now should broadcast the condition.  */
+  bool is_manager_waiting;
+
   /* The state of the bucket.  */
   _hurd_cap_state_t state;
 
-  /* The condition used to wait on state changes.  */
+  /* The condition used to wait on state changes and changes in the
+     worker thread list.  */
   pthread_cond_t cond;
 
   /* The thread waiting for the RPCs to be inhibited.  */
   pthread_t cond_waiter;
 
+  /* The number of capabilities.  If this is not 0, then there are
+     active users.  */
+  unsigned int nr_caps;
+
   /* The pending RPCs in this bucket.  */
   _hurd_cap_list_item_t pending_rpcs;
+
+  /* The waiting RPCs in this bucket.  */
+  _hurd_cap_list_item_t waiting_rpcs;
+
+  /* The free worker threads in this bucket.  */
+  _hurd_cap_list_item_t free_worker;
 
   /* A hash from l4_thread_id_t numbers to the list items in
      PENDING_RPCs.  This is used to limit each client thread to just
@@ -330,6 +393,136 @@ struct _hurd_cap_bucket
   /* Reverse lookup from hurd_task_id_t to _hurd_cap_client_t.  */
   struct hurd_ihash clients_reverse;
 };
+
+
+/* Return true if there are still outstanding RPCs in this bucket
+   BUCKET, and fails if not.  This is only valid if
+   hurd_cap_bucket_inhibit is in progress (ie, if bucket->state is
+   _HURD_CAP_STATE_YELLOW).  BUCKET must be locked.  */
+static inline int
+__attribute__((always_inline))
+_hurd_cap_bucket_cond_busy (hurd_cap_bucket_t bucket)
+{
+  /* We have to remain in the state yellow until there are no pending
+     RPC threads except maybe the waiter.  */
+  return bucket->pending_rpcs
+    && (bucket->pending_rpcs->thread != bucket->cond_waiter
+	|| bucket->pending_rpcs->next);
+}
+
+
+/* Check if the inhibition state of the capability bucket BUCKET has
+   to be changed.  BUCKET must be locked.  */
+static inline void
+__attribute__((always_inline))
+_hurd_cap_bucket_cond_check (hurd_cap_bucket_t bucket)
+{
+  if (bucket->state == _HURD_CAP_STATE_YELLOW && !_hurd_cap_bucket_cond_busy)
+    {
+      bucket->state == _HURD_CAP_STATE_RED;
+      pthread_cond_broadcast (&bucket->cond);
+    }
+}
+
+
+/* Capability clients.  */
+
+/* Return true if there are still outstanding RPCs in this capability
+   client, and fails if not.  CLIENT must be locked.  This is only
+   valid if hurd_cap_client_inhibit is in progress (ie, if
+   client->state is _HURD_CAP_STATE_YELLOW).  */
+static inline int
+__attribute__((always_inline))
+_hurd_cap_client_cond_busy (_hurd_cap_client_t client)
+{
+  /* We have to remain in the state yellow until there are no pending
+     RPC threads except maybe the waiter.  */
+  return client->pending_rpcs
+    && (client->pending_rpcs->thread != client->cond_waiter
+	|| client->pending_rpcs->next);
+}
+
+
+/* Check if the inhibition state of the capability client CLIENT has
+   to be changed.  CLIENT must be locked.  */
+static inline void
+__attribute__((always_inline))
+_hurd_cap_client_cond_check (hurd_cap_bucket_t bucket,
+			     _hurd_cap_client_t client)
+{
+  if (client->state == _HURD_CAP_STATE_YELLOW
+      && !_hurd_cap_client_cond_busy (client))
+    {
+      client->state = _HURD_CAP_STATE_RED;
+      pthread_cond_broadcast (&bucket->client_cond);
+    }
+}
+
+
+/* Capability classes.  */
+
+/* Return true if there are still outstanding RPCs in this class, and
+   fails if not.  CAP_CLASS must be locked.  This is only valid if
+   hurd_cap_class_inhibit is in progress (ie, if cap_class->state is
+   _HURD_CAP_STATE_YELLOW).  */
+static inline int
+__attribute__((always_inline))
+_hurd_cap_class_cond_busy (hurd_cap_class_t cap_class)
+{
+  /* We have to remain in the state yellow until there are no pending
+     RPC threads except maybe the waiter.  */
+  return cap_class->pending_rpcs
+    && (cap_class->pending_rpcs->thread != cap_class->cond_waiter
+	|| cap_class->pending_rpcs->next);
+}
+
+
+/* Check if the inhibition state of the capability class CAP_CLASS has
+   to be changed.  CAP_CLASS must be locked.  */
+static inline void
+__attribute__((always_inline))
+_hurd_cap_class_cond_check (hurd_cap_class_t cap_class)
+{
+  if (cap_class->state == _HURD_CAP_STATE_YELLOW
+      && !_hurd_cap_class_cond_busy (cap_class))
+    {
+      cap_class->state = _HURD_CAP_STATE_RED;
+      pthread_cond_broadcast (&cap_class->cond);
+    }
+}
+
+
+/* Capability objects.  */
+
+/* Return true if there are still outstanding RPCs in this capability
+   object, and fails if not.  OBJ must be locked.  This is only valid
+   if hurd_cap_obj_inhibit is in progress (ie, if cap_obj->state is
+   _HURD_CAP_STATE_YELLOW).  */
+static inline int
+__attribute__((always_inline))
+_hurd_cap_obj_cond_busy (hurd_cap_obj_t obj)
+{
+  /* We have to remain in the state yellow until there are no pending
+     RPC threads except maybe the waiter.  */
+  return obj->pending_rpcs
+    && (obj->pending_rpcs->thread != obj->cond_waiter
+	|| obj->pending_rpcs->next);
+}
+
+
+/* Check if the inhibition state of the capability class CAP_CLASS has
+   to be changed.  CAP_CLASS must be locked.  */
+static inline void
+__attribute__((always_inline))
+_hurd_cap_obj_cond_check (hurd_cap_obj_t obj)
+{
+  if (obj->state == _HURD_CAP_STATE_YELLOW
+      && !_hurd_cap_obj_cond_busy (obj))
+    {
+      obj->state = _HURD_CAP_STATE_RED;
+      pthread_cond_broadcast (&obj->cap_class->cond);
+    }
+}
 
 
 #endif	/* _HURD_CAP_SERVER_INTERN_H */

@@ -125,6 +125,7 @@ hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket)
   if (err)
     goto err_lock;
 
+  bucket->is_managed = false;
   bucket->state = _HURD_CAP_STATE_GREEN;
 
   err = pthread_cond_init (&bucket->cond, NULL);
@@ -134,7 +135,9 @@ hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket)
   /* The member cond_waiter will be initialized when the state changes
      to _HURD_CAP_STATE_YELLOW.  */
 
+  bucket->nr_caps = 0;
   bucket->pending_rpcs = NULL;
+  bucket->waiting_rpcs = NULL;
 
   hurd_ihash_init (&bucket->senders,
 		   offsetof (struct _hurd_cap_list_item, locp));
@@ -152,6 +155,7 @@ hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket)
   bucket->client_death_notify.hook = bucket;
   hurd_task_death_notify_add (&bucket->client_death_notify);
 
+  *r_bucket = bucket;
   return 0;
 
 #if 0

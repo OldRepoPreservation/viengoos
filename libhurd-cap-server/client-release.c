@@ -32,10 +32,11 @@
 
 /* Deallocate the connection client CLIENT.  */
 void
-_hurd_cap_client_dealloc (_hurd_cap_client_t client)
+_hurd_cap_client_dealloc (hurd_cap_bucket_t bucket, _hurd_cap_client_t client)
 {
   unsigned int done;
   unsigned int current_idx;
+  unsigned int nr_caps = 0;
 
   /* This function is only invoked if the reference count for the
      client entry in the client table of the class drops to 0, and
@@ -80,6 +81,8 @@ _hurd_cap_client_dealloc (_hurd_cap_client_t client)
       /* If there were no external references, the last internal
 	 reference would have been released before we get here.  */
       assert (entry->external_refs);
+
+      nr_caps++;
 
       /* The number of internal references is either one or zero.  If
 	 it is one, then the capability is not revoked yet, so we have
@@ -155,6 +158,10 @@ _hurd_cap_client_dealloc (_hurd_cap_client_t client)
      enforce a per-client quota.  */
   pthread_mutex_unlock (&client->lock);
 
+  pthread_mutex_lock (&bucket->lock);
+  bucket->nr_caps -= nr_caps;
+  pthread_mutex_unlock (&bucket->lock);
+
   hurd_slab_dealloc (&_hurd_cap_client_space, client);
 }
 
@@ -184,6 +191,6 @@ _hurd_cap_client_release (hurd_cap_bucket_t bucket, hurd_cap_client_id_t idx)
       hurd_ihash_locp_remove (&bucket->clients_reverse, client->locp);
 
       pthread_mutex_unlock (&bucket->lock);
-      _hurd_cap_client_dealloc (client);
+      _hurd_cap_client_dealloc (bucket, client);
     }
 }

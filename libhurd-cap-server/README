@@ -1,7 +1,10 @@
 TODO:
 
+* Keep track of number of allocated capabilities or otherwise enable
+  to check if a bucket is still in use!!!  (so at least a per-client
+  count is required).
 * Implement bucket-inhibit correctly. !!!  Also see:
-* Decide if it is needed to prevent capability allocation
+* Decide if it is needed to allow capability allocation
   outside of RPCs (as return arguments).  In that case, allocation
   must be blocked while it is checked if no extinct users exists -
   otherwise inhibiting RPCs is good enough.

@@ -27,6 +27,7 @@
 #include <pthread.h>
 
 #include <hurd/slab.h>
+#include <hurd/types.h>
 
 
 /* Internal declarations.  */
@@ -50,7 +51,11 @@ _hurd_cap_state_t;
 
 /* Public interface.  */
 
-/* Forward declaration.  */
+/* Forward declarations.  */
+struct _hurd_cap_bucket;
+typedef struct _hurd_cap_bucket *hurd_cap_bucket_t;
+struct _hurd_cap_client;
+typedef struct _hurd_cap_client *_hurd_cap_client_t;
 struct hurd_cap_class;
 typedef struct hurd_cap_class *hurd_cap_class_t;
 struct hurd_cap_obj;
@@ -67,11 +72,39 @@ typedef void (*hurd_cap_obj_destroy_t) (hurd_cap_class_t cap_class,
 					hurd_cap_obj_t obj);
 
 
-/* FIXME: Whatever this type should be.  */
-struct hurd_cap_rpc_context;
-typedef void (*hurd_cap_class_demux_t) (struct hurd_cap_rpc_context *ctx);
+/* The RPC context contains various information for the RPC handler
+   and the support functions.  */
+struct hurd_cap_rpc_context
+{
+  /* Public members.  */
+
+  /* The task which contained the sender of the message.  */
+  hurd_task_id_t sender;
+
+  /* The bucket through which the message was received.  */
+  hurd_cap_bucket_t bucket;
+
+  /* The capability object on which the RPC was invoked.  */
+  hurd_cap_obj_t obj;
 
 
+  /* Private members.  */
+
+  /* The sender of the message.  */
+  l4_thread_id_t from;
+
+  /* The client corresponding to FROM.  */
+  _hurd_cap_client_t client;
+
+  /* The message.  */
+  l4_msg_t msg;
+};
+typedef struct hurd_cap_rpc_context *hurd_cap_rpc_context_t;
+
+/* FIXME: Add documentation.  */
+typedef error_t (*hurd_cap_class_demuxer_t) (hurd_cap_rpc_context_t ctx);
+
+
 /* A capability class is a group of capability objects of the same
    type.  */
 struct hurd_cap_class
@@ -152,7 +185,7 @@ struct hurd_cap_class
   /* The class management.  */
 
   /* The demuxer for this class.  */
-  hurd_cap_class_demux_t demuxer;
+  hurd_cap_class_demuxer_t demuxer;
 
   /* The lock protecting all the following members.  */
   pthread_mutex_t lock;
@@ -247,7 +280,7 @@ error_t hurd_cap_class_create (size_t size, size_t alignment,
 			       hurd_cap_obj_alloc_t obj_alloc,
 			       hurd_cap_obj_reinit_t obj_reinit,
 			       hurd_cap_obj_destroy_t obj_destroy,
-			       hurd_cap_class_demux_t demuxer,
+			       hurd_cap_class_demuxer_t demuxer,
 			       hurd_cap_class_t *r_class);
 
 
@@ -267,7 +300,7 @@ error_t hurd_cap_class_init (hurd_cap_class_t cap_class,
 			     hurd_cap_obj_alloc_t obj_alloc,
 			     hurd_cap_obj_reinit_t obj_reinit,
 			     hurd_cap_obj_destroy_t obj_destroy,
-			     hurd_cap_class_demux_t demuxer);
+			     hurd_cap_class_demuxer_t demuxer);
 
 
 /* Destroy the capability class CAP_CLASS and release all associated
@@ -361,10 +394,6 @@ void hurd_cap_obj_resume (hurd_cap_obj_t obj);
 /* Buckets are a set of capabilities, on which RPCs are managed
    collectively.  */
 
-struct _hurd_cap_bucket;
-typedef struct _hurd_cap_bucket *hurd_cap_bucket_t;
-
-
 /* Create a new bucket and return it in R_BUCKET.  */
 error_t hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket);
 
@@ -373,25 +402,30 @@ error_t hurd_cap_bucket_create (hurd_cap_bucket_t *r_bucket);
 void hurd_cap_bucket_free (hurd_cap_bucket_t bucket);
 
 
-/* Start managing RPCs on the bucket BUCKET.  The BOOTSTRAP capability
+/* Copy out a capability for the capability OBJ to the client with the
+   task ID TASK_ID.  Returns the capability (valid only for this user)
+   in *R_CAP, or an error.  It is not safe to call this from outside
+   an RPC on OBJ while the manager is running.  */
+error_t hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
+				hurd_task_id_t task_id, hurd_cap_t *r_cap);
+
+
+/* Start managing RPCs on the bucket BUCKET.  The ROOT capability
    object, which must be unlocked and have one reference throughout
    the whole time this function runs, is used for bootstrapping client
-   connections.  The BOOTSTRAP capability object must be a capability
-   object in one of the classes that have been added to the bucket.
-   The GLOBAL_TIMEOUT parameter specifies the number of seconds until
-   the manager times out (if there are no active users of capability
-   objects in precious classes).  The WORKER_TIMEOUT parameter
-   specifies the number of seconds until each worker thread times out
-   (if there are no RPCs processed by the worker thread).
+   connections.  The GLOBAL_TIMEOUT parameter specifies the number of
+   seconds until the manager times out (if there are no active users
+   of capability objects in precious classes).  The WORKER_TIMEOUT
+   parameter specifies the number of seconds until each worker thread
+   times out (if there are no RPCs processed by the worker thread).
 
    If this returns ECANCELED, then hurd_cap_bucket_end was called with
-   the force flag being true while there were still active users of
-   capability objects in precious classes.  If this returns without
-   any error, then the timeout expired, or hurd_cap_bucket_end was
-   called without active users of capability objects in precious
-   classes.  */
+   the force flag being true while there were still active users.  If
+   this returns without any error, then the timeout expired, or
+   hurd_cap_bucket_end was called without active users of capability
+   objects in precious classes.  */
 error_t hurd_cap_bucket_manage_mt (hurd_cap_bucket_t bucket,
-				   hurd_cap_obj_t bootstrap,
+				   hurd_cap_obj_t root,
 				   unsigned int global_timeout,
 				   unsigned int worker_timeout);
 
@@ -407,9 +441,9 @@ void hurd_cap_bucket_resume (hurd_cap_bucket_t bucket);
 
 
 /* Exit from the server loop of the managed capability bucket BUCKET.
-   This will only succeed if there are no active users of capability
-   objects in precious classes, or if the FORCE flag is set (otherwise
-   it will fail with EBUSY).  The bucket must be inhibited.  */
+   This will only succeed if there are no active users, or if the
+   FORCE flag is set (otherwise it will fail with EBUSY).  The bucket
+   must be inhibited.  */
 error_t hurd_cap_bucket_end (hurd_cap_bucket_t bucket, bool force);
 
 

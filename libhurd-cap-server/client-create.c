@@ -135,7 +135,6 @@ error_t
 __attribute__((visibility("hidden")))
 _hurd_cap_client_create (hurd_cap_bucket_t bucket,
 			 hurd_task_id_t task_id,
-			 hurd_cap_id_t *r_idx,
 			 _hurd_cap_client_t *r_client)
 {
   error_t err = 0;
@@ -155,7 +154,6 @@ _hurd_cap_client_create (hurd_cap_bucket_t bucket,
       else
 	{
 	  entry->refs++;
-	  *r_idx = client->id;
 	  *r_client = entry->client;
 	}
       pthread_mutex_unlock (&bucket->lock);
@@ -189,11 +187,10 @@ _hurd_cap_client_create (hurd_cap_bucket_t bucket,
 	{
 	  /* Somebody else was indeed faster.  Use the existing entry.  */
 	  entry->refs++;
-	  *r_idx = client->id;
 	  *r_client = entry->client;
 	}
       pthread_mutex_unlock (&bucket->lock);
-      _hurd_cap_client_dealloc (*r_client);
+      _hurd_cap_client_dealloc (bucket, *r_client);
       return err;
     }
 
@@ -217,13 +214,13 @@ _hurd_cap_client_create (hurd_cap_bucket_t bucket,
       pthread_mutex_unlock (&bucket->lock);
       hurd_task_death_notify_resume ();
       
-      _hurd_cap_client_dealloc (client);
+      _hurd_cap_client_dealloc (bucket, client);
       return err;
     }
   pthread_mutex_unlock (&bucket->lock);
   hurd_task_death_notify_resume ();
 
-  *r_idx = client->id;
+  *r_client = client;
 
   return 0;
 }

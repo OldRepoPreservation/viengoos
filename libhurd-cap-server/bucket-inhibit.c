@@ -30,23 +30,6 @@
 #include "cap-server-intern.h"
 
 
-/* Return true if there are still outstanding RPCs in this bucket, and
-   fails if not.  This is only valid if hurd_cap_bucket_inhibit is in
-   progress (ie, if bucket->state is _HURD_CAP_STATE_YELLOW).
-   FIXME: We will need this in the RPC worker thread code, where the
-   last worker will get false as return value and then has to change
-   the state to RED and signal (broadcast?) the condition.  */
-static inline int
-_hurd_cap_bucket_cond_busy (hurd_cap_bucket_t bucket)
-{
-  /* We have to remain in the state yellow until there are no pending
-     RPC threads except maybe the waiter.  */
-  return bucket->pending_rpcs
-    && (bucket->pending_rpcs->thread != bucket->cond_waiter
-	|| bucket->pending_rpcs->next);
-}
-
-
 /* Inhibit all RPCs on the capability bucket BUCKET (which must not
    be locked).  You _must_ follow up with a hurd_cap_bucket_resume
    operation, and hold at least one reference to the object
@@ -62,6 +45,8 @@ hurd_cap_bucket_inhibit (hurd_cap_bucket_t bucket)
      this function is called within an RPC, we are going to be
      canceled anyway.  Otherwise, it ensures that bucket inhibitions
      are fully serialized (per bucket).  */
+  /* FIXME: Do something if the state is _HURD_CAP_STATE_BLACK?  Can
+     only happen if we are called from outside any RPCs.  */
   while (bucket->state != _HURD_CAP_STATE_GREEN)
     {
       err = hurd_cond_wait (&bucket->cond, &bucket->lock);
@@ -137,20 +122,19 @@ hurd_cap_bucket_end (hurd_cap_bucket_t bucket, bool force)
 {
   pthread_mutex_lock (&bucket->lock);
 
-  /* FIXME: Check if we can go away while honoring the FORCE flag.  */
+  if (!force && bucket->nr_caps)
+    {
+      pthread_mutex_unlock (&bucket->lock);
+      return EBUSY;
+    }
 
   bucket->state = _HURD_CAP_STATE_BLACK;
 
   /* Broadcast the change to all potential waiters.  */
   pthread_cond_broadcast (&bucket->cond);
 
-  /* FIXME: This is not enough.  We need to cancel or otherwise notify
-     the manager thread that it is supposed to go away, if it is
-     currently blocking in an open receive.  For example, we could
-     send it a special message.  However, the manager thread must
-     ensure that our own thread is correctly finished (ie, if we are
-     called from within an RPC, the RPC must finish before the manager
-     thread is allowed to go away.  */
+  if (bucket->is_managed && bucket->cond_waiter != bucket->manager)
+    pthread_cancel (bucket->manager);
 
   pthread_mutex_unlock (&bucket->lock);
 }

@@ -93,7 +93,7 @@ hurd_cap_class_init (hurd_cap_class_t cap_class,
 		     hurd_cap_obj_alloc_t obj_alloc,
 		     hurd_cap_obj_reinit_t obj_reinit,
 		     hurd_cap_obj_destroy_t obj_destroy,
-		     hurd_cap_class_demux_t demuxer)
+		     hurd_cap_class_demuxer_t demuxer)
 {
   error_t err;
 

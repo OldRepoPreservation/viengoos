@@ -1,3 +1,62 @@
+2004-04-08  Marcus Brinkmann  <marcus@gnu.org>
+
+	* bucket-inject.c, obj-copy-out.c: New files.
+	* Makefile.am (libhurd_cap_server_a_SOURCES): Add bucket-inject.c
+	and obj-copy-out.c
+	* bucket-create.c (hurd_cap_bucket_create): Initialize members
+	is_managed, nr_caps, waiting_rpcs of BUCKET.  Set R_BUCKET.
+	* cap-server-intern.h (_hurd_cap_client_dealloc): Add new argument
+	BUCKET to prototype.
+	(struct hurd_cap_client): Remove declaration.
+	(struct _hurd_cap_list_item): Add new member tid.  Change type for
+	member client to _hurd_cap_client_t.
+	(_hurd_cap_list_item_add, _hurd_cap_list_item_remove,
+	_hurd_cap_list_item_dequeued): New inline functions.
+	(struct _hurd_cap_obj_entry): Rename member IDX to ID.
+	(_hurd_cap_obj_copy_out): New prototype.
+	(_hurd_cap_client_create): Remove argument R_IDX from prototype.
+	(struct _hurd_cap_bucket): Add new members MANAGER, IS_MANAGED,
+	IS_MANAGER_WAITING, NR_CAPS, WAITING_RPCS, and FREE_WORKER.
+	(_hurd_cap_client_t): Type definition moved to ...
+	* cap-server.h (_hurd_cap_client_t): Here.
+	(struct _hurd_cap_client_t): New declaration.
+	(struct hurd_cap_rpc_context): Define it.
+	(hurd_cap_class_demux_t): Renamed to ...
+	(hurd_cap_class_demuxer_t): ... this.
+	(hurd_cap_class_create, hurd_cap_class_init): Use new type for demuxer
+	argument in prototype.
+	(hurd_cap_bucket_inject): New prototype.
+	* cap-server.h: Include <hurd/types.h>
+	* class-create (hurd_cap_class_create): Use new type for demuxer
+	argument.  Set R_CLASS.
+	* class-init (hurd_cap_class_init): Use new type for demuxer argument.
+	* client-release.c (_hurd_cap_client_dealloc): Take new argument
+	BUCKET.  New local variable NR_CAPS.  Keep track of number of
+	capabilities removed.  Update BUCKET->nr_caps before return.
+	(_hurd_cap_client_release): Pass new argument BUCKET to
+	_hurd_cap_client_release.
+	* client-create.c (_hurd_cap_client_create): Remove argument
+	R_IDX.  Consequently, do not set R_IDX anymore.  Set R_CLIENT.
+	Pass new argument BUCKET to _hurd_cap_client_dealloc.
+	* bucket-inhibit.c (hurd_cap_bucket_end): Check BUCKET->nr_caps if
+	FORCE flag is not set.  Cancel the manager thread if needed.
+	(_hurd_cap_bucket_cond_busy): Move to ...
+	* cap-server-intern.h (_hurd_cap_bucket_cond_busy): ... here.
+	Add attribute always-inline.
+	(_hurd_cap_bucket_cond_check): New inline function.
+	* client-inhibit.c (_hurd_cap_client_cond_busy): Move to ...
+	* cap-server-intern.h (_hurd_cap_client_cond_busy): ... here.
+	Add attribute always-inline.
+	(_hurd_cap_client_cond_check): New inline function.
+	* class-inhibit.c (_hurd_cap_class_cond_busy): Move to ...
+	* cap-server-intern.h (_hurd_cap_class_cond_busy): ... here.
+	Add attribute always-inline.
+	(_hurd_cap_class_cond_check): New inline function.
+	* obj-inhibit.c (_hurd_cap_obj_cond_busy): Move to ...
+	* cap-server-intern.h (_hurd_cap_obj_cond_busy): ... here.
+	Add attribute always-inline.
+	(_hurd_cap_obj_cond_check): New inline function.
+
 2004-04-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (libhurd_cap_server_a_SOURCES): Remove bucket-add.c,

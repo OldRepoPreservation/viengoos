@@ -34,7 +34,7 @@ libhurd_cap_server_a_SOURCES = table.h table.c				\
 	class-destroy.c class-free.c					\
 	class-alloc.c class-inhibit.c					\
 	obj-dealloc.c obj-drop.c obj-inhibit.c				\
-	obj-entry-space.c						\
+	obj-entry-space.c obj-copy-out.c				\
 	client-create.c client-release.c client-inhibit.c		\
 	bucket-create.c bucket-free.c bucket-inhibit.c			\
-	bucket-manage-mt.c
+	bucket-manage-mt.c bucket-inject.c

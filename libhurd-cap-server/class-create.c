@@ -51,7 +51,7 @@ hurd_cap_class_create (size_t size, size_t alignment,
 		       hurd_cap_obj_alloc_t obj_alloc,
 		       hurd_cap_obj_reinit_t obj_reinit,
 		       hurd_cap_obj_destroy_t obj_destroy,
-		       hurd_cap_class_demux_t demuxer,
+		       hurd_cap_class_demuxer_t demuxer,
 		       hurd_cap_class_t *r_class)
 {
   error_t err;
@@ -68,5 +68,6 @@ hurd_cap_class_create (size_t size, size_t alignment,
       return err;
     }
 
+  *r_class = cap_class;
   return 0;
 }

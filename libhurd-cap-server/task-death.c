@@ -26,7 +26,7 @@
 #include <pthread.h>
 
 #include <hurd/types.h>
-#include <hurd/task-death.h>
+#include "task-death.h"
 
 
 /* A lock that protects the linked list.  It also is held when

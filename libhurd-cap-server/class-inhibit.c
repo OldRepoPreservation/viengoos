@@ -30,23 +30,6 @@
 #include "cap-server-intern.h"
 
 
-/* Return true if there are still outstanding RPCs in this class, and
-   fails if not.  This is only valid if hurd_cap_class_inhibit is in
-   progress (ie, if cap_class->state is _HURD_CAP_STATE_YELLOW).
-   FIXME: We will need this in the RPC worker thread code, where the
-   last worker will get false as return value and then has to change
-   the state to RED and signal (broadcast?) the condition.  */
-static inline int
-_hurd_cap_class_cond_busy (hurd_cap_class_t cap_class)
-{
-  /* We have to remain in the state yellow until there are no pending
-     RPC threads except maybe the waiter.  */
-  return cap_class->pending_rpcs
-    && (cap_class->pending_rpcs->thread != cap_class->cond_waiter
-	|| cap_class->pending_rpcs->next);
-}
-
-
 /* Inhibit all RPCs on the capability class CAP_CLASS (which must not
    be locked).  You _must_ follow up with a hurd_cap_class_resume
    operation, and hold at least one reference to the object
