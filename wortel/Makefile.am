@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for wortel.
-# Copyright (C) 2003 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -24,7 +24,8 @@ if ARCH_IA32
   STARTUP_ARCH_SOURCES = ia32-startup.S
 endif
 
-noinst_PROGRAMS = startup wortel
+bootdir = $(prefix)/boot
+boot_PROGRAMS = startup wortel
 
 # The startup "program" is glue code that is injected into a new task
 # started by wortel.  It is responsible for mapping in the from the

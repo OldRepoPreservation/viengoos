@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for the physical memory server.
-# Copyright (C) 2003 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -22,7 +22,8 @@ if ARCH_IA32
   ARCH_SOURCES = ia32-crt0.S ia32-cmain.c
 endif
 
-noinst_PROGRAMS = physmem
+bootdir = $(prefix)/boot
+boot_PROGRAMS = physmem
 
 physmem_CPPFLAGS = -I$(top_builddir)/include			\
 	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS)

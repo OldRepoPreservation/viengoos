@@ -22,7 +22,8 @@ if ARCH_IA32
   ARCH_SOURCES = ia32-crt0.S ia32-cmain.c
 endif
 
-noinst_PROGRAMS = task
+bootdir = $(prefix)/boot
+boot_PROGRAMS = task
 
 task_CPPFLAGS = -I$(top_builddir)/include			\
 	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS)
