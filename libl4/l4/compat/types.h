@@ -42,7 +42,9 @@ typedef _L4_RAW
 static inline L4_Clock_t						\
 L4_Clock ## name ## Usec (const L4_Clock_t clock, const L4_Word64_t usec) \
 {									\
-  return ((L4_Clock_t) { .clock = clock.clock op usec });		\
+  L4_Clock_t new_clock;							\
+  new_clock.clock = clock.clock op usec;				\
+  return new_clock;							\
 }
 
 _L4_CLOCK_OP(Add, +)
@@ -59,7 +61,7 @@ L4_Clock ## name (const L4_Clock_t clock1, const L4_Clock_t clock2)	\
 
 _L4_CLOCK_OP(Earlier, <)
 _L4_CLOCK_OP(Later, >)
-_L4_CLOCK_OP(Equal, =)
+_L4_CLOCK_OP(Equal, ==)
 _L4_CLOCK_OP(NotEqual, !=)
 #undef _L4_CLOCK_OP
 
@@ -70,7 +72,9 @@ _L4_CLOCK_OP(NotEqual, !=)
 static inline L4_Clock_t						\
 operator ## op ## (const L4_Clock_t& clock, const type usec)		\
 {									\
-  return ((L4_Clock_t) { .clock = clock.clock op usec });		\
+  L4_Clock_t new_clock;							\
+  new_clock.clock = clock op usec;					\
+  return new_clock;							\
 }
 
 _L4_CLOCK_OP(+, int)

@@ -118,9 +118,9 @@ typedef l4_uint64_t l4_word_t;
     x;				\
   }
 
-#define _L4_STRUCT1(s1)		struct s1;
-#define _L4_STRUCT2(s1, s2)	struct s1; struct s2;
-#define _L4_STRUCT3(s1, s2, s3)	struct s1; struct s2; struct s3;
+#define _L4_STRUCT1(s1)		struct s1
+#define _L4_STRUCT2(s1, s2)	struct s1; struct s2
+#define _L4_STRUCT3(s1, s2, s3)	struct s1; struct s2; struct s3
 #define _L4_STRUCT4(s1, s2, s3, s4) \
   struct s1; struct s2; struct s3; struct s4
 
