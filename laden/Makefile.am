@@ -36,7 +36,6 @@ laden_SOURCES =  $(ARCH_SOURCES)				\
 	elf.h loader.h loader.c					\
 	laden.h laden.c kip-fixup.c
 
-/* FIXME: Make linkbase configurable.  */
-laden_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x180000
+laden_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=@HURD_LADEN_LOAD_ADDRESS@
 
 laden_LDADD = -lgcc ../libc-parts/libc-parts.a

@@ -1,3 +1,9 @@
+2003-10-12  Marcus Brinkmann  <marcus@gnu.org>
+
+	* acinclude.m4: New file.
+	* configure.ac: Include laden/config.m4, wortel/config.m4, and
+	physmem/config.m4.
+
 2003-09-22  Marcus Brinkmann  <marcus@gnu.org>
 
 	* configure.ac: Always define the automake conditionals ARCH_* to

@@ -1,3 +1,9 @@
+2003-10-12  Marcus Brinkmann  <marcus@gnu.org>
+
+	* config.m4: New file.
+	* Makefile.am (physmem_LDFLAGS): Replace load address with
+	@HURD_PHYSMEM_LOAD_ADDRESS@.
+
 2003-09-24  Marcus Brinkmann  <marcus@gnu.org>
 
 	* mmap.c: New file.

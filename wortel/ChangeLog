@@ -1,3 +1,9 @@
+2003-10-12  Marcus Brinkmann  <marcus@gnu.org>
+
+	* config.m4: New file.
+	* Makefile.am (wortel_LDFLAGS): Replace load address with
+	@HURD_WORTEL_LOAD_ADDRESS@.
+
 2003-10-04  Marcus Brinkmann  <marcus@gnu.org>
 
 	* loader.c: Include <l4/kip.h>.

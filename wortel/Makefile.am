@@ -37,7 +37,7 @@ wortel_SOURCES = $(ARCH_SOURCES)				\
 	sigma0.h sigma0.c					\
 	wortel.h wortel.c
 
-/* FIXME: Make linkbase configurable.  */
-wortel_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x300000
+wortel_LDFLAGS = -u_start -e_start -N -nostdlib \
+	-Ttext=@HURD_WORTEL_LOAD_ADDRESS@
 
 wortel_LDADD = -lgcc ../libc-parts/libc-parts.a

@@ -35,7 +35,7 @@ physmem_SOURCES = $(ARCH_SOURCES)				\
 # Doug Lea's malloc is included by malloc-wrap.c.
 EXTRA_physmem_SOURCES = malloc.c
 
-# FIXME: Make linkbase configurable.
-physmem_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x35000
+physmem_LDFLAGS = -u_start -e_start -N -nostdlib \
+	-Ttext=@HURD_PHYSMEM_LOAD_ADDRESS@
 
 physmem_LDADD = -lgcc ../libc-parts/libc-parts.a

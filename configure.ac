@@ -89,6 +89,11 @@ esac
 AM_CONDITIONAL([ARCH_IA32], $arch_ia32)
 AM_CONDITIONAL([ARCH_POWERPC], $arch_powerpc)
 
+# Configure components.
+m4_include([laden/config.m4])
+m4_include([wortel/config.m4])
+m4_include([physmem/config.m4])
+
 # Create links for header file.
 m4_include([libl4/headers.m4])
 m4_include([libhurd-ihash/headers.m4])

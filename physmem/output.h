@@ -21,6 +21,7 @@
 #ifndef _OUTPUT_H
 #define _OUTPUT_H	1
 
+
 /* Print the single character CHR on the output device.  */
 int putchar (int chr);
 
@@ -28,10 +29,32 @@ int puts (const char *str);
 
 int printf (const char *fmt, ...);
 
+/* This is not an output function, but it is part of the panic()
+   macro.  */
+void shutdown (void);
+
+
 /* True if debug mode is enabled.  */
 extern int output_debug;
 
 /* Print a debug message.  */
-#define debug(...) do { if (output_debug) printf (__VA_ARGS__); } while (0)
+#define debug(...)					\
+  ({							\
+    if (output_debug)					\
+      printf (__VA_ARGS__);				\
+  })
+
+
+/* The program name.  */
+extern char program_name[];
+
+/* Print an error message and fail.  */
+#define panic(...)					\
+  ({							\
+    printf ("%s: %s: error: ", program_name, __func__);	\
+    printf (__VA_ARGS__);				\
+    putchar ('\n');					\
+    shutdown ();					\
+  })
 
 #endif	/* _OUTPUT_H */

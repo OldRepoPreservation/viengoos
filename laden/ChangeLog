@@ -1,3 +1,9 @@
+2003-10-12  Marcus Brinkmann  <marcus@gnu.org>
+
+	* config.m4: New file.
+	* Makefile.am (laden_LDFLAGS): Replace load address with
+	@HURD_LADEN_LOAD_ADDRESS@.
+
 2003-10-04  Marcus Brinkmann  <marcus@gnu.org>
 
 	* laden.h (add_memory_map): Don't round END up to 1K.

@@ -1,5 +1,5 @@
 * configure.ac
-** Allow user to specify libc.a.
+** Allow user to specify location of libc.a.
 
 * laden
 ** Overlaps between modules and destination regions should be resolved
@@ -15,13 +15,8 @@
 
 
 * wortel
-** Link base should be configurable.
 ** Conventional memory overriding non-conventional memory in the
    descriptor list is not supported.
-
-
-* physmem
-** Link base should be configurable.
 
 
 * libhurd-slab
