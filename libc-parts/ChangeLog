@@ -1,3 +1,7 @@
+2004-03-25  Marcus Brinkmann  <marcus@gnu.org>
+
+	* assert.h (assert): Provide a dummy statement.
+
 2003-10-16  Johan Rydberg  <jrydberg@night.trouble.net>
 
 	* Makefile.am (libc_parts_a_SOURCES): Add assert.h.
