@@ -1,5 +1,11 @@
 2005-03-08  Neal H. Walfield  <neal@gnu.org>
 
+	* container.c (container_create): Lock OBJ before calling
+	hurd_cap_obj_drop.
+	Reported by Matthieu Lemerre <racin@free.fr>.
+
+2005-03-08  Neal H. Walfield  <neal@gnu.org>
+
 	* physmem.h (struct frame): Add field cow.
 	(frame_entry_use_frame): Rename from frame_entry_use.  Change
 	interface such that FRAME must refer to a valid frame.  Update

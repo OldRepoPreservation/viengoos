@@ -59,6 +59,7 @@ container_create (hurd_cap_rpc_context_t ctx)
   err = hurd_cap_bucket_inject (ctx->bucket, obj, ctx->sender, &handle);
   if (err)
     {
+      hurd_cap_obj_lock (obj);
       hurd_cap_obj_drop (obj);
       return err;
     }
