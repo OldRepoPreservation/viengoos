@@ -214,6 +214,14 @@ typedef _L4_cache_allocation_hint_t l4_cache_allocation_hint_t;
 #define L4_use_default_cache_line_allocation \
   _L4_use_default_cache_line_allocation
 
+static inline _L4_string_item_t
+_L4_attribute_always_inline
+l4_string_item (int length, void *address)
+{
+  return _L4_string_item (length, address);
+}
+
+
 static inline bool
 _L4_attribute_always_inline
 l4_is_string_item (l4_string_item_t *string_item)
