@@ -1,3 +1,10 @@
+2004-12-25  Neal H. Walfield  <neal@gnu.org>
+
+	* libhurd-btree: New directory.
+	* Makefile.am (SUBDIRS): Add libhurd-btree.
+	* configure.ac (AC_CONFIG_FILES): Add libhurd-btree/Makefile.
+	Add include for libhurd-btree/headers.m4.
+
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* configure.ac (CFLAGS): Set after AC_PROG_CC.
