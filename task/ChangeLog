@@ -1,3 +1,8 @@
+2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ia32-cmain.c (switch_thread): Correct start of small sub stack
+	address.  Reported by Rian Hunter <hurd@thelaststop.net>.
+
 2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
 
 	* task.c (bootstrap_final): New function.

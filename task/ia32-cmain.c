@@ -110,7 +110,7 @@ switch_thread (l4_thread_id_t from, l4_thread_id_t to)
   
   /* We need a bit of extra space on the stack for
      l4_thread_switch.  */
-  __thread_set_stack_pointer (small_sub_stack);
+  __thread_set_stack_pointer (small_sub_stack + sizeof (small_sub_stack));
 
   /* We can't use while(1), because then gcc will become clever and
      optimize away everything after thread_switch_entry.  */
