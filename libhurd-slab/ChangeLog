@@ -1,3 +1,8 @@
+2004-03-31  Marcus Brinkmann  <marcus@gnu.org>
+
+	* slab.c (grow): Do not zero out memory returned by mmap with
+	MAP_ANONYMOUS.  It already is zeroed.
+
 2004-03-26  Johan Rydberg  <jrydberg@gnu.org>
 
         * slab.c (space_list): Remove variable.

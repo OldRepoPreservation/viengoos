@@ -218,7 +218,6 @@ grow (struct hurd_slab_space *space)
   __hurd_slab_nr_pages++;
 
   new_slab = (p + getpagesize () - sizeof (struct hurd_slab));
-  memset (new_slab, 0, sizeof (struct hurd_slab));
 
   /* Calculate the number of objects that the page can hold.
      SPACE->size should be adjusted to handle alignment.  */
