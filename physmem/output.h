@@ -34,19 +34,19 @@ int printf (const char *fmt, ...);
 void __attribute__((__noreturn__)) shutdown (void);
 
 
+/* The program name.  */
+extern char program_name[];
+
 /* True if debug mode is enabled.  */
 extern int output_debug;
 
 /* Print a debug message.  */
-#define debug(...)					\
+#define debug(fmt, ...)					\
   ({							\
     if (output_debug)					\
-      printf (__VA_ARGS__);				\
+      printf ("%s:%s: " fmt, program_name,		\
+	      __FUNCTION__, __VA_ARGS__);		\
   })
-
-
-/* The program name.  */
-extern char program_name[];
 
 /* Print an error message and fail.  */
 #define panic(...)					\

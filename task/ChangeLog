@@ -1,3 +1,8 @@
+2004-11-17  Neal H. Walfield  <neal@gnu.org>
+
+	* output.h (debug): Include program_name and __FUNCTION__ in
+	output.
+
 2004-11-02  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (task_SOURCES): Add thread.c.

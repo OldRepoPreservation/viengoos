@@ -212,7 +212,7 @@ find_components (void)
 	  mbi->mods_count--;
 	}
       /* Swallow the modules we used so far.  This makes the
-	 rootserver the first module in the list, irregardless if
+	 rootserver the first module in the list, regardless if
 	 sigma1 is used or not.  FIXME: The rootserver might need the
 	 information about the other modules, though.  */
       mbi->mods_addr = (l4_word_t) mod;

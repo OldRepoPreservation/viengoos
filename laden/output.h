@@ -73,6 +73,12 @@ extern int output_debug;
 
 
 /* Print a debug message.  */
-#define debug(...) do { if (output_debug) printf (__VA_ARGS__); } while (0)
+#define debug(fmt, ...)					\
+  ({							\
+    extern char *program_name;				\
+    if (output_debug)					\
+      printf ("%s:%s: " fmt, program_name,		\
+	      __FUNCTION__, __VA_ARGS__);		\
+  })
 
 #endif	/* _OUTPUT_H */

@@ -115,7 +115,7 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	    {
 	      /* FIXME: Create control capability for this one
 		 task.  */
-	      debug ("Can't create task control capability yet");
+	      debug ("%s", "Can't create task control capability yet");
 	    }
 	  else
 	    {

@@ -1,3 +1,10 @@
+2004-11-17  Neal H. Walfield  <neal@gnu.org>
+
+	* output.h (debug): Include program_name and __FUNCTION__ in
+	output.
+	* physmem.c (create_bootstrap_caps): First argument to
+	debug must be a constant format string.
+
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* container.c (struct container, container_t): Remove member OBJ.
