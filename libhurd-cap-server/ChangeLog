@@ -1,3 +1,9 @@
+2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
+
+	* obj-copy-out.c (_hurd_cap_obj_copy_out): Set *R_ID after adding
+	element.
+	* bucket-inject.c (hurd_cap_bucket_inject): Set *R_CAP and return 0.
+
 2004-04-08  Marcus Brinkmann  <marcus@gnu.org>
 
 	* bucket-inject.c, obj-copy-out.c: New files.

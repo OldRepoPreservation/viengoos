@@ -56,6 +56,6 @@ hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
   if (err)
     return err;
 
-  return hurd_cap_make (client->id, cap_id);
+  *r_cap = hurd_cap_make (client->id, cap_id);
+  return 0;
 }
-

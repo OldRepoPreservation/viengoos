@@ -99,6 +99,7 @@ _hurd_cap_obj_copy_out (hurd_cap_obj_t obj, hurd_cap_bucket_t bucket,
 	  return err;
 	}
 
+      *r_id = entry->id;
       pthread_mutex_unlock (&client->lock);
 
       /* Add the object to the list.  */
