@@ -1,0 +1,27 @@
+The GNU Hurd
+============
+
+This is not the GNU Hurd.  But it might become it at some day.
+
+The intention is to port the GNU Hurd to run on the L4 microkernel.
+
+This is work in progress.
+
+
+How to build
+------------
+
+It is not yet straightforward.  Something like the below should work:
+
+$ autoreconf -f -i -s
+$ ./configure --enable-maintainer-mode --prefix=/l4
+$ cd libl4
+$ make; make install
+$ cd ..
+$ make CFLAGS=-I/l4/include
+$ mkdir /l4/boot
+$ cp laden /l4/boot
+
+You also need the L4 kernel, sigma0 and a rootserver.  Then set up
+GRUB to boot laden as the kernel, and the L4 kernel, sigma0 and the
+rootserver as its modules.

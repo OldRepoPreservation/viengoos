@@ -1,0 +1,54 @@
+LADEN
+=====
+
+laden is the bootloader for the Hurd running on the L4 microkernel.
+It contains the architecture specific part of booting the L4 kernel
+and setting up sigma0 and the rootserver.
+
+
+OPERATION
+=========
+
+laden is started by an architecture specific way, and is provided with
+ELF images of the kernel, sigma0 and the rootserver (and optionally
+sigma1).  It then loads these ELF images into the appropriate memory
+location.  Afterwards, the kernel interface page is located and
+patched with the necessary information about the inital servers, the
+memory configuration and the boot info.  Finally it jumps to the
+kernel's entry point.
+
+
+PORTING
+=======
+
+If you want to port laden to a new architecture, you need to glue it
+to the architecture's boot loader to enable laden to find the kernel,
+sigma0 and the rootserver in memory.  You also need to port the ELF
+loader.  Furthermore, you need to write output routines and some
+functions like sleep(), reset() and halt().
+
+
+OUTPUT
+======
+
+The available output drivers are architecture specific (see below for
+details).  You can suppress all output by using the output driver
+"none", which is available on all architectures.
+
+
+Architecture Specific Notes
+===========================
+
+ia32
+----
+
+On ia32, laden is a multiboot compliant kernel that can be booted by
+GRUB.  laden expects that the first multiboot module is the L4 kernel,
+the second module is sigma0, and the third module is the rootserver.
+All of these must be statically linked ELF binary images with load
+addresses so that the programs do not overlap.
+
+The boot info field in the KIP will be set to the multiboot
+information structure.
+
+On this architecture laden supports VGA output.

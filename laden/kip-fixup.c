@@ -1,0 +1,79 @@
+/* kip-fixup.c - Fixup the L4 KIP.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann.
+
+   This file is part of the GNU Hurd.
+
+   The GNU Hurd is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; either version 2, or (at
+   your option) any later version.
+
+   The GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
+
+#include "laden.h"
+
+void
+kip_fixup (void)
+{
+  /* The KIP is 4k aligned, and somewhere within the kernel image.  */
+  l4_kip_t kip = (l4_kip_t) ((kernel.low + 0xfff) & ~0xfff);
+  l4_kip_t kip2;
+  int nr;
+
+  while ((l4_word_t) kip < kernel.high
+	 && (kip->magic[0] != 'L' || kip->magic[1] != '4'
+	     || kip->magic[2] != '\xe6' || kip->magic[3] != 'K'))
+    kip = (l4_kip_t) (((l4_word_t) kip) + 0x1000);
+
+  if ((l4_word_t) kip >= kernel.high)
+    panic ("Error: No KIP found in the kernel.\n");
+  debug ("KIP found at address 0x%x.\n", kip);
+
+  kip2 = kip + 0x1000;
+  while ((l4_word_t) kip2 < kernel.high
+	 && (kip2->magic[0] != 'L' || kip2->magic[1] != '4'
+	     || kip2->magic[2] != '\xe6' || kip2->magic[3] != 'K'))
+    kip2 = (l4_kip_t) (((l4_word_t) kip2) + 0x1000);
+
+  if ((l4_word_t) kip2 < kernel.high)
+    panic ("Error: More than one KIP found in kernel.\n");
+
+  /* Load the rootservers into the KIP.  */
+  kip->sigma0 = sigma0;
+  kip->sigma1 = sigma1;
+  kip->rootserver = rootserver;
+
+  debug ("Sigma0: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
+	 sigma0.low, sigma0.high, sigma0.ip, sigma0.sp);
+  if (kip->sigma1.low)
+    debug ("Sigma1: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
+	   sigma1.low, sigma1.high, sigma1.ip, sigma1.sp);
+  debug ("Root: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
+	 rootserver.low, rootserver.high, rootserver.ip, rootserver.sp);
+
+  /* Load the memory map into the KIP.  */
+  if (memory_map_size > kip->memory_info.nr)
+    panic ("Error: Memory map table in KIP is too small.");
+
+  memcpy ((char *) (((l4_word_t) kip) + kip->memory_info.mem_desc_ptr),
+	  (char *) memory_map,
+	  sizeof (struct l4_memory_desc) * memory_map_size);
+
+  kip->memory_info.nr = memory_map_size;
+  for (nr = 0; nr < memory_map_size; nr++)
+    debug ("Memory Map %i: Type %i/%i, Low 0x%x, High 0x%x\n",
+	   nr + 1, memory_map[nr].type, memory_map[nr].subtype,
+	   memory_map[nr].low << 10, memory_map[nr].high << 10);
+
+  /* Load the boot info into the KIP.  */
+  kip->boot_info = boot_info;
+  debug ("Boot Info: 0x%x\n", boot_info);
+}
