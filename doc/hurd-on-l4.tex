@@ -1733,7 +1733,19 @@ user and group IDs from the \texttt{auth} server it trusts.
 \label{proc}
 
 The \texttt{proc} server implements Unix process semantics in the Hurd
-system.
+system.  It will also assign a PID to each task that was created with
+the \texttt{task} server, so that the owner of these tasks, and the
+system administrator, can at least send the \verb/SIGKILL/ signal to
+them.
+
+The \texttt{proc} server uses the task manager capability from the
+\texttt{task} server to get hold of the information about all tasks
+and the task control caps.
+
+\begin{comment}
+  The \texttt{proc} server might also be the natural place to
+  implement a first policy server for the \texttt{task} server.
+\end{comment}
 
 
 \subsection{Signals}
@@ -1786,6 +1798,14 @@ IDs of the signal threads.
   \verb/kill/.  The task server helps the users a bit here by not
   reusing task IDs as long as possible.
 \end{comment}
+
+Some signals are not implemented by sending a message to the task.
+\verb/SIGKILL/ for example destroys the tasks without contacting it at
+all.  This feature is implemented in the \texttt{proc} server.
+
+The signal capability is also used for other things, like the message
+interface (which allows you to manipulate the environment variables
+and \texttt{auth} capability of a running task, etc).
 
   
 \section{Exec}
