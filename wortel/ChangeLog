@@ -1,5 +1,8 @@
 2004-04-11  Marcus Brinkmann  <marcus@gnu.org>
 
+	* wortel.c (serve_bootstrap_requests): Initialize from specifier.
+	Reported by Marco Gerards.
+
 	* Makefile.am (wortel_SOURCES): Add startup-bin.S.
 	(noinst_PROGRAMS): Add startup.
 	(STARTUP_ARCH_SOURCES): New variable.
