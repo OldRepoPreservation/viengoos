@@ -1,3 +1,8 @@
+2004-03-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/compat/space.h (L4_Unmap) [_cplusplus]: Remove spurious comma.
+	(L4_Flush) [_cplusplus]: Likewise.
+
 2004-03-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/ipc.h (_L4_msg_put): Rename argument TYPED to ANY_TYPED, add
