@@ -47,7 +47,7 @@ struct hurd_cap_sconn
   unsigned int refs;
 
   /* A hash mapping the capability IDs to capability objects.  */
-  hurd_ihash_t id_to_cap;
+  struct hurd_ihash id_to_cap;
 };
 
 

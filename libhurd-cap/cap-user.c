@@ -28,7 +28,7 @@
 #include "cap-intern.h"
 
 
-static hurd_ihash_t server_to_sconn;
+static struct hurd_ihash server_to_sconn = HURD_IHASH_INITIALIZER;
 static pthread_mutex_t server_to_sconn_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
@@ -63,13 +63,13 @@ _hurd_cap_sconn_dealloc (hurd_cap_sconn_t sconn)
     }
 
   /* Now we can remove the object.  */
-  hurd_ihash_remove (server_to_sconn, sconn->server_thread);
+  hurd_ihash_remove (&server_to_sconn, sconn->server_thread);
   pthread_mutex_unlock (&server_to_sconn_lock);
 
   /* Finally, we can destroy it.  */
   pthread_mutex_unlock (&sconn->lock);
   pthread_mutex_destroy (&sconn->lock);
-  hurd_ihash_destroy (sconn->id_to_cap);
+  hurd_ihash_destroy (&sconn->id_to_cap);
   hurd_cap_deallocate (sconn->server_task_id);
   free (sconn);
 }
@@ -82,7 +82,7 @@ void
 _hurd_cap_sconn_remove (sconn, scid)
 {
   /* Remove the capability object pointer, which is now invalid.  */
-  hurd_ihash_remove (sconn->id_to_cap, scid);
+  hurd_ihash_remove (&sconn->id_to_cap, scid);
   /* FIXME: The following should be some low level RPC to deallocate
      the capability on the server side.  If it fails, then what can we
      do at this point?  */
@@ -106,7 +106,7 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
   int sconn_created = 0;
 
   pthread_mutex_lock (&server_to_sconn_lock);
-  sconn = hurd_ihash_lookup (server_to_sconn, server_thread);
+  sconn = hurd_ihash_find (&server_to_sconn, server_thread);
   if (!sconn)
     {
       error_t err;
@@ -117,31 +117,25 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
 	  pthread_mutex_unlock (&server_to_sconn_lock);
 	  return errno;
 	}
-      err = hurd_ihash_create (&sconn->id_to_cap);
-      if (err)
-	{
-	  free (sconn);
-	  pthread_mutex_unlock (&server_to_sconn_lock);
-	  return errno;
-	}
       err = pthread_mutex_init (&sconn->lock, NULL);
       if (err)
 	{
-	  hurd_ihash_destroy (sconn->id_to_cap);
 	  free (sconn);
 	  pthread_mutex_unlock (&server_to_sconn_lock);
 	  return errno;
 	}
+      hurd_ihash_init (&sconn->id_to_cap);
+
       sconn->server_thread = server_thread;
       sconn->server_task_id = server_task_id;
       sconn->refs = 0;
 
       /* Enter the new server connection object.  */
-      err = hurd_ihash_enter (server_to_sconn, server_thread, sconn);
+      err = hurd_ihash_add (&server_to_sconn, server_thread, sconn, NULL);
       if (err)
 	{
 	  pthread_mutex_destroy (&sconn->lock);
-	  hurd_ihash_destroy (sconn->id_to_cap);
+	  hurd_ihash_destroy (&sconn->id_to_cap);
 	  free (sconn);
 	  pthread_mutex_unlock (&server_to_sconn_lock);
 	  return errno;
@@ -154,7 +148,7 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
   sconn->refs++;
   pthread_mutex_unlock (&server_to_sconn_lock);
 
-  cap = hurd_ihash_lookup (sconn->id_to_cap, scid);
+  cap = hurd_ihash_find (&sconn->id_to_cap, scid);
   if (!cap)
     {
       error_t err = hurd_slab_alloc (cap_space, &cap);
@@ -168,7 +162,7 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
       cap->scid = scid;
       cap->dead_cb = NULL;
 
-      err = hurd_ihash_enter (sconn->id_to_cap, scid, cap);
+      err = hurd_ihash_add (&sconn->id_to_cap, scid, cap, 0);
       if (err)
 	{
 	  _hurd_cap_sconn_dealloc (sconn);
