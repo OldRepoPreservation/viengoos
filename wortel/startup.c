@@ -34,7 +34,7 @@
 
 
 void
-physmem_map (l4_thread_id_t physmem, hurd_cap_id_t cont,
+physmem_map (l4_thread_id_t physmem, hurd_cap_handle_t cont,
 	     l4_word_t offset, l4_word_t size, void *vaddr)
 {
   l4_msg_t msg;
@@ -69,7 +69,7 @@ cmain (struct hurd_startup_data *startup)
   /* First map in the startup code from physmem, instead of having it
      mapped via the starter task.  FIXME: Consider using physmem as
      our pager via a specially marked container (see TODO).  */
-  physmem_map (startup->startup.server, startup->startup.cap_id,
+  physmem_map (startup->startup.server, startup->startup.cap_handle,
 	       L4_FPAGE_FULLY_ACCESSIBLE, HURD_STARTUP_SIZE,
 	       HURD_STARTUP_ADDR);
 
@@ -77,7 +77,7 @@ cmain (struct hurd_startup_data *startup)
     {
       struct hurd_startup_map *mapv = &startup->mapv[i];
 
-      physmem_map (mapv->cont.server, mapv->cont.cap_id,
+      physmem_map (mapv->cont.server, mapv->cont.cap_handle,
 		   mapv->offset, mapv->size, mapv->vaddr);
     }
 

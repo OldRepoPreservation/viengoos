@@ -1,3 +1,10 @@
+2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* startup.c (physmem_map): Change type of argument CONT to
+	hurd_cap_handle_t.
+	(cmain): In the startup data, access cap_handle members, not
+	cap_id members.
+
 2004-10-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* startup.c: Rewritten to match new startup data format.
