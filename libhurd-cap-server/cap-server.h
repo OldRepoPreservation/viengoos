@@ -407,7 +407,8 @@ void hurd_cap_bucket_free (hurd_cap_bucket_t bucket);
    in *R_CAP, or an error.  It is not safe to call this from outside
    an RPC on OBJ while the manager is running.  */
 error_t hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
-				hurd_task_id_t task_id, hurd_cap_t *r_cap);
+				hurd_task_id_t task_id,
+				hurd_cap_handle_t *r_cap);
 
 
 /* Start managing RPCs on the bucket BUCKET.  The ROOT capability

@@ -1,5 +1,10 @@
 2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
 
+	* cap-server.h (hurd_cap_bucket_inject): Change hurd_cap_t to
+	hurd_cap_handle_t in R_CAP argument type.
+	* bucket-inject.c (hurd_cap_bucket_inject): Likewise.  Use
+	hurd_cap_handle_make instead hurd_cap_make.
+
 	* obj-copy-out.c (_hurd_cap_obj_copy_out): Set *R_ID after adding
 	element.
 	* bucket-inject.c (hurd_cap_bucket_inject): Set *R_CAP and return 0.

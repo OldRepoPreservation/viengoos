@@ -36,7 +36,7 @@
    an RPC on OBJ while the manager is running.  */
 error_t
 hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
-			hurd_task_id_t task_id, hurd_cap_t *r_cap)
+			hurd_task_id_t task_id, hurd_cap_handle_t *r_cap)
 {
   error_t err;
   _hurd_cap_client_t client;
@@ -56,6 +56,6 @@ hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
   if (err)
     return err;
 
-  *r_cap = hurd_cap_make (client->id, cap_id);
+  *r_cap = hurd_cap_handle_make (client->id, cap_id);
   return 0;
 }
