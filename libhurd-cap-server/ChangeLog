@@ -1,5 +1,7 @@
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
+	* bucket-inhibit.c (hurd_cap_bucket_end): Return something.
+
 	* cap-server-intern.h (_hurd_cap_bucket_cond_check): Fix
 	assignemnt.
 	* table.h (hurd_table_lookup): Remove unused variable ERR.

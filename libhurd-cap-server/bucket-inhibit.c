@@ -137,4 +137,6 @@ hurd_cap_bucket_end (hurd_cap_bucket_t bucket, bool force)
     pthread_cancel (bucket->manager);
 
   pthread_mutex_unlock (&bucket->lock);
+
+  return 0;
 }
