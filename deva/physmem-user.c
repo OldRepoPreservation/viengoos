@@ -31,7 +31,7 @@
 /* Map the memory at offset OFFSET with size SIZE at address VADDR
    from the container CONT in the physical memory server PHYSMEM.  */
 error_t
-physmem_map (l4_thread_id_t physmem, hurd_cap_id_t cont,
+physmem_map (l4_thread_id_t physmem, hurd_cap_handle_t cont,
 	     l4_word_t offset, size_t size, void *vaddr)
 {
   l4_msg_t msg;

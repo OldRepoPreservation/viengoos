@@ -1,8 +1,17 @@
+2004-12-01  Neal H. Walfield  <neal@gnu.org>
+
+	* physmem-user.h (physmem_map): Change CONT from a hurd_cap_id_t
+	to a hurd_cap_handle_t.
+	* physmem-user.c (physmem_map): Likewise.
+	* task-user.h (task_thread_alloc): Change TASK from a
+	hurd_cap_id_t to a hurd_cap_handle_t.
+	* task-user.c (task_thread_alloc): Likewise.
+
 2004-11-22  Neal H. Walfield  <neal@gnu.org>
 
 	* deva.c (bootstrap_final): New function.
 	(main): Call bootstrap_final as per the start up protocol to tell
-	wortel that devais up and running and that it should now start the
+	wortel that deva is up and running and that it should now start the
 	root fs.
 
 2004-11-17  Neal H. Walfield  <neal@gnu.org>

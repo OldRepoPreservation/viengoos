@@ -31,7 +31,7 @@
 
 /* Allocate a new thread for the task TASK, and return its thread ID
    in THREAD_ID.  */
-error_t task_thread_alloc (l4_thread_id_t task_server, hurd_cap_id_t task,
+error_t task_thread_alloc (l4_thread_id_t task_server, hurd_cap_handle_t task,
 			   void *utcb, l4_thread_id_t *thread_id);
 
 #endif	/* HURD_TASK_USER_H */
