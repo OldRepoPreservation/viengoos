@@ -25,11 +25,10 @@
 
 static inline l4_word_t
 _L4_attribute_always_inline
-l4_processor_control (l4_word_t proc, l4_word_t control,
-		      l4_word_t internal_freq, l4_word_t external_freq,
-		      l4_word_t voltage)
+l4_processor_control (l4_word_t proc, l4_word_t internal_freq,
+		      l4_word_t external_freq, l4_word_t voltage)
 {
-  return _L4_processor_control (proc, control, internal_freq, external_freq,
+  return _L4_processor_control (proc, internal_freq, external_freq,
 				voltage);
 }
 
