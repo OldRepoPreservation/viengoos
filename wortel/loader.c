@@ -18,6 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
+#include <string.h>
+
 #include "loader.h"
 #include "output.h"
 #include "shutdown.h"
@@ -28,9 +30,9 @@
 
 /* Verify that the memory region START to END (exclusive) is valid.  */
 static void
-mem_check (const char *name, unsigned long start, unsigned long end)
+mem_check (const char *name, unsigned long long start, unsigned long long end)
 {
-  l4_memory_desc_t memdesc;
+  l4_memory_desc_t memdesc = 0;
   int nr;
   int fits = 0;
   int conflicts = 0;
@@ -66,12 +68,12 @@ mem_check (const char *name, unsigned long start, unsigned long end)
 	}
     }
   if (conflicts)
-    panic ("%s (0x%x - 0x%x) conflicts with memory of "
+    panic ("%s (0x%llx - 0x%llx) conflicts with memory of "
 	   "type %i/%i (0x%x - 0x%x)", name, start, end,
 	   memdesc->type, memdesc->subtype,
 	   memdesc->low << 10, memdesc->high << 10);
   if (!fits)
-    panic ("%s (0x%x - 0x%x) does not fit into memory",
+    panic ("%s (0x%llx - 0x%llx) does not fit into memory",
 	   name, start, end);
 }
 
@@ -121,6 +123,9 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end)
 
   if (nr_regions == MAX_REGIONS)
     panic ("Too many memory regions, region %s doesn't fit", name);
+
+  if (start >= end)
+    panic ("Region %s has a start address following the end address", name);
 
   check_region (name, start, end);
 

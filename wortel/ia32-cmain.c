@@ -50,7 +50,7 @@ cmain (void)
   l4_init_stubs ();
 
   mbi = (multiboot_info_t *) l4_boot_info ();
-  debug ("Multiboot Info: 0x%x\n", mbi);
+  debug ("Multiboot Info: %p\n", mbi);
 
   if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count > 0)
     {
@@ -101,7 +101,7 @@ cmain (void)
       argc = 1;
 
       argv = alloca (sizeof (char *) * 2);
-      argv[0] = program_name;
+      argv[0] = (char *) program_name;
       argv[1] = 0;
     }
 
@@ -124,10 +124,7 @@ extern char _end;
 void
 find_components (void)
 {
-  l4_word_t min_page_size = getpagesize ();
   multiboot_info_t *mbi = (multiboot_info_t *) l4_boot_info ();
-  l4_word_t start;
-  l4_word_t end;
 
   /* Load the module information.  */
   if (CHECK_FLAG (mbi->flags, 3))
@@ -143,49 +140,25 @@ find_components (void)
 
       for (i = 0; i < mods_count; i++)
 	{
+	  char *args;
+
 	  mods[i].name = mod_names[i];
 	  mods[i].start = mod[i].mod_start;
-	  if (mods[i].start & (min_page_size - 1))
-	    panic ("Module %s does not start on a page boundary.\n");
-	  mods[i].end = (mod[i].mod_end + min_page_size - 1)
-	    & ~(min_page_size - 1);
-	  mods[i].args = (char *) mod[i].string;
+	  mods[i].end = mod[i].mod_end;
+
+	  /* We copy over the argument lines, so that we don't depend
+	     on the multiboot info structure anymore, and can reuse
+	     that memory.  */
+	  mods[i].args = &mods_args[mods_args_len];
+	  args = (char *) mod[i].string;
+	  while (*args && mods_args_len < sizeof (mods_args))
+	    mods_args[mods_args_len++] = *(args++);
+	  if (mods_args_len == sizeof (mods_args))
+	    panic ("No space to store the argument lines");
+	    mods_args[mods_args_len++] = '\0';
 	}
     }
 
-  /* Now protect ourselves and the multiboot info (at least the module
-     configuration).  */
-  loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end);
-
-  start = (l4_word_t) mbi;
-  end = start + sizeof (*mbi);
-  loader_add_region ("grub-mbi", start, end);
-  
-  if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count)
-    {
-      module_t *mod = (module_t *) mbi->mods_addr;
-      int nr;
-
-      start = (l4_word_t) mod;
-      end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
-      loader_add_region ("grub-mods", start, end);
-
-      start = (l4_word_t) mod[0].string;
-      end = start + 1;
-      for (nr = 0; nr < mbi->mods_count; nr++)
-	{
-	  char *str = (char *) mod[nr].string;
-
-	  if (str)
-	    {
-	      if (((l4_word_t) str) < start)
-		start = (l4_word_t) str;
-	      while (*str)
-		str++;
-	      if (((l4_word_t) str) + 1> end)
-		end = (l4_word_t) str + 1;
-	    }
-	}
-      loader_add_region ("grub-mods-cmdlines", start, end + 1);
-    }
+  wortel_start = (l4_word_t) &_start;
+  wortel_end = (l4_word_t) &_end;
 }

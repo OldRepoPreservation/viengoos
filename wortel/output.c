@@ -23,6 +23,7 @@
 #endif
 
 #include <stdarg.h>
+#include <string.h>
 
 #include "output.h"
 
@@ -248,6 +249,8 @@ printf (const char *fmt, ...)
 	  break;
 
 	case 'p':
+	  putchar ('0');
+	  putchar ('x');
 	  print_nr ((unsigned int) va_arg (ap, void *), 16);
 	  p++;
 	  break;

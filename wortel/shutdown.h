@@ -43,7 +43,7 @@ extern int shutdown_reset;
 void shutdown (void);
 
 /* The program name.  */
-extern char *program_name;
+extern const char program_name[];
 
 /* Print an error message and fail.  */
 #define panic(...)				\

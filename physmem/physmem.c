@@ -28,12 +28,59 @@
 char *program_name = "physmem";
 
 
+void
+get_all_memory (void)
+{
+  l4_fpage_t fpage;
+
+  do
+    {
+      l4_msg_t msg;
+      l4_msg_tag_t msg_tag;
+      l4_grant_item_t grant_item;
+
+      l4_accept (l4_map_grant_items (l4_complete_address_space));
+      l4_msg_clear (&msg);
+      /* FIXME: 2 is WORTEL_MSG_GET_MEM.  */
+      l4_set_msg_label (&msg, 2);
+      /* FIXME: cap_id */
+      l4_msg_append_word (&msg, 0);
+      l4_msg_load (&msg);
+      /* FIXME: Hard coded wortel thread.  */
+      msg_tag = l4_call (l4_global_id (l4_thread_user_base () + 2, 1));
+      if (l4_ipc_failed (msg_tag))
+	{
+	  debug ("get_mem request failed during %s: %u",
+		 l4_error_code () & 1 ? "receive" : "send",
+		 (l4_error_code () >> 1) & 0x7);
+	  l4_sleep (l4_never);
+	}
+      if (l4_untyped_words (msg_tag) != 0
+	  || l4_typed_words (msg_tag) != 2)
+	{
+	  debug ("Invalid format of wortel get_mem reply");
+	  l4_sleep (l4_never);
+	}
+      l4_msg_store (msg_tag, &msg);
+      l4_msg_get_grant_item (&msg, 0, &grant_item);
+      fpage = grant_item.send_fpage;
+
+      if (fpage.raw != l4_nilpage.raw)
+	debug ("%s: Got fpage 0x%x/%u\n", program_name,
+	       l4_address (fpage), l4_size_log2 (fpage));
+    }
+  while (fpage.raw != l4_nilpage.raw);
+}
+
+
 int
 main (int argc, char *argv[])
 {
   output_debug = 1;
 
   debug ("%s " PACKAGE_VERSION "\n", program_name);
+
+  get_all_memory ();
 
   while (1)
     l4_sleep (l4_never);
