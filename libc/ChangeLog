@@ -1,5 +1,7 @@
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
+	* patches/08-sysdeps-generic-dl-sysdep.patch: New file.
+
 	* hurd-l4/sysdeps/l4/hurd/getpagesize.c: Removed.
 	* hurd-l4/sysdeps/l4/getpagesize.c: New file.
 
