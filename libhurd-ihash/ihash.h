@@ -50,7 +50,7 @@ typedef hurd_ihash_value_t *hurd_ihash_locp_t;
 
 /* The type of the cleanup function, which is called for every value
    removed from the hash table.  */
-typedef void *(*hurd_ihash_cleanup_t) (hurd_ihash_value_t value, void *arg);
+typedef void (*hurd_ihash_cleanup_t) (hurd_ihash_value_t value, void *arg);
 
 
 struct hurd_ihash
@@ -145,9 +145,9 @@ hurd_ihash_value_t hurd_ihash_find (hurd_ihash_t ht, hurd_ihash_key_t key);
    value of the current element is available via the macro
    HURD_IHASH_ITERATOR_VALUE.  */
 #define HURD_IHASH_ITERATE(ht, value)					\
-  for (hurd_ihash_value_t value = (ht)->table[0],			\
-                          *_hurd_ihash_valuep = &(ht)->table[0];	\
-       _hurd_ihash_valuep - &(ht)->table[0] < (ht)->size		\
+  for (hurd_ihash_value_t value = (ht)->size ? (ht)->table[0] : 0,	\
+         *_hurd_ihash_valuep = (ht)->size ? &(ht)->table[0] : 0;	\
+       (ht)->size && _hurd_ihash_valuep - &(ht)->table[0] < (ht)->size	\
          && (value = *_hurd_ihash_valuep, 1);				\
        _hurd_ihash_valuep++)						\
     if (value != _HURD_IHASH_EMPTY && value != _HURD_IHASH_DELETED)

@@ -234,14 +234,14 @@ add_one (hurd_ihash_t ht, hurd_ihash_key_t key,
 
   if (ht->keys[idx] == key)
     {
-      if (!ht->cleanup)
+      if (ht->cleanup)
 	ht->cleanup (ht->table[idx], ht->cleanup_data);
       ht->table[idx] = _HURD_IHASH_DELETED;
     }
 
-  /* If we have not found a deleted slot, maybe the last one we
+  /* If we have not found an empty slot, maybe the last one we
      looked at was empty (or just got deleted).  */
-  if (ht->table[first_free] != _HURD_IHASH_DELETED)
+  if (!index_empty (ht, first_free))
     first_free = idx;
  
   if (index_empty (ht, first_free))
