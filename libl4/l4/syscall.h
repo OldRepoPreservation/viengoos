@@ -52,7 +52,7 @@
 #define _L4_XCHG_REGS_IPCING		(_L4_XCHG_REGS_RECEIVING	\
 					 | _L4_XCHG_REGS_SENDING)
 
-
+
 /* _L4_schedule return codes.  */
 #define _L4_SCHEDULE_ERROR		_L4_WORD_C(0)
 #define _L4_SCHEDULE_DEAD		_L4_WORD_C(1)
@@ -63,12 +63,22 @@
 #define _L4_SCHEDULE_WAITING		_L4_WORD_C(6)
 #define _L4_SCHEDULE_RECEIVING		_L4_WORD_C(7)
 
-
+
 /* _L4_unmap flags.  */
 #define _L4_UNMAP_FLUSH			_L4_WORD_C(0x40)
 #define _L4_UNMAP_COUNT_MASK		_L4_WORD_C(0x3f)
 
+
+/* IPC errors.  */
+#define _L4_IPC_TIMEOUT			_L4_WORD_C(1)
+#define _L4_IPC_NO_PARTNER		_L4_WORD_C(2)
+#define _L4_IPC_CANCELED		_L4_WORD_C(3)
+#define _L4_IPC_MSG_OVERFLOW		_L4_WORD_C(4)
+#define _L4_IPC_XFER_TIMEOUT_INVOKER	_L4_WORD_C(5)
+#define _L4_IPC_XFER_TIMEOUT_PARTNER	_L4_WORD_C(6)
+#define _L4_IPC_ABORTED			_L4_WORD_C(7)
 
+
 /* Error codes.  */
 #define _L4_ERR_NO_PRIVILEGE		_L4_WORD_C(1)
 #define _L4_ERR_INV_THREAD		_L4_WORD_C(2)
