@@ -1,3 +1,19 @@
+2004-04-03  Marco Gerards  <metgerards@student.han.nl>
+
+	Bringing ihash into sync with the version in the Hurd:
+
+	* ihash.h: Include <stdint.h>.
+	(HURD_IHASH_NO_LOCP): Change to INTPTR_MIN.
+	(struct hurd_ihash): Change type of locp_offset from off_t to
+	intptr_t.
+	(hurd_ihash_init): Likewise in prototype.
+	(hurd_ihash_create): Likewise in prototype.
+	(hurd_ihash_key_t): Likewise in typedef.
+	* ihash.c (hurd_ihash_init): Likewise in definition.
+	(hurd_ihash_create): Likewise in definition.
+	(hurd_ihash_remove): Don't look for the index when the hashtable
+	is empty.
+
 2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (AM_CPPFLAGS): Add -I$(top_srcdir)/libc-parts for

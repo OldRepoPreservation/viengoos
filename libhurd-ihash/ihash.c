@@ -1,5 +1,5 @@
 /* ihash.c - Integer-keyed hash table functions.
-   Copyright (C) 1993-1997, 2001, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1993-1997, 2001, 2003, 2004 Free Software Foundation, Inc.
    Written by Michael I. Bushnell.
    Revised by Miles Bader <miles@gnu.org>.
    Revised by Marcus Brinkmann <marcus@gnu.org>.
@@ -77,7 +77,6 @@ static const uint64_t ihash_sizes[] =
   UINT64_C (471949865531),
   UINT64_C (943899731087)
 };
-
 
 static const unsigned int ihash_nsizes = (sizeof ihash_sizes
 					  / sizeof ihash_sizes[0]);
@@ -167,7 +166,7 @@ locp_remove (hurd_ihash_t ht, hurd_ihash_locp_t locp)
 
 /* Initialize the hash table at address HT.  */
 void
-hurd_ihash_init (hurd_ihash_t ht, off_t locp_offs)
+hurd_ihash_init (hurd_ihash_t ht, intptr_t locp_offs)
 {
   ht->nr_items = 0;
   ht->size = 0;
@@ -200,7 +199,7 @@ hurd_ihash_destroy (hurd_ihash_t ht)
 /* Create a hash table, initialize it and return it in HT.  If a
    memory allocation error occurs, ENOMEM is returned, otherwise 0.  */
 error_t
-hurd_ihash_create (hurd_ihash_t *ht, off_t locp_offs)
+hurd_ihash_create (hurd_ihash_t *ht, intptr_t locp_offs)
 {
   *ht = malloc (sizeof (struct hurd_ihash));
   if (*ht == NULL)
@@ -234,15 +233,14 @@ hurd_ihash_set_cleanup (hurd_ihash_t ht, hurd_ihash_cleanup_t cleanup,
 }
 
 
-/* Set the maximum load factor in percent to MAX_LOAD, which
-   should be between 1 and 100.  The default is
-   HURD_IHASH_MAX_LOAD_DEFAULT.  New elements are only added to the
-   hash table while the number of hashed elements is that much percent
-   of the total size of the hash table.  If more elements are added,
-   the hash table is first expanded and reorganized.  A MAX_LOAD of
-   100 will always fill the whole table before enlarging it, but note
-   that this will increase the cost of operations significantly when
-   the table is almost full.
+/* Set the maximum load factor in percent to MAX_LOAD, which should be
+   between 1 and 100.  The default is HURD_IHASH_MAX_LOAD_DEFAULT.
+   New elements are only added to the hash table while the number of
+   hashed elements is that much percent of the total size of the hash
+   table.  If more elements are added, the hash table is first
+   expanded and reorganized.  A MAX_LOAD of 100 will always fill the
+   whole table before enlarging it, but note that this will increase
+   the cost of operations significantly when the table is almost full.
 
    If the value is set to a smaller value than the current load
    factor, the next reorganization will happen when a new item is
@@ -421,15 +419,18 @@ hurd_ihash_find (hurd_ihash_t ht, hurd_ihash_key_t key)
 int
 hurd_ihash_remove (hurd_ihash_t ht, hurd_ihash_key_t key)
 {
-  int idx = find_index (ht, key);
-
-  if (index_valid (ht, idx, key))
+  if (ht->size != 0)
     {
-      locp_remove (ht, &ht->items[idx].value);
-      return 1;
+      int idx = find_index (ht, key);
+      
+      if (index_valid (ht, idx, key))
+	{
+	  locp_remove (ht, &ht->items[idx].value);
+	  return 1;
+	}
     }
-  else
-    return 0;
+
+  return 0;
 }
 
 
