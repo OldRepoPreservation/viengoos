@@ -1,5 +1,7 @@
 2005-01-31  Marcus Brinkmann  <marcus@gnu.org>
 
+	* hurd-l4/sysdeps/l4/getclktck.c: New file.
+
 	* hurd-l4/sysdeps/l4/hurd/isatty.c: New file.
 	* hurd-l4/sysdeps/l4/hurd/fxstat64.c (__fxstat64): Fake a
 	character device for fds 0 to 2.
