@@ -82,20 +82,40 @@ AC_C_VOLATILE
 arch_ia32=false
 arch_powerpc=false
 case $host_cpu in
+  alpha)
+    arch=alpha
+    arch_alpha=true
+    ;;
+  amd64)
+    arch=amd64
+    arch_alpha=true
+    ;;
   i386 | i486 | i586 | i686)
     arch=ia32
     arch_ia32=true
+    ;;
+  ia64)
+    arch=ia64
+    arch_ia64=true
     ;;
   powerpc)
     arch=powerpc
     arch_powerpc=true
     ;;
+  powerpc64)
+    arch=powerpc64
+    arch_powerpc64=true
+    ;;
   *)
     AC_MSG_ERROR([unsupported architecture])
     ;;
 esac
+AM_CONDITIONAL([ARCH_ALPHA], $arch_alpha)
+AM_CONDITIONAL([ARCH_AMD64], $arch_amd64)
 AM_CONDITIONAL([ARCH_IA32], $arch_ia32)
+AM_CONDITIONAL([ARCH_IA64], $arch_ia64)
 AM_CONDITIONAL([ARCH_POWERPC], $arch_powerpc)
+AM_CONDITIONAL([ARCH_POWERPC64], $arch_powerpc64)
 
 # Configure components.
 m4_include([laden/config.m4])
@@ -104,6 +124,7 @@ m4_include([physmem/config.m4])
 
 # Create links for header file.
 m4_include([libl4/headers.m4])
+m4_include([platform/headers.m4])
 m4_include([hurd/headers.m4])
 m4_include([libhurd-ihash/headers.m4])
 m4_include([libhurd-slab/headers.m4])
@@ -119,6 +140,10 @@ fi
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
 		 libl4/ia32/Makefile libl4/powerpc/Makefile libl4/Makefile
+		 platform/alpha/Makefile platform/amd64/Makefile
+		 platform/ia32/Makefile platform/ia64/Makefile
+		 platform/powerpc/Makefile platform/powerpc64/Makefile
+		 platform/Makefile
 		 libc-parts/Makefile
 		 hurd/Makefile
 		 libhurd-ihash/Makefile

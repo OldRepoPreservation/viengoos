@@ -1,3 +1,12 @@
+2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* platform: New directory.
+	* configure.ac (AC_CONFIG_FILES): Add platform/alpha/Makefile,
+	platform/amd64/Makefile, platform/ia32/Makefile,
+	platform/ia64/Makefile, platform/powerpc/Makefile,
+	platform/powerpc64/Makefile and platform/Makefile.
+	* Makefile.am (SUBDIRS): Add platform.
+
 2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
 
 	* deva: New directory.
