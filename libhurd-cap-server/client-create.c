@@ -180,7 +180,10 @@ _hurd_cap_client_create (hurd_cap_bucket_t bucket,
     }
 
   pthread_mutex_lock (&bucket->lock);
-  /* Somebody else might have been faster.  */
+  /* Since we dropped the bucket lock during the allocation (which is
+     potentially long) we need to check that somebody else didn't
+     already allocate a client data structure.  If so, we can just use
+     that.  Otherwise, we continue.  */
   client = (_hurd_cap_client_t) hurd_ihash_find (&bucket->clients_reverse,
 						 task_id);
   if (client)
@@ -188,15 +191,18 @@ _hurd_cap_client_create (hurd_cap_bucket_t bucket,
       entry = (_hurd_cap_client_entry_t)
 	HURD_TABLE_LOOKUP (&bucket->clients, client->id);
       if (entry->dead)
-	err = EINVAL;	/* FIXME: A more appropriate code?  */
+	{
+	  err = EINVAL;	/* FIXME: A more appropriate code?  */
+	  pthread_mutex_unlock (&bucket->lock);
+	}
       else
 	{
 	  /* Somebody else was indeed faster.  Use the existing entry.  */
 	  entry->refs++;
+	  pthread_mutex_unlock (&bucket->lock);
+	  _hurd_cap_client_dealloc (bucket, *r_client);
 	  *r_client = entry->client;
 	}
-      pthread_mutex_unlock (&bucket->lock);
-      _hurd_cap_client_dealloc (bucket, *r_client);
       return err;
     }
 
