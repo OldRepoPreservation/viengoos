@@ -1,5 +1,20 @@
 2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
 
+	* Makefile.am (task_SOURCES): Add physmem-user.h, physmem-user.c,
+	malloc-wrap.c, mmap.c and task-class.c.
+	(EXTRA_task_SOURCES): New target.
+	* physmem-user.h, physmem-user.h, malloc.c, malloc-wrap.c, mmap.c,
+	task-class.c: New files.
+	* task.h (task_class_init, task_alloc): Add prototypes.
+	* task.c: Include <hurd/startup.h> and <hurd/wortel.h>
+	(__hurd_startup_data): New declaration.
+	(create_bootstrap_caps, get_task_id, setup_threads, task_server):
+	New functions.
+	(first_free_thread_no): New global variable.
+	(main): Call setup_threads and initialize server_thread.  Call
+	task_class_init. Create task bucket.  Create manager thread and
+	start it.
+	
 	* ia32-cmain.c (cmain): Access cap_handle member in startup_data,
 	not cap_id.
 

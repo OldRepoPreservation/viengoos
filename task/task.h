@@ -40,3 +40,16 @@ int main (int argc, char *argv[]);
 /* Switch execution transparently to thread TO.  The thread FROM,
    which must be the current thread, will be halted.  */
 void switch_thread (l4_thread_id_t from, l4_thread_id_t to);
+
+
+/* Task objects.  */
+
+/* Initialize the task class subsystem.  */
+error_t task_class_init ();
+
+/* Allocate a new task object with the task ID TASK_ID and the
+   NR_THREADS threads listed in THREADS (which are already allocated
+   for that task.  The object returned is locked and has one
+   reference.  */
+error_t task_alloc (l4_word_t task_id, unsigned int nr_threads,
+		    l4_thread_id_t *threads, hurd_cap_obj_t *r_obj);

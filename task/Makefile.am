@@ -29,8 +29,16 @@ task_CPPFLAGS = -I$(top_builddir)/include			\
 
 task_SOURCES = $(ARCH_SOURCES)					\
 	output.h output.c					\
-	task.h task.c
+	physmem-user.h physmem-user.c mmap.c malloc-wrap.c	\
+	task.h task.c task-class.c
+
+# Doug Lea's malloc is included by malloc-wrap.c.
+EXTRA_task_SOURCES = malloc.c
 
 task_LDFLAGS = -u_start -e_start -nostdlib
 
-task_LDADD = ../libhurd-cap-server/libhurd-cap-server.a ../libhurd-slab/libhurd-slab.a ../libpthread/libpthread.a ../libhurd-ihash/libhurd-ihash.a ../libc-parts/libc-parts.a -lgcc
+task_LDADD = ../libhurd-cap-server/libhurd-cap-server.a		\
+	../libhurd-slab/libhurd-slab.a				\
+	../libpthread/libpthread.a				\
+	../libhurd-ihash/libhurd-ihash.a			\
+	../libc-parts/libc-parts.a -lgcc
