@@ -26,12 +26,12 @@
 
 /* Return the pointer to the kernel interface page, the API version,
    the API flags, and the kernel ID.  */
-
 static inline _L4_kip_t
 _L4_attribute_always_inline _L4_attribute_const
 _L4_kernel_interface (_L4_api_version_t *api_version,
 		      _L4_api_flags_t *api_flags, _L4_kernel_id_t *kernel_id)
 {
+#ifndef _L4_TEST_ENVIRONMENT
   void *kip;
 
   /* The KernelInterface system call is invoked by "lock; nop" and
@@ -43,6 +43,9 @@ _L4_kernel_interface (_L4_api_version_t *api_version,
 	   "=d" (*api_flags), "=S" (*kernel_id));
 
   return kip;
+#else
+  _L4_TEST_KERNEL_INTERFACE_IMPL
+#endif	/* _L4_TEST_ENVIRONMENT */
 }
 
 

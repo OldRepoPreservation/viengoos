@@ -95,6 +95,11 @@ requirements are:
   endianess of the architecture into a single word, and the bits
   within the individual bit-fields in the same order.
 
+* Your compiler must provide a __builtin_memcpy that optimizes copies
+  of fixed small size (one or two machine words).  The memcpy's are
+  necessary to not break strict aliasing rules.  (But on the plus
+  side, you can use strict aliasing optimization).
+
 
 What is the status of the library?
 ----------------------------------

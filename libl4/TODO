@@ -26,6 +26,7 @@
 * GNU interface
 ** Implement the cache hint support functions.
 ** Implement l4_thread_was_* functions.
+** l4/globals.h should be moved to l4/gnu/globals.h.
 
 * Compatibility interface
 ** Implement more of the inofficial extensions to the official libl4

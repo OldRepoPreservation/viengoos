@@ -1,3 +1,13 @@
+2005-02-09  Marcus Brinkmann  <marcus@gnu.org>
+
+	* tests/Makefile.am: New file.
+	* tests/environment.h: New file.
+	* tests/t-l4-kip.c: New file.
+	* Makefile.am (SUBDIRS): Add tests.
+	* ia32/l4/bits/syscall.h (_L4_kernel_interface)
+	[_L4_TEST_ENVIRONMENT]: Replace function body with
+	_L4_TEST_KERNEL_INTERFACE_IMPL.
+
 2005-02-08  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/ipc.h: Major overhaul.  Avoid breaking struct aliasing rules.

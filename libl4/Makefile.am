@@ -24,7 +24,7 @@ endif
 if ARCH_POWERPC
   ARCH_SUBDIR = powerpc
 endif
-SUBDIRS =  $(ARCH_SUBDIR)
+SUBDIRS =  $(ARCH_SUBDIR) tests
 
 # Header files that must be provided by all interfaces.
 common_headers := ipc.h kip.h message.h misc.h schedule.h space.h	\

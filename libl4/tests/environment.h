@@ -1,0 +1,157 @@
+/* environment.h - Fake test environment for testing libl4.
+ */
+
+
+/* A type that behaves like char * alias-wise, but has the width of
+   the system word size.  */
+#ifdef __i386__
+typedef unsigned int __attribute__((__mode__ (__SI__), __may_alias__))
+     big_char_like;
+#else
+#error not ported to this architecture
+#endif
+
+/* Our kernel interface page.  */
+#ifdef __i386__
+static const big_char_like environment_kip[] = 
+  {
+    0x4be6344c, 0x84050000, 0x00000000, 0x00000130,
+    0x0014fab0, 0xf0129720, 0x00000000, 0x00000000,
+    0x00000000, 0x00041c70, 0x00040000, 0x000483a0,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00300000, 0x00300000, 0x0030ba90,
+    0x00000000, 0x01c00007, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00100200, 0x0014f000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x000c2401, 0x0000000c,
+    0x00000000, 0x00000000, 0x00032600, 0x00000120,
+    0x00000000, 0x03001011, 0x00401006, 0x40000000,
+    0x00000910, 0x000008e0, 0x00000930, 0x00000940,
+    0x00000800, 0x00000830, 0x000008d0, 0x00000860,
+    0x00000870, 0x000008b0, 0x000008c0, 0x00000000,
+
+    0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000950, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x002addde, 0x00000000, 0x00000000,
+    0x04020000, 0x00000a36, 0x00040000, 0x20614b55,
+    0x614b344c, 0x69503a3a, 0x63617473, 0x206f6968,
+    0x7562202d, 0x20746c69, 0x4a206e6f, 0x32206e61,
+    0x30322032, 0x30203530, 0x36323a32, 0x2034313a,
+    0x6d207962, 0x75637261, 0x6c754073, 0x65737379,
+    0x73752073, 0x20676e69, 0x20636367, 0x73726576,
+    0x206e6f69, 0x2e332e33, 0x44282034, 0x61696265,
+    0x3a31206e, 0x2e332e33, 0x33312d34, 0x00000029,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000004, 0xfffffc00, 0x00000001, 0x0009f800,
+    0x00100001, 0x07fffc00, 0x000a0004, 0x000efc00,
+    0x07000002, 0x08000000, 0x00000201, 0xbffffc00,
+    0x00100002, 0x0014ec00, 0x00000000, 0x00000000
+
+    /* The rest in the real KIP are 0x00, until offset 0x800, which
+       contains the system call stubs.  */
+  };
+
+unsigned int environment_api_version = 0x84050000;
+unsigned int environment_api_flags = 0x00000000;
+unsigned int environment_kernel_id = 0x04020000;
+
+#else
+#error not ported to this architecture
+#endif
+
+
+#define _L4_TEST_KERNEL_INTERFACE_IMPL		\
+  *api_version = environment_api_version;	\
+  *api_flags = environment_api_flags;		\
+  *kernel_id = environment_kernel_id;		\
+  return (_L4_kip_t) environment_kip;
+
+
+/* This signals to libl4 that we are running in a fake test
+   environment.  */
+#define _L4_TEST_ENVIRONMENT	1
+
+
+/* Enable all interfaces.  */
+#define _L4_INTERFACE_L4	1
+#define _L4_INTERFACE_GNU	1
+
+
+#include <l4/features.h>
+
+
+#ifdef _L4_INTERFACE_GNU
+
+/* Include the global variables that need to be available in every
+   program.  They are initialized by INIT.  */
+#include <l4/globals.h>
+
+#endif	/* _L4_INTERFACE_GNU */
+
+
+/* Be verbose.  */
+static int verbose = 1;
+
+/* Do not exit if errors occur.  */
+static int keep_going = 1;
+
+
+/* True if a check failed.  */
+static int failed;
+
+
+/* Initialize the fake environment.  */
+void
+static inline environment_init (int argc, char *argv[])
+{
+#if _L4_INTERFACE_GNU
+  __l4_kip = (_L4_kip_t) environment_kip;
+#endif
+}
+
+
+/* Support macros.  */
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#define check(prefix,msg,cond,...) \
+  do								\
+    {								\
+      if (verbose)						\
+        printf ("%s Checking %s... ", prefix, msg);		\
+      if (cond)							\
+        {							\
+          if (verbose)						\
+            printf ("OK\n");					\
+        }							\
+      else							\
+        {							\
+          if (verbose)						\
+            printf ("failed\n");				\
+          fprintf (stderr, "FAIL: %s ", prefix);		\
+          fprintf (stderr, __VA_ARGS__);			\
+          failed = 1;						\
+          if (!keep_going)					\
+	    exit (1);						\
+        }							\
+    }								\
+  while (0)
+
+
+
+void test (void);
+
+
+int
+main (int argc, char *argv[])
+{
+  /* Initialize the test environment.  */
+  environment_init (argc, argv);
+
+  test ();
+
+  return failed ? 1 : 0;
+}
