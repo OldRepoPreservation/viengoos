@@ -1,3 +1,9 @@
+2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* container.c: Include "zalloc.h".
+	* physmem.c (create_bootstrap_caps): Remove unused variables
+	STARTUP_CAP, NR_FPAGES, FPAGES.
+
 2004-10-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32-cmain.c (switch_thread): Correct start of small sub stack

@@ -29,7 +29,7 @@
 #include <hurd/cap-server.h>
 
 #include "physmem.h"
-
+#include "zalloc.h"
 
 
 

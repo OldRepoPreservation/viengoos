@@ -82,10 +82,7 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 {
   error_t err;
   hurd_cap_handle_t cap;
-  hurd_cap_handle_t startup_cap;
   hurd_cap_obj_t obj;
-  l4_word_t nr_fpages;
-  l4_word_t fpages[L4_FPAGE_SPAN_MAX];
 
   l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
 
