@@ -1,3 +1,7 @@
+2004-04-11  Marco Gerards  <metgerards@student.han.nl>
+
+	* wortel.c (serve_requests): Initialize from specifier.
+
 2004-04-11  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.c (serve_bootstrap_requests): Initialize from specifier.

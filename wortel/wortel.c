@@ -849,7 +849,7 @@ serve_requests (void)
 {
   do
     {
-      l4_thread_id_t from;
+      l4_thread_id_t from = l4_anythread;
       l4_word_t label;
       l4_msg_t msg;
       l4_msg_tag_t msg_tag;
