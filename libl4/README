@@ -126,7 +126,7 @@ The operations on the TIME data type have not been implemented
 Architecture specific status:
 
 i386	complete and up-to-date
-powerpc	needs to be tested and updated to latest API version
+powerpc	complete and up-to-date 
 others	not implemented
 
 See also the file TODO if you want to help.

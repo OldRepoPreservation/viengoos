@@ -12,7 +12,6 @@
 ** l4_time_point.
 ** Implement l4_time_add, l4_time_sub, l4_time_add_usec, l4_time_sub_usec.
 ** Support for all those architectures.
-*** PowerPC: Current implementation has become stale.  Needs update.
 
 * Extend:
 ** We need cancellable IPC.  This is a bummer.
