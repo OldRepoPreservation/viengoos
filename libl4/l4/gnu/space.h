@@ -204,3 +204,79 @@ l4_space_control (l4_thread_id_t space, l4_word_t control,
   return _L4_space_control (space, control, kip, utcb, redirector,
 			    old_control);
 }
+
+
+/* GNU extensions.  */
+
+#include <l4/kip.h>
+
+/* The maximum number of fpages required to cover a page aligned range
+   of memory.  This is k if the maximum memory range size to cover is
+   2^(k + min_page_size_log2), which can be proven easily by
+   induction.  The minimum page size in L4 is at least
+   L4_MIN_PAGE_SIZE.  We also need to have each fpage aligned to a
+   multiple of its own size.  This makes the proof by induction a bit
+   more convoluted, but does not change the result.  */
+
+#if _L4_WORDSIZE == 32
+#define L4_FPAGE_SPAN_MAX	(32 - L4_MIN_PAGE_SIZE_LOG2)
+#define _L4_MAX_PAGE_SIZE_LOG2	(32)
+#else
+#define L4_FPAGE_SPAN_MAX	(64 - L4_MIN_PAGE_SIZE_LOG2)
+#define _L4_MAX_PAGE_SIZE_LOG2	(64)
+#endif
+
+
+/* Determine the fpages covering the (page aligned) virtual address
+   space from START to END (inclusive).  START must be page aligned,
+   while END must be the address of the last byte in the area.  FPAGES
+   must be an array of at least
+
+   L4_FPAGE_SPAN_MAX - (l4_min_page_size () - L4_MIN_PAGE_SIZE_LOG2)
+
+   fpages (you can just use L4_FPAGE_SPAN_MAX if you need a constant
+   expression).  The function returns the number of fpages returned in
+   FPAGES.  The generated fpages are fully accessible.  */
+static inline unsigned int
+l4_fpage_span (l4_word_t start, l4_word_t end, l4_fpage_t *fpages)
+{
+  l4_word_t min_page_size = l4_min_page_size ();
+  unsigned int nr_fpages = 0;
+
+  if (start > end)
+    return 0;
+
+  /* Round START down to a multiple of the minimum page size.  */
+  start &= ~(min_page_size - 1);
+
+  /* Round END up to one less than a multiple of the minimum page size.  */
+  end = (end & ~(min_page_size - 1)) + min_page_size - 1;
+
+  end = ((end + min_page_size) & ~(min_page_size - 1)) - 1;
+
+  /* END is now at least MIN_PAGE_SIZE - 1 larger than START.  */
+  do
+    {
+      unsigned int addr_align;
+      unsigned int size_align;
+
+      /* Each fpage must be self-aligned.  */
+      addr_align = start ? l4_lsb (start) - 1 : (_L4_MAX_PAGE_SIZE_LOG2 - 1);
+      size_align = (end + 1 - start) ? l4_msb (end + 1 - start) - 1
+	: (_L4_MAX_PAGE_SIZE_LOG2 - 1);
+      if (addr_align < size_align)
+	size_align = addr_align;
+
+      fpages[nr_fpages]
+	= l4_fpage_add_rights (l4_fpage_log2 (start, size_align),
+			       L4_FPAGE_FULLY_ACCESSIBLE);
+
+      /* This may overflow and result in zero.  In that case, the
+	 while loop will terminate.  */
+      start += l4_size (fpages[nr_fpages]);
+      nr_fpages++;
+    }
+  while (start && start < end);
+
+  return nr_fpages;
+}
