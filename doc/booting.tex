@@ -134,7 +134,7 @@ rootserver.
   page faults.
 \end{comment}
 
-The thread ID of $\sigma_0$ is (\verb/UserBase, 1)/.
+The thread ID of $\sigma_0$ is (\verb/UserBase/, 1).
 
 \begin{comment}
   We will write all thread IDs in the form (\verb/thread nr/,
@@ -153,7 +153,7 @@ $\sigma_1$ is intended to provide a paging service for UTCB memory.
 This will allow orthogonal persistence to be implemented.  It is not
 yet supported.
 
-The thread ID of $\sigma_1$ is (\verb/UserBase + 1, 1)/.
+The thread ID of $\sigma_1$ is (\verb/UserBase/ + 1, 1).
 
 
 \section{The rootserver}
@@ -179,7 +179,7 @@ wrappers for the system calls to other unprivileged system tasks.
 The rootserver has the following initial state:
 
 \begin{itemize}
-\item Its thread ID is (\verb/UserBase + 2/, 1).
+\item Its thread ID is (\verb/UserBase/ + 2, 1).
 
 \item The priority is set to the 255, the maximum value.
 
@@ -193,7 +193,7 @@ all other registers are undefined (including the stack pointer).
 
 \item The pager is set to $\sigma_0$.
   
-\item The exception handler set to \verb/nilthread/.
+\item The exception handler is set to \verb/nilthread/.
   
 \item The scheduler is set to the rootserver thread itself.
 \end{itemize}

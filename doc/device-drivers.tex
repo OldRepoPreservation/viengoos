@@ -64,20 +64,20 @@ must be pinned down.
   
 If an application wants to send or receive data to/from a device
 driver it has to tell the virtual driver the page on which the
-operation has to be executed.  Since the application doesn't know
-the virtual-real memory mapping, it has to ask the physical memory
-manager for the real memory address of the page in question.  If the
-page is not directly mapped from the physical memory manager the
-application ask the mapper (another application which has mapped
-this memory region the first application) to resolve the mapping.
-This can be done recursively.  Normally, this resolving of mapping
-can be speed up using a cache services, since a small number of
-pages are reused very often.
+operation has to be executed.  Since the application doesn't know the
+virtual-real memory mapping, it has to ask the physical memory manager
+for the real memory address of the page in question.  If the page is
+not directly mapped from the physical memory manager the application
+asks the mapper (another application which has mapped this memory
+region to the first application) to resolve the mapping.  This can be
+done recursively.  Normally, this resolving of a mapping can be sped
+up using a cache services, since a small number of pages are reused
+very often.
   
-With the scheme, the drivers do not have to take special care of
-zero copying if there is only one virtual driver.  When there is
-more than one virtual driver pages have to copied for all other
-virtual drivers.
+With the scheme, the drivers do not have to take special care of zero
+copying if there is only one virtual driver.  When there is more than
+one virtual driver pages have to be copied for all other virtual
+drivers.
 
 \subsection{Physical versus logical device view}
 
@@ -111,7 +111,7 @@ perform the following tasks:
   file\footnote{It might be a good idea, if the device driver has no
   notion how the configuraiton is stored.  It just asks the bus driver
   which should know how to get the configuration.} or if the driver is
-  a needed for bootstrapping configuration can be given as argument on
+  needed for bootstrapping configuration can be given as argument on
   its stack.  In some cases the bus doesn't generate insertion/removal
   events, but can still support some form of hotplug functionality if
   the user tells the driver when a change to the bus configuration has
@@ -124,7 +124,7 @@ perform the following tasks:
   info, so it can access the device it needs.  This configuration data
   typically consists of the bus addresses of the device and possibly
   IRQ numbers or DMA channel ID's.  The device driver is loaded by the
-  assotiatet plugin manager.
+  associated plugin manager.
 \item Provide access to devices
 
   This means the bus driver should be able to perform a bus
@@ -132,23 +132,23 @@ perform the following tasks:
   involves sending a message and waiting for reply (eg. SCSI, USB,
   IEEE 1394, Fibre Channel,...).  The driver should provide
   send/receive message primitives in this case.  In other cases
-  devices on the bus can be accessed by doing a memory accesses or by
-  using special I/O instructions.  In this case the driver should
-  provide mapping and unmapping primitives so a client device driver
-  can get access to the memory range or is allowed to access the I/O
+  devices on the bus can be accessed by memory accesses or by using
+  special I/O instructions.  In this case the driver should provide
+  mapping and unmapping primitives so a client device driver can get
+  access to the memory range or is allowed to access the I/O
   addresses.  The client device driver should use a library, which is
   bus dependant, to access the device on the bus.  This library hides
-  the platform specific details of accessing the bus.  
+  the platform specific details of accessing the bus.
 \item Rescans
 
   Furthermore the bus driver must also support rescans for hardware.
   It might be that not all drivers are found during bootstrapping and
-  hence later on drivers could be loaded.  This is done by regenerate
-  new attach notification sending to bus's plugin manager.  The plugin
-  manager loads then if possible a new driver.  A probe funtion is not
-  needed since all supported hardware can be identified by
-  vendor/device identifactions (unlike ISA hardware).  For hardware
-  busses which don't support such identifaction only static
+  hence later on drivers could be loaded.  This is done by generating
+  new attach notification, which are sent to the bus's plugin manager.
+  The plugin manager then loads a new driver, if possible.  A probe
+  funtion is not needed since all supported hardware can be identified
+  by vendor/device identification (unlike ISA hardware).  For hardware
+  busses which don't support such identification only static
   configuration is possible (configuration scripts etc.)
 \end{itemize}
 
@@ -320,7 +320,7 @@ For more details see http://os.inf.tu-dresden.de/\~hohmuth/prj/omega0.ps.gz
 Operations:
 \begin{itemize}
 \item attach\_irq : attach an ISR thread to the IRQ 
-\item detach\_irq : detach an ISR thread form the IRQ
+\item detach\_irq : detach an ISR thread from the IRQ
 \end{itemize}
 
 
@@ -371,8 +371,8 @@ controller. Important for the software here is that you need to
 acknowledge IRQ's at each controller. So to acknowledge an IRQ from
 the second 8259 connected to the first 8259 connected to another
 interrupt controller, you have to give an ACK command to each of those
-controllers.  Another import fact is that on PC architecture the order
-of the ACKs is important.
+controllers.  Another import fact is that on the PC architecture the
+order of the ACKs is important.
 
 \subsubsection{Shared IRQs}
 
@@ -410,7 +410,7 @@ physical page mapping.
 \section{Bootstrapping}
 
 The device driver framework will be started by deva, which is started
-by wortel.  All drivers and server (e.g. the plugin manager) are
+by wortel.  All drivers and servers (e.g. the plugin manager) are
 stored in a archive which will be extracted by deva.
 
 \subsection{deva}
@@ -425,8 +425,8 @@ then the rest of the bootstrapping process.
 
 \subsection{Plugin Manager}
 
-A Plugin manager handles driver loading for devices.  It ask for drivers
-deva.  
+A Plugin manager handles driver loading for devices.  It asks deva for
+drivers.
 
 The first plugin server does also some bootstrapping.  First, it starts
 the root bus driver.
@@ -459,17 +459,17 @@ the root bus driver.
   \label{fig:ddf_insert_event}
 \end{figure}
 
-If a simple hardware device is found the ddf will load an driver for
+If a simple hardware device is found the ddf will load a driver for
 the new hardware device as follows (see Figure~\ref{fig:ddf_insert_event}):
 
 \begin{enumerate}
-\item The PCI Bus Driver detects a hardware device for which now driver
-has been loaded yet.  It generates an insert event which is sends to
+\item The PCI Bus Driver detects a hardware device for which no driver
+has been loaded yet.  It generates an insert event which it sends to
 one (all?) registered entity.  The interface for the event handler has
 not been decided yet.
 \item The Root Bus Driver receives the event signal.  Note it is not
-necessary that the Root Bus Driver handles for all drivers the insert
-signal.  It forwards the signal to the/a Plugin Manager (PLM).
+necessary that the Root Bus Driver handles the insert signal for all
+drivers.  It forwards the signal to the/a Plugin Manager (PLM).
 \item The/a Plugin Manager (PLM) asks Deva to load the driver binary
 for the new device.
 \item Deva forwards the loading request to the ext2 filesystem
@@ -483,7 +483,7 @@ from the ext2 process to the IDE Driver.
 the IDE Driver reads the device driver from the disk.
 \item The IDE Driver returns the data.
 \item ddwrapper returns the data. XXX This might be wrong.  IFRC, the
-data is return in a container and only the handle of the container is
+data is returned in a container and only the handle of the container is
 transfered.
 \item Ext2 returns the device driver (data).
 \item Deva returns the device driver (data).
@@ -492,7 +492,7 @@ transfered.
 \item wortel returns ``a new address space''.
 \item Deva returns ``a new address space''.
 \item PLM is registered as pagefault handler for the new driver
-address space.  The bootstrap thread starts to run an generated a
+address space.  The bootstrap thread starts to run and generates a
 page fault.
 \item PLM asks Deva for memory.
 \item Deva asks physmem for memory.
@@ -519,6 +519,5 @@ managers.  The default plugin manger (dPLM) has to be asked to create
 a new plugin manager.  It is loaded like a normal driver.  The default
 plugin manager will also act as pager for the new plugin manager.
 When the new plugin manager is activated it registers itself to the
-Deva as new plugin manager.  Deva will send all signal/messages from
+Deva as new plugin manager.  Deva will send all signals/messages from
 outside of the ddf to all registered plugin managers.
-
