@@ -111,7 +111,10 @@ container_allocate (hurd_cap_rpc_context_t ctx)
 	 allocation.  */
       struct frame_entry *fe = frame_entry_alloc ();
       if (! fe)
-	break;
+	{
+	  err = ENOMEM;
+	  break;
+	}
 
       err = frame_entry_new (container, fe, start + l4_address (fpages[i]),
 			     l4_size (fpages[i]));
