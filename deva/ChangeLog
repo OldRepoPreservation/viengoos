@@ -1,3 +1,11 @@
+2005-02-03  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (deva_SOURCES): Add device-serial.c
+	* device-serial.c: New file.
+	* device.h (struct device): Add new members serial.input_wait and
+	serial.output_wait.
+	* device.c (device_alloc): Enable the DEVICE_SERIAL case.
+
 2005-02-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* deva.h (deva_alloc): Renamed to device_alloc.

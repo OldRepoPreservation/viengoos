@@ -33,7 +33,7 @@ deva_SOURCES = $(ARCH_SOURCES)					\
 	mmap.c malloc-wrap.c					\
 	task-user.h task-user.c					\
 	deva.h deva.c						\
-	device.h device.c device-console.c
+	device.h device.c device-console.c device-serial.c
 
 # Doug Lea's malloc is included by malloc-wrap.c.
 EXTRA_deva_SOURCES = malloc.c

@@ -56,8 +56,10 @@ struct device
 #define SERIAL_MAX 128
       unsigned char input[SERIAL_MAX];
       unsigned int input_len;
+      unsigned int input_wait;
       unsigned char output[SERIAL_MAX];
       unsigned int output_len;
+      unsigned int output_wait;
     } serial;
   };
 };

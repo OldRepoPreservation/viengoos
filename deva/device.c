@@ -132,9 +132,7 @@ device_alloc (hurd_cap_obj_t *r_obj, enum device_type type)
       break;
 
     case DEVICE_SERIAL:
-#if 0
       device_serial_init (dev);
-#endif
       break;
 
     default:
