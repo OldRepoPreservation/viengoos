@@ -25,7 +25,7 @@
 
 #include <stdlib.h>
 
-#include <l4/space.h>
+#include <l4.h>
 #include <hurd/cap-server.h>
 
 #include "physmem.h"
@@ -69,9 +69,69 @@ container_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 
 
 error_t
+container_map (hurd_cap_rpc_context_t ctx)
+{
+  container_t container = (container_t) ctx->obj;
+  l4_word_t offset = l4_page_trunc (l4_msg_word (ctx->msg, 1));
+  l4_word_t rights = l4_msg_word (ctx->msg, 1) & 0x7;
+  l4_word_t size = l4_page_round (l4_msg_word (ctx->msg, 2));
+  l4_word_t vaddr = l4_page_trunc (l4_msg_word (ctx->msg, 3));
+  l4_word_t start;
+  l4_word_t end;
+  l4_word_t nr_fpages;
+  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
+  l4_word_t i;
+
+  /* FIXME FIXME FIXME */
+  if (offset > 0x8000000)
+    {
+      /* Allocation.  */
+      start = zalloc (size);
+      end = start + size - 1;
+    }
+  else
+    {
+      /* FIXME: Currently, we just trust that everything is all-right.  */
+      start = l4_address (container->fpages[0]) + offset;
+      end = start + size - 1;
+    }
+
+  l4_msg_clear (ctx->msg);
+  nr_fpages = l4_fpage_span (start, end, fpages);
+
+  for (i = 0; i < nr_fpages; i++)
+    {
+      l4_map_item_t map_item;
+      l4_fpage_t fpage;
+
+      fpage = fpages[i];
+      l4_set_rights (&fpage, rights);
+      map_item = l4_map_item (fpage, vaddr);
+      l4_msg_append_map_item (ctx->msg, map_item);
+      vaddr += l4_size (fpage);
+    }
+
+  return 0;
+}
+
+
+error_t
 container_demuxer (hurd_cap_rpc_context_t ctx)
 {
-  return 0;
+  error_t err = 0;
+
+  switch (l4_msg_label (ctx->msg))
+    {
+      /* PHYSMEM_MAP */
+    case 128:
+      err = container_map (ctx);
+      break;
+
+    default:
+      err = EOPNOTSUPP;
+    }
+
+  return err;
 }
 
 

@@ -1,3 +1,8 @@
+2004-04-15  Marcus Brinkmann  <marcus@gnu.org>
+
+	* container.c (container_map): New function.
+	(container_demux): Call container_map.
+
 2004-04-11  Marcus Brinkmann  <marcus@gnu.org>
 
 	* physmem.c (get_task_cap): New function.
