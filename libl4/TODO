@@ -24,7 +24,11 @@
    (l4_start_sp_ip etc) (currently result is undefined).  Handle IPC
    errors somehow intelligently.
 
-* Compatibility
+* GNU interface
+** Implement the cache hint support functions.
+** Implement l4_thread_was_* functions.
+
+* Compatibility interface
 ** Implement more of the inofficial extensions to the official libl4
    library (things like sigma0.h).
 ** Think about syscall stubs, which are initialized lazily in the
