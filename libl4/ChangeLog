@@ -1,3 +1,7 @@
+2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ia32/l4/bits/vregs.h (_L4_utcb): Make the assembler volatile.
+
 2004-03-17  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/schedule.h (_L4_TIME_M_BITS, _L4_TIME_PERIOD_E_BITS,

@@ -31,8 +31,8 @@ _L4_utcb (void)
 {
   _L4_word_t *utcb;
 
-  __asm__ ("movl %%gs:0, %[utcb]"
-	   : [utcb] "=r" (utcb));
+  __asm__ __volatile__ ("movl %%gs:0, %[utcb]"
+			: [utcb] "=r" (utcb));
 
   return utcb;
 }
