@@ -208,7 +208,7 @@ main (int argc, char *argv[])
 
   /* FIXME.  Flush D-cache?  */
 
-  (*(void (*) (void)) kernel.ip) ();
+  start_kernel (kernel.ip);
 
   /* Should not be reached.  */
   shutdown ();

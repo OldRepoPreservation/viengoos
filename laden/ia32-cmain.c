@@ -36,6 +36,13 @@ help_arch (void)
     "through to the rootserver\n"
     "and handled by it.\n";
 }
+
+/* Start kernel by simply jumping to the entry point.  */
+void
+start_kernel (l4_word_t ip)
+{
+  (*(void (*) (void)) ip) ();
+}
 
 
 /* Check if the bit BIT in FLAGS is set.  */

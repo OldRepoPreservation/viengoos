@@ -41,6 +41,9 @@ extern char *program_name;
    required for booting.  */
 void find_components (void);
 
+/* Start kernel.  IP is the entry point.  */
+void start_kernel (l4_word_t ip);
+
 typedef __l4_rootserver_t rootserver_t;
 
 /* For the rootserver components, find_components() must fill in the
