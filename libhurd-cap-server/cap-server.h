@@ -350,8 +350,7 @@ hurd_cap_obj_unlock (hurd_cap_obj_t obj)
 }
 
 
-/* Add a reference for the capability object OBJ, which must be
-   locked.  */
+/* Add a reference for the capability object OBJ.  */
 static inline void
 hurd_cap_obj_ref (hurd_cap_obj_t obj)
 {
