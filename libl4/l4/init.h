@@ -23,6 +23,7 @@
 #define _L4_INIT_H	1
 
 #include <l4/kip.h>
+#include <l4/syscall.h>
 
 
 /* Initialize the global data.  */

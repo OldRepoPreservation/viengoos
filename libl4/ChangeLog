@@ -1,4 +1,16 @@
+2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/init.h: Include <l4/syscall.h>
+
 2003-09-18  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (nobase_include_HEADERS): Add l4/init.h.
+	* headers.m4: Likewise.
+
+	* l4/kip.h (L4_MIN_PAGE_SIZE): New macro.
+	(l4_memory_desc_high): Return the address of the last byte, not
+	the byte following it, according to 20030912 version of the L4 X.2
+	specification, revision 4.
 
 	* l4/types.h (__L4_PRI_PREFIX, L4_PRIdWORD, L4_PRIiWORD,
 	L4_PRIoWORD, L4_PRIuWORD, L4_PRIxWORD, L4_PRIXWORD, L4_SCNdWORD,

@@ -24,7 +24,7 @@ endif
 SUBDIRS =  $(ARCH_SUBDIR)
 
 include_HEADERS = l4.h
-nobase_include_HEADERS = l4/types.h l4/math.h l4/globals.h		\
+nobase_include_HEADERS = l4/types.h l4/math.h l4/globals.h l4/init.h	\
 	l4/vregs.h l4/stubs.h l4/stubs-init.h l4/syscall.h		\
 	l4/kip.h l4/thread.h l4/schedule.h l4/space.h			\
 	l4/ipc.h l4/misc.h

@@ -352,8 +352,7 @@ l4_kernel_id (void)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
-			   + l4_kip ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->kern_desc_ptr);
   return kern->id;
 }
 
@@ -364,8 +363,7 @@ l4_kernel_gen_date (l4_word_t *year, l4_word_t *month, l4_word_t *day)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
-			   + l4_kip ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->kern_desc_ptr);
 
   if (year)
     *year = kern->gen_date.year + 2000;
@@ -382,8 +380,7 @@ l4_kernel_version (l4_word_t *ver, l4_word_t *subver, l4_word_t *subsubver)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
-			   + l4_kip ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->kern_desc_ptr);
 
   if (ver)
     *ver = kern->version.ver;
@@ -400,8 +397,7 @@ l4_kernel_supplier (void)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
-			   + l4_kip ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->kern_desc_ptr);
 
   return kern->supplier;
 }
@@ -422,8 +418,7 @@ l4_proc_desc (l4_word_t num)
   if (num >= l4_num_processors ())
     return (l4_proc_desc_t) 0;
 
-  return (l4_proc_desc_t) ((l4_word_t) l4_kip ()
-			   + l4_kip ()->proc_desc_ptr)
+  return (l4_proc_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->proc_desc_ptr)
     + num * (1 << l4_kip ()->processor_info.log2_size);
 }
 
@@ -445,6 +440,7 @@ l4_proc_external_freq (l4_proc_desc_t proc)
 
 
 #define L4_MIN_PAGE_SIZE_LOG2	10
+#define L4_MIN_PAGE_SIZE	(L4_WORD_C(1) << L4_MIN_PAGE_SIZE_LOG2)
 
 static inline l4_word_t
 __attribute__((__always_inline__))
@@ -635,9 +631,8 @@ l4_memory_desc (l4_word_t num)
   if (num >= l4_num_memory_desc ())
     return (l4_memory_desc_t) 0;
 
-  mem = (l4_memory_desc_t)
-    ((l4_word_t) l4_kip ()
-     + l4_kip ()->memory_info.mem_desc_ptr);
+  mem = (l4_memory_desc_t) ((l4_word_t) l4_kip ()
+			    + l4_kip ()->memory_info.mem_desc_ptr);
   return mem + num;
 }
 
@@ -658,19 +653,25 @@ l4_memory_desc_type (l4_memory_desc_t mem)
 }
 
 
+/* Return the address of the first byte of the memory region described
+   by MEM.  */
 static inline l4_word_t
 __attribute__((__always_inline__))
 l4_memory_desc_low (l4_memory_desc_t mem)
 {
+  /* The lower 10 bits are hard-wired to 0.  */
   return mem->low << 10;
 }
 
 
+/* Return the address of the last byte of the memory region described
+   by MEM.  */
 static inline l4_word_t
 __attribute__((__always_inline__))
 l4_memory_desc_high (l4_memory_desc_t mem)
 {
-  return mem->high << 10;
+  /* The lower 10 bits are hard-wired to 1.  */
+  return (mem->high << 10) | ((1 << 10) - 1);
 }
 
 #endif	/* l4/kip.h */

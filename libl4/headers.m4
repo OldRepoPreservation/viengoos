@@ -13,6 +13,7 @@
 AC_CONFIG_LINKS([
   include/l4.h:libl4/l4.h
   include/l4/globals.h:libl4/l4/globals.h
+  include/l4/init.h:libl4/l4/init.h
   include/l4/ipc.h:libl4/l4/ipc.h
   include/l4/kip.h:libl4/l4/kip.h
   include/l4/math.h:libl4/l4/math.h
