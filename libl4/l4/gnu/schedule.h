@@ -29,7 +29,7 @@ typedef _L4_clock_t l4_clock_t;
 
 static inline l4_clock_t
 _L4_attribute_always_inline
-l4_SystemClock (void)
+l4_system_clock (void)
 {
   return _L4_system_clock ();
 }

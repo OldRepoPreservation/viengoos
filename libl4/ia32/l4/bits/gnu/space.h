@@ -26,12 +26,17 @@
 
 /* IO Fpages.  */
 
-static inline l4_fpage_t l4_io_fpage (l4_word_t base_address, int size)
-     _L4_attribute_alias (_L4_io_fpage);
+static inline l4_fpage_t
+l4_io_fpage (l4_word_t base_address, int size)
+{
+  return _L4_io_fpage (base_address, size);
+}
 
-static inline l4_fpage_t l4_io_fpage_log2 (l4_word_t base_address,
-					   int log2_size)
-     _L4_attribute_alias (_L4_io_fpage_log2);
+static inline l4_fpage_t
+l4_io_fpage_log2 (l4_word_t base_address, int log2_size)
+{
+  return _L4_io_fpage_log2 (base_address, log2_size);
+}
 
 
 /* l4_space_control control argument.  */
@@ -39,5 +44,8 @@ static inline l4_fpage_t l4_io_fpage_log2 (l4_word_t base_address,
 #define L4_LARGE_SPACE	_L4_LARGE_SPACE
 #define L4_SMALL_SPACE	_L4_SMALL_SPACE
 
-static inline l4_word_t l4_small_space (l4_word_t loc, l4_word_t size)
-     _L4_attribute_alias (_L4_small_space);
+static inline l4_word_t
+l4_small_space (l4_word_t loc, l4_word_t size)
+{
+  return _L4_small_space (loc, size);
+}

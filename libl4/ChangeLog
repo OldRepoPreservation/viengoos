@@ -1,3 +1,11 @@
+2004-03-21  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/gnu/schedule.h (l4_SystemClock): Rename to ...
+	(l4_system_clock): ... this.
+
+	* ia32/l4/bits/gnu/space.h (l4_io_fpage, l4_io_fpage_log2,
+	l4_small_space): Convert to wrapper function.
+
 2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/ipc.h (L4_string_items_acceptor): Rename to ...
