@@ -1927,7 +1927,7 @@ features like capabilities, so inheriting all capabilities across
   those used for file descriptors etc to be inherited by the new
   executable.
   
-  For \texttt{posix_spawn}, this is straight-forward.  For
+  For \verb/posix_spawn()/, this is straight-forward.  For
   \texttt{exec()}, it is not. either specific capabilities could be
   markes as ``do not close on \texttt{exec()}'', or variants of the
   \texttt{exec()} function could be provided which take further
