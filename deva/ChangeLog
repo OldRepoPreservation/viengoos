@@ -1,3 +1,10 @@
+2004-11-22  Neal H. Walfield  <neal@gnu.org>
+
+	* deva.c (bootstrap_final): New function.
+	(main): Call bootstrap_final as per the start up protocol to tell
+	wortel that devais up and running and that it should now start the
+	root fs.
+
 2004-11-17  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (bootdir): New variable.

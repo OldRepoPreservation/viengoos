@@ -205,6 +205,19 @@ deva_server (void *arg)
 }
 
 
+static void
+bootstrap_final (void)
+{
+  l4_thread_id_t task_server;
+  hurd_cap_handle_t task_cap;
+  l4_thread_id_t deva_server;
+  hurd_cap_handle_t deva_cap;
+
+  wortel_bootstrap_final (&task_server, &task_cap, &deva_server, &deva_cap);
+
+  /* FIXME: Do something with the task cap.  */
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -236,6 +249,8 @@ main (int argc, char *argv[])
   if (err)
     panic ("pthread_create_from_l4_tid_np: %i\n", err);
   pthread_detach (manager);
+
+  bootstrap_final ();
 
   /* FIXME: get root filesystem cap (for loading drivers).  */
 
