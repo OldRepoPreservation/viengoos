@@ -127,26 +127,18 @@ Architecture specific status:
 
 i386	complete and up-to-date
 powerpc	needs to be tested and updated to latest API version
+others	not implemented
+
+See also the file TODO if you want to help.
 
 
-TODO
-----
+Copyright 2003, 2004 Free Software Foundation, Inc.
+Written by Marcus Brinkmann <marcus@gnu.org>
 
-* Bugs
-** Fix _L4_msg_get_string_item.
-* Optimizations:
-** l4_time_period for built-in constants.
-** l4_exchange_register does not need to copy out return values if the
-   "deliver" bit is not set, this can usually be tested at compilation
-   time.  Check if this is required or if gcc already optimizes that away.
-* Implement:
-** l4_time_point.
-** Implement l4_time_add, l4_time_sub, l4_time_add_usec, l4_time_sub_usec.
-* Extend:
-** Add l4_time_t period shift operators for fast exponential backoff
-  (ie, just increase the exponent).  Use in __pthread_spin_lock, for example.
-** Sanitize the error handling.  The GNU interface should return
-   proper errno values for all failures.  ExchangeRegister can fail,
-   so all functions using it should also return an error value
-   (l4_start_sp_ip etc) (currently result is undefined).
-
+This file is free software; as a special exception the author gives
+unlimited permission to copy and/or distribute it, with or without
+modifications, as long as this notice is preserved.
+ 
+This file is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
