@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libl4/ia32.
-# Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -22,8 +22,8 @@ nobase_include_HEADERS = l4/bits/types.h			\
 	l4/bits/math.h l4/bits/vregs.h l4/bits/syscall.h	\
 	l4/bits/stubs.h l4/bits/stubs-init.h			\
 	l4/bits/kip.h l4/bits/space.h l4/bits/ipc.h		\
-	l4/bits/misc.h						\
+	l4/bits/misc.h	l4/bits/arch.h				\
 	l4/bits/compat/ipc.h l4/bits/compat/misc.h		\
-	l4/bits/compat/space.h					\
+	l4/bits/compat/space.h l4/bits/compat/arch.h		\
 	l4/bits/gnu/ipc.h l4/bits/gnu/kip.h l4/bits/gnu/misc.h	\
-	l4/bits/gnu/space.h
+	l4/bits/gnu/space.h l4/bits/gnu/arch.h

@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libl4.
-# Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -36,7 +36,8 @@ compat_headers := $(common_headers)
 # Main libl4 header files.
 l4_headers = features.h globals.h init.h ipc.h kip.h math.h message.h	\
 	misc.h pagefault.h schedule.h space.h stubs-init.h stubs.h	\
-	syscall.h thread.h thread-start.h types.h vregs.h sigma0.h
+	syscall.h thread.h thread-start.h types.h vregs.h sigma0.h	\
+	arch.h
 
 include_HEADERS = l4.h
 nobase_include_HEADERS = $(addprefix l4/, $(l4_headers))	\

@@ -1,5 +1,5 @@
 /* l4/kip.h - Public interface to the L4 kernel interface page.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -242,6 +242,13 @@ struct _L4_kip
   _L4_word_t system_clock;
   _L4_word_t thread_switch;
   _L4_word_t schedule;
+
+  _L4_word_t _pad5[5];
+  
+  _L4_word_t arch0;
+  _L4_word_t arch1;
+  _L4_word_t arch2;
+  _L4_word_t arch3;
 };
 
 

@@ -1,5 +1,5 @@
 /* l4.h - Public interface to L4.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -30,5 +30,6 @@
 #include <l4/space.h>
 #include <l4/ipc.h>
 #include <l4/misc.h>
+#include <l4/arch.h>
 
 #endif	/* l4.h */

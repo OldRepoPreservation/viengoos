@@ -316,3 +316,16 @@ _L4_memory_control (_L4_word_t control, _L4_word_t *attributes)
 
   return result;
 }
+
+
+static inline void
+_L4_attribute_always_inline
+_L4_set_gs0 (_L4_word_t user_gs0)
+{
+  __asm__ __volatile__ ("push %%ebp\n"
+			"call *__l4_set_gs0\n"
+			"pop %%ebp\n"
+			: 
+			: "a" (user_gs0)
+			: "ecx", "edx", "esi", "edi", "ebx");
+}

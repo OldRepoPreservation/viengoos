@@ -1,5 +1,5 @@
 /* stubs-init.h - Initialize system stubs in an architecture dependent way.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -23,10 +23,12 @@
 # error "Never use <l4/bits/stubs-init.h> directly; include <l4/stubs-init.h> instead."
 #endif
 
-#define __L4_SETUP_SYSCALL(name)					\
+#define __L4_SETUP_SYSCALL_X(name,kipname)				\
 extern void (*__l4_ ## name) (void);					\
   __l4_ ## name = (void (*) (void))					\
-    (((l4_word_t) l4_kip ()) + l4_kip ()->name)
+    (((l4_word_t) l4_kip ()) + l4_kip ()->kipname)
+
+#define __L4_SETUP_SYSCALL(name) __L4_SETUP_SYSCALL_X(name,name)
 
 
 /* Initialize the syscall stubs.  */
@@ -45,4 +47,6 @@ l4_init_stubs (void)
   __L4_SETUP_SYSCALL (space_control);
   __L4_SETUP_SYSCALL (processor_control);
   __L4_SETUP_SYSCALL (memory_control);
+
+  __L4_SETUP_SYSCALL_X (set_gs0, arch0);
 };

@@ -1,5 +1,5 @@
-/* stubs.h - L4 system call stubs for ia32.
-   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
+/* l4/bits/compat/arch.h - L4 architecture features for ia32.
+   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -19,21 +19,6 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-#ifndef _L4_STUBS_H
-# error "Never use <l4/bits/stubs.h> directly; include <l4/stubs.h> instead."
+#ifndef _L4_ARCH_H
+# error "Never use <l4/bits/compat/arch.h> directly; include <l4/arch.h> instead."
 #endif
-
-typedef void (*__l4_syscall_stub_t) (void);
-
-__l4_syscall_stub_t __l4_exchange_registers;
-__l4_syscall_stub_t __l4_thread_control;
-__l4_syscall_stub_t __l4_system_clock;
-__l4_syscall_stub_t __l4_thread_switch;
-__l4_syscall_stub_t __l4_schedule;
-__l4_syscall_stub_t __l4_ipc;
-__l4_syscall_stub_t __l4_lipc;
-__l4_syscall_stub_t __l4_unmap;
-__l4_syscall_stub_t __l4_space_control;
-__l4_syscall_stub_t __l4_processor_control;
-__l4_syscall_stub_t __l4_memory_control;
-__l4_syscall_stub_t __l4_set_gs0;

@@ -1,5 +1,5 @@
 # headers.m4 - Autoconf snippets to install links for header files.
-# Copyright 2003, 2004 Free Software Foundation, Inc.
+# Copyright 2003, 2004, 2005 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann <marcus@gnu.org>.
 #
 # This file is free software; as a special exception the author gives
@@ -20,6 +20,7 @@ AC_CONFIG_LINKS([
   include/l4/math.h:libl4/l4/math.h
   include/l4/message.h:libl4/l4/message.h
   include/l4/misc.h:libl4/l4/misc.h
+  include/l4/arch.h:libl4/l4/arch.h
   include/l4/pagefault.h:libl4/l4/pagefault.h
   include/l4/schedule.h:libl4/l4/schedule.h
   include/l4/space.h:libl4/l4/space.h
@@ -58,6 +59,7 @@ AC_CONFIG_LINKS([
   include/l4/bits/kip.h:libl4/${arch}/l4/bits/kip.h
   include/l4/bits/math.h:libl4/${arch}/l4/bits/math.h
   include/l4/bits/misc.h:libl4/${arch}/l4/bits/misc.h
+  include/l4/bits/arch.h:libl4/${arch}/l4/bits/arch.h
   include/l4/bits/space.h:libl4/${arch}/l4/bits/space.h
   include/l4/bits/stubs.h:libl4/${arch}/l4/bits/stubs.h
   include/l4/bits/stubs-init.h:libl4/${arch}/l4/bits/stubs-init.h
@@ -66,9 +68,11 @@ AC_CONFIG_LINKS([
   include/l4/bits/vregs.h:libl4/${arch}/l4/bits/vregs.h
   include/l4/bits/compat/ipc.h:libl4/${arch}/l4/bits/compat/ipc.h
   include/l4/bits/compat/misc.h:libl4/${arch}/l4/bits/compat/misc.h
+  include/l4/bits/compat/arch.h:libl4/${arch}/l4/bits/compat/arch.h
   include/l4/bits/compat/space.h:libl4/${arch}/l4/bits/compat/space.h
   include/l4/bits/gnu/ipc.h:libl4/${arch}/l4/bits/gnu/ipc.h
   include/l4/bits/gnu/kip.h:libl4/${arch}/l4/bits/gnu/kip.h
   include/l4/bits/gnu/misc.h:libl4/${arch}/l4/bits/gnu/misc.h
+  include/l4/bits/gnu/arch.h:libl4/${arch}/l4/bits/gnu/arch.h
   include/l4/bits/gnu/space.h:libl4/${arch}/l4/bits/gnu/space.h
 ])
