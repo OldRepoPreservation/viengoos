@@ -23,4 +23,5 @@
 # error "Never use <l4/bits/kip.h> directly; include <l4/kip.h> instead."
 #endif
 
-/* Nothing yet.  */
+/* Kernel features.  */
+#define L4_FEATURE_SMALLSPACES "smallspaces"

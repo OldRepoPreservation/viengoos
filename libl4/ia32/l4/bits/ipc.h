@@ -1,4 +1,4 @@
-/* ipc.h - L4 IPC features for powerpc.
+/* ipc.h - L4 IPC features for ia32.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -23,4 +23,6 @@
 # error "Never use <l4/bits/ipc.h> directly; include <l4/ipc.h> instead."
 #endif
 
-/* Nothing yet.  */
+#define l4_allocate_new_cache_lines		1
+#define l4_do_not_allocate_new_cache_lines	2
+#define l4_allocate_only_new_cache_lines	3

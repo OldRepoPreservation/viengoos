@@ -1,4 +1,4 @@
-/* misc.h - L4 miscellaneous definitions for powerpc.
+/* misc.h - L4 miscellaneous definitions for ia32.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -23,11 +23,8 @@
 # error "Never use <l4/bits/misc.h> directly; include <l4/misc.h> instead."
 #endif
 
-#define l4_write_through_memory		1
-#define l4_write_back_memory		2
-#define l4_cache_inhibited_memory	3
-#define l4_cache_enabled_memory		4
-#define l4_global_memory		5
-#define l4_local_memory			6
-#define l4_guarded_memory		7
-#define l4_speculative_memory		8
+#define l4_uncacheable_memory		1
+#define l4_write_combining_memory	2
+#define l4_write_through_memory		5
+#define l4_write_protected_memory	6
+#define l4_write_back_memory		7

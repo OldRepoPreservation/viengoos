@@ -1,4 +1,4 @@
-/* stubs.h - L4 system call stubs for powerpc.
+/* stubs.h - L4 system call stubs for ia32.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
