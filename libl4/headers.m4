@@ -30,6 +30,7 @@ AC_CONFIG_LINKS([
   include/l4/thread-start.h:libl4/l4/thread-start.h
   include/l4/types.h:libl4/l4/types.h
   include/l4/vregs.h:libl4/l4/vregs.h
+  include/l4/sigma0.h:libl4/l4/sigma0.h
   include/l4/compat/ipc.h:libl4/l4/compat/ipc.h
   include/l4/compat/kip.h:libl4/l4/compat/kip.h
   include/l4/compat/message.h:libl4/l4/compat/message.h
@@ -39,6 +40,7 @@ AC_CONFIG_LINKS([
   include/l4/compat/syscall.h:libl4/l4/compat/syscall.h
   include/l4/compat/thread.h:libl4/l4/compat/thread.h
   include/l4/compat/types.h:libl4/l4/compat/types.h
+  include/l4/compat/sigma0.h:libl4/l4/compat/sigma0.h
   include/l4/gnu/ipc.h:libl4/l4/gnu/ipc.h
   include/l4/gnu/kip.h:libl4/l4/gnu/kip.h
   include/l4/gnu/math.h:libl4/l4/gnu/math.h
@@ -51,6 +53,7 @@ AC_CONFIG_LINKS([
   include/l4/gnu/thread.h:libl4/l4/gnu/thread.h
   include/l4/gnu/thread-start.h:libl4/l4/gnu/thread-start.h
   include/l4/gnu/types.h:libl4/l4/gnu/types.h
+  include/l4/gnu/sigma0.h:libl4/l4/gnu/sigma0.h
   include/l4/bits/ipc.h:libl4/${arch}/l4/bits/ipc.h
   include/l4/bits/kip.h:libl4/${arch}/l4/bits/kip.h
   include/l4/bits/math.h:libl4/${arch}/l4/bits/math.h

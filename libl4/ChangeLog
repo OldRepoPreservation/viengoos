@@ -1,3 +1,10 @@
+2004-04-21  Marco Gerards  <metgerards@student.han.nl>
+
+	* Makefile.am (common_headers, l4_headers): Add sigma0.h.
+	* headers.m4: Add libl4/l4/sigma0.h, libl4/l4/compat/sigma0.h
+	and libl4/l4/gnu/sigma0.h.
+	* l4/sigma0.h, l4/compat/sigma0.h, l4/gnu/sigma0.h: New files.
+
 2004-04-21  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/space.h (L4_FPAGE_SPAN_MAX): Increase value.
