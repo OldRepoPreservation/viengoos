@@ -1,3 +1,8 @@
+2004-11-30  Neal H. Walfield  <neal@gnu.org>
+
+	* bucket-create.c (_hurd_cap_client_death): Comparisons use ==,
+	not =.  Fix it.
+
 2004-11-29  Neal H. Walfield  <neal@gnu.org>
 
 	* client-create.c (_hurd_cap_client_create): Deallocate the

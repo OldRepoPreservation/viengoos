@@ -81,7 +81,7 @@ _hurd_cap_client_death (void *hook, hurd_task_id_t task_id)
 	HURD_TABLE_LOOKUP (&bucket->clients, client->id);
 
       /* Now, we should have the last reference for this client.  */
-      assert (entry->refs = 1);
+      assert (entry->refs == 1);
       pthread_mutex_unlock (&bucket->lock);
 #endif
 
