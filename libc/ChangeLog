@@ -1,5 +1,8 @@
 2005-02-06  Marcus Brinkmann  <marcus@gnu.org>
 
+	* patches/09-sysdeps-generic-lseek.patch: New file.
+	* Makefile.am (patch_files): Add 09-sysdeps-generic-lseek.patch.
+
 	* Makefile.am (hurd_l4_sysdeps_l4_hurd): Add Makeconfig.
 
 	* Makefile.am (patch_files): Add 08-sysdeps-generic-dl-sysdep.patch

@@ -28,6 +28,7 @@ patch_files = 00-configure-touch.patch 01-configure.in-base-os.patch \
 	06-sysdeps-generic-open.patch \
 	07-sysdeps-generic-fcntl.patch \
 	08-sysdeps-generic-dl-sysdep.patch \
+	09-sysdeps-generic-lseek.patch \
 	50-nptl-hurd-l4.patch \
 	51-nptl-hurd-l4-tls.patch
 

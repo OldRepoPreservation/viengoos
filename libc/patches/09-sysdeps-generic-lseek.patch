@@ -1,0 +1,35 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+2005-02-06  Marcus Brinkmann  <marcus@gnu.org>
+
+	* sysdeps/generic/lseek.c (__libc_lseek): Rename to ...
+	(__libc_lseek): ... this.
+	(__lseek): Make it weak hidden alias to __libc_lseek.
+	(lseek): Make it a weak alias to __libc_lseek.
+
+--- libc/sysdeps/generic/lseek.c	2005-02-06 19:53:28.000000000 +0100
++++ libc/sysdeps/generic/lseek.c	2005-02-06 19:58:03.000000000 +0100
+@@ -22,7 +22,7 @@
+ 
+ /* Seek to OFFSET on FD, starting from WHENCE.  */
+ off_t
+-__lseek (fd, offset, whence)
++__libc_lseek (fd, offset, whence)
+      int fd;
+      off_t offset;
+      int whence;
+@@ -46,8 +46,11 @@ __lseek (fd, offset, whence)
+   __set_errno (ENOSYS);
+   return -1;
+ }
++libc_hidden_def (__libc_lseek)
+ stub_warning (lseek)
++
++weak_alias (__libc_lseek, __lseek)
+ libc_hidden_def (__lseek)
++weak_alias (__libc_lseek, lseek)
+ 
+-weak_alias (__lseek, lseek)
+ #include <stub-tag.h>
