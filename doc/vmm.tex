@@ -314,6 +314,15 @@ the sender is the memory policy server, it will fail otherwise.
 
 \section{Containers}
 
+In a monolithic kernel, other than through pipes, little data is
+exchanged between tasks: all services are provided by the kernel, a
+trusted entity which is able to directly access tasks' address space.
+In a multiserver system, most data acquisitions come from user space
+servers.  As such, powerful primatives for moving memory around is an
+absolute necessity: physical copying must be kept to an absolute
+minimum and there must be a way to use and preserve copy on write
+pages.
+
 Containers are the basic abstraction used for allocating, addressing
 and sharing memory.  Conceptually, containers contain a set of
 integers identifying \keyword{virtual frame}s in the physical memory
@@ -364,25 +373,27 @@ analysis reveals several problems with this approach.  If the server
 dies before the client, the mappings in the client's address space
 will suddenly disappear.  Similarly, if the server is malicious, it
 may revoke the mappings at some inconvenient (i.e. unrecoverable) time
-for the client causing it to crash.  If a server allocates resources
-on behalf of the the client it becomes impossible to do system wide
-resource accounting as many servers are not trusted by the system.
-All of these problems are solved by containers.  When a client needs
-to read data from a server, it creates a container, adds the number of
-frames that the server will require for the operation to it and
-finally shares the container with the server.  After sending a request
-to the server, the server copies the data into the provided container.
-It is important to understand that the server does not ``fill'' the
-container: the number of frames remains constant; the state of the
-bits changes.  When the server returns to the client, the client
-unshares the container and is now able to map the frames into its
-address space by contacting the physical memory server.  Should the
-server die, the client remains uneffected as the data is cached in the
-physical memory server.  The physical memory server is also trusted
-thus if a task is malicious, it can only be malicious during the
-initial copy of the data into the container, i.e. before the client
-starts using the data.  Finally, as the resources are allocated by the
-client via system servers, resource accounting is possible.
+causing the client to crash or unable to inform the user of the
+change.  Also, if a server allocates resources on behalf of the the
+client it becomes impossible to do system wide resource accounting as
+many servers are not trusted by the system.  All of these problems are
+solved by containers.  When a client needs to read data from a server,
+it creates a container, adds the number of frames that the server will
+require for the operation to it and finally shares the container with
+the server.  After sending a request to the server, the server copies
+the data into the provided container.  It is important to understand
+that the server does not ``fill'' the container: the number of frames
+remains constant; the state of the bits changes.  When the server
+returns to the client, the client revokes the share and is now able to
+map the frames into its address space by contacting the physical
+memory server.  Should the server die, the client remains uneffected
+as the data lives in the physical memory server.  The physical memory
+server is also trusted thus if a task is malicious, it can only be
+malicious during the initial copy of the data into the container,
+i.e. before the client starts using the data and thereby giving the
+client the opportunity to report an inconsistencies to the caller.
+Finally, as the resources are allocated by the client via system
+servers, global resource accounting is possible.
 
 \subsection{The Container Interface}
 
@@ -406,18 +417,18 @@ container must be shared.  Clearly, it is not desirable to grant full
 access to the container to the remote task: trust between a client and
 a server must exist, however, that trust is typically limited in both
 directions (neither the client trusts the server fully nor does the
-server fully trust the client).  Since clients provide the resources
-to server to servers, servers need to a guarantee that the client will
-not touch the resources while it is in a critical section (for example
-while performing a DMA operation).  Likewise, clients need to have the
-ability to cancel an exant request and reclaim shared resources if the
-server does not answer in a timely manner thereby also preventing the
-server from being able to steal resources.  In both of these cases,
-the physical memory server acts as the trusted third party.  The
-physical memory server allows a server to lock a container for a
-limited amount of time during which the client may not access or
-destroy the resource.  At any other time, the client can cancel the
-server's access to the shared resource.
+server fully trust the client).  Since clients provide server with the
+resources for the operation, servers need a guarantee that the client
+will not touch the resources while it is in a critical section.
+Horrific results can emerge if this happens during a DMA operation.
+Likewise, clients need to have the ability to cancel an exant request
+and reclaim shared resources if the server does not answer in a timely
+manner thereby also preventing the server from being able to steal
+resources.  In both of these cases, the physical memory server acts as
+the trusted third party.  The physical memory server allows a server
+to lock a container for a limited amount of time during which the
+client may not access or destroy the resource.  At any other time, the
+client can cancel the server's access to the shared resource.
 
 To facility this, a second class capability is provided to access
 containers.  Using this capability, clients may not allocate or
@@ -425,14 +436,14 @@ deallocate frames.
 
 \begin{code}
 error\_t pm\_container\_share (in container\_t container, in task\_t
-remote, out container\_t weak_ref)
+remote, out container\_t weak\_ref)
 \end{code}
 
 \noindent
 \variable{weak\_ref} can be passed to the sharee using the normal
 capability passing protocol.
 
-\paragraph{Allocating Memory}
+\paragraph{Allocating and Deallocating Memory}
 
 Virtual frames may be allocated into a container using:
 
@@ -447,43 +458,59 @@ memory.  If \variable{count} is greater than one then frames will be
 allocated in the subsequent $count - 1$ frame identifiers.  The number
 of frames actually allocated is returned in \variable{count}.  If an
 identifier already references a virtual frame, \errno{EEXIST} is
-returned.  \variable{flags} is a bitwise or of: CONT_ALLOC_PARTIAL,
-CONT_ALLOC_SQUASH and CONT_ALLOC_EXTRA.  If CONT_ALLOC_PARTIAL is set
-and the number of frames which can be allocated before a memory
+returned.  \variable{flags} is a bitwise or of:
+\constant{CONT\_ALLOC\_PARTIAL}, \constant{CONT\_ALLOC\_SQUASH} and
+\constant{CONT\_ALLOC\_EXTRA}.  If \constant{CONT\_ALLOC\_PARTIAL} is
+set and the number of frames which can be allocated before a memory
 allocation error occurs is greater than one but less than
 \variable{count} then the maximum number of frames is allocated, count
 is set to that number and the error is returned.  If
-CONT_ALLOC_PARTIAL is not set then partial allocations will fail,
-count will be set to 0 and an error will be returned.  If
-CONT_ALLOC_SQUASH is set and a frame identifier already references a
-frame, the virtual frame will be dropped and its contents lost.  Using
-this flag is dangerous and be a sign of internal inconsistencies in
-the task!  All virtual frames should be accounted for by the task and
-deallocated explicitly.  If CONT_ALLOC_EXTRA is set then extra frames
-may be allocated otherwise the physical memory server will only
-allocate up to the guaranteed virtual frame limit.  This flag should
-only be used by tasks able to handle the added complexity of the extra
-frame protocol.  The contents of allocated frames is undefined.
+\constant{CONT\_ALLOC\_PARTIAL} is not set then partial allocations
+will fail, count will be set to 0 and an error will be returned.  If
+\constant{CONT\_ALLOC\_SQUASH} is set and a frame identifier already
+references a frame, the virtual frame will be dropped and its contents
+lost.  Using this flag is dangerous and be a sign of internal
+inconsistencies in the task!  All virtual frames should be accounted
+for by the task and deallocated explicitly.  If
+\constant{CONT\_ALLOC\_EXTRA} is set then extra frames may be
+allocated otherwise the physical memory server will only allocate up
+to the guaranteed virtual frame limit.  This flag should only be used
+by tasks able to handle the added complexity of the extra frame
+protocol.  The contents of allocated frames is undefined.
 
 % When obtaining data from a server (e.g. reading from a file), tasks
 % will: create a container, fill it with anonymous memory and share the
 % container with the server.  Since this is a very common operation, a
 % short cut has been provided to which combines the three operations:
 
+Deallocating memory is done using:
+
+\begin{code}
+error\_t pm\_container\_deallocate (in container\_t container, in
+frame\_t start, in out int count, in int flags)
+\end{code}
+
+\noindent
+The arguments have similar meaning as those in
+\function{pm\_container\_allocate}.  \constant{CONT\_DEALLOC\_PARTIAL}
+and \constant{CONT\_DEALLOC\_SQUASH} are similar to
+\constant{CONT\_ALLOC\_PARTIAL} and \constant{CONT\_ALLOC\_SQUASH}
+respectively.
+
 \paragraph{Mapping Memory}
 
-The physical memory server guarantees that a mapping operation will
-take a short amount of time: there is no guarantee that this will
-happen immediately as the underlying physical frames may have to be
-allocated in which case the physical memory server may have to be reap
-physical pages from other tasks' extra frame allocations.
+The physical memory server guarantees that a mapping operation takes a
+short amount of time: no guarantee is made that this will happen
+immediately as the underlying physical frames may have to be allocated
+in which case the physical memory server may have to be reap physical
+pages from other tasks' extra frame allocations.
 
 The physical memory server may unmap pages at any time.  This allows
 the physical memory server to fucntionally lock the contents of the
-frame and move it to a new physical frame.  Given this, tasks must be
+frame and move it to a new physical frame.  As such, tasks must be
 prepared to reestablish a mapping with the physical memory server at
-anytime.  (Thus, the physical memory server does not serve as a
-registry of mappings.)
+anytime.  The physical memory server is not a registry of mappings: it
+is a cache.
 
 Read-only mappings may be returned when read/write mapping are
 requested: the physical memory server will never grant a read/write
@@ -497,24 +524,58 @@ start, in int nr\_frames, in int flags)
 \end{code}
 
 \noindent
-Flags may is a bit wise or of: CONT\_MAP\_READ, CONT\_MAP\_WRITE and
-CONT\_MAP\_FORCE\_WRITE.  CONT\_MAP\_FORCE\_WRITE will only be
-respected if CONT\_MAP\_WRITE is also set.
+Flags may is a bitwise or of: \constant{CONT\_MAP\_READ},
+\constant{CONT\_MAP\_WRITE} and \constant{CONT\_MAP\_FORCE\_WRITE}.
+\constant{CONT\_MAP\_FORCE\_WRITE} will only be respected if
+\constant{CONT\_MAP\_WRITE} is also set.
 
-\paragraph{Moving Data}
+\paragraph{Copying Data Into or Out of Containers}
 
-In a monolithic kernel, little data is exchanged between tasks.  In a
-multiserver system, file systems live in their own tasks and thus
-reading and writing involve servers.  Thus, powerful primatives for
-moving memory around with the least number of physical copies,
-i.e. using virtual copy mechanisms which preserve COW pages, etc.
+It is possible to copy data into containers by mapping the frames in
+question and using \function{memcpy}.  If this technique is used there
+is no easy way to create logical copies (copy on write): an especially
+important technique for sharing executable and shared library text.  A
+family of functions are available which logically copies the contents
+of one container to another:
 
-It is important that an fs does not map from one task to another
-directly: the client may not trust the source or the source may die,
-etc.  Doing the mapping via the phys memory server means all trust
-issues are resolved at the time of mapping and can be reported to the
-user: the fs cannot pretend to be nice and then revoke mappings
-silently harming the client.
+\begin{code}
+error\_t pm\_container\_copy (in container\_t src, in frame\_t
+src\_start, in src\_count, in countainer\_t dest, in frame\_t
+dest\_start, in int dest\_count, out frame\_t frame\_error)
+\end{code}
+
+\begin{code}
+error\_t pm\_container\_copy\_scatter (in container\_t src, in frame\_t
+src\_start, in src\_count, in countainer\_t dest, in frame\_t []
+dest\_frames, out frame\_t frame\_error)
+\end{code}
+
+\begin{code}
+error\_t pm\_container\_copy\_gather (in container\_t src, in frame\_t
+[] src\_frames, in countainer\_t dest, in frame\_t dest\_start, in int
+dest\_count, out frame\_t frame\_error)
+\end{code}
+
+\begin{code}
+error\_t pm\_container\_copy\_scatter\_gather (in container\_t src, in
+frame\_t [] src\_frames, in countainer\_t dest, in frame\_t []
+dest\_frames, out frame\_t frame\_error)
+\end{code}
+
+If a frame does not exist in the source, ENOENT.  If a frame does not
+exist in the destination, ENOMEM is returned.  In both cases, the
+frame identifier causing the error is returned in
+\variable{frame\_error}.
+
+\paragraph{Locking Containers and Pinning Memory}
+
+\paragraph{Finding Deallocate Memory}
+
+\paragraph{Reusing frames}
+
+release\_data
+
+\subsection{Moving Data}
 
 Data will be moved around using containers.  Describe how to read and
 write.  Task -> FS -> Device drivers.  Locking memory.  Caching.
