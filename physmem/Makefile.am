@@ -30,7 +30,7 @@ physmem_CPPFLAGS = -I$(top_builddir)/include			\
 physmem_SOURCES = $(ARCH_SOURCES)				\
 	output.h output.c					\
 	zalloc.h zalloc.c mmap.c malloc-wrap.c			\
-	physmem.h physmem.c
+	physmem.h physmem.c container.c
 
 # Doug Lea's malloc is included by malloc-wrap.c.
 EXTRA_physmem_SOURCES = malloc.c
@@ -38,4 +38,4 @@ EXTRA_physmem_SOURCES = malloc.c
 physmem_LDFLAGS = -u_start -e_start -N -nostdlib \
 	-Ttext=@HURD_PHYSMEM_LOAD_ADDRESS@
 
-physmem_LDADD = ../libpthread/libpthread.a ../libhurd-ihash/libhurd-ihash.a ../libc-parts/libc-parts.a -lgcc
+physmem_LDADD = ../libhurd-cap-server/libhurd-cap-server.a ../libhurd-slab/libhurd-slab.a ../libpthread/libpthread.a ../libhurd-ihash/libhurd-ihash.a ../libc-parts/libc-parts.a -lgcc

@@ -18,7 +18,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
+#include <errno.h>
+
 #include <l4.h>
+#include <hurd/cap-server.h>
+
 #include "string.h"
 #include "output.h"
 
@@ -37,3 +41,14 @@ int main (int argc, char *argv[]);
 /* Switch execution transparently to thread TO.  The thread FROM,
    which must be the current thread, will be halted.  */
 void switch_thread (l4_thread_id_t from, l4_thread_id_t to);
+
+
+/* Container objects.  */
+
+/* Initialize the container class subsystem.  */
+error_t container_class_init ();
+
+/* Allocate a new container object covering the NR_FPAGES fpages
+   listed in FPAGES.  The object is locked and has one reference.  */
+error_t container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
+			 hurd_cap_obj_t *r_obj);

@@ -1,3 +1,20 @@
+2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (physmem_LDADD): Add
+	../libhurd-cap-server/libhurd-cap-server.a and
+	../libhurd-slab/libhurd-slab.a.
+	(physmem_SOURCES): Add container.c.
+	* container.c: New file.
+	* physmem.h: Include <hurd/cap-server.h> and <errno.h>.
+	(container_class_init, container_alloc): New prototypes.
+	* physmem.c (create_bootstrap_caps): Take new argument bucket.
+	Create container capabilities and inject them into the bucket.
+	(getpagesize): New temporary helper function.
+	(physmem_server): New function.
+	(main): New variable BUCKET.  Create capability bucket.  Pass
+	BUCKET to create_bootstrap_caps.  New variable MANAGER.  Create
+	manager thread.
+
 2004-04-06  Marcus Brinkmann  <marcus@gnu.org>
 
 	* physmem.c (setup_threads): Add threads to pool after creating

@@ -98,9 +98,19 @@ get_all_memory (void)
 }
 
 
+/* FIXME.  */
+#define MAX_FPAGES 64
+
 void
-create_bootstrap_caps (void)
+create_bootstrap_caps (hurd_cap_bucket_t bucket)
 {
+  error_t err;
+  hurd_cap_t cap;
+  hurd_cap_obj_t obj;
+  hurd_task_id_t task_id;
+  l4_word_t nr_fpages;
+  l4_word_t fpages[MAX_FPAGES];
+
   l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
 
   while (1)
@@ -149,20 +159,21 @@ create_bootstrap_caps (void)
 	       || l4_typed_words (tag) == 0)
 	panic ("Invalid format of wortel get cap request reply");
 
+      task_id = l4_msg_word (msg, 0);
+
       debug ("Creating cap for 0x%x covering 0x%x to 0x%x:",
-	     l4_msg_word (msg, 0), l4_msg_word (msg, 1),
-	     l4_msg_word (msg, 2));
+	     task_id, l4_msg_word (msg, 1), l4_msg_word (msg, 2));
 
-      for (i = 0; i < l4_typed_words (tag); i += 2)
+      nr_fpages = l4_typed_words (tag) / 2;
+      for (i = 0; i < nr_fpages; i++)
 	{
-	  l4_fpage_t fpage;
 	  l4_grant_item_t grant_item;
-	  l4_msg_get_grant_item (msg, i, &grant_item);
+	  l4_msg_get_grant_item (msg, i * 2, &grant_item);
 
-	  fpage = l4_grant_item_snd_fpage (grant_item);
-	  if (fpage == L4_NILPAGE)
+	  fpages[i] = l4_grant_item_snd_fpage (grant_item);
+	  if (fpages[i] == L4_NILPAGE)
 	    {
-	      if (l4_typed_words (tag) == 2)
+	      if (nr_fpages == 1)
 		{
 		  /* FIXME: Create control capability for this one
 		     task.  */
@@ -171,17 +182,29 @@ create_bootstrap_caps (void)
 	      else
 		panic ("Invalid fpage in create bootstrap cap call");
 	    }
-	  debug ("0x%x ", fpage);
-	}
-      debug ("\n");
 
+	  debug ("0x%x ", fpages[i]);
+	}
+
+      err = container_alloc (nr_fpages, fpages, &obj);
+      if (err)
+	panic ("container_alloc: %i\n", err);
+      hurd_cap_obj_unlock (obj);
+
+      err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
+      if (err)
+	panic ("hurd_cap_bucket_inject: %i\n", err);
+
+      debug (": %u\n", cap);
+
+      /* Return CAP.  */
+      
       l4_msg_clear (msg);
       l4_set_msg_label (msg, WORTEL_MSG_GET_CAP_REPLY);
 
       /* FIXME: Use our wortel cap here.  */
       l4_msg_append_word (msg, 0);
-      /* FIXME: This must return the real capability ID.  */
-      l4_msg_append_word (msg, 0xa00);
+      l4_msg_append_word (msg, cap);
       l4_msg_load (msg);
       /* FIXME: Hard coded thread ID.  */
       l4_send (l4_global_id (l4_thread_user_base () + 2, 1));
@@ -235,8 +258,8 @@ setup_threads (void)
 			      l4_version (l4_my_global_id ()));
   server_thread = l4_my_global_id ();
 
-  /* Switch threads.  We still need the main thread as the server
-     thread.  */
+  /* Switch threads.  We still need the current main thread as the
+     server thread.  */
   l4_set_pager_of (main_thread, l4_pager ());
   switch_thread (server_thread, main_thread);
 
@@ -259,10 +282,37 @@ setup_threads (void)
 }
 
 
+/* FIXME:  Should be elsewhere.  Needed by libhurd-slab.  */
+int
+getpagesize()
+{
+  return l4_min_page_size ();
+}
+
+
+void *
+physmem_server (void *arg)
+{
+  hurd_cap_bucket_t bucket = (hurd_cap_bucket_t) arg;
+  error_t err;
+
+  /* No root object is provided by the physmem server.  */
+  /* FIXME: Use a worker timeout (eventually).  */
+  err = hurd_cap_bucket_manage_mt (bucket, NULL, 0, 0);
+  if (err)
+    debug ("bucket_manage_mt failed: %i\n");
+
+  panic ("bucket_manage_mt returned!");
+}
+
+
 int
 main (int argc, char *argv[])
 {
+  error_t err;
   l4_thread_id_t server_thread;
+  hurd_cap_bucket_t bucket;
+  pthread_t manager;
 
   output_debug = 1;
 
@@ -272,8 +322,25 @@ main (int argc, char *argv[])
 
   server_thread = setup_threads ();
 
-  create_bootstrap_caps ();
+  err = container_class_init ();
+  if (err)
+    panic ("container_class_init: %i\n", err);
 
+  err = hurd_cap_bucket_create (&bucket);
+  if (err)
+    panic ("bucket_create: %i\n", err);
+
+  create_bootstrap_caps (bucket);
+
+  /* Create the server thread and start serving RPC requests.  */
+  err = pthread_create_from_l4_tid_np (&manager, NULL, server_thread,
+				       physmem_server, bucket);
+  if (err)
+    panic ("pthread_create_from_l4_tid_np: %i\n", err);
+  pthread_detach (manager);
+
+  /* FIXME: Eventually, add shutdown support on wortels(?)
+     request.  */
   while (1)
     l4_sleep (L4_NEVER);
 
