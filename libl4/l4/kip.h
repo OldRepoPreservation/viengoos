@@ -470,6 +470,34 @@ l4_min_page_size (void)
   return L4_WORD_C(1) << l4_min_page_size_log2 ();
 }
 
+static inline l4_word_t
+__attribute__((__always_inline__))
+l4_page_trunc (l4_word_t addr)
+{
+  return (addr & ~(l4_min_page_size () - 1));
+}
+
+static inline l4_word_t
+__attribute__((__always_inline__))
+l4_page_round (l4_word_t addr)
+{
+  return ((addr + (l4_min_page_size () - 1)) 
+	  & ~(l4_min_page_size () - 1));
+}
+
+static inline l4_word_t
+__attribute__((__always_inline__))
+l4_atop (l4_word_t addr)
+{
+  return ((addr) >> l4_min_page_size_log2 ());
+}
+
+static inline l4_word_t
+__attribute__((__always_inline__))
+l4_ptoa (l4_word_t p)
+{
+  return ((p) << l4_min_page_size_log2 ());
+}
 
 static inline l4_page_info_t
 __attribute__((__always_inline__))

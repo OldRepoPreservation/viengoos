@@ -1,3 +1,10 @@
+2003-10-20  Johan Rydberg  <jrydberg@night.trouble.net>
+
+	* l4/kip.h (l4_page_trunc): New function.
+	(l4_page_round): Likewise.
+	(l4_atop): Likewise.
+	(l4_ptoa): Likewise.
+
 2003-10-16  Johan Rydberg  <jrydberg@night.trouble.net>
 
 	* powerpc/l4/bits/stubs-init.h (__L4_SETUP_SYSCALL): Do correct
