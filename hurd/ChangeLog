@@ -1,3 +1,8 @@
+2005-01-30  Marcus Brinkmann  <marcus@gnu.org>
+
+	* startup.h (struct hurd_startup_data): New members
+	PHYSMEM_MASTER, TASK_MASTER, DEVA_MASTER, DEVA_CONSOLE.
+
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* startup.h (HURD_STARTUP_FLAG_SECURE): New macro.

@@ -70,6 +70,9 @@ struct hurd_startup_map
 /* Enable secure mode.  */
 #define HURD_STARTUP_FLAG_SECURE	(1 << 0)
 
+/* This is the bootstrap server (ie the root filesystem).  */
+#define HURD_STARTUP_FLAG_BOOTSTRAP	(1 << 1)
+
 /* The actual startup data.  A pointer to this data will be passed on
    the stack to the startup code (without a return address), and to
    the main program (with a return address, i.e. normal calling
@@ -120,6 +123,23 @@ struct hurd_startup_data
 
   /* The container of the startup code.  */
   struct hurd_startup_cap startup;
+
+  /* The bootstrap information.  This is only valid if the
+     HURD_STARTUP_FLAG_BOOTSTRAP is set in FLAGS.  */
+  struct
+  {
+    /* The physical memory server master capability.  */
+    struct hurd_startup_cap physmem_master;
+  
+    /* The task server master capability.  */
+    struct hurd_startup_cap task_master;
+
+    /* The device master capability.  */
+    struct hurd_startup_cap deva_master;
+
+    /* The console capability.  */
+    struct hurd_startup_cap deva_console;
+  };
 };
 
 

@@ -735,7 +735,6 @@ start_elf (unsigned int mod)
   phys_startup->version_major = HURD_STARTUP_VERSION_MAJOR;
   phys_startup->version_minor = HURD_STARTUP_VERSION_MINOR;
   phys_startup->flags = 0;
-  /* See below.  */
   phys_startup->utcb_area = l4_fpage_log2 (((l4_word_t) HURD_STARTUP_ADDR)
 					   + HURD_STARTUP_SIZE
 					   + l4_kip_area_size (),
@@ -758,6 +757,18 @@ start_elf (unsigned int mod)
   phys_startup->entry_point = (void *) task_entry_point;
   phys_startup->startup.server = mods[MOD_PHYSMEM].server_thread;
   phys_startup->startup.cap_handle = mods[mod].startup_cont;
+  if (mod == MOD_ROOT_FS)
+    {
+      phys_startup->flags |= HURD_STARTUP_FLAG_BOOTSTRAP;
+      phys_startup->physmem_master.server = mods[MOD_PHYSMEM].server_thread;
+      phys_startup->physmem_master.cap_handle = physmem_master;
+      phys_startup->task_master.server = mods[MOD_TASK].server_thread;
+      phys_startup->task_master.cap_handle = task_master;
+      phys_startup->deva_master.server = mods[MOD_DEVA].server_thread;
+      phys_startup->deva_master.cap_handle = deva_master;
+      phys_startup->deva_console.server = mods[MOD_DEVA].server_thread;
+      phys_startup->deva_console.cap_handle = mods[mod].deva;
+    }
    
   /* The stack layout is in accordance to the following startup prototype:
      void start (struct hurd_startup_data *startup_data).  */

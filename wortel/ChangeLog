@@ -1,3 +1,8 @@
+2005-01-30  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.c (start_elf): If MOD is MOD_ROOT_FS, set up the
+	bootstrap information.
+
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.c (start_elf): Fix the change that removed the extra zero
