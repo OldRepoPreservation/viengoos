@@ -24,6 +24,7 @@
 #endif
 
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "physmem.h"
 #include "zalloc.h"
@@ -31,6 +32,23 @@
 
 /* The program name.  */
 char program_name[] = "physmem";
+
+
+/* The following functions are required by pthread.  */
+
+void
+__attribute__ ((__noreturn__))
+exit (int __status)
+{
+  panic ("exit() called");
+}
+
+
+void
+abort (void)
+{
+  panic ("abort() called");
+}
 
 
 #define WORTEL_MSG_PUTCHAR		1
@@ -170,14 +188,55 @@ create_bootstrap_caps (void)
 }
 
 
+/* Initialize the thread support, and return the L4 thread ID to be
+   used for the server thread.  */
+static l4_thread_id_t
+setup_threads (void)
+{
+  int err;
+  pthread_t thread;
+  l4_thread_id_t server_thread;
+  l4_thread_id_t main_thread;
+
+  /* FIXME: Retrieve threads donated by wortel here.  */
+  /* For now, we know wortel creates one additional thread up-front.  */
+  main_thread = l4_global_id (l4_thread_no (l4_my_global_id ()) + 1,
+			      l4_version (l4_my_global_id ()));
+  server_thread = l4_my_global_id ();
+
+  /* Switch threads.  We still need the main thread as the server
+     thread.  */
+  l4_set_pager_of (main_thread, l4_pager ());
+  switch_thread (server_thread, main_thread);
+
+  /* Create the main thread.  */
+  err = pthread_create (&thread, 0, 0, 0);
+
+  if (err)
+    panic ("could not create main thread: %i\n", err);
+
+  /* FIXME: Add all threads provided by wortel, except the server thread,
+     to the pool.  */
+
+  /* The server thread has a thread number that is one higher than our.  */
+  server_thread = l4_global_id (l4_thread_no (l4_my_global_id ()) + 1,
+				l4_version (l4_my_global_id ()));
+  return server_thread;
+}
+
+
 int
 main (int argc, char *argv[])
 {
+  l4_thread_id_t server_thread;
+
   output_debug = 1;
 
   debug ("%s " PACKAGE_VERSION "\n", program_name);
 
   get_all_memory ();
+
+  server_thread = setup_threads ();
 
   create_bootstrap_caps ();
 

@@ -29,3 +29,11 @@ extern char program_name[];
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
 
 int main (int argc, char *argv[]);
+
+
+/* The following function must be defined by the architecture
+   dependent code.  */
+
+/* Switch execution transparently to thread TO.  The thread FROM,
+   which must be the current thread, will be halted.  */
+void switch_thread (l4_thread_id_t from, l4_thread_id_t to);

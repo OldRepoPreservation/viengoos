@@ -1,3 +1,20 @@
+2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* output.h (shutdown): Add noreturn attribute to prototype.
+	* output.c (shutdown): Add noreturn attribute.  Sleep forever.
+
+	* config.m4 (HURD_LOAD_ADDRESS): Change load address to 0x400000.
+	* physmem.c: Include pthread.h.
+	(setup_threads): New function.
+	(main): New variable SERVER_THREAD.  Call setup_threads.
+	(exit, abort): New functions.
+	* physmem.h (switch_thread): Add prototype.
+	* ia32-cmain.c (switch_thread): New function.
+	(__thread_stack_pointer): New macro.
+	(__thread_set_stack_pointer): New macro.
+	* Makefile.am (physmem_LDADD): Add ../libpthread/libpthread.a and
+	../libhurd-ihash/libhurd-ihash.a.
+
 2004-03-16  Marcus Brinkmann  <marcus@gnu.org>
 
 	* output.c (putchar): Replace all &msg with msg.  Update

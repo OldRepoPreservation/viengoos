@@ -54,3 +54,59 @@ cmain (void)
 
   /* Never reached.  */
 }
+
+
+#define __thread_stack_pointer() ({					      \
+  void *__sp__;								      \
+  __asm__ ("movl %%esp, %0" : "=r" (__sp__));				      \
+  __sp__;								      \
+})
+
+
+#define __thread_set_stack_pointer(sp) ({				      \
+  __asm__ ("movl %0, %%esp" : : "r" (sp));				      \
+})
+
+
+/* Switch execution transparently to thread TO.  The thread FROM,
+   which must be the current thread, will be halted.  */
+void
+switch_thread (l4_thread_id_t from, l4_thread_id_t to)
+{
+  void *current_stack;
+  /* FIXME: Figure out how much we need.  Probably only one return
+     address.  */
+  char small_sub_stack[16];
+  unsigned int i;
+
+/* FIXME: FROM is an argument to force gcc to evaluate it before the
+   thread switch.  Maybe this can be done better, but it's
+   magical, so be careful.  */
+
+  /* Save the machine context.  */
+  __asm__ __volatile__ ("pusha");
+  __asm__ __volatile__ ("pushf");
+
+  /* Start the TO thread.  It will be eventually become a clone of our
+     thread.  */
+  current_stack = __thread_stack_pointer ();
+  l4_start_sp_ip (to, (l4_word_t) current_stack,
+		  (l4_word_t) &&thread_switch_entry);
+  
+  /* We need a bit of extra space on the stack for
+     l4_thread_switch.  */
+  __thread_set_stack_pointer (small_sub_stack);
+
+  /* We can't use while(1), because then gcc will become clever and
+     optimize away everything after thread_switch_entry.  */
+  for (i = 1; i; i++)
+    l4_thread_switch (to);
+
+ thread_switch_entry:
+  /* Restore the machine context.  */
+  __asm__ __volatile__ ("popf");
+  __asm__ __volatile__ ("popa");
+
+  /* The thread TO continues here.  */
+  l4_stop (from);
+}

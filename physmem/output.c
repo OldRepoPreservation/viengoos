@@ -35,6 +35,7 @@ int output_debug;
 
 /* Send a shutdown request to the rootserver wortel.  */
 void
+__attribute__((__noreturn__))
 shutdown (void)
 {
   l4_msg_t msg;
@@ -53,6 +54,11 @@ shutdown (void)
   l4_msg_load (msg);
   /* FIXME: Hard coded thread ID.  */
   l4_send (l4_global_id (l4_thread_user_base () + 2, 1));
+
+  while (1)
+    l4_sleep (L4_NEVER);
+
+  /* NOT REACHED.  */
 }
 
 

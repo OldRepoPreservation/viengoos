@@ -31,7 +31,7 @@ int printf (const char *fmt, ...);
 
 /* This is not an output function, but it is part of the panic()
    macro.  */
-void shutdown (void);
+void __attribute__((__noreturn__)) shutdown (void);
 
 
 /* True if debug mode is enabled.  */

@@ -38,4 +38,4 @@ EXTRA_physmem_SOURCES = malloc.c
 physmem_LDFLAGS = -u_start -e_start -N -nostdlib \
 	-Ttext=@HURD_PHYSMEM_LOAD_ADDRESS@
 
-physmem_LDADD = -lgcc ../libc-parts/libc-parts.a
+physmem_LDADD = ../libpthread/libpthread.a ../libhurd-ihash/libhurd-ihash.a ../libc-parts/libc-parts.a -lgcc
