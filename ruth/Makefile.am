@@ -35,7 +35,7 @@ ruth_SOURCES = $(ARCH_SOURCES)					\
 	ruth.h ruth.c
 
 # Doug Lea's malloc is included by malloc-wrap.c.
-EXTRA_deva_SOURCES = malloc.c
+EXTRA_ruth_SOURCES = malloc.c
 
 ruth_LDFLAGS = -u_start -e_start -nostdlib
 
