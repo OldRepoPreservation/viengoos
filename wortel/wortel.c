@@ -266,12 +266,14 @@ start_components (void)
   l4_word_t thread_no = l4_thread_no (l4_myself ()) + 1;
   hurd_task_id_t task_id = 2;
   l4_thread_id_t server;
+  l4_thread_id_t helper;
 
   for (i = 0; i < mods_count; i++)
     {
       /* FIXME: Should only be done for modules turned into tasks.  */
-      mods[i].main_thread = l4_global_id (thread_no++, task_id);
       mods[i].server_thread = l4_global_id (thread_no++, task_id);
+      mods[i].nr_extra_threads = 1;
+      thread_no += mods[i].nr_extra_threads;
       task_id++;
     }
   
@@ -281,7 +283,7 @@ start_components (void)
       || mods[MOD_PHYSMEM].ip > mods[MOD_PHYSMEM].end)
     panic ("physmem has invalid IP");
 
-  server = mods[MOD_PHYSMEM].main_thread;
+  server = mods[MOD_PHYSMEM].server_thread;
   /* FIXME: Pass cap_id to physmem.  */
   cap_id = wortel_add_user (l4_version (server));
   /* The UTCB location below is only a hack.  We also need a way to
@@ -297,6 +299,15 @@ start_components (void)
 
   /* The UTCB area must be controllable in some way, see above.  Same
      for KIP area.  */
+  debug ("XXX: utcb area size log2: 0x%x  utcb size: 0x%x  kip size log2: 0x%x\n",
+	 l4_utcb_area_size_log2 (), l4_utcb_size (), l4_kip_area_size_log2 ());
+
+  debug ("XXX: space kip fpage 0x%x  utcb fpage 0x%x\n",
+			  l4_fpage_log2 (wortel_start,
+					 l4_kip_area_size_log2 ()),
+			  l4_fpage_log2 (wortel_start + l4_kip_area_size (),
+					 l4_utcb_area_size_log2 ()));
+
   ret = l4_space_control (server, 0,
 			  l4_fpage_log2 (wortel_start,
 					 l4_kip_area_size_log2 ()),
@@ -310,8 +321,9 @@ start_components (void)
   ret = l4_thread_control (server, server, l4_nilthread, l4_myself (),
 			   (void *) (wortel_start + l4_kip_area_size ()));
   if (!ret) 
-    panic ("activation of initial physmem thread failed: %s",
+    panic ("activation of physmem main thread failed: %s",
 	   l4_strerror (l4_error_code ()));
+
 
   l4_msg_clear (msg);
   l4_set_msg_label (msg, 0);
@@ -322,6 +334,17 @@ start_components (void)
   if (l4_ipc_failed (tag))
     panic ("Sending startup message to physmem thread failed: %u",
 	   l4_error_code ());
+
+  /* Set up the helper thread for physmem.  */
+  /* UTCB location is a hack, as above.  */
+  /* The whole thing is a hack, actually.  */
+  helper = l4_global_id (l4_thread_no (server) + 1, l4_version (server));
+  ret = l4_thread_control (helper, server, l4_myself (), helper,
+			   (void *) (wortel_start + l4_kip_area_size ()
+				     + l4_utcb_size ()));
+  if (!ret)
+    panic ("could not create physmem server thread: %s",
+	   l4_strerror (l4_error_code ()));
 
   {
     l4_fpage_t fpages[MAX_FPAGES];
@@ -412,7 +435,7 @@ serve_bootstrap_requests (void)
      data.  */
   unsigned int mod_idx = 1;
   hurd_task_id_t server_task = (mod_idx < mods_count)
-    ? l4_version (mods[mod_idx].main_thread) : 0;
+    ? l4_version (mods[mod_idx].server_thread) : 0;
 
   /* True if we need to remap the page at address 0.  */
   int get_page_zero = 0;
@@ -520,8 +543,8 @@ serve_bootstrap_requests (void)
 	      l4_msg_clear (msg);
 	      l4_set_msg_label (msg, 0);
 
-	      l4_msg_append_word (msg,
-				  l4_version (mods[MOD_ROOT_FS].main_thread));
+	      l4_msg_append_word
+		(msg, l4_version (mods[MOD_ROOT_FS].server_thread));
 	      l4_msg_load (msg);
 	      l4_reply (from);
 	    }
@@ -580,7 +603,7 @@ serve_bootstrap_requests (void)
 	  /* FIXME: Only do this if the next module in the list is
 	     a new task.  */
 	  if (mod_idx < mods_count)
-	    server_task = l4_version (mods[mod_idx].main_thread);
+	    server_task = l4_version (mods[mod_idx].server_thread);
 	}
       else if ((label >> 4) == 0xffe)
 	{

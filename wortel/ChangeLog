@@ -1,3 +1,11 @@
+2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.h (struct wortel_module): Remove member main_thread and
+	add member nr_extra_threads.
+	* wortel.c (start_components): Use server_thread instead of
+	main_thread, set up nr_extra_threads.  Set up the second physmem
+	thread.
+
 2004-03-16  Marcus Brinkmann  <marcus@gnu.org>
 
 	* sigma0.c: Rewritten to use new interface.

@@ -97,13 +97,16 @@ struct wortel_module
      server starts up.  */
   hurd_cap_scid_t task_ctrl;
 
-  /* Main thread of the task made from this module.  Initialized just
-     before the task is started.  */
-  l4_thread_id_t main_thread;
-
-  /* Server thread of the task made from this module.  Initialized
-     just before the task is started.  */
+  /* Server thread and the initial main thread of the task made from
+     this module.  Initialized just before the task is started.  */
   l4_thread_id_t server_thread;
+
+  /* Number of helper threads in the task made from this module.  They
+     all follow the SERVER_THREAD numerically in their thread number,
+     while they have the same version ID.  Initialized just before the
+     task is started.  */
+  unsigned int nr_extra_threads;
+
 };
 
 
