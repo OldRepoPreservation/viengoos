@@ -481,17 +481,17 @@ typedef __L4_proc_desc_t l4_proc_desc_t;
 
 static inline l4_word_t
 _L4_attribute_always_inline
-l4_num_processors_desc_from (l4_kip_t kip)
+l4_num_processors_from (l4_kip_t kip)
 {
-  return _L4_num_processors_desc (kip);
+  return _L4_num_processors (kip);
 }
 
 
 static inline l4_word_t
 _L4_attribute_always_inline
-l4_num_processors_desc (void)
+l4_num_processors (void)
 {
-  return l4_num_processors_desc_from (l4_kip ());
+  return l4_num_processors_from (l4_kip ());
 }
 
 

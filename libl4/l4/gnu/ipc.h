@@ -618,7 +618,7 @@ static inline l4_msg_tag_t
 _L4_attribute_always_inline
 l4_send_timeout (l4_thread_id_t dest, l4_time_t send_timeout)
 {
-  return _l4_send_timeout (dest, send_timeout);
+  return _L4_send_timeout (dest, send_timeout);
 }
 
 

@@ -1,3 +1,15 @@
+2004-03-22  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/gnu/ipc.h (l4_send_timeout): Call _L4_send_timeout.
+	* l4/gnu/schedule.h (l4_is_time_longer): Call _L4_is_time_longer.
+	(l4_is_time_shorter): Call _L4_is_time_shorter.
+	(l4_is_time_equal): Call _L4_is_time_equal.
+	(l4_is_time_not_equal): Call _L4_is_time_not_equal.
+	* l4/gnu/kip.h (l4_num_processors_desc_from): Rename to ...
+	(l4_num_processors_from): ... this.  Fix implementation.
+	(l4_num_processors_desc): Rename to ...
+	(l4_num_processors): ... this.  Fix implementation.
+
 2004-03-21  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/schedule.h (l4_SystemClock): Rename to ...

@@ -108,7 +108,7 @@ static inline l4_time_t
 _L4_attribute_always_inline
 l4_is_time_longer (l4_time_t l, l4_time_t r)
 {
-  return _L4_time_longer (l, r);
+  return _L4_is_time_longer (l, r);
 }
 
 
@@ -116,7 +116,7 @@ static inline l4_time_t
 _L4_attribute_always_inline
 l4_is_time_shorter (l4_time_t l, l4_time_t r)
 {
-  return _L4_time_shorter (l, r);
+  return _L4_is_time_shorter (l, r);
 }
 
 
@@ -124,7 +124,7 @@ static inline l4_time_t
 _L4_attribute_always_inline
 l4_is_time_equal (l4_time_t l, l4_time_t r)
 {
-  return _L4_time_equal (l, r);
+  return _L4_is_time_equal (l, r);
 }
 
 
@@ -132,7 +132,7 @@ static inline l4_time_t
 _L4_attribute_always_inline
 l4_is_time_not_equal (l4_time_t l, l4_time_t r)
 {
-  return _L4_time_not_equal (l, r);
+  return _L4_is_time_not_equal (l, r);
 }
 
 
