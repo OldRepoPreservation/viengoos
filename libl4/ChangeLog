@@ -1,5 +1,8 @@
 2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
 
+	* powerpc/l4/bits/syscall.h (l4_kernel_interface): Remove clobber
+	list.
+
 	* powerpc/l4/bits/syscall.h (l4_kernel_interface): Fix setting
 	return variables.
 	(l4_exchange_registers): Fix typo.

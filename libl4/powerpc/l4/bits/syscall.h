@@ -49,9 +49,7 @@ l4_kernel_interface (l4_api_version_t *api_version, l4_api_flags_t *api_flags,
   register l4_word_t id asm ("r6");
 
   __asm__ ("tlbia\n"
-	   : "+r" (kip), "+r" (version), "+r" (flags), "+r" (id)
-	   :
-	   : "r3", "r4", "r5", "r6");
+	   : "+r" (kip), "+r" (version), "+r" (flags), "+r" (id));
 
   api_version->raw = version;
   api_flags->raw = flags;
