@@ -13,25 +13,29 @@
 ** Add loaded modules as bootloader specific types to memory
    descriptor list (for sigma0 and wortel).
 ** Write and test serial output driver.
-** Steal string operations from system's libc.a.
+
 
 * wortel
 ** Link base should be configurable.
 ** Conventional memory overriding non-conventional memory in the
    descriptor list is not supported.
-** Write and test serial output driver.
-** Steal string operations from system's libc.a.
+** Write and test serial output driver (Daniel Wagner is working on it).
+
+
+* physmem
+** Link base should be configurable.
 
 
 * libhurd-slab
-** This is only a dummy implementation.
+** This is only a dummy implementation (Johan Rydberg is working on a
+   real one).
 ** Ideally this would be a feature in glibc.
 
 
 * libhurd-ihash
 ** Can be merged back into the Hurd if the callers are changed.
 ** Need to decide on the hurd_ihash_key_t type: unsigned int vs. uint32_t.
-   The latter seems to be sufficient.
+   The latter seems to be sufficient.  Might even be uint64_t, though.
 
 
 Copyright 2003 Free Software Foundation, Inc.
