@@ -82,8 +82,8 @@ reply_err (l4_thread_id_t to, error_t err)
 
 /* Lookup the client with client ID CLIENT_ID and return it in
    *R_CLIENT with one reference for the entry in the bucket.  It is
-   *verified that the client is in fact the one with the task ID
-   *TASK_ID.  */
+   verified that the client is in fact the one with the task ID
+   TASK_ID.  */
 static error_t
 __attribute__((always_inline))
 lookup_client (hurd_cap_bucket_t bucket, hurd_cap_client_id_t client_id,

@@ -42,9 +42,6 @@ hurd_cap_bucket_inject (hurd_cap_bucket_t bucket, hurd_cap_obj_t obj,
   _hurd_cap_client_t client;
   hurd_cap_id_t cap_id;
 
-  /* FIXME: Of course, this function needs to take a task info
-     capability and pass it to client create.  */
-
   err = _hurd_cap_client_create (bucket, task_id, &client);
   if (err)
     return err;

@@ -123,6 +123,9 @@ _hurd_cap_client_alloc (hurd_task_id_t task_id,
       return err;
     }
 
+  /* FIXME: We need to acquire a task info capability here.  The task
+     death notifications have been suspended by the caller.  */
+
   *r_client = client;
   return 0;
 }
