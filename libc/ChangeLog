@@ -1,3 +1,9 @@
+2005-02-05  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (hurd_l4_sysdeps_l4_hurd): Update the file list.
+	(hurd_l4_sysdeps_l4): New variable.
+	(hurd_l4): Add hurd_l4_sysdeps_l4.
+
 2005-02-02  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (glibc_version): Fix date.

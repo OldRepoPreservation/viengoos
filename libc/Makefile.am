@@ -32,13 +32,19 @@ patches = $(addprefix patches/, $(patch_files))
 
 hurd_l4_sysdeps_l4_hurd = bits/errno.h bits/fcntl.h bits/local_lim.h \
 	bits/mman.h bits/posix_opt.h bits/stat.h bits/typesizes.h \
-	closedir.c dirfd.c dirstream.h execve.c _exit.c exit-thread.c \
+	brk.c closedir.c dirfd.c dirstream.h enbl-secure.c \
+	execve.c _exit.c exit-thread.c \
 	fork.c fstatfs64.c fstatfs.c fstatvfs64.c fstatvfs.c fxstat64.c \
-	fxstat.c _G_config.h getdtsz.c getegid.c geteuid.c getpagesize.c \
-	getppid.c Implies init-first.c lxstat64.c lxstat.c Makefile \
-	mremap.c opendir.c readdir.c readdir_r.c rewinddir.c \
-	sys/param.h syscall.c telldir.c uname.c xstat64.c xstat.c
+	fxstat.c _G_config.h getdtsz.c getegid.c geteuid.c \
+	getppid.c Implies i386/init-first.c i386/static-start.S \
+	isatty.c lxstat64.c lxstat.c Makefile \
+	mremap.c opendir.c read.c readdir.c readdir_r.c rewinddir.c \
+	sigaction.c sigprocmask.c \
+	sys/param.h syscall.c telldir.c uname.c write.c xstat64.c xstat.c
+hurd_l4_sysdeps_l4 = getpagesize.c sched_yield.c usleep.c \
+	getclktck.c gettimeofday.c nanosleep.c sleep.c
 hurd_l4 = configure configure.in Makeconfig Makefile \
+	$(addprefix sysdeps/l4/,$(hurd_l4_sysdeps_l4)) \
 	$(addprefix sysdeps/l4/hurd/,$(hurd_l4_sysdeps_l4_hurd))
 hurd_l4_add_on = $(addprefix hurd-l4/, $(hurd_l4))
 
