@@ -94,6 +94,12 @@
    So, maybe, to cancel, the manager could just propagates the
    cancellation request.  For this to work, we need to be able to
    differentiate between normal pending workers and such sub-managers.
+** Implement cap transfer.
+** Implement reference management and a no-sender callback when the
+   last reference by a client is dropped.
+** Use of <atomic.h>, which is not a public header file!
+** It should be allowed to call hurd_cap_obj_rele() with only one
+   reference.
 ** Neal points out that the placement of the cap-class argument in
    hurd_cap_class_init and hurd_cap_class_create is very much
    divergent.
