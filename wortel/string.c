@@ -56,7 +56,7 @@ memset (void *str, int chr, int nr)
   char *addr = (char *) str;
 
   while (nr--)
-    *(addr++) = (char) (chr * 0xff);
+    *(addr++) = (char) (chr & 0xff);
 
   return str;
 }

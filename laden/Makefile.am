@@ -30,7 +30,7 @@ laden_CFLAGS = -I$(srcdir) $(AM_CFLAGS)
 laden_SOURCES =  $(ARCH_SOURCES) string.h string.c		\
 	output.h output.c output-none.c				\
 	shutdown.h shutdown.c					\
-	elf.h loader.c						\
+	elf.h loader.h loader.c					\
 	laden.h laden.c kip-fixup.c
 
 /* FIXME: Make linkbase configurable.  */
