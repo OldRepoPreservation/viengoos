@@ -1,3 +1,16 @@
+2003-09-17  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/math.h (__l4_msb): Rename to ...
+	(l4_msg): ... this.  Return 1 more, so the least significant bit
+	is 1 (to match ffs() behaviour).  Call __l4_msb(), not
+	__l4_msb_().
+	(l4_lsb): New function.
+	* ia32/l4/bits/math.h (__l4_msb_): Rename to ...
+	(__l4_msb): ... this.  Add one to result.
+	(__l4_lsb): New function.
+	* l4/space.h (l4_fpage): Subtract one from MSB.  Check that size
+	is not zero before using MSB.
+
 2003-09-08  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/space.h (l4_is_nil_fpage): New function.

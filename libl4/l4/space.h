@@ -36,10 +36,10 @@ _L4_EXTERN_INLINE l4_fpage_t
 l4_fpage (l4_word_t base, int size)
 {
   l4_fpage_t fpage;
-  l4_word_t msb = __l4_msb (size);
+  l4_word_t msb = l4_msb (size) - 1;
 
   fpage.base = base >> 10;
-  fpage.log2_size = (1 << msb) == size ? msb : msb + 1;
+  fpage.log2_size = size ? ((1 << msb) == size ? msb : msb + 1) : 0;
   fpage.rights = l4_no_access;
 
   return fpage;
