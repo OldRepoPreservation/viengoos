@@ -71,9 +71,10 @@ kip_fixup (void)
 
   kip->memory_info.nr = memory_map_size;
   for (nr = 0; nr < memory_map_size; nr++)
-    debug ("Memory Map %i: Type %i/%i, Low 0x%x, High 0x%x\n",
+    debug ("Memory Map %i: Type %i/%i, Low 0x%llx, High 0x%llx\n",
 	   nr + 1, memory_map[nr].type, memory_map[nr].subtype,
-	   memory_map[nr].low << 10, memory_map[nr].high << 10);
+	   (unsigned long long) (memory_map[nr].low << 10),
+	   (unsigned long long) (memory_map[nr].high << 10));
 
   /* Load the boot info into the KIP.  */
   kip->boot_info = boot_info;

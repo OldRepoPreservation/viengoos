@@ -152,10 +152,8 @@ debug_dump (void)
 	   (uint32_t) mmap < mbi->mmap_addr + mbi->mmap_length;
 	   mmap = (memory_map_t *) ((uint32_t) mmap
 				    + mmap->size + sizeof (mmap->size)))
-	debug ("Memory Map %i: Type %i, Base 0x%x%x, Length 0x%x%x\n",
-	       nr++, mmap->type, mmap->base_addr >> 32,
-	       mmap->base_addr & ((1ULL << 32) - 1),
-	       mmap->length >> 32, mmap->length & ((1ULL << 32) - 1));
+	debug ("Memory Map %i: Type %i, Base 0x%llx, Length 0x%llx\n",
+	       nr++, mmap->type, mmap->base_addr, mmap->length);
     }
 }
 
@@ -231,8 +229,8 @@ find_components (void)
 
 	  if (mmap->base_addr & ((1 << 10) - 1)
 	      || mmap->length & ((1 << 10) - 1))
-	    panic ("Memory region (0x%x - 0x%x) is unaligned",
-		   (uint32_t) mmap->base_addr, (uint32_t) end);
+	    panic ("Memory region (0x%llx - 0x%llx) is unaligned",
+		   mmap->base_addr, end);
 
 	  add_memory_map ((uint32_t) mmap->base_addr, (uint32_t) end,
 			  mmap->type == 1

@@ -83,17 +83,11 @@ putchar (int chr)
 
 
 static void
-print_nr (long long nr, int base)
+print_nr (unsigned long long nr, int base)
 {
   static char *digits = "0123456789abcdef";
   char str[30];
   int i = 0;
-
-  if (nr < 0)
-    {
-      putchar ('-');
-      nr = -nr;
-    }
 
   do
     {
@@ -105,6 +99,23 @@ print_nr (long long nr, int base)
   i--;
   while (i >= 0)
     putchar (str[i--]);
+}
+  
+
+static void
+print_signed_nr (long long nr, int base)
+{
+  unsigned long long unr;
+
+  if (nr < 0)
+    {
+      putchar ('-');
+      unr = -nr;
+    }
+  else
+    unr = nr;
+
+  print_nr (unr, base);
 }
   
 
@@ -132,6 +143,49 @@ printf (const char *fmt, ...)
 	  p++;
 	  break;
 
+	case 'l':
+	  p++;
+	  if (*p != 'l')
+	    {
+	      putchar ('%');
+	      putchar ('l');
+	      putchar (*(p++));
+	      continue;
+	    }
+	  p++;
+	  switch (*p)
+	    {
+	    case 'o':
+	      print_nr (va_arg (ap, unsigned long long), 8);
+	      p++;
+	      break;
+
+	    case 'd':
+	    case 'i':
+	      print_signed_nr (va_arg (ap, long long), 10);
+	      p++;
+	      break;
+
+	    case 'x':
+	    case 'X':
+	      print_nr (va_arg (ap, unsigned long long), 16);
+	      p++;
+	      break;
+
+	    case 'u':
+	      print_nr (va_arg (ap, unsigned long long), 10);
+	      p++;
+	      break;
+
+	    default:
+	      putchar ('%');
+	      putchar ('l');
+	      putchar ('l');
+	      putchar (*(p++));
+	      break;
+	    }
+	  break;
+
 	case 'o':
 	  print_nr (va_arg (ap, unsigned int), 8);
 	  p++;
@@ -139,7 +193,7 @@ printf (const char *fmt, ...)
 
 	case 'd':
 	case 'i':
-	  print_nr (va_arg (ap, int), 10);
+	  print_signed_nr (va_arg (ap, int), 10);
 	  p++;
 	  break;
 
