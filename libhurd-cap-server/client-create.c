@@ -47,10 +47,6 @@ _hurd_cap_client_constructor (void *hook, void *buffer)
   client->state = _HURD_CAP_STATE_GREEN;
   client->pending_rpcs = NULL;
 
-  err = hurd_table_init (&client->caps, sizeof (struct _hurd_cap_obj_entry));
-  if (err)
-    goto err_cap_client_caps;
-
   /* Capabilities are mapped to clients many to many, so we can not
      use a location pointer.  However, this is not critical as
      removing an entry only blocks out RPCs for the same client, and
@@ -62,13 +58,10 @@ _hurd_cap_client_constructor (void *hook, void *buffer)
   /* This is provided here in case you add more initialization to the
      end of the above code.  */
 #if 0
-  hurd_table_destroy (&client->caps);
-#endif
-
- err_cap_client_caps:
   pthread_mutex_destroy (&client->lock);
 
   return err;
+#endif
 }
 
 
@@ -108,20 +101,10 @@ _hurd_cap_client_alloc (hurd_task_id_t task_id,
   /* CLIENT->id will be initialized by the caller when adding the
      client to the client table of the class.  */
   client->task_id = task_id;
-  err = pthread_mutex_init (&client->lock, NULL);
-  if (err)
-    {
-      free (client);
-      return err;
-    }
-
-  client->state = _HURD_CAP_STATE_GREEN;
-  client->pending_rpcs = NULL;
 
   err = hurd_table_init (&client->caps, sizeof (_hurd_cap_obj_entry_t));
   if (err)
     {
-      pthread_mutex_destroy (&client->lock);
       free (client);
       return err;
     }

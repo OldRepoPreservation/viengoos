@@ -1,5 +1,11 @@
 2004-12-01  Marcus Brinkmann  <marcus@gnu.org>
 
+	* client-create.c (_hurd_cap_client_constructor): Do not
+	initialize CLIENT->caps table here.
+	(_hurd_cap_client_alloc): Do not initialize CLIENT->lock,
+	CLIENT->state or CLIENT->pending_rpcs here.
+	Reported by Neal Walfield <neal@gnu.org>.
+
 	* bucket-manage-mt.c (manage_demuxer): Rework the logic that tries
 	to wait until the client becomes inhibited.
 	Reported by Neal Walfield <neal@gnu.org>.
