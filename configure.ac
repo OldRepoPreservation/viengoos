@@ -80,7 +80,7 @@ case $host_cpu in
     ;;
   powerpc)
     arch=powerpc
-    arch_powerpc=false
+    arch_powerpc=true
     ;;
   *)
     AC_MSG_ERROR([unsupported architecture])
