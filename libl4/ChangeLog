@@ -1,5 +1,8 @@
 2003-09-22  Marcus Brinkmann  <marcus@gnu.org>
 
+	* headers.m4: Add arch-dependent files using a shell variable.
+	* headers-ia32.m4, headers-powerpc.m4: Files removed.
+
 	* Makefile.am (ARCH_SUBDIR) [ARCH_POWERPC]: Add powerpc.
 	* headers-powerpc.m4: New file.
 	* powerpc/Makefile.am: New file.
