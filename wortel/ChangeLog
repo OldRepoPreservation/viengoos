@@ -1,3 +1,12 @@
+2003-10-04  Marcus Brinkmann  <marcus@gnu.org>
+
+	* loader.c: Include <l4/kip.h>.
+	(mem_check): Change type of address args to l4_word_t.  Use
+	l4_memory_desc_low and l4_memory_desc_high to determine range of
+	memory descriptor.  The high address is inclusive now, so take
+	this into account.  Allow conventional memory descriptors to
+	override non-conventional.  Use L4_PRIxWORD.
+
 2003-10-01  Johan Rydberg  <jrydberg@night.trouble.net>
 
 	* wortel.c (serve_bootstrap_requests): Only throw away page zero

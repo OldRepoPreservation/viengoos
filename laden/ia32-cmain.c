@@ -36,6 +36,7 @@ help_arch (void)
     "through to the rootserver\n"
     "and handled by it.\n";
 }
+
 
 /* Start kernel by simply jumping to the entry point.  */
 void
@@ -215,6 +216,12 @@ find_components (void)
     }
 
   /* Now create the memory map.  */
+
+  /* First, add the whole address space as shared memory by default to
+     allow arbitrary device access.  */
+  add_memory_map (0, -1, L4_MEMDESC_SHARED, 0);
+
+  /* Now add what GRUB tells us.  */
   if (CHECK_FLAG (mbi->flags, 6))
     {
       /* mmap_* are valid.  */
@@ -230,26 +237,9 @@ find_components (void)
 	  if (mmap->base_addr >> 32)
 	    panic ("L4 does not support more than 4 GB on ia32");
 
-	  end = mmap->base_addr + mmap->length;
+	  end = mmap->base_addr + mmap->length - 1;
 
-	  if (end == (1ULL << 32))
-	    {
-#if 0
-	    panic ("L4 does not support exactly 4 GB on ia32");
-#elif 1
-	      /* The L4 specification does not seem to allow this
-		 configuration.  Truncate the region by dropping the
-		 last page.  FIXME: kickstart overflows and sets the
-		 high address to 0.  This is unambiguous, but needs to
-		 be supported by sigma0 and the operating system.
-		 Clarification of the specification is required.  */
-	      end = (1ULL << 32) - (1 << 10);
-#else
-	      /* This is effectively what kickstart does.  */
-	      end = 0;
-#endif
-	    }
-	  else if (end >> 32)
+	  if (end >> 32)
 	    panic ("L4 does not support more than 4 GB on ia32");
 
 	  if (mmap->base_addr & ((1 << 10) - 1)
@@ -266,20 +256,16 @@ find_components (void)
   else if (CHECK_FLAG (mbi->flags, 0))
     {
       /* mem_* are valid.  */
-      if (mbi->mem_lower & 0x2ff)
-	panic ("Lower memory end address 0x%x is unaligned",
-	       mbi->mem_lower);
-      if (mbi->mem_upper & 0x2ff)
-	panic ("Upper memory end address 0x%x is unaligned",
-	       mbi->mem_upper);
 
-      add_memory_map (0, mbi->mem_lower << 10, L4_MEMDESC_CONVENTIONAL, 0);
-      add_memory_map (0x100000, 0x100000 + (mbi->mem_upper << 10),
+      add_memory_map (0, (mbi->mem_lower << 10) - 1,
+		      L4_MEMDESC_CONVENTIONAL, 0);
+      add_memory_map (0x100000, (0x100000 + (mbi->mem_upper << 10)) - 1,
 		      L4_MEMDESC_CONVENTIONAL, 0);
     }
 
-  /* The VGA memory is usually not included in the BIOS map.  */
-  add_memory_map (0xa0000, 0xc0000, L4_MEMDESC_SHARED, 0);
+  /* The VGA memory, and ROM extension, is usually not included in the
+     BIOS map.  We add it here.  */
+  add_memory_map (0xa0000, 0xf0000 - 1, L4_MEMDESC_SHARED, 0);
 
   /* The amount of conventional memory to be reserved for the kernel.  */
 #define KMEM_SIZE	(16 * 0x100000)

@@ -1,3 +1,18 @@
+2003-10-04  Marcus Brinkmann  <marcus@gnu.org>
+
+	* laden.h (add_memory_map): Don't round END up to 1K.
+	* ia32-cmain.c (find_components): Pass the address of the last
+	byte as END to add_memory_map.  Don't do bogus alignment check
+	without BIOS map.  Add 0xc0000 - 0xf0000 as shared memory.
+	Initially, add the whole address space as shared memory to allow
+	arbitrary device access.
+	* loader.c: Include <l4/kip.h>.
+	(mem_check): Change type of address args to l4_word_t.  Use
+	l4_memory_desc_low and l4_memory_desc_high to determine range of
+	memory descriptor.  The high address is inclusive now, so take
+	this into account.  Allow conventional memory descriptors to
+	override non-conventional.  Use L4_PRIxWORD.
+
 2003-09-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* loader.c (loader_elf_load): Fix wordsize check.  Submitted by

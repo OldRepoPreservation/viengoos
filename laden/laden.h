@@ -48,7 +48,7 @@ typedef __l4_rootserver_t rootserver_t;
 
 /* For the rootserver components, find_components() must fill in the
    start and end address of the ELF images in memory.  The end address
-   is one more than the last byte in the image.  */
+   is one more than the address of the last byte in the image.  */
 extern rootserver_t kernel;
 extern rootserver_t sigma0;
 extern rootserver_t sigma1;
@@ -63,12 +63,12 @@ extern l4_word_t boot_info;
 extern struct l4_memory_desc memory_map[MEMORY_MAP_MAX];
 extern l4_word_t memory_map_size;
 
-#define add_memory_map(start,end,mtype,msubtype)				\
+#define add_memory_map(start, end, mtype, msubtype)			\
   ({									\
     if (memory_map_size == MEMORY_MAP_MAX)				\
       panic ("No more memory descriptor slots available.\n");		\
       memory_map[memory_map_size].low = (start) >> 10;			\
-      memory_map[memory_map_size].high = ((end) + (1 << 10) - 1) >> 10;	\
+      memory_map[memory_map_size].high = (end) >> 10;			\
       memory_map[memory_map_size].virtual = 0;				\
       memory_map[memory_map_size].type = (mtype);			\
       memory_map[memory_map_size].subtype = (msubtype);			\

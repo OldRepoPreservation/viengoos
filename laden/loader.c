@@ -23,6 +23,7 @@
 #endif
 
 #include <string.h>
+#include <l4/kip.h>
 
 #include "loader.h"
 #include "output.h"
@@ -34,7 +35,7 @@
 
 /* Verify that the memory region START to END (exclusive) is valid.  */
 static void
-mem_check (const char *name, unsigned long start, unsigned long end)
+mem_check (const char *name, l4_word_t start, l4_word_t end)
 {
   l4_memory_desc_t memdesc;
   int nr;
@@ -43,6 +44,8 @@ mem_check (const char *name, unsigned long start, unsigned long end)
 
   if (!loader_get_num_memory_desc ())
     return;
+
+  end--;
 
   /* FIXME: This implementation does not account for conventional
      memory overriding non-conventional memory in the descriptor
@@ -54,31 +57,44 @@ mem_check (const char *name, unsigned long start, unsigned long end)
       if (memdesc->type == L4_MEMDESC_CONVENTIONAL)
 	{
 	  /* Check if the region fits into conventional memory.  */
-	  if (start >= (memdesc->low << 10) && start < (memdesc->high << 10)
-	      && end > (memdesc->low << 10) && end <= (memdesc->high << 10))
+	  if (start >= l4_memory_desc_low (memdesc)
+	      && start <= l4_memory_desc_high (memdesc)
+	      && end >= l4_memory_desc_low (memdesc)
+	      && end <= l4_memory_desc_high (memdesc))
 	    fits = 1;
 	}
       else
 	{
 	  /* Check if the region overlaps with non-conventional
 	     memory.  */
-	  if ((start >= (memdesc->low << 10) && start < (memdesc->high << 10))
-	      || (end > (memdesc->low << 10) && end <= (memdesc->high << 10))
-	      || (start < (memdesc->low << 10) && end > (memdesc->high << 10)))
+	  if ((start >= l4_memory_desc_low (memdesc)
+	       && start <= l4_memory_desc_high (memdesc))
+	      || (end >= l4_memory_desc_low (memdesc)
+		  && end <= l4_memory_desc_high (memdesc))
+	      || (start < l4_memory_desc_low (memdesc)
+		  && end > l4_memory_desc_high (memdesc)))
 	    {
-	      conflicts = 1;
-	      break;
+	      fits = 0;
+	      conflicts = 1 + nr;
 	    }
 	}
     }
-  if (conflicts)
-    panic ("%s (0x%x - 0x%x) conflicts with memory of "
-	   "type %i/%i (0x%x - 0x%x)", name, start, end,
-	   memdesc->type, memdesc->subtype,
-	   memdesc->low << 10, memdesc->high << 10);
+
   if (!fits)
-    panic ("%s (0x%x - 0x%x) does not fit into memory",
-	   name, start, end);
+    {
+      if (conflicts)
+	{
+	  memdesc = loader_get_memory_desc (conflicts - 1);
+	  panic ("%s (0x%" L4_PRIxWORD " - 0x%" L4_PRIxWORD ") conflicts "
+		 "with memory of type %i/%i (0x%" L4_PRIxWORD " - 0x%"
+		 L4_PRIxWORD ")", name, start, end + 1,
+		 memdesc->type, memdesc->subtype,
+		 l4_memory_desc_low (memdesc), l4_memory_desc_high (memdesc));
+	}
+      else
+	panic ("%s (0x%" L4_PRIxWORD " - 0x%" L4_PRIxWORD ") does not fit "
+	       "into memory", name, start, end + 1);
+    }
 }
 
 
@@ -128,6 +144,9 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end)
   if (nr_regions == MAX_REGIONS)
     panic ("Too many memory regions, region %s doesn't fit", name);
 
+  if (start >= end)
+    panic ("Region %s has a start address following the end address", name);
+
   check_region (name, start, end);
 
   used_regions[nr_regions].name = name;
@@ -159,6 +178,73 @@ loader_remove_region (const char *name)
 }
 
 
+/* Get the memory range to which the ELF image from START to END
+   (exclusive) will be loaded.  NAME is used for panic messages.  */
+void
+loader_elf_dest (const char *name, l4_word_t start, l4_word_t end,
+		 l4_word_t *new_start_p, l4_word_t *new_end_p)
+{
+  l4_word_t new_start = -1;
+  l4_word_t new_end = 0;
+  int i;
+
+  Elf32_Ehdr *elf = (Elf32_Ehdr *) start;
+
+  if (elf->e_ident[EI_MAG0] != ELFMAG0
+      || elf->e_ident[EI_MAG1] != ELFMAG1
+      || elf->e_ident[EI_MAG2] != ELFMAG2
+      || elf->e_ident[EI_MAG3] != ELFMAG3)
+    panic ("%s is not an ELF file", name);
+
+  if (elf->e_type != ET_EXEC)
+    panic ("%s is not an executable file", name);
+
+  if (!elf->e_phoff)
+    panic ("%s has no valid program header offset", name);
+
+  /* FIXME: Some architectures support both word sizes.  */
+  if (!((elf->e_ident[EI_CLASS] == ELFCLASS32
+	 && L4_WORDSIZE == L4_WORDSIZE_32)
+	|| (elf->e_ident[EI_CLASS] == ELFCLASS64
+	    && L4_WORDSIZE == L4_WORDSIZE_64)))
+    panic ("%s has invalid word size", name);
+  if (!((elf->e_ident[EI_DATA] == ELFDATA2LSB
+	 && L4_BYTE_ORDER == L4_LITTLE_ENDIAN)
+	|| (elf->e_ident[EI_DATA] == ELFDATA2MSB
+	    && L4_BYTE_ORDER == L4_BIG_ENDIAN)))
+    panic ("%s has invalid byte order", name);
+
+#if i386
+# define elf_machine EM_386
+#elif PPC
+# define elf_machine EM_PPC
+#else
+# error Not ported to this architecture!
+#endif
+
+  if (elf->e_machine != elf_machine)
+    panic ("%s is not for this architecture", name);
+
+  for (i = 0; i < elf->e_phnum; i++)
+    {
+      Elf32_Phdr *ph = (Elf32_Phdr *) (start + elf->e_phoff
+				       + i * elf->e_phentsize);
+      if (ph->p_type == PT_LOAD)
+	{
+	  if (ph->p_paddr < new_start)
+	    new_start = ph->p_paddr;
+	  if (ph->p_memsz + ph->p_paddr > new_end)
+	    new_end = ph->p_memsz + ph->p_paddr;
+	}
+    }
+
+  if (new_start_p)
+    *new_start_p = new_start;
+  if (new_end_p)
+    *new_end_p = new_end;
+}
+
+
 /* Load the ELF image from START to END (exclusive) into memory under
    the name NAME (also used as the name for the region of the
    resulting ELF program).  Return the lowest and highest address used
