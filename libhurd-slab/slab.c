@@ -341,7 +341,6 @@ hurd_slab_create (size_t size, size_t alignment,
 error_t
 hurd_slab_destroy (hurd_slab_space_t space)
 {
-  hurd_slab_space_t *prevp;
   error_t err;
 
   /* The caller wants to destroy the slab.  It can not be destroyed if

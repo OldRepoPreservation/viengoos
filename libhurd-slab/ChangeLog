@@ -1,3 +1,7 @@
+2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* slab.c (hurd_slab_destroy): Remove unused variable PREVP.
+
 2004-04-05  Marcus Brinkmann  <marcus@gnu.org>
 
 	* slab.c (hurd_slab_destroy): Fix typo.
