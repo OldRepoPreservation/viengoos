@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 Free Software Foundation, Inc.
+/* slab.h - The GNU Hurd slab allocator interface.
+   Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -24,16 +25,16 @@
 #include <errno.h>
 
 
+/* A slab space is an opaque type.  */
+struct hurd_slab_space;
+typedef struct hurd_slab_space *hurd_slab_space_t;
+
 /* Initialize the slab object pointed to by BUFFER.  */
 typedef error_t (*hurd_slab_constructor_t) (void *buffer);
 
 /* Destroy the slab object pointed to by BUFFER.  */
 typedef void (*hurd_slab_destructor_t) (void *buffer);
 
-struct hurd_slab_space;
-typedef struct hurd_slab_space *hurd_slab_space_t;
-
-
 /* Create a new slab space with the given object size, alignment, 
    constructor and destructor.  ALIGNMENT can be zero.  */
 error_t hurd_slab_create (size_t size, size_t alignment,
