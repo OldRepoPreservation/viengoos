@@ -267,6 +267,47 @@ grow (struct hurd_slab_space *space)
 }
 
 
+/* Initialize the slab space SPACE.  */
+error_t
+hurd_slab_init (hurd_slab_space_t space, size_t size, size_t alignment,
+		hurd_slab_constructor_t constructor,
+		hurd_slab_destructor_t destructor,
+		void *hook)
+{
+  error_t err;
+
+  /* Initialize all members to zero by default.  */
+  memset (space, 0, sizeof (struct hurd_slab_space));
+
+  if (!alignment)
+    /* FIXME: Is this a good default?  Maybe eight (8) is better,
+       since several architectures require that double and friends are
+       eight byte aligned.  */
+    alignment = __alignof__ (void *);
+
+  space->requested_size = size;
+  space->requested_align = alignment;
+
+  /* Testing the size here avoids an assertion in init_space.  */
+  size = size + sizeof (union hurd_bufctl);
+  size = (size + alignment - 1) & ~(alignment - 1);
+  if (size > (getpagesize () - sizeof (struct hurd_slab)
+	      - sizeof (union hurd_bufctl)))
+    return EINVAL;
+
+  err = pthread_mutex_init (&space->lock, NULL);
+  if (err)
+    return err;
+
+  space->constructor = constructor;
+  space->destructor = destructor;
+  space->hook = hook;
+
+  /* The remaining fields will be initialized by init_space.  */
+  return 0;
+}
+
+
 /* Create a new slab space with the given object size, alignment,
    constructor and destructor.  ALIGNMENT can be zero.  */
 error_t
@@ -279,41 +320,16 @@ hurd_slab_create (size_t size, size_t alignment,
   hurd_slab_space_t space;
   error_t err;
 
-  if (!alignment)
-    /* FIXME: Is this a good default?  Maybe eight (8) is better,
-       since several architectures require that double and friends are
-       eight byte aligned.  */
-    alignment = __alignof__ (void *);
-
-  space = calloc (1, sizeof (struct hurd_slab_space));
+  space = malloc (sizeof (struct hurd_slab_space));
   if (!space)
     return ENOMEM;
 
-  space->requested_size = size;
-  space->requested_align = alignment;
-
-  /* Testing the size here avoids an assertion in init_space.  */
-  size = size + sizeof (union hurd_bufctl);
-  size = (size + alignment - 1) & ~(alignment - 1);
-  if (size > (getpagesize () - sizeof (struct hurd_slab)
-	      - sizeof (union hurd_bufctl)))
-    {
-      free (space);
-      return EINVAL;
-    }
-
-  err = pthread_mutex_init (&space->lock, NULL);
+  err = hurd_slab_init (space, size, alignment, constructor, destructor, hook);
   if (err)
     {
       free (space);
       return err;
     }
-
-  space->constructor = constructor;
-  space->destructor = destructor;
-  space->hook = hook;
-
-  /* The remaining fields will be initialized by init_space.  */
 
   *r_space = space;
   return 0;

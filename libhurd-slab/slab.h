@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 
 /* Initialize the slab object pointed to by BUFFER.  HOOK is as
@@ -50,7 +51,7 @@ struct hurd_slab_space
   /* First part.  Used when initializing slab space object.   */
   
   /* True if slab space has been initialized.  */
-  bool inited;
+  bool initialized;
   
   /* Protects this structure, along with all the slabs.  No need to
      delay initialization of this field.  */
@@ -118,6 +119,12 @@ error_t hurd_slab_create (size_t size, size_t alignment,
 			  hurd_slab_destructor_t destructor,
 			  void *hook,
 			  hurd_slab_space_t *space);
+
+/* Like hurd_slab_create, but does not allocate storage for the slab.  */
+error_t hurd_slab_init (hurd_slab_space_t space, size_t size, size_t alignment,
+			hurd_slab_constructor_t constructor,
+			hurd_slab_destructor_t destructor,
+			void *hook);
 
 /* Destroy all objects and the slab space SPACE.  Returns EBUSY if
    there are still allocated objects in the slab.  */

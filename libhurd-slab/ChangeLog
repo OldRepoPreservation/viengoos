@@ -1,3 +1,11 @@
+2004-04-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* slab.h: Include <pthread.h>.
+	(hurd_slab_init): New prototype.
+	(struct hurd_slab_space): Rename member inited to initialized.
+	* slab.c (hurd_slab_init): New function.
+	(hurd_slab_create): Implement in terms of hurd_slab_init.
+	
 2004-03-31  Marcus Brinkmann  <marcus@gnu.org>
 
 	* slab.c (grow): Do not zero out memory returned by mmap with
