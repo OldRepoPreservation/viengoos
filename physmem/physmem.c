@@ -58,6 +58,7 @@ abort (void)
 #define WORTEL_MSG_GET_CAP_REQUEST	4
 #define WORTEL_MSG_GET_CAP_REPLY	5
 #define WORTEL_MSG_GET_THREADS		6
+#define WORTEL_MSG_GET_TASK_CAP		7
 
 void
 get_all_memory (void)
@@ -306,6 +307,40 @@ physmem_server (void *arg)
   panic ("bucket_manage_mt returned!");
 }
 
+
+static void
+get_task_cap (void)
+{
+  l4_msg_t msg;
+  l4_msg_tag_t tag;
+  hurd_cap_handle_t task_cap;
+
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, WORTEL_MSG_GET_TASK_CAP);
+  /* FIXME: Use real cap_id.  */
+  l4_msg_append_word (msg, 0);
+
+  l4_msg_load (msg);
+  /* FIXME: Hard coded wortel thread.  */
+  tag = l4_call (l4_global_id (l4_thread_user_base () + 2, 1));
+
+  if (l4_ipc_failed (tag))
+    panic ("get task cap request failed during %s: %u",
+	   l4_error_code () & 1 ? "receive" : "send",
+	   (l4_error_code () >> 1) & 0x7);
+
+  if (l4_untyped_words (tag) != 1
+      || l4_typed_words (tag) != 0)
+    panic ("invalid format of wortel get task cap reply");
+
+  l4_msg_store (tag, msg);
+  l4_msg_get_word (msg, 0, &task_cap);
+
+  /* FIXME: Do something with the task cap.  */
+}
+
 
 int
 main (int argc, char *argv[])
@@ -339,6 +374,8 @@ main (int argc, char *argv[])
   if (err)
     panic ("pthread_create_from_l4_tid_np: %i\n", err);
   pthread_detach (manager);
+
+  get_task_cap ();
 
   /* FIXME: Eventually, add shutdown support on wortels(?)
      request.  */

@@ -1,3 +1,18 @@
+2004-04-11  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (wortel_SOURCES): Add startup-bin.S.
+	(noinst_PROGRAMS): Add startup.
+	(STARTUP_ARCH_SOURCES): New variable.
+	(startup_CPPFLAGS, startup_SOURCES, startup_LDFLAGS)
+	(startup_LDADD): New variables.
+	* startup-bin.S, ia32-startup.S, startup.c: New files.
+	* wortel.c (startup_bin_start, startup_bin_end): New declarations.
+	(STARTUP_LOAD_ADDR): New macro.
+	(start_task): New function.
+	(WORTEL_MSG_GET_TASK_CAP): New macro.
+	(serve_bootstrap_requests): Implement the first half of the
+	WORTEL_MSG_GET_TASK_CAP RPC.
+
 2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.h (struct wortel_module): New member task_id.

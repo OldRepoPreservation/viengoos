@@ -1,5 +1,8 @@
 2004-04-11  Marcus Brinkmann  <marcus@gnu.org>
 
+	* physmem.c (get_task_cap): New function.
+	(main): Call get_task_cap.
+
 	* container.c (container_reinit): Unmap the fpages before
 	returning them to the pool.
 

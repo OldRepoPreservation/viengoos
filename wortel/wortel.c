@@ -413,6 +413,160 @@ start_physmem (void)
     }
 }
 
+
+/* These symbols mark the beginning and end of the startup code.  */
+extern void startup_bin_start;
+extern void startup_bin_end;
+
+#define STARTUP_LOAD_ADDR	0x8000
+
+/* Start up the physical memory server.  */
+static void
+start_task (void)
+{
+  /* The virtual memory layout of the task server: startup code starts
+     at 32K, stack grows down from 64K.  64K: Kernel interface page,
+     followed by the UTCB area.  */
+  l4_word_t start = l4_address (mods[MOD_TASK].startup);
+  l4_word_t size = l4_size (mods[MOD_TASK].startup);
+  l4_word_t *stack;
+  l4_word_t startup_bin_size;
+  l4_word_t entry_point;
+  l4_thread_id_t task;
+  l4_word_t ret;
+  l4_word_t control;
+
+  /* First clear everything.  This ensures that the .bss section is
+     initialized to zero.  */
+  memset ((void *) start, 0, size);
+
+  /* FIXME: This assumes a stack that grows downwards.  */
+#define STACK_GROWS_DOWNWARDS	1
+
+#if STACK_GROWS_DOWNWARDS
+  stack = (l4_word_t *) (start + size);
+#define PUSH(x) do { *(--stack) = x; } while (0)
+#else
+  stack = (l4_word_t *) start;
+#define PUSH(x) do { *(++stack) = x; } while (0)
+#endif
+
+  /* The stack layout is in accordance to the following startup prototype:
+     void start (l4_thread_id_t wortel_thread, l4_word_t wortel_cap_id,
+     l4_thread_id_t physmem_server, 
+     hurd_cap_handle_t startup_cont, hurd_cap_handle_t mem_cont,
+     l4_word_t entry_point, l4_word_t header_loc, l4_word_t header_size).  */
+
+  /* FIXME: Determine ELF program headers etc.  */
+
+  PUSH (mods[MOD_TASK].header_size);
+  PUSH (mods[MOD_TASK].header_loc);
+  PUSH (mods[MOD_TASK].ip);
+  PUSH (mods[MOD_TASK].mem_cont);
+  PUSH (mods[MOD_TASK].startup_cont);
+  PUSH (mods[MOD_PHYSMEM].server_thread);
+  PUSH (wortel_add_user (mods[MOD_TASK].task_id));
+  PUSH (l4_my_global_id ());
+
+  /* FIXME: We can not check for .bss section overflow.  So we just
+     reserve 2K for .bss which should be plenty.  Normally, .bss only
+     includes the global variables used for libl4 (__l4_kip and the
+     system call stubs).  */
+#define STARTUP_BSS	2048
+  /* We reserve 4KB for the stack.  */
+#define STARTUP_STACK_TOTAL	4096
+  startup_bin_size = ((char *) &startup_bin_end)
+    - ((char *) &startup_bin_start);
+  if (startup_bin_size + STARTUP_BSS > size - STARTUP_STACK_TOTAL)
+    panic ("startup binary does not fit into startup area");
+
+#if STACK_GROWS_DOWNWARDS
+  entry_point = 0;
+#else
+  entry_point = STARTUP_STACK_TOTAL;
+#endif
+  memcpy ((void *) (start + entry_point),
+	  &startup_bin_start, startup_bin_size);
+
+  task = mods[MOD_TASK].server_thread;
+
+  /* Create the main thread (which is also the designated server
+     thread).  For now, we will be the scheduler.  FIXME: Set the
+     scheduler to the task server's scheduler eventually.  */
+  ret = l4_thread_control (task, task, l4_myself (),
+			   l4_nilthread, (void *) -1);
+  if (!ret)
+    panic ("could not create initial task thread: %s",
+	   l4_strerror (l4_error_code ()));
+
+  /* FIXME: The KIP area and UTCB location for task should be more
+     configurable (for example via "boot script" parameters or ELF
+     symbols).  */
+  /* FIXME: Irregardless of how we choose the UTCB and KIP area, the
+     below code makes assumptions about page alignedness that are
+     architecture specific.  And it does not assert that we do not
+     accidently exceed the wortel end address.  */
+  /* FIXME: In any case, we have to pass the UTCB area size (and
+     location) to task.  */
+  ret = l4_space_control (task, 0,
+			  l4_fpage_log2 (64 * 1024,
+					 l4_kip_area_size_log2 ()),
+			  l4_fpage_log2 (64 * 1024 + l4_kip_area_size (),
+					 l4_utcb_area_size_log2 ()),
+			  l4_anythread, &control);
+  if (!ret)
+    panic ("could not create task address space: %s",
+	   l4_strerror (l4_error_code ()));
+
+  /* Activate the task thread.  We will be the pager.  We are using
+     the first UTCB entry.  */
+  ret = l4_thread_control (task, task, l4_nilthread, l4_myself (),
+			   (void *) (64 * 1024 + l4_kip_area_size ()));
+  if (!ret)
+    panic ("activation of task main thread failed: %s",
+	   l4_strerror (l4_error_code ()));
+
+  /* Calculate the new entry point and stack address
+     (virtual addresses of the task).  */
+  entry_point = STARTUP_LOAD_ADDR + entry_point;
+  stack = (l4_word_t *) (((l4_word_t) stack) - start + STARTUP_LOAD_ADDR);
+  ret = l4_thread_start (task, (l4_word_t) stack, entry_point);
+  if (!ret)
+    panic ("Sending startup message to task thread failed: %u",
+	   l4_error_code ());
+
+  assert (!mods[MOD_TASK].nr_extra_threads);
+
+  /* Now serve the first page request.  */
+  {
+    l4_msg_tag_t tag;
+    l4_map_item_t map_item;
+    l4_fpage_t fpage = mods[MOD_TASK].startup;
+    l4_word_t addr;
+      
+    tag = l4_receive (task);
+    if (l4_ipc_failed (tag))
+      panic ("Receiving messages from task thread failed: %u",
+	     (l4_error_code () >> 1) & 0x7);
+    if (!l4_is_pagefault (tag))
+      panic ("Message from task thread is not a page fault");
+    addr = l4_pagefault (tag, NULL, NULL);
+    if (addr != entry_point)
+      panic ("Page fault at unexpected address 0x%x (expected 0x%x)",
+	     addr, entry_point);
+
+    /* The memory was already requested from sigma0 by
+       load_components, so map it right away.  The mapping will be
+       destroyed when the startup code requests the very same mapping
+       from physmem via the startup container.  */
+    map_item = l4_map_item (fpage, STARTUP_LOAD_ADDR);
+    ret = l4_pagefault_reply (task, (void *) &map_item);
+    if (!ret)
+      panic ("sending pagefault reply to task failed: %u\n",
+	     l4_error_code ());
+  }
+}
+
 
 /* Serve rootserver bootstrap requests.  We do everything within this
    loop, because this allows the other servers to print messages and
@@ -445,6 +599,8 @@ serve_bootstrap_requests (void)
   unsigned int nr_cont = 0;
   unsigned int cur_cont = 0;
 
+  /* This is the physmem thread that sent us the GET_TASK_CAP RPC.  */
+  l4_thread_id_t physmem;
 
   /* Make a list of all the containers we want.  */
   for (i = 0; i < mods_count; i++)
@@ -501,10 +657,13 @@ serve_bootstrap_requests (void)
       /* FIXME: Shouldn't store the whole msg before checking access
 	 rights.  */
       l4_msg_store (tag, msg);
+#if 0
+      /* FIXME: CHeck for pagefaults before checking the cap id.  */
       if (!WORTEL_CAP_VALID (l4_msg_word (msg, 0), l4_version (from)))
 	/* FIXME: Shouldn't be a panic of course.  */
 	panic ("Unprivileged user 0x%x attemps to access wortel rootserver",
 	       from);
+#endif
 
 #define WORTEL_MSG_PUTCHAR		1
 #define WORTEL_MSG_SHUTDOWN		2
@@ -512,6 +671,8 @@ serve_bootstrap_requests (void)
 #define WORTEL_MSG_GET_CAP_REQUEST	4
 #define WORTEL_MSG_GET_CAP_REPLY	5
 #define WORTEL_MSG_GET_THREADS		6
+#define WORTEL_MSG_GET_TASK_CAP		7
+
       if (label == WORTEL_MSG_PUTCHAR)
 	{
 	  int chr;
@@ -647,6 +808,26 @@ serve_bootstrap_requests (void)
 
 	  /* Does not require a reply.  */
 	  cur_cont++;
+	}
+      else if (label == WORTEL_MSG_GET_TASK_CAP)
+	{
+	  /* This RPC is used by physmem after the memory container
+	     caps have been successfully created to request the task
+	     server cap of the physmem task.  */
+
+	  if (l4_untyped_words (tag) != 1
+	      || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of get task cap msg");
+
+	  /* FIXME: Use the wortel cap ID to find out which server
+	     wants this info.  */
+
+	  /* We have to reply later, when we started up the task
+	     server and received the physmem task cap.  */
+	  physmem = from;
+
+	  /* Start up the task server and continue serving RPCs.  */
+	  start_task ();
 	}
       else if ((label >> 4) == 0xffe)
 	{

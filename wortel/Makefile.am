@@ -21,9 +21,27 @@
 if ARCH_IA32
   ARCH_SOURCES = multiboot.h ia32-crt0.S ia32-cmain.c \
     ia32-output.c output-vga.c output-serial.c ia32-shutdown.c
+  STARTUP_ARCH_SOURCES = ia32-startup.S
 endif
 
-noinst_PROGRAMS = wortel
+noinst_PROGRAMS = startup wortel
+
+# The startup "program" is glue code that is injected into a new task
+# started by wortel.  It is responsible for mapping in the from the
+# physmem server via the physical memory capabilities.
+startup_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
+	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS)
+
+startup_SOURCES = $(STARTUP_ARCH_SOURCES) startup.c
+
+# The glue code address is hard-coded to 0x8000 (see STARTUP_LOAD_ADDR
+# in wortel.c).  We use the "binary" target format to get the pure
+# content of the .text and .data section.
+startup_LDFLAGS = -Wl,--oformat=binary -u_start -e_start -N -nostdlib	\
+	-Ttext=0x8000
+
+startup_LDADD = -lgcc ../libc-parts/libc-parts.a
+
 
 wortel_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
 	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS)
@@ -33,6 +51,7 @@ wortel_SOURCES = $(ARCH_SOURCES)				\
 	shutdown.h shutdown.c					\
 	elf.h loader.h loader.c					\
 	sigma0.h sigma0.c					\
+	startup-bin.S						\
 	wortel.h wortel.c
 
 wortel_LDFLAGS = -u_start -e_start -N -nostdlib \
