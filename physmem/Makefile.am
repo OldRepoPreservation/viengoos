@@ -24,7 +24,7 @@ endif
 
 noinst_PROGRAMS = physmem
 
-physmem_CPPFLAGS = -I$(top_srcdir)/include			\
+physmem_CPPFLAGS = -I$(top_builddir)/include			\
 	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS)
 
 physmem_SOURCES = $(ARCH_SOURCES)				\

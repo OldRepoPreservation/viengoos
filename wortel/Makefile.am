@@ -18,8 +18,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-AM_CPPFLAGS = -I$(top_builddir)/include
-
 if ARCH_IA32
   ARCH_SOURCES = multiboot.h ia32-crt0.S ia32-cmain.c \
     ia32-output.c output-vga.c output-serial.c ia32-shutdown.c
@@ -27,8 +25,8 @@ endif
 
 noinst_PROGRAMS = wortel
 
-wortel_CFLAGS = -I$(srcdir) -I$(top_srcdir)/include \
-	-I$(top_srcdir)/libc-parts $(AM_CFLAGS)
+wortel_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
+	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS)
 
 wortel_SOURCES = $(ARCH_SOURCES)				\
 	output.h output.c output-none.c				\
