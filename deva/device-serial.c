@@ -44,8 +44,8 @@
 #define UART2_IRQ	3
 
 /* The selected base port.  */
-static unsigned short int uart_base = UART1_BASE;
-static unsigned short int uart_irq = UART1_IRQ;
+static unsigned short int uart_base = UART2_BASE;
+static unsigned short int uart_irq = UART2_IRQ;
 
 /* The data register.  */
 #define UART_DR		(uart_base + 0)
@@ -98,9 +98,6 @@ serial_irq_handler (void *_serial)
 
   /* Set 8,N,1.  */
   outb (0x03, UART_LCR);
-
-  /* Disable interrupts.  */
-  outb (0x00, UART_IER);
 
   /* Enable FIFOs. */
   outb (0x07, UART_IIR);
@@ -161,7 +158,7 @@ serial_irq_handler (void *_serial)
 		      /* If we get too much data, we just drop some.  */
 		      dev->serial.input[dev->serial.input_len++] = c;
 		    }
-debug("%c", c);		  
+
 		  /* Update the status.  */
 		  b = inb (UART_LSR);
 		}
@@ -180,7 +177,6 @@ debug("%c", c);
 
 		outb (c, UART_DR);
 
-debug("[%c]", c);		
 		/* Update the status.  */
 		b = inb (UART_LSR);
 	      }
@@ -199,7 +195,7 @@ debug("[%c]", c);
 
 		if (len == 0)
 		  /* Disable interrupts for TX.  */
-		  outb (UART_IER, 0x1);
+		  outb (0x1, UART_IER);
 		    
 		else
 		  memmove (&dev->serial.output[0],
@@ -277,13 +273,48 @@ serial_io_write (device_t *dev, int chr)
       dev->serial.output_wait = 1;
       pthread_cond_wait (&dev->serial.cond, &dev->serial.lock);
     }
+
   old_len = dev->serial.output_len;
-  dev->serial.output[++dev->serial.output_len] = chr;
 
   if (old_len == 0)
     {
-      /* Enable interrupts for TX.  */
-      outb (UART_IER, 0x3);
+      /* The output queue was empty, this means that the TX interrupts
+	 are disabled (the irq handler thread disables them after
+	 sending the last character.  We have to refill the buffer and
+	 at the same time re-activate the transmit interrupts.  For
+	 this, we need to enable the IRQ and write one character to
+	 get things rolling.  This makes only sense if we are sending
+	 at least two characters.  Another approach would be to cancel
+	 the pending IPC operation in the IRQ thread and let it
+	 reactivate the IRQ in this case.  */
+
+      /* Right now, only one character is sent always.  No need for
+	 IRQs.  */
+#if 0
+      if (buffer_len > 1)
+	{
+	  memcpy (&dev->serial.output[dev->serial.output_len],
+		  &buffer[1], buffer_len - 1);
+
+	  /* Enable interrupts for TX.  */
+	  outb (0x3, UART_IER);
+
+	  /* Send first character to make sure the next TX IRQ comes
+	     soon.  */
+	  outb (buffer[0], UART_DR);
+	}
+      else
+#endif
+	{
+	  /* Only one character, enabling IRQs makes no sense, as the
+	     next IRQ would only come after sending this first
+	     character.  */
+	  outb (chr, UART_DR);
+	}
+    }
+  else
+    {
+      dev->serial.output[++dev->serial.output_len] = chr;
     }
   pthread_mutex_unlock (&dev->serial.lock);
 
