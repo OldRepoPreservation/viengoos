@@ -29,18 +29,29 @@
 /* Reset the machine.  */
 void reset (void);
 
+/* Halt the machine.  */
+void halt (void);
+
 
 /* The generic code defines these functions.  */
 
 /* Reset the machine at failure, instead halting it.  */
 extern int shutdown_reset;
 
-/* Halt the machine.  */
-void halt (void);
-
 /* End the program with a failure.  This can halt or reset the
    system.  */
 void shutdown (void);
 
+/* The program name.  */
+extern char *program_name;
+
+/* Print an error message and fail.  */
+#define panic(...)				\
+  ({						\
+    printf ("%s: error: ", program_name);	\
+    printf (__VA_ARGS__);			\
+    putchar ('\n');				\
+    shutdown ();				\
+  })
 
 #endif	/* _SHUTDOWN_H */

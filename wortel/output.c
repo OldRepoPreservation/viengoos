@@ -26,6 +26,10 @@
 
 #include "output.h"
 
+
+/* True if debugging is enabled.  */
+int output_debug;
+
 
 /* The active output driver.  */
 static struct output_driver *output;

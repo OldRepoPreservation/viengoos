@@ -115,7 +115,7 @@ cmain (void)
       argc = 1;
 
       argv = alloca (sizeof (char *) * 2);
-      argv[0] = PROGRAM_NAME;
+      argv[0] = program_name;
       argv[1] = 0;
     }
 

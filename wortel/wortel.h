@@ -22,25 +22,12 @@
 #include "string.h"
 #include "output.h"
 #include "shutdown.h"
+#include "loader.h"
 
 
-#define PROGRAM_NAME	"wortel"
+/* The program name.  */
+extern char *program_name;
+
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
-
-/* Print an error message and fail.  */
-#define panic(...)				\
-  ({						\
-    printf (PROGRAM_NAME ": error: ");		\
-    printf (__VA_ARGS__);			\
-    putchar ('\n');				\
-    shutdown ();				\
-  })
-
-/* True if debug mode is enabled.  */
-extern int debug;
-
-/* Print a debug message.  */
-#define debug(...) do { if (debug) printf (__VA_ARGS__); } while (0)
-
 
 int main (int argc, char *argv[]);

@@ -26,12 +26,12 @@
 
 #include "shutdown.h"
 
-/* Time to sleep (in seconds) before reset.  */
-
-#define SLEEP_TIME 10
 
 /* Reset the machine at failure, instead halting it.  */
 int shutdown_reset;
+
+/* Time to sleep before reset.  */
+#define SLEEP_TIME 10
 
 
 void
@@ -46,7 +46,9 @@ shutdown (void)
 {
   if (shutdown_reset)
     {
-      l4_sleep (SLEEP_TIME);
+      l4_time_t timespec = l4_time_period (SLEEP_TIME * 1000UL * 1000UL);
+
+      l4_sleep (timespec);
       reset ();
     }
   else

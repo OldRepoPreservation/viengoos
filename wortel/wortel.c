@@ -24,10 +24,31 @@
 #include "wortel.h"
 
 
+/* The program name.  */
+char *program_name = "wortel";
+
+
+/* Return the number of memory descriptors.  */
+l4_word_t
+loader_get_num_memory_desc (void)
+{
+  return l4_num_memory_desc ();
+}
+
+
+/* Return the NRth memory descriptor.  The first memory descriptor is
+   indexed by 0.  */
+l4_memory_desc_t
+loader_get_memory_desc (l4_word_t nr)
+{
+  return l4_memory_desc (nr);
+}
+
+
 /* True if debug mode is enabled.  */
 int debug;
 
-
+
 static void
 parse_args (int argc, char *argv[])
 {
@@ -39,7 +60,7 @@ parse_args (int argc, char *argv[])
 	{
 	  i++;
 	  printf ("Usage %s [OPTION...]\n", argv[0]);
-	  printf ("Try `" PROGRAM_NAME " --help' for more information\n");
+	  printf ("Try `%s --help' for more information\n", program_name);
 	  shutdown ();	  
 	}
       else if (!strcmp (argv[i], "--help"))
@@ -82,7 +103,7 @@ parse_args (int argc, char *argv[])
       else if (!strcmp (argv[i], "--version"))
 	{
 	  i++;
-	  printf (PROGRAM_NAME " " PACKAGE_VERSION "\n");
+	  printf ("%s " PACKAGE_VERSION "\n", program_name);
 	  shutdown ();	  
 	}
       else if (!strcmp (argv[i], "-o") || !strcmp (argv[i], "--output"))
@@ -121,7 +142,7 @@ main (int argc, char *argv[])
 {
   parse_args (argc, argv);
 
-  debug (PROGRAM_NAME " " PACKAGE_VERSION "\n");
+  debug ("%s " PACKAGE_VERSION "\n", program_name);
 
   while (1)
     l4_yield ();

@@ -62,4 +62,10 @@ void putchar (int chr);
 
 void printf (const char *fmt, ...);
 
+/* True if debug mode is enabled.  */
+extern int output_debug;
+
+/* Print a debug message.  */
+#define debug(...) do { if (output_debug) printf (__VA_ARGS__); } while (0)
+
 #endif	/* _OUTPUT_H */
