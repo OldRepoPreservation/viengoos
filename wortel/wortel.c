@@ -266,13 +266,12 @@ start_components (void)
   l4_word_t thread_no = l4_thread_no (l4_myself ()) + 1;
   hurd_task_id_t task_id = 2;
   l4_thread_id_t server;
-  l4_thread_id_t helper;
 
   for (i = 0; i < mods_count; i++)
     {
       /* FIXME: Should only be done for modules turned into tasks.  */
       mods[i].server_thread = l4_global_id (thread_no++, task_id);
-      mods[i].nr_extra_threads = 1;
+      mods[i].nr_extra_threads = (i == MOD_PHYSMEM ? 3 : 1);
       thread_no += mods[i].nr_extra_threads;
       task_id++;
     }
@@ -338,13 +337,18 @@ start_components (void)
   /* Set up the helper thread for physmem.  */
   /* UTCB location is a hack, as above.  */
   /* The whole thing is a hack, actually.  */
-  helper = l4_global_id (l4_thread_no (server) + 1, l4_version (server));
-  ret = l4_thread_control (helper, server, l4_myself (), helper,
-			   (void *) (wortel_start + l4_kip_area_size ()
-				     + l4_utcb_size ()));
-  if (!ret)
-    panic ("could not create physmem server thread: %s",
-	   l4_strerror (l4_error_code ()));
+  for (i = 1; i <= mods[MOD_PHYSMEM].nr_extra_threads; i++)
+    {
+      l4_thread_id_t helper;
+
+      helper = l4_global_id (l4_thread_no (server) + i, l4_version (server));
+      ret = l4_thread_control (helper, server, l4_myself (), helper,
+			       (void *) (wortel_start + l4_kip_area_size ()
+					 + i * l4_utcb_size ()));
+      if (!ret)
+	panic ("could not create extra physmem thread: %s",
+	       l4_strerror (l4_error_code ()));
+    }
 
   {
     l4_fpage_t fpages[MAX_FPAGES];
@@ -478,6 +482,7 @@ serve_bootstrap_requests (void)
 #define WORTEL_MSG_GET_MEM		3
 #define WORTEL_MSG_GET_CAP_REQUEST	4
 #define WORTEL_MSG_GET_CAP_REPLY	5
+#define WORTEL_MSG_GET_THREADS		6
       if (label == WORTEL_MSG_PUTCHAR)
 	{
 	  int chr;
@@ -528,6 +533,20 @@ serve_bootstrap_requests (void)
 	  grant_item = l4_grant_item (fpage, l4_address (fpage));
 	  l4_msg_clear (msg);
 	  l4_msg_append_grant_item (msg, grant_item);
+	  l4_msg_load (msg);
+	  l4_reply (from);
+	}
+      else if (label == WORTEL_MSG_GET_THREADS)
+	{
+	  if (l4_untyped_words (tag) != 1
+	      || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of get_mem msg");
+
+	  /* FIXME: Use the wortel cap ID to find out which server
+	     wants this info.  */
+
+	  l4_msg_clear (msg);
+	  l4_msg_append_word (msg, mods[MOD_PHYSMEM].nr_extra_threads);
 	  l4_msg_load (msg);
 	  l4_reply (from);
 	}

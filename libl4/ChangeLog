@@ -1,5 +1,10 @@
 2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/gnu/ipc.h (L4_string_items_acceptor): Rename to ...
+	(L4_STRING_ITEMS_ACCEPTOR): ... this.
+	(L4_untyped_words_acceptor): Rename to ...
+	(L4_UNTYPED_WORDS_ACCEPTOR): ... this.
+
 	* ia32/l4/bits/vregs.h (_L4_utcb): Make the assembler volatile.
 
 2004-03-17  Marcus Brinkmann  <marcus@gnu.org>

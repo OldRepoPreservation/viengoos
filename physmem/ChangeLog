@@ -1,5 +1,9 @@
 2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
 
+	* physmem.c (WORTEL_MSG_GET_THREADS): New macro.
+	(setup_threads): Request number of extra threads from wortel.  Add
+	them to the pool.
+
 	* output.h (shutdown): Add noreturn attribute to prototype.
 	* output.c (shutdown): Add noreturn attribute.  Sleep forever.
 

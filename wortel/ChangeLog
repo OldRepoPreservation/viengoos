@@ -1,5 +1,8 @@
 2004-03-19  Marcus Brinkmann  <marcus@gnu.org>
 
+	* wortel.c (WORTEL_MSG_GET_THREADS): New.
+	(serve_bootstrap_requests): Implement it.
+
 	* wortel.h (struct wortel_module): Remove member main_thread and
 	add member nr_extra_threads.
 	* wortel.c (start_components): Use server_thread instead of

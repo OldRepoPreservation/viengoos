@@ -264,8 +264,8 @@ l4_add_cache_allocation_hint_to (l4_string_item_t *string_item,
 typedef _L4_acceptor_t l4_acceptor_t;
 
 
-#define L4_untyped_words_acceptor	_L4_untyped_words_acceptor
-#define L4_string_items_acceptor	_L4_string_items_acceptor
+#define L4_UNTYPED_WORDS_ACCEPTOR	_L4_untyped_words_acceptor
+#define L4_STRING_ITEMS_ACCEPTOR	_L4_string_items_acceptor
 
 typedef _L4_msg_buffer_t l4_msg_buffer_t;
 

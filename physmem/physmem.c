@@ -56,6 +56,7 @@ abort (void)
 #define WORTEL_MSG_GET_MEM		3
 #define WORTEL_MSG_GET_CAP_REQUEST	4
 #define WORTEL_MSG_GET_CAP_REPLY	5
+#define WORTEL_MSG_GET_THREADS		6
 
 void
 get_all_memory (void)
@@ -198,7 +199,47 @@ setup_threads (void)
   l4_thread_id_t server_thread;
   l4_thread_id_t main_thread;
 
+
   /* FIXME: Retrieve threads donated by wortel here.  */
+  {
+    l4_msg_t msg;
+    l4_msg_tag_t tag;
+    l4_word_t nr;
+
+    l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+    l4_msg_clear (msg);
+    l4_set_msg_label (msg, WORTEL_MSG_GET_THREADS);
+    /* FIXME: Use real cap_id.  */
+    l4_msg_append_word (msg, 0);
+
+    l4_msg_load (msg);
+    /* FIXME: Hard coded wortel thread.  */
+    tag = l4_call (l4_global_id (l4_thread_user_base () + 2, 1));
+
+    if (l4_ipc_failed (tag))
+      panic ("get_thread request failed during %s: %u",
+	     l4_error_code () & 1 ? "receive" : "send",
+	     (l4_error_code () >> 1) & 0x7);
+
+    if (l4_untyped_words (tag) != 1
+	|| l4_typed_words (tag) != 0)
+      panic ("invalid format of wortel get_thread reply");
+
+    l4_msg_store (tag, msg);
+    l4_msg_get_word (msg, 0, &nr);
+    if (nr < 3)
+      panic ("at least three extra threads required for physmem");
+
+    while (--nr > 0)
+      {
+	l4_thread_id_t tid;
+	tid = l4_global_id (l4_thread_no (l4_my_global_id ()) + 1 + nr,
+			    l4_version (l4_my_global_id ()));
+	pthread_pool_add_np (tid);
+      }
+  }
+
   /* For now, we know wortel creates one additional thread up-front.  */
   main_thread = l4_global_id (l4_thread_no (l4_my_global_id ()) + 1,
 			      l4_version (l4_my_global_id ()));
