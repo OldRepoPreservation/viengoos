@@ -711,10 +711,11 @@ typedef union
 static inline void
 _L4_attribute_always_inline
 _L4_msg_put (_L4_msg_t msg, _L4_word_t label, int untyped_nr,
-	     _L4_word_t *untyped, int typed_nr, void *typed)
+	     _L4_word_t *untyped, int typed_nr, void *any_typed)
 {
   __L4_msg_t *_msg = (__L4_msg_t *) msg;
   _L4_word_t *mrs = msg;
+  _L4_word_t *typed = (_L4_word_t *) any_typed;
 
   _msg->tag.untyped = untyped_nr;
   _msg->tag.typed = typed_nr;
@@ -728,24 +729,25 @@ _L4_msg_put (_L4_msg_t msg, _L4_word_t label, int untyped_nr,
     *(mrs++) = *(untyped++);
 
   while (typed_nr--)
-    *(mrs++) = *(((_L4_word_t *) typed)++);
+    *(mrs++) = *(typed++);
 }
 
 
 static inline void
 _L4_attribute_always_inline
-_L4_msg_get (_L4_msg_t msg, _L4_word_t *untyped, void *typed)
+_L4_msg_get (_L4_msg_t msg, _L4_word_t *untyped, void *any_typed)
 {
   __L4_msg_t *_msg = (__L4_msg_t *) msg;
   int untyped_nr = _msg->tag.untyped;
   int typed_nr = _msg->tag.typed;
   _L4_word_t *mrs = msg;
+  _L4_word_t *typed = (_L4_word_t *) any_typed;
 
   while (untyped_nr--)
     *(untyped++) = *(mrs++);
 
   while (typed_nr--)
-    *(((_L4_word_t *) typed)++) = *(mrs++);
+    *(typed++) = *(mrs++);
 }
 
 

@@ -1,3 +1,10 @@
+2004-03-25  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/ipc.h (_L4_msg_put): Rename argument TYPED to ANY_TYPED, add
+	new variable TYPED that takes its value in casted form.  Remove
+	casts in assignment.
+	(_L4_msg_get): Likewise.
+
 2004-03-23  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32/Makefile.am (nobase_include_HEADERS): Fix typo that
