@@ -1,5 +1,10 @@
 2003-09-18  Marcus Brinkmann  <marcus@g10code.de>
 
+	* l4/kip.h (l4_get_kernel_interface): Rename to ...
+	(l4_kip): ... this.  Also in all callers.
+	* ia32/l4/bits/stubs-init.h (__L4_SETUP_SYSCALL): Likewise in
+	caller.
+
 	* l4/kip.h (l4_min_page_size): New function.
 	(l4_min_page_size_log2): Likewise.
 

@@ -321,25 +321,26 @@ typedef struct
 
 
 extern l4_kip_t __l4_kip;
-#define l4_get_kernel_interface()  (__l4_kip + 0)  /* Not an lvalue.  */
+#define l4_kip()  (__l4_kip + 0)  /* Not an lvalue.  */
 
 
 #ifndef _L4_EXTERN_INLINE
 #define _L4_EXTERN_INLINE extern __inline
 #endif
 
+_L4_EXTERN_INLINE 
 
 _L4_EXTERN_INLINE l4_api_version_t
 l4_api_version (void)
 {
-  return l4_get_kernel_interface ()->api_version;
+  return l4_kip ()->api_version;
 }
 
 
 _L4_EXTERN_INLINE l4_api_flags_t
 l4_api_flags (void)
 {
-  return l4_get_kernel_interface ()->api_flags;
+  return l4_kip ()->api_flags;
 }
 
 
@@ -348,8 +349,8 @@ l4_kernel_id (void)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_get_kernel_interface ()
-			   + l4_get_kernel_interface ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
+			   + l4_kip ()->kern_desc_ptr);
   return kern->id;
 }
 
@@ -359,8 +360,8 @@ l4_kernel_gen_date (l4_word_t *year, l4_word_t *month, l4_word_t *day)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_get_kernel_interface ()
-			   + l4_get_kernel_interface ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
+			   + l4_kip ()->kern_desc_ptr);
 
   if (year)
     *year = kern->gen_date.year + 2000;
@@ -376,8 +377,8 @@ l4_kernel_version (l4_word_t *ver, l4_word_t *subver, l4_word_t *subsubver)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_get_kernel_interface ()
-			   + l4_get_kernel_interface ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
+			   + l4_kip ()->kern_desc_ptr);
 
   if (ver)
     *ver = kern->version.ver;
@@ -393,8 +394,8 @@ l4_kernel_supplier (void)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_get_kernel_interface ()
-			   + l4_get_kernel_interface ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
+			   + l4_kip ()->kern_desc_ptr);
 
   return kern->supplier;
 }
@@ -403,7 +404,7 @@ l4_kernel_supplier (void)
 _L4_EXTERN_INLINE l4_word_t
 l4_num_processors (void)
 {
-  return l4_get_kernel_interface ()->processor_info.processors + 1;
+  return l4_kip ()->processor_info.processors + 1;
 }
 
 
@@ -413,9 +414,9 @@ l4_proc_desc (l4_word_t num)
   if (num >= l4_num_processors ())
     return (l4_proc_desc_t) 0;
 
-  return (l4_proc_desc_t) ((l4_word_t) l4_get_kernel_interface ()
-			   + l4_get_kernel_interface ()->proc_desc_ptr)
-    + num * (1 << l4_get_kernel_interface ()->processor_info.log2_size);
+  return (l4_proc_desc_t) ((l4_word_t) l4_kip ()
+			   + l4_kip ()->proc_desc_ptr)
+    + num * (1 << l4_kip ()->processor_info.log2_size);
 }
 
 
@@ -438,7 +439,7 @@ l4_proc_external_freq (l4_proc_desc_t proc)
 _L4_EXTERN_INLINE l4_word_t
 l4_page_size_mask (void)
 {
-  return l4_get_kernel_interface ()->page_info.page_size_mask
+  return l4_kip ()->page_info.page_size_mask
     << L4_MIN_PAGE_SIZE_LOG2;
 }
 
@@ -449,7 +450,7 @@ _L4_EXTERN_INLINE l4_word_t l4_min_page_size_log2 (void)
 _L4_EXTERN_INLINE l4_word_t
 l4_min_page_size_log2 (void)
 {
-  page_size_mask = l4_get_kernel_interface ()->page_info.page_size_mask;
+  page_size_mask = l4_kip ()->page_info.page_size_mask;
   unsigned int page_size_log2 = L4_MIN_PAGE_SIZE_LOG2;
   
   /* There'd better be one bit set.  */
@@ -476,70 +477,70 @@ l4_min_page_size (void)
 _L4_EXTERN_INLINE l4_page_info_t
 l4_page_rights (void)
 {
-  return l4_get_kernel_interface ()->page_info;
+  return l4_kip ()->page_info;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_thread_id_bits (void)
 {
-  return l4_get_kernel_interface ()->thread_info.log2_max_thread;
+  return l4_kip ()->thread_info.log2_max_thread;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_thread_user_base (void)
 {
-  return l4_get_kernel_interface ()->thread_info.user_base;
+  return l4_kip ()->thread_info.user_base;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_thread_system_base (void)
 {
-  return l4_get_kernel_interface ()->thread_info.system_base;
+  return l4_kip ()->thread_info.system_base;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_read_precision (void)
 {
-  return l4_get_kernel_interface ()->clock_info.read_precision;
+  return l4_kip ()->clock_info.read_precision;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_schedule_precision (void)
 {
-  return l4_get_kernel_interface ()->clock_info.schedule_precision;
+  return l4_kip ()->clock_info.schedule_precision;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_utcb_area_size_log2 (void)
 {
-  return l4_get_kernel_interface ()->utcb_info.log2_min_size;
+  return l4_kip ()->utcb_info.log2_min_size;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_utcb_area_size (void)
 {
-  return 1 << l4_get_kernel_interface ()->utcb_info.log2_min_size;
+  return 1 << l4_kip ()->utcb_info.log2_min_size;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_utcb_alignment_log2 (void)
 {
-  return l4_get_kernel_interface ()->utcb_info.log2_align;
+  return l4_kip ()->utcb_info.log2_align;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_utcb_size (void)
 {
-  return l4_get_kernel_interface ()->utcb_info.size_mul
+  return l4_kip ()->utcb_info.size_mul
     * (1 << l4_utcb_alignment_log2 ());
 }
 
@@ -547,21 +548,21 @@ l4_utcb_size (void)
 _L4_EXTERN_INLINE l4_word_t
 l4_kip_area_size_log2 (void)
 {
-  return l4_get_kernel_interface ()->kip_area_info.log2_size;
+  return l4_kip ()->kip_area_info.log2_size;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_kip_area_size (void)
 {
-  return 1 << l4_get_kernel_interface ()->kip_area_info.log2_size;
+  return 1 << l4_kip ()->kip_area_info.log2_size;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_boot_info (void)
 {
-  return l4_get_kernel_interface ()->boot_info;
+  return l4_kip ()->boot_info;
 }
 
 
@@ -570,8 +571,8 @@ l4_kernel_version_string (void)
 {
   l4_kern_desc_t kern;
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_get_kernel_interface ()
-			   + l4_get_kernel_interface ()->kern_desc_ptr);
+  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
+			   + l4_kip ()->kern_desc_ptr);
 
   return kern->version_parts;
 }
@@ -599,7 +600,7 @@ l4_feature (l4_word_t num)
 _L4_EXTERN_INLINE l4_word_t
 l4_num_memory_desc (void)
 {
-  return l4_get_kernel_interface ()->memory_info.nr;
+  return l4_kip ()->memory_info.nr;
 }
 
 
@@ -612,8 +613,8 @@ l4_memory_desc (l4_word_t num)
     return (l4_memory_desc_t) 0;
 
   mem = (l4_memory_desc_t)
-    ((l4_word_t) l4_get_kernel_interface ()
-     + l4_get_kernel_interface ()->memory_info.mem_desc_ptr);
+    ((l4_word_t) l4_kip ()
+     + l4_kip ()->memory_info.mem_desc_ptr);
   return mem + num;
 }
 
