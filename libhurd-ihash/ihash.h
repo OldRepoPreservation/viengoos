@@ -216,16 +216,16 @@ hurd_ihash_value_t hurd_ihash_find (hurd_ihash_t ht, hurd_ihash_key_t key);
    pointer pointed to must not have an influence on the condition
    result, so the comma operator is used to make sure this
    subexpression is always true).  */
-#define HURD_IHASH_ITERATE(ht, value)					\
-  for (hurd_ihash_value_t value,					\
+#define HURD_IHASH_ITERATE(ht, val)					\
+  for (hurd_ihash_value_t val,						\
          *_hurd_ihash_valuep = (ht)->size ? &(ht)->items[0].value : 0;	\
        (ht)->size							\
          && ((_hurd_ihash_item_t) _hurd_ihash_valuep) - &(ht)->items[0]	\
             < (ht)->size						\
-         && (value = *_hurd_ihash_valuep, 1);				\
+         && (val = *_hurd_ihash_valuep, 1);				\
        _hurd_ihash_valuep = (hurd_ihash_value_t *)			\
 	 (((_hurd_ihash_item_t) _hurd_ihash_valuep)++))			\
-    if (value != _HURD_IHASH_EMPTY && value != _HURD_IHASH_DELETED)
+    if (val != _HURD_IHASH_EMPTY && val != _HURD_IHASH_DELETED)
 
 
 /* Remove the entry with the key KEY from the hash table HT.  If such
