@@ -319,10 +319,12 @@ and sharing memory.  Conceptually, containers contain a set of
 integers identifying \keyword{virtual frame}s in the physical memory
 server.  A virtual frame references a physical frame but is not bound
 to a particular physical frame (this allows the physical memory server
-to move the contents of frames around).  Multiple physical frames may
-reference the same physical frame in which case the memory is shared.
-Sharing may be either real, e.g. System V shared memory, or logical,
-e.g. copy on write.
+to move the contents of frames around).  Virtual frames are the
+sharing mechanism for physical frames.  Although virtual frames may
+not be copied, they may be logically copied thereby creating a new
+virtual frame with the same underlying physical frame in which case
+the physical memory is shared.  Sharing may be either real,
+e.g. System V shared memory, or logical, e.g. copy on write.
 
 When a virtual frame is allocated into a container, there may be no
 physical frame associated with it.  The physical memory server
