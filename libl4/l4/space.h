@@ -25,6 +25,13 @@
 #endif
 
 
+_L4_EXTERN_INLINE l4_word_t
+l4_is_nil_fpage (l4_fpage_t fpage)
+{
+  return fpage.raw == l4_nilpage.raw;
+}
+
+
 _L4_EXTERN_INLINE l4_fpage_t
 l4_fpage (l4_word_t base, int size)
 {
