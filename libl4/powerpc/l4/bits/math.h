@@ -34,7 +34,7 @@ __L4_msb (_L4_word_t data)
   /* Count the leading zeros.  */
   asm ("cntlzw %[msb], %[data]"
        : [msb] "=r" (msb)
-       : [data] "r" (data & -data));
+       : [data] "r" (data));
 
   return 32 - msb;
 }
@@ -45,8 +45,6 @@ static inline _L4_word_t
 _L4_attribute_always_inline _L4_attribute_const
 __L4_lsb (_L4_word_t data)
 {
-  _L4_word_t lsb;
-
   /* x & -x clears all bits in the word except the LSB set.  */
-  return __l4_msb (data & -data);
+  return __L4_msb (data & -data);
 }
