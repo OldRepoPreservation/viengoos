@@ -18,9 +18,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#define ASM	1
-#include "multiboot.h"
-
 /* The size of our stack (4KB).  */
 #define STACK_SIZE			0x1000
 	
