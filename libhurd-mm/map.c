@@ -32,6 +32,7 @@
 #include <hurd/btree.h>
 #include <hurd/slab.h>
 
+#include "vm.h"
 #include "priv.h"
 
 /* Initialized by the machine-specific startup-code.  */
@@ -57,8 +58,8 @@ map_init (void)
   assert (map);
 
   map->store = NULL;
-  map->store_offset = HURD_STARTUP_ADDR;
-  map->vm.start = HURD_STARTUP_ADDR;
+  map->store_offset = (uintptr_t) HURD_STARTUP_ADDR;
+  map->vm.start = (uintptr_t) HURD_STARTUP_ADDR;
   map->vm.size = HURD_STARTUP_SIZE;
 
   /* Add the program code, data segment, etc which can be found in the

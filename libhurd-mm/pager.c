@@ -96,8 +96,9 @@ pager (void)
 	  if (map->store == &swap_store)
 	    {
 	      /* XXX: Until we have a real swap server we (correctly)
-		 assume that it there is no frame then memory has just
-		 not yet been allocated.  */
+		 assume that if there is no frame then memory has just
+		 not yet been allocated (i.e. it is not just paged
+		 out).  */
 	      frame = frame_alloc (getpagesize ());
 	      if (! frame)
 		panic ("frame_alloc failed.");
