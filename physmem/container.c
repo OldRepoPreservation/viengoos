@@ -58,7 +58,7 @@ container_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 
   nr_fpages = container->nr_fpages;
 
-  l4_unmap_fpages (nr_fpages, container->nr_fpages);
+  l4_unmap_fpages (nr_fpages, container->fpages);
 
   while (nr_fpages > 0)
     {
