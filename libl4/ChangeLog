@@ -1,3 +1,8 @@
+2005-01-06  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32/l4/bits/syscall.h (_L4_unmap): Fix register assignments.
+	Return mr0.
+	
 2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/thread.h (L4_THREAD_VERSION_VALID): New macro.

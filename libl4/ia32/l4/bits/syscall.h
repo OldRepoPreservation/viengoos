@@ -1,5 +1,5 @@
 /* syscall.h - Public interface to the L4 system calls for ia32.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -176,9 +176,10 @@ _L4_unmap (_L4_word_t control)
   __asm__ __volatile__ ("push %%ebp\n"
 			"call *__l4_unmap\n"
 			"pop %%ebp\n"
-			: "=a" (mr0), "=c" (dummy), "=d" (dummy)
-			: "a" (mr0), "c" (utcb), "d" (control)
-			: "esi", "edi", "ebx");
+			: "=a" (dummy), "=S" (mr0), "=D" (dummy)
+			: "a" (control), "S" (mr0), "D" (utcb)
+			: "ecx", "edx", "ebx");
+  _L4_load_mr (0, mr0);
 }
 
 
