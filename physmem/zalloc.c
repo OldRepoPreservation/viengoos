@@ -108,25 +108,6 @@ struct block
 static struct block *zone[ZONES] = { 0, };
 
 
-/* Find the first bit set.  The least significant bit is 1.  If no bit
-   is set, return 0.  FIXME: This can be optimized a lot, in an
-   archtecture dependent way.  Add to libl4, like __l4_msb().  */
-static inline unsigned int
-wffs (l4_word_t nr)
-{
-  unsigned int bit = 0;
-
-  while (bit < sizeof (l4_word_t) * 8)
-    {
-      if ((1ULL << bit) & nr)
-	{
-	  return bit + 1;
-	}
-      bit++;
-    }
-}
-
-
 /* Add the block BLOCK to the zone ZONE_NR.  The block has the
    right size and alignment.  Buddy up if possible.  */
 static inline
@@ -160,7 +141,7 @@ add_block (struct block *block, unsigned int zone_nr)
 	  block = left;
 	  zone_nr++;
 	}
-      else if (right && ((l4_word_t) right) ^ ((l4_word_t) block)
+      else if (right && (((l4_word_t) right) ^ ((l4_word_t) block))
 	       == ZONE_SIZE (zone_nr))
 	{
 	  /* Buddy on the right.  */
@@ -218,8 +199,14 @@ zfree (l4_word_t block, l4_word_t size)
   do
     {
       /* All blocks must be stored aligned to their size.  */
-      unsigned int zone_nr = wffs (block | size) - 1 - L4_MIN_PAGE_SHIFT;
+      unsigned int block_align = l4_lsb (block) - 1;
+      unsigned int size_align = l4_msb (size) - 1;
+      unsigned int zone_nr = (block_align < size_align
+			      ? block_align : size_align)
+	- L4_MIN_PAGE_SHIFT;
 
+      printf ("block align: %u  size_align: %u  zone_nr: %u\n",
+	      block_align, size_align, zone_nr);
       add_block ((struct block *) block, zone_nr);
 
       block += ZONE_SIZE (zone_nr);
@@ -245,14 +232,14 @@ zalloc (l4_word_t size)
     panic ("%s: requested size 0x%x is not a multiple of "
 	   "minimum page size", __func__, size);
 
-  /* Calculate the logarithm to base two of SIZE rounded to the
+  /* Calculate the logarithm to base two of SIZE rounded up to the
      nearest power of two (actually, the MSB function returns one more
      than the logarithm to base two of its argument, rounded down to
      the nearest power of two - this is the same except for the border
      case where only one bit is set.  To adjust for this border case,
      we subtract one from the argument to the MSB function).  Calculate
      the zone number by subtracting page shift.  */
-  zone_nr = __l4_msb (size - 1) - L4_MIN_PAGE_SHIFT;
+  zone_nr = l4_msb (size - 1) - L4_MIN_PAGE_SHIFT;
 
   /* Find the smallest zone which fits the request and has memory
      available.  */

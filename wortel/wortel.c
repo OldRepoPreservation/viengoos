@@ -121,25 +121,6 @@ loader_get_memory_desc (l4_word_t nr)
 #define MAX_FPAGES (sizeof (l4_word_t) * 8 - 10)
 
 
-/* Find the first bit set.  The least significant bit is 1.  If no bit
-   is set, return 0.  FIXME: This can be optimized a lot, in an
-   archtecture dependent way.  Add to libl4, like __l4_msb().  */
-static inline unsigned int
-wffs (l4_word_t nr)
-{
-  unsigned int bit = 0;
-
-  while (bit < sizeof (l4_word_t) * 8)
-    {
-      if ((1ULL << bit) & nr)
-	{
-	  return bit + 1;
-	}
-      bit++;
-    }
-}
-
-
 /* Determine the fpages required to cover the bytes from START to END
    (exclusive).  START must be aligned to the minimal page size
    supported by the system.  Returns the number of fpages required to
@@ -164,11 +145,17 @@ make_fpages (l4_word_t start, l4_word_t end, l4_fpage_t *fpages)
   nr_fpages = 0;
   while (start < end)
     {
+      unsigned int addr_align;
+      unsigned int size_align;
+
       /* Each fpage must be self-aligned.  */
-      unsigned int fpsize_log2 = wffs (start | (end - start)) - 1;
+      addr_align = l4_lsb (start) - 1;
+      size_align = l4_msb (end - start) - 1;
+      if (addr_align < size_align)
+	size_align = addr_align;
 
       fpages[nr_fpages]
-	= l4_fpage_add_rights (l4_fpage_log2 (start, fpsize_log2),
+	= l4_fpage_add_rights (l4_fpage_log2 (start, size_align),
 			       l4_fully_accessible);
       start += l4_size (fpages[nr_fpages]);
       nr_fpages++;
