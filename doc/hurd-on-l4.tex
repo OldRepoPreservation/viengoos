@@ -2052,6 +2052,61 @@ ugly, and violates good taste, so we might try to look for alternative
 solutions.
 
 
+\subsubsection{Reparenting}
+
+The Hurd on Mach contains a curious RPC, \verb/file_reparent/, which
+allows you to create a new capability for the same node, with the
+difference that the new node will have a supplied capability as its
+parent node.  A directory lookup of \texttt{..} on this new capability
+would return the provided parent capability.
+
+This function is used by the \texttt{chroot()} function, which sets
+the parent node to the null capability to prevent escape from a
+\texttt{chroot()} environment.  It is also used by the
+\texttt{firmlink} translator, which is a cross over of a symbolic and
+a hard link: It works like a hard link, but can be used across
+filesystems.
+
+I firmlink is a dangerous thing.  Because the filesystem will give no
+indication if the parent node it returns is provided by itself or some
+other, possibly untrusted filesystem, the user might follow the parent
+node to untrusted filesystems without being aware of it.
+
+In the Hurd port to L4, the filesystem can not accept untrusted parent
+capabilities on behalf of the user anymore.  The \texttt{chroot()}
+function is not difficult to implement anyway, as no real capability
+is required.  The server can just be instructed to create a node with
+no parent node, and it can do that without problems.  Nevertheless, we
+also want a secure version of the \texttt{firmlink} translator.  This
+is possible if the same strategy is used as in cross filesystem
+lookups.  The client registers a server thread as the handler for the
+parent node, and the filesystem returns a capability that can be used
+for authentication purposes.  Now, the client still needs to connect
+this to the new parent node.  Normally, the filesystem providing the
+new parent node will also not trust the other filesystem, and thus can
+not accept the capability that should be used for authentication
+purposes.  So instead creating a direct link from the one filesystem
+to the other, the firmlink translator must act as a middle man, and
+redirect all accesses to the parent node first to itself, and then to
+the filesystem providing the parent node.  For this, it must request a
+capability from that filesystem that can be used for authentication
+purposes when bootstrapping a connection, that allows such a
+bootstrapping client to access the parent node directly.
+
+This also fixes the security issues, because now any move away from
+the filesystem providing the reparented node will explicitely go first
+to the \texttt{firmlink} translator, and then to the filesystem
+providing the parent node.  The user can thus make an informed
+decision if it trusts the \texttt{firmlink} translator and the
+filesystem providing the parent node.
+
+\begin{comment}
+  This is a good example where the redesign of the IPC system forces
+  us to fix a security issue and provides a deeper insight into the
+  trust issues and how to solve them.
+\end{comment}
+
+
 \section{Debugging}
 \label{debug}
 
