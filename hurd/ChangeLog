@@ -1,3 +1,8 @@
+2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* startup.h (HURD_STARTUP_FLAG_SECURE): New macro.
+	(struct hurd_startup_data): New member FLAGS.
+
 2005-01-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* startup.h (struct hurd_startup_data): New members envz and

@@ -67,6 +67,9 @@ struct hurd_startup_map
 };
 
 
+/* Enable secure mode.  */
+#define HURD_STARTUP_FLAG_SECURE	(1 << 0)
+
 /* The actual startup data.  A pointer to this data will be passed on
    the stack to the startup code (without a return address), and to
    the main program (with a return address, i.e. normal calling
@@ -77,6 +80,9 @@ struct hurd_startup_data
      compatible.  */
   unsigned short version_major;
   unsigned short version_minor;
+
+  /* Startup flags.  */
+  l4_word_t flags;
 
   /* The UTCB area of this task.  */
   l4_fpage_t utcb_area;
