@@ -1,3 +1,9 @@
+2004-05-13  Tomasz Gajewski  <tomga@wp.pl>
+
+	* Makefile.am (.tex.dvi): Fixed building from out of source
+	directory.
+	* Makefile.am (.dvi.ps): Output to file not directly to printer.
+
 2004-03-22  Daniel Wagner  <wagi@gmx.ch>
 
 	* device-drivers.tex (subsection{Several Plugin Managers}): 

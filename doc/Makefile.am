@@ -43,15 +43,15 @@ hurd-on-l4.dvi: ${eps_files} ${tex_files}
 SUFFIXES = .ps .dvi .tex .eps .fig .pdf
 
 .tex.dvi:
-	$(LATEX) $< -o $@
+	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(LATEX) $< -o $@ ; \
 	while egrep "^LaTeX Warning:.*Rerun to" \
-	    `echo $< | sed -e 's/.tex$$/.log/'`; do \
+	    `echo $< | sed -e 's/.*\///' -e 's/.tex$$/.log/'`; do \
 	  rm -f $(subst $<,.tex,.log); \
-	  $(LATEX) $< -o $@; \
+	  TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(LATEX) $< -o $@; \
 	done
 
 .dvi.ps:
-	$(DVIPS) $<
+	$(DVIPS) -o $@ $<
 
 .ps.pdf:
 	$(PS2PDF) $<
