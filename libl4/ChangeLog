@@ -1,5 +1,10 @@
 2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/thread-start.h, l4/gnu/thread-start.h: New files.
+	* Makefile.am (gnu_headers): Add thread-start.h.
+	(l4_headers): Likewise.
+	* headers.m4: Add l4/thread-start.h and l4/gnu/thread-start.h.
+
 	* l4/gnu/space.h (L4_FPAGE_SPAN_MAX): New macro.
 	(l4_fpage_span): New function.
 

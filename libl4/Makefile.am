@@ -30,13 +30,13 @@ SUBDIRS =  $(ARCH_SUBDIR)
 common_headers := ipc.h kip.h message.h misc.h schedule.h space.h	\
 	syscall.h thread.h types.h
 # Interface-specific header files.
-gnu_headers := $(common_headers) math.h
+gnu_headers := $(common_headers) math.h thread-start.h
 compat_headers := $(common_headers)
 
 # Main libl4 header files.
 l4_headers = features.h globals.h init.h ipc.h kip.h math.h message.h	\
 	misc.h schedule.h space.h stubs-init.h stubs.h syscall.h	\
-	thread.h types.h vregs.h
+	thread.h types.h vregs.h thread-start.h
 
 include_HEADERS = l4.h
 nobase_include_HEADERS = $(addprefix l4/, $(l4_headers))	\

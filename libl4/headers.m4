@@ -26,6 +26,7 @@ AC_CONFIG_LINKS([
   include/l4/stubs.h:libl4/l4/stubs.h
   include/l4/syscall.h:libl4/l4/syscall.h
   include/l4/thread.h:libl4/l4/thread.h
+  include/l4/thread-start.h:libl4/l4/thread-start.h
   include/l4/types.h:libl4/l4/types.h
   include/l4/vregs.h:libl4/l4/vregs.h
   include/l4/compat/ipc.h:libl4/l4/compat/ipc.h
@@ -46,6 +47,7 @@ AC_CONFIG_LINKS([
   include/l4/gnu/space.h:libl4/l4/gnu/space.h
   include/l4/gnu/syscall.h:libl4/l4/gnu/syscall.h
   include/l4/gnu/thread.h:libl4/l4/gnu/thread.h
+  include/l4/gnu/thread-start.h:libl4/l4/gnu/thread-start.h
   include/l4/gnu/types.h:libl4/l4/gnu/types.h
   include/l4/bits/ipc.h:libl4/${arch}/l4/bits/ipc.h
   include/l4/bits/kip.h:libl4/${arch}/l4/bits/kip.h
