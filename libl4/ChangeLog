@@ -1,5 +1,8 @@
 2004-04-01  Marcus Brinkmann  <marcus@gnu.org>
 
+	* ia32/l4/bits/syscall.h (_L4_system_clock): Add "edi" to
+	clobbered registers.
+
 	* l4/space.h (_L4_unmap_fpage): Change return type to _L4_fpage_t.
 	Return FPAGE.
 	(_L4_flush): Likewise.

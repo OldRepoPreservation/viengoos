@@ -124,7 +124,7 @@ _L4_system_clock (void)
   __asm__ __volatile__ ("call *__l4_system_clock"
 			: "=A" (time)
 			:
-			: "ecx", "esi");
+			: "ecx", "esi", "edi");
 
   return time;
 }
