@@ -193,43 +193,44 @@ system.
 
 \subsection{Allocation Policy}
 
-\subsubsection{Guaranteed Pages and Extra Pages}
+\subsubsection{Guaranteed Frames and Extra Frames}
 
 The physical memory server maintains a concept of \keyword{guaranteed
-pages} and \keyword{extra pages}.  The former are pages that a given
-task is guaranteed to map in a very short amount of time.  Given this
-predicate, the total number of guaranteed pages can never exceed the
-total number of frames in the system.  Extra pages are pages which are
-given to clients who have reached their guaranteed page allocation
-limit.  The physical memory server may request that a client
-relinquish a number of extant extra pages at any time.  The client
-must return the pages to the physical memory (i.e. free them) in a
-short amount of time.  The task should not assume that it has enough
-time to send pages to backing store.  As such, extra pages should only
-contain remanufacturable data (i.e. cached data).  Should a task fail
-to return the pages in a reasonable amount of time, it risks having
-all of its memory dropped---not swapped out or saved in anyway---and
-reclaimed by the physical memory server.  Note that the physical
-memory server does not know if a given page is considered guaranteed
-or extra: it knows that a given task has $G$ guaranteed pages and $G +
-E$ allocated pages, it has $E$ extra pages.  The distinction between
-guaranteed and extra pages must be made by the task itself.  One
-strategy is to remember which pages can be remanufactured (e.g. reread
-from disk or recalculated) and promote them to guaranteed pages when
-the page becomes dirty being careful to never have less than $E$ clean
-pages in the task.  Given these semantics, guanteed pages should not
-be thought of as wired (e.g. \function{mlock}ed in the POSIX
-sense)---although they can have this property---but as frames which
-the task itself must multiplex.  Thus the idea of self-paged tasks.
+frames} and \keyword{extra frames}.  The former are virtual frames
+that a given task is guaranteed to map in a very short amount of time.
+Given this predicate, the total number of guaranteed frames can never
+exceed the total number of physical frames in the system.  Extra frames
+are frames which are given to clients who have reached their guaranteed
+frame allocation limit.  The physical memory server may request that a
+client relinquish a number of extant extra frames at any time.  The
+client must return the frames to the physical memory (i.e. free them)
+in a short amount of time.  The task should not assume that it has
+enough time to send frames to backing store.  As such, extra frames
+should only contain remanufacturable data (i.e. cached data).  Should
+a task fail to return the frames in a reasonable amount of time, it
+risks having all of its memory dropped---not swapped out or saved in
+anyway---and reclaimed by the physical memory server.  Note that the
+physical memory server does not know if a given frame is considered
+guaranteed or extra: it knows that a given task has $G$ guaranteed
+frames and $G + E$ allocated frames, it has $E$ extra frames.  The
+distinction between guaranteed and extra frames must be made by the
+task itself.  One strategy is to remember which frames can be
+remanufactured (e.g. reread from disk or recalculated) and promote
+them to guaranteed frames when the frame becomes dirty being careful to
+never have less than $E$ clean frames in the task.  Given these
+semantics, guanteed frames should not be thought of as wired
+(e.g. \function{mlock}ed in the POSIX sense)---although they can have
+this property---but as frames which the task itself must multiplex.
+Thus the idea of self-paged tasks.
 
 Readers familiar with VMS will see striking similarities with the
-self-paging and guaranteed page paradigms.  This is not without
-reason.  Yet, differences remain: VMS does not have extra pages and
-the number of guaranteed pages is fixed at task creation time.  Pages
-returned to VMS (in order to allocate a new page) are placed in a
+self-paging and guaranteed frame paradigms.  This is not without
+reason.  Yet, differences remain: VMS does not have extra frames and
+the number of guaranteed frames is fixed at task creation time.  Frames
+returned to VMS (in order to allocate a new frame) are placed in a
 dirty list (thus the actual multiplexing of frames is done in VMS, not
 in user space) thereby simulating a two level backing store: a fast
-memory backing store where pages are waylaid and swap, where they are
+memory backing store where frames are waylaid and swap, where they are
 sent when memory pressure forces out.  It is in this way that a given
 task may get at more than its quota of memory when there is low memory
 contention.  Our divergence from VMS is motivated by the location of
@@ -240,7 +241,7 @@ memory server.
 
 \subsubsection{An External Memory Policy Server}
 
-The number of guaranteed pages that a given task has access to is not
+The number of guaranteed frames that a given task has access to is not
 determined by the physical memory server but by the \keyword{memory
 policy server}.  This division allows the physical memory server to
 concern itself primarily with the allocation mechanisms and delegate
@@ -259,16 +260,16 @@ and policies will be discussed later.
 
 The physical memory server and the memory policy server will contain a
 shared buffer of tupples indexed by task id containing the number of
-allocated pages, the number of guaranteed page, and a boolean
-indicating whether or not this task is eligible for guaranteed pages.
-The guaranteed page field and the extra page predicate may only be
-written to by the memory policy server.  The number of allocated pages
+allocated frames, the number of guaranteed frame, and a boolean
+indicating whether or not this task is eligible for guaranteed frames.
+The guaranteed frame field and the extra frame predicate may only be
+written to by the memory policy server.  The number of allocated frames
 may only be written to by the physical memory server.  This scheme
 means that no locking in required.  (On some architectures where a
 read of a given field cannot be performed in a single operation, the
 read may have to be done twice.)  The memory policy server must not
 over commit the number of frames, i.e. the total number of guaranteed
-pages must never exceed the number of frames avilable for allocation.
+frames must never exceed the number of frames avilable for allocation.
 
 Until the memory policy server makes the intial contact with the
 physical memory server, memory will be allocated on a first come first
@@ -287,7 +288,7 @@ another task.  This permits replacing the policy server on a live
 system.  At this point, the physical memory server will begin
 allocating memory according to the previously described protocol.
 Note that the inital buffer will be initialized with the current total
-allocations but the guaranteed pages will be set to zero.  The memory
+allocations but the guaranteed frames will be set to zero.  The memory
 policy server must request the shared policy buffer as soon as
 possible and adjust these values.
 
@@ -322,7 +323,7 @@ be impossible to move memory around and memory would have to be
 returned to the same spot after being swapped out and back in.
 Containers are useful for grouping and then moving memory around.
 
-How to get pages.  Type of pages (e.g. DMA) or fixed physical address.
+How to get frames.  Type of frames (e.g. DMA) or fixed physical address.
 
 Memory is not allocate until map time (and not always then,
 e.g. logical copies).
@@ -330,19 +331,20 @@ e.g. logical copies).
 \section{Mapping Memory from Containers}
 
 A map will occur in a short amount of time: this is not guaranteed to
-happen immediately as the pages are only allocated at this point.
-They may currently be in the form of extra pages for another task.
+happen immediately as the frames are only allocated at this point.
+They may currently be in the form of extra frames for another task.
 
 Pages may be unmapped at any time by the physical memory server.  This
-allows pages to be moved in memory by the physical memory server
-thereby permitting page blocking (i.e. construct superpages), opening
-up DMAable memory areas or other specific physical address, and to
-create contiguous blocks of memory (i.e. to defragment the memory).
-The task must always be read to reestablish a mapping.
+allows vitual frames to be moved between physical frames by the
+physical memory server thereby permitting page blocking (i.e. the
+construction of superpages), opening up DMAable memory areas or other
+specific physical address, and to create contiguous blocks of memory
+(i.e. to defragment the memory).  The task must always be read to
+reestablish a mapping.
 
 Mapping can be made readable.  A task may request that a mapping be
 read/write, however, the physical memory server may not grant a
-read/write mapping if the page is copy on write, COW.  In this case, a
+read/write mapping if the frame is copy on write, COW.  In this case, a
 read mapping will be returned.  In order to get a read/write mapping,
 the task must request add the enforced flag.
 
@@ -352,7 +354,7 @@ In a monolithic kernel, little data is exchanged between tasks.  In a
 multiserver system, file systems live in their own tasks and thus
 reading and writing involve servers.  Thus, powerful primatives for
 moving memory around with the least number of physical copies,
-i.e. using virtual copy mechanisms which preserve COW pages, etc.
+i.e. using virtual copy mechanisms which preserve COW frames, etc.
 
 It is important that an fs does not map from one task to another
 directly: the client may not trust the source or the source may die,
@@ -409,9 +411,9 @@ is the device driver: there can be multiple accessors of the same
 store.  The question must be asked: what happens when the device
 driver is made the cache point instead of the file system?  Logically,
 a large tradeoff is made in terms of the ability to intelligently
-decide what pages to keep in the cache.  The file system, for
-instance, has meta-data about how a given page may be used based on
-how a file is opened and may realize that some pages should not be
+decide what frame to keep in the cache.  The file system, for
+instance, has meta-data about how a given frame may be used based on
+how a file is opened and may realize that some frames need not be
 placed in the cache because they will be used once and immediately
 discarded.  This is true of the access patterns of multimedia
 applications.  These types of hints may be gathered at file open time.
@@ -435,7 +437,7 @@ If we resign ourselves to keeping the cache only in the file system,
 then multiple users of a store will be penalized greatly: a block read
 by one client will always be reread if another client requests the
 same block: not only is the store accessed a second time, but twice as
-much memory will be used as there is no way to share the page and use
+much memory will be used as there is no way to share the frame and use
 copy on write.  Is this penalty worth the added intelligence in the
 file system?  An argument can be made that using just one caching
 strategy is suboptimital when we could just have two: nothing stops
@@ -444,7 +446,7 @@ permitting the former to continue to maintain an intelligent cache and
 the device driver to have its simple LRU cache.  This argument
 overlooks several important implications of having the two caches.
 First, complexity is being added to the device driver in the form of a
-list of pages it has read and given out.  This increase in memory
+list of frames it has read and given out.  This increase in memory
 usage has a secondary effect: if the data structures become large (as
 it certainly will for large active stores), it will be impossible to
 keep the device driver in question in a small address space (an
@@ -463,56 +465,56 @@ implies cache consistency issues across different users of the store).
 Since this is a very rare case, we argue based on the philosophy ``do
 not optimize for rare cases'' that the overhead is greater than the
 potential pay back from the optimization.  Having multiple caches
-leads to a further problem: a page is really not evicted from the
+leads to a further problem: a frame is really not evicted from the
 system until it is purged from all caches.  Thus if the file system
-cache is smart and chooses the better pages to evict, the
-cooresponding frames will not really be freed until the device driver
-also drops its references to the pages.  Thus, the effectiveness of
-the smarter caching algorithm is impeded by the device driver's
-caching scheme.  Double caching must be avoided at all costs.
+cache is smart and chooses the better frames to evict, the
+cooresponding physical frames will not really be freed until the
+device driver also drops its references to the frames.  Thus, the
+effectiveness of the smarter caching algorithm is impeded by the
+device driver's caching scheme.  Double caching must be avoided.
 
 \subsection{Caching in the File System}
 
 We have argued above that all block caching will be done at the file
 system layer.  In this section, we detail how the caching will work.
 
-The file system allocates extra pages as long as it can and adds all
-eligible pages to the cache by logically copying them into a local
-container (pages which it reasons will be read once and then dropped
+The file system allocates extra frames as long as it can and adds all
+eligible frames to the cache by logically copying them into a local
+container (data which it reasons will be read once and then dropped
 may not be considered eligible).  When the physical memory server
-wants pages back, it chooses a victim with extra pages and asks for a
-subset of them back.  If a task has $G$ guaranteed pages and $G + E$
-pages allocated, the physical memory server can request up to $E$
-pages back from the task.  We recall from the definition of the extra
-pages that extra pages must be given back quickly (i.e. there is no
+wants frames back, it chooses a victim with extra frames and asks for a
+subset of them back.  If a task has $G$ guaranteed frames and $G + E$
+frames allocated, the physical memory server can request up to $E$
+frames back from the task.  We recall from the definition of the extra
+frames that extra frames must be given back quickly (i.e. there is no
 time to send them to swap).
 
-Although a task chooses a page to evict from its cache, it does not
-mean that the page will be reused immediately, in fact, it is
-sometimes that case that the page cannot be reused at all as another
-task has have a reference to the page (in the form of a logical copy).
-As such, it would be nice to be able to get pages back that might
-still be in the physical memory server.  The following mechanism is
-thus provided: when a page is returned to the physical memory server,
-the reference to the page is turned into a soft reference.  Only when
-the page is actually reused by the physical memory server are soft
+Although a task chooses a frame to evict from its cache, it does not
+mean that the frame will be reused immediately, in fact, it is
+sometimes that case that the frame cannot be reused at all as another
+task has a reference to the frame (in the form of a logical copy).  As
+such, it would be nice to be able to get frames back that might still
+be in the physical memory server.  The following mechanism is thus
+provided: when a frame is returned to the physical memory server, the
+reference to the frame is turned into a soft reference.  Only when the
+frame is actually reused by the physical memory server are soft
 references discarded.  A task is able to convert a soft reference back
 to a hard reference by contacting the physical memory server and
-asking for the page back.  If this operation return \errno{ENOEXIST},
-the page has been reused and the page must be remanufactured (e.g. by
-retrieving it from backing store).  This operation may also fail and
-return \errno{ENOMEM} if the task does not have enough guaranteed
-pages and there are no extra pages available.
+asking for the frame back.  If this operation returns
+\errno{ENOEXIST}, the frame has been reused and the frame must be
+remanufactured (e.g. by retrieving it from backing store).  This
+operation may also fail and return \errno{ENOMEM} if the task does not
+have enough guaranteed frames and there are no extra frames available.
 
 \begin{comment}
 There is a problem here in the form of name space pollution: the task
 doing the caching has to remember the mapping of blocks to container
 identifiers in order to recover the soft reference but the task has no
 way to know when the physical memory server expires a given soft
-reference.  Thus, while the physical memory server may drop a page,
+reference.  Thus, while the physical memory server may drop a frame,
 the task will only ever know this when it tries to convert the soft
 reference to a hard reference and fails (i.e. gets a cache miss).  For
-pages which this is never done, the memorized mapping will never be
+frames which this is never done, the memorized mapping will never be
 invalidated.  This may not be a problem if a block offset to container
 id is used, however, if hashing is done or some other mapping of block
 offsets to container identifiers is used, this will pollute the cache
@@ -522,17 +524,17 @@ container's name space.
 \subsection{Caching Interfaces}
 
 The physical memory server will do an up call to a victim task
-requesting a number of pages back.  The physical memory server may do
-this at any time for any reason and it expects to receive the pages
+requesting a number of frames back.  The physical memory server may do
+this at any time for any reason and it expects to receive the frames
 back from the task within a short amount of time (the victim task
-should not expect to be able to send the pages to backing store in
+should not expect to be able to send the frames to backing store in
 that amount of time).  The physical memory server will never request
-guaranteed pages.  As such, this number will always be less than or
-equal to the number of allocated pages minus the number of guaranteed
-pages.
+guaranteed frames.  As such, this number will always be less than or
+equal to the number of allocated frames minus the number of guaranteed
+frames.
 
 \begin{code}
-void pm\_return\_pages (in int count);
+void pm\_return\_frames (in int count);
 \end{code}
 
 The physical memory send this message to the task's memory control
@@ -541,40 +543,65 @@ memory server will never wait (thus, the thread must be in the
 receiving state).  If the thread is not ready, the physical memory
 server assumes that the task is misbehaving.  The physical memory
 server does not wait for a reply, instead, the client must free the
-pages using \function{pm\_release\_pages} as described above.
+frames using \function{pm\_release\_frames} as described above.
 
 \section{The Memory Policy Server}
 
 At task creation time, the task must negotiate a medium-term contract
-for guaranteed pages and determine if it shall have access to extra
-pages.  This may be renegotiated later.  It must be renegotiated when
+for guaranteed frames and determine if it shall have access to extra
+frames.  This may be renegotiated later.  It must be renegotiated when
 the contract expires.  The policy server will give the task enough
-time to send pages to swap before committing if the number of
-guaranteed pages is reduced.
+time to send frames to swap before committing if the number of
+guaranteed frames is reduced.
 
 \section{Sending Data to Swap}
 
-Data must be sent to swap.  The swap server must be in the phsyical
-memory server in order to preserve logical copies in swap (if not, X
-tasks swap a page to the swap server thus X writes/reads to swap
-instead of 1 when all tasks release their references to the page).
+When a task reaches its guaranteed frame allocation, it must begin to
+reuse its available virtual frames.  If the data is frames is precious
+(i.e. not easliy constructed by e.g. a calculation or by rereading a
+file) then the task will want to save the contents for when it is
+needed in the future.  This can be done by sending a frame to backing
+store.
+
+\begin{code}
+error\_t pm_swap (in container_t c, in container_frame_t frame, in int
+count, out [] swap_ids)
+\end{code}
+
+The swap server resides in (or is proxied by) the phsyical memory
+server.  This allows the logical copies of frames to be preserved
+across the swapped out period (i.e. logical copies are not lost when a
+frame is sent to swap).  If this was not the case, then when a number
+of tasks all with a reference to a given physical send the frame to
+swap, the swap server would allocate and write N times as opposed to
+once when all of the tasks eventually release any references to the
+frame.
+
+Frame may not be sent to swap immediately.  Instead, they are kept on
+an inactive list allowing thereby allowing a task to recover the
+contents of a frame before it is flushed to swap (that is to say, swap
+operations are not synchronous).
+
+Since there may be multiple references to a virtual frame, it is
+recommended that \function{pm\_container\_orphan\_data} be called
+before the frame is reused to prevent gratuitous copy on writes from
+begin performed.  It also important to call this function if the frame
+was being used for shared memory.
 
 Swap quotas (put the policy in the memory policy server).
 
-Memory kept on an inactive list thus allowing recover before a page is
-flushed to swap (i.e. a swap operation is not synchronous).
-
 \section{Self Paging}
 
-Tasks multiplex guaranteed pages.  Must manage their own memory.  How
+Tasks multiplex guaranteed frames.  Must manage their own memory.  How
 to get data (e.g. extend malloc via the slab mechanism, extend fopen).
 
-Multiplexing guaranteed pages: say a page is sent to swap in order to
-be reused for something else.  The page itself must be cleared,
-i.e. disassocitated with any logical copies.  This is done using:
+Multiplexing guaranteed frames: say the contents of a frame are sent
+to swap in order to reuse the frame for something else.  The frame
+itself must be cleared, i.e. disassocitated with any logical copies.
+This is done using:
 
 \begin{code}
-error\_t pm\_release\_data (in pm\_container\_t container, in pm\_page\_t[] pages)
+error\_t pm\_release\_data (in pm\_container\_t container, in pm\_frame\_t[] frames)
 \end{code}
 
 
