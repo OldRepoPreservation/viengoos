@@ -68,8 +68,6 @@ container_create (hurd_cap_rpc_context_t ctx)
 
   l4_msg_append_word (ctx->msg, handle);
 
-  debug ("Created handle %x\n", handle);
-
   return 0;
 }
 
@@ -162,7 +160,7 @@ container_deallocate (hurd_cap_rpc_context_t ctx)
     return 0;
 
   /* Find the first region which overlaps with this one.  */
-  while (1)
+  while (start < fe->region.start)
     {
       struct frame_entry *prev = hurd_btree_frame_entry_prev (fe);
 
@@ -175,7 +173,16 @@ container_deallocate (hurd_cap_rpc_context_t ctx)
 
   for (;;)
     {
-      struct frame_entry *next = hurd_btree_frame_entry_next (fe);
+      struct frame_entry *next;
+
+      /* We must get the region after FE before we potentially
+	 deallocate FE.  */
+      if (fe->region.start + fe->region.size < start + size)
+	/* There may be more frame entries after this one which we
+	   need to deallocate.  */
+	next = hurd_btree_frame_entry_next (fe);
+      else
+	next = 0;
 
       if (start <= fe->region.start
 	  && start + size <= fe->region.start + fe->region.size)
@@ -191,10 +198,10 @@ container_deallocate (hurd_cap_rpc_context_t ctx)
 	  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
 	  int nr_fpages;
 
-	  /* Detach the frame entry from its container: frame entries
-	     in the same container cannot overlap and we are going to
-	     replace it with a set of smaller frame entries covering
-	     the physical memory which will not be deallocated.  */
+	  /* Detach FE from its container: frame entries in the same
+	     container cannot overlap and we are going to replace FE
+	     with a set of smaller frame entries covering the physical
+	     memory which will not be deallocated.  */
 	  frame_entry_detach (container, fe);
 
 	  if (start >= fe->region.start)
@@ -207,10 +214,11 @@ container_deallocate (hurd_cap_rpc_context_t ctx)
 		  struct frame_entry *subfe = frame_entry_alloc ();
 		  assert (fe);
 
-		  err = frame_entry_use (container, subfe,
-					 start + l4_address (fpages[i]),
-					 l4_size (fpages[i]),
-					 fe->frame, l4_address (fpages[i]));
+		  err = frame_entry_use_frame (container, subfe,
+					       start + l4_address (fpages[i]),
+					       l4_size (fpages[i]),
+					       fe->frame,
+					       l4_address (fpages[i]));
 		  assert_perror (err);
 		}
 	    }
@@ -225,10 +233,11 @@ container_deallocate (hurd_cap_rpc_context_t ctx)
 		  struct frame_entry *subfe = frame_entry_alloc ();
 		  assert (fe);
 
-		  err = frame_entry_use (container, subfe,
-					 start + l4_address (fpages[i]),
-					 l4_size (fpages[i]),
-					 fe->frame, l4_address (fpages[i]));
+		  err = frame_entry_use_frame (container, subfe,
+					       start + l4_address (fpages[i]),
+					       l4_size (fpages[i]),
+					       fe->frame,
+					       l4_address (fpages[i]));
 		  assert_perror (err);
 		}
 	    }
@@ -277,26 +286,14 @@ container_map (hurd_cap_rpc_context_t ctx)
 	}
 
       /* Allocate the memory (if needed).  */
-      if (! fe->frame)
-	{
-	  fe->frame = frame_alloc (fe->region.size);
-	  if (! fe->frame)
-	    {
-	      pthread_mutex_unlock (&container->lock);
-	      return errno;
-	    }
-
-	  frame_use (fe->frame, fe);
-	}
-
       frame_memory_bind (fe->frame);
       fe->frame->may_be_mapped = true;
 
       /* This might only be a partial mapping of a memory.  Subtract
 	 the desired index from where the memory actually starts and
 	 add that to the address of the physical memory block.  */
-      l4_word_t mem
-	= l4_address (fe->frame->memory) + index - fe->region.start;
+      l4_word_t mem = l4_address (fe->frame->memory) + fe->frame_offset
+	+ index - fe->region.start;
       l4_word_t amount = fe->region.size - (index - fe->region.start);
 
       /* Does the user want all that we can give?  */
@@ -336,13 +333,188 @@ container_map (hurd_cap_rpc_context_t ctx)
   return 0;
 }
 
+static error_t
+container_copy (hurd_cap_rpc_context_t ctx)
+{
+  error_t err = 0;
+  struct hurd_cap_ctx_cap_use *cap_use;
+  struct container *src_cont = hurd_cap_obj_to_user (struct container *,
+						     ctx->obj);
+
+  /* SRC_START will move as we copy data; SRC_START_ORIG stays
+     constant so that we can figure out how much we have copied.  */
+  uintptr_t src_start = l4_msg_word (ctx->msg, 1);
+  const uintptr_t src_start_orig = src_start;
+
+  l4_word_t dest_cont_handle = l4_msg_word (ctx->msg, 2);
+  hurd_cap_obj_t dest_cap;
+  struct container *dest_cont;
+
+  uintptr_t dest_start = l4_msg_word (ctx->msg, 3);
+
+  size_t count = l4_msg_word (ctx->msg, 4);
+  size_t flags = l4_msg_word (ctx->msg, 5);
+
+  struct frame_entry *sfe_next;
+  int nr_fpages;
+  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
+  int i;
+
+  l4_msg_clear (ctx->msg);
+
+  if (ctx->handle == dest_cont_handle)
+    /* The source container is the same as the destination
+       container.  */
+    {
+      dest_cont = src_cont;
+      pthread_mutex_lock (&src_cont->lock);
+    }
+  else
+    /* Look up the destination container.  */
+    {
+      cap_use = alloca (hurd_cap_ctx_size ());
+      err = hurd_cap_ctx_start_cap_use (ctx,
+					dest_cont_handle, &container_class,
+					cap_use, &dest_cap);
+      if (err)
+	goto out;
+
+      hurd_cap_obj_unlock (dest_cap);
+
+      dest_cont = hurd_cap_obj_to_user (struct container *, dest_cap); 
+
+      /* There is a possible dead lock scenario here: one thread
+	 copies from SRC to DEST and another from DEST to SRC.  We
+	 lock based on the lexical order of the container
+	 pointers.  */
+      if (src_cont < dest_cont)
+	{
+	  pthread_mutex_lock (&src_cont->lock);
+	  pthread_mutex_lock (&dest_cont->lock);
+	}
+      else
+	{
+	  pthread_mutex_lock (&dest_cont->lock);
+	  pthread_mutex_lock (&src_cont->lock);
+	}
+    }
+
+  /* Find the frame entry in the source container which contains the
+     start of the region to copy.  */
+  sfe_next = frame_entry_find (src_cont, src_start, 1);
+  if (! sfe_next)
+    {
+      err = ENOENT;
+      goto clean_up;
+    }
+
+  /* Make sure that SRC_START is aligned on a frame boundary.  */
+  if (((sfe_next->region.start - src_start) & (L4_MIN_PAGE_SIZE - 1)) != 0)
+    {
+      err = EINVAL;
+      goto clean_up;
+    }
+
+  while (sfe_next && count)
+    {
+      struct frame_entry *sfe, *dfe;
+      uintptr_t src_end;
+
+      sfe = sfe_next;
+
+      /* Does the source frame entry cover all of the memory that we
+	 need to copy?  */
+      if (src_start + count > sfe->region.start + sfe->region.size)
+	/* No.  We will have to read the following frame as well.  */
+	{
+	  src_end = sfe->region.start + sfe->region.size - 1;
+
+	  /* Get the next frame entry.  */
+	  sfe_next = hurd_btree_frame_entry_next (sfe);
+	  if (sfe_next && sfe_next->region.start != src_end + 1)
+	    /* There is a gap between SFE and the next frame
+	       entry.  */
+	    sfe_next = NULL;
+	}
+      else
+	/* The end of the region to copy is contained within SFE.  */
+	{
+	  src_end = src_start + count - 1;
+
+	  /* Once we process this frame entry, we will be done.  */
+	  sfe_next = NULL;
+	}
+
+      /* Get the frames we'll have in the destination container.  */
+      nr_fpages
+	= l4_fpage_span (src_start - sfe->region.start + sfe->frame_offset,
+			 src_end - sfe->region.start + sfe->frame_offset,
+			 fpages);
+
+      for (i = 0; i < nr_fpages; i ++)
+	{
+	  dfe = frame_entry_alloc ();
+	  if (! dfe)
+	    {
+	      err = ENOMEM;
+	      goto clean_up;
+	    }
+
+	  /* XXX: We need to check the users' quota.  */
+	  err = frame_entry_use_frame (dest_cont, dfe,
+				       dest_start, l4_size (fpages[i]),
+				       sfe->frame,
+				       sfe->frame_offset
+				       + src_start - sfe->region.start);
+	  if (err)
+	    {
+	      frame_entry_dealloc (dfe);
+	      goto clean_up;
+	    }
+
+	  src_start += l4_size (fpages[i]);
+	  dest_start += l4_size (fpages[i]);
+	  count -= l4_size (fpages[i]);
+	}
+    }
+
+  if (count > 0)
+    {
+      assert (! sfe_next);
+      err = ESRCH;
+    }
+
+ clean_up:
+  assert (count == 0 || err);
+
+  if (dest_cont == src_cont)
+    /* If the source and destination are the same then don't unlock
+       the same lock twice.  */
+    pthread_mutex_unlock (&src_cont->lock);
+  else
+    {
+      /* Unlike with locking, the unlock order doesn't matter.  */
+      pthread_mutex_unlock (&src_cont->lock);
+      pthread_mutex_unlock (&dest_cont->lock);
+
+      hurd_cap_obj_lock (dest_cap);
+      hurd_cap_ctx_end_cap_use (ctx, cap_use);
+    }
+
+ out:
+  /* Return the amount actually copied.  */
+  l4_msg_append_word (ctx->msg, src_start - src_start_orig);
+  return err;
+}
+
 enum container_ops
   {
     container_create_id = 130,
     container_share_id,
     container_allocate_id,
     container_deallocate_id,
-    container_map_id
+    container_map_id,
+    container_copy_id
   };
 
 error_t
@@ -350,7 +522,6 @@ container_demuxer (hurd_cap_rpc_context_t ctx)
 {
   error_t err = 0;
 
-  debug ("Message %d from %x\n", l4_msg_label (ctx->msg), ctx->from);
   switch (l4_msg_label (ctx->msg))
     {
     case container_create_id:
@@ -374,6 +545,10 @@ container_demuxer (hurd_cap_rpc_context_t ctx)
       err = container_map (ctx);
       break;
 
+    case container_copy_id:
+      err = container_copy (ctx);
+      break;
+
     default:
       err = EOPNOTSUPP;
     }
@@ -386,8 +561,6 @@ container_demuxer (hurd_cap_rpc_context_t ctx)
     l4_msg_clear (ctx->msg);
 
   l4_set_msg_label (ctx->msg, err);
-
-  debug ("Returning error %d\n", err);
 
   return 0;
 }
@@ -424,16 +597,6 @@ container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
 	  frame_entry_dealloc (fe);
 	  return err;
 	}
-
-      fe->frame = frame_alloc (l4_size (fpages[i]));
-      if (! fe->frame)
-	{
-	  frame_entry_drop (container, fe);
-	  frame_entry_dealloc (fe);
-	  return ENOMEM;
-	}
-
-      frame_use (fe->frame, fe);
 
       fe->frame->memory = fpages[i];
     }

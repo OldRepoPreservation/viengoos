@@ -100,23 +100,26 @@ region_compare (const struct region *a, const struct region *b)
 /* Forward.  */
 struct frame_entry;
 
-/* A frame referrs directly to physical memory.  Any allocated memory
-   (for users) will have exactly one frame structure referring to
-   it.  */
+/* A frame referrs directly to physical memory.  Exactly one frame
+   structure refers to each piece of allocated (to users, i.e. not
+   internal) physical memory.  */
 struct frame
 {
   /* One reference per frame entry plus any active users.  */
   int refs;
 
   /* The physical memory allocated to this frame.  This is allocated
-     lazily.  If this address portion is NULL, no memory has yet been
+     lazily.  If the address portion is 0, memory has not yet been
      allocated.  */
   l4_fpage_t memory;
 
   /* If a mapping has been made since the last time this frame was
-     unmapped.  This does not mean that it actually is mapped as any
-     users could have unmapped it themselves.  */
+     unmapped.  This does not mean that it actually is mapped as users
+     can unmap it themselves.  */
   bool may_be_mapped;
+
+  /* Number of extant copy on writes.  */
+  int cow;
 
   /* List of frame entries referring to this frame.  */
   struct frame_entry *frame_entries;
@@ -130,11 +133,11 @@ struct frame_entry
 {
   /* The name of this region within the containing container.  */
   struct region region;
-  /* The physical memory backing the region.  */
+  /* The physical memory backing this region.  */
   struct frame *frame;
   /* The frame entry may not reference all of the physical memory in
-     FRAME (due to partial sharing, etc).  This offset to the start of
-     the memory which this frame entry uses.  */
+     FRAME (due to partial sharing, etc).  This is the offset to the
+     start of the memory which this frame entry uses.  */
   size_t frame_offset;
 
   hurd_btree_node_t node;
@@ -155,7 +158,7 @@ struct container
   hurd_btree_frame_entry_t frame_entries;
 };
 
-/* Allocate an uninitialized frame entry structure.  Returns NULL if
+/* Allocate an uninitialized frame entry structure.  Return NULL if
    there is insufficient memory.  */
 extern struct frame_entry *frame_entry_alloc (void);
 
@@ -164,7 +167,7 @@ extern struct frame_entry *frame_entry_alloc (void);
    the dual of frame_entry_alloc.  */
 extern void frame_entry_dealloc (struct frame_entry *frame_entry);
 
-/* Initialize the previously unitialized frame entry structure,
+/* Initialize the previously uninitialized frame entry structure
    FRAME_ENTRY to cover the region starting at byte START and
    extending SIZE bytes on container CONT.  SIZE must be a power of 2.
    CONT must be locked.  Physical memory is reserved, however, it is
@@ -179,19 +182,19 @@ extern error_t frame_entry_new (struct container *cont,
 
 /* Initialize the previously uninitialized frame entry structure
    FRAME_ENTRY to cover the region starting at byte START and
-   extending SIZE bytes on container CONT.  If FRAME is non-NULL,
-   FRAME_ENTRY refers to the physical memory in FRAME starting at
-   offset OFFSET (hence when OFFSET is non-zero, FRAME_ENTRY only
-   refers to a portion of FRAME).  SIZE must be a power of 2.  CONT
-   must be locked.  A reference is added to FRAME.
+   extending SIZE bytes in container CONT.  FRAME_ENTRY refers to the
+   physical memory in FRAME starting at offset OFFSET (hence when
+   OFFSET is non-zero, FRAME_ENTRY only refers to a portion of FRAME).
+   SIZE must be a power of 2.  CONT must be locked.  A reference is
+   added to FRAME.
 
    If the specified region overlaps with any in the container, EEXIST
    is returned.  */
-extern error_t frame_entry_use (struct container *cont,
-				struct frame_entry *frame_entry,
-				uintptr_t start, size_t size,
-				struct frame *frame,
-				size_t offset);
+extern error_t frame_entry_use_frame (struct container *cont,
+				      struct frame_entry *frame_entry,
+				      uintptr_t start, size_t size,
+				      struct frame *frame,
+				      size_t offset);
 
 /* Deinitialize frame entry FRAME_ENTRY which is in the locked
    container CONT dereferencing any frame it may be using in the
@@ -250,13 +253,13 @@ extern void frame_deref (struct frame *frame);
 
 /* Add FRAME_ENTRY as a user of FRAME.  A reference for FRAME_ENTRY
    must already be held.  */
-extern void frame_use (struct frame *frame,
-		       struct frame_entry *frame_entry);
+extern void frame_add_user (struct frame *frame,
+			    struct frame_entry *frame_entry);
 
 /* Remove FRAME_ENTRY as a user of FRAME.  A reference to frame is
    released in the process.  */
-extern void frame_drop (struct frame *frame,
-			struct frame_entry *frame_entry);
+extern void frame_drop_user (struct frame *frame,
+			     struct frame_entry *frame_entry);
 
 /* Allocate a new container object covering the NR_FPAGES fpages
    listed in FPAGES.  The object returned is locked and has one

@@ -1,3 +1,24 @@
+2005-03-08  Neal H. Walfield  <neal@gnu.org>
+
+	* physmem.h (struct frame): Add field cow.
+	(frame_entry_use_frame): Rename from frame_entry_use.  Change
+	interface such that FRAME must refer to a valid frame.  Update
+	users.
+	(frame_add_user): Rename from frame_add.  Update users.
+	(frame_drop_user): Rename from frame_drop.  Update users.
+	* container.c (container_map): Take FRAME_ENTRY->FRAME_OFFSET
+	into account when determining the physical memory.
+	(container_copy): New function.
+	(enum container_ops): Add container_copy_id.
+	(container_demuxer): Recognize container_copy_id.
+	* frame-entry.c (frame_entry_new): Allocate FRAME_ENTRY->frame.
+	Add FRAME_ENTRY as a user of the allocated frame.  Update callers.
+	(frame_entry_use_frame): Add FRAME_ENTRY as a user of FRAME.
+	(frame_entry_drop): Drop FRAME_ENTRY as a user of the underlying
+	frame.
+	* frame.c (frame_constructor): Initialize FRAME->cow.
+	(frame_alloc): Add an assert.
+
 2005-01-11  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (physmem_SOURCES): Add frame-entry.c and frame.c

@@ -41,6 +41,7 @@ frame_constructor (void *hook, void *buffer)
 
   frame->refs = 1;
   frame->frame_entries = 0;
+  frame->cow = 0;
 
   return 0;
 }
@@ -67,11 +68,13 @@ frame_alloc (size_t size)
   assert (frame->refs == 1);
   frame->memory = l4_fpage (0, size);
   frame->may_be_mapped = false;
+  assert (frame->cow == 0);
   assert (frame->frame_entries == 0);
 
   return frame;
 }
 
+/* Allocate the reserved physical memory for frame FRAME.  */
 void
 frame_memory_alloc (struct frame *frame)
 {
@@ -123,7 +126,7 @@ frame_deref (struct frame *frame)
 }
 
 void
-frame_use (struct frame *frame, struct frame_entry *frame_entry)
+frame_add_user (struct frame *frame, struct frame_entry *frame_entry)
 {
   /* We consume a reference.  */
   assert (frame->refs > 0);
@@ -137,7 +140,7 @@ frame_use (struct frame *frame, struct frame_entry *frame_entry)
 }
 
 void
-frame_drop (struct frame *frame, struct frame_entry *frame_entry)
+frame_drop_user (struct frame *frame, struct frame_entry *frame_entry)
 {
   assert (frame->refs > 0);
 

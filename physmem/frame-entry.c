@@ -82,49 +82,58 @@ frame_entry_new (struct container *cont,
   /* Initialize the frame_entry region.  */
   frame_entry->region.start = start;
   frame_entry->region.size = size;
-  frame_entry->frame = 0;
   frame_entry->frame_offset = 0;
+
+  frame_entry->frame = frame_alloc (size);
+  if (! frame_entry->frame)
+    return errno;
 
   err = frame_entry_attach (cont, frame_entry);
   if (EXPECT_FALSE (err))
     {
       debug ("Overlap: %x+%x\n", start, size);
+      frame_deref (frame_entry->frame);
       return EEXIST;
     }
+
+  frame_add_user (frame_entry->frame, frame_entry);
 
   return 0;
 }
 
 error_t
-frame_entry_use (struct container *cont, struct frame_entry *frame_entry,
-		 uintptr_t start, size_t size,
-		 struct frame *frame, size_t offset)
+frame_entry_use_frame (struct container *cont,
+		       struct frame_entry *frame_entry,
+		       uintptr_t start, size_t size,
+		       struct frame *frame, size_t offset)
 {
   error_t err;
 
   /* Size must be a power of 2.  */
   assert (size > 0 && (size & (size - 1)) == 0);
-  assert (offset > 0 && offset <= l4_size (frame->memory) - size);
+  assert (frame);
+  /* Make sure that the provided offset is valid.  */
+  assert (offset >= 0 && offset <= l4_size (frame->memory) - size);
+  /* The frame entry must refer to memory starting at a self-aligned
+     boundary.  */
+  assert ((offset & (size - 1)) == 0);
 
   /* Initialize the frame_entry region.  */
   frame_entry->region.start = start;
   frame_entry->region.size = size;
   frame_entry->frame = frame;
-  /* Only refer to an offset in FRAME if FRAME already exists.  */
-  frame_entry->frame_offset = frame ? offset : 0;
+  frame_entry->frame_offset = offset;
 
   err = frame_entry_attach (cont, frame_entry);
   if (EXPECT_FALSE (err))
     {
       debug ("Overlap: %x+%x\n", start, size);
+      frame_deref (frame_entry->frame);
       return EEXIST;
     }
 
-  if (frame)
-    {
-      frame_ref (frame);
-      frame_use (frame, frame_entry);
-    }
+  frame_ref (frame);
+  frame_add_user (frame, frame_entry);
 
   return 0;
 }
@@ -140,9 +149,8 @@ frame_entry_find (struct container *cont, uintptr_t start, size_t size)
 void
 frame_entry_drop (struct container *cont, struct frame_entry *frame_entry)
 {
-  if (frame_entry->frame)
-    frame_drop (frame_entry->frame, frame_entry);
-
+  assert (frame_entry->frame);
+  frame_drop_user (frame_entry->frame, frame_entry);
   frame_entry_detach (cont, frame_entry);
 }
 
