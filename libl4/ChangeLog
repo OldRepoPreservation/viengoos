@@ -1,3 +1,8 @@
+2003-10-05  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/math.h (l4_msb): Use __builtin_expect for optimization.
+	(l4_lsb): Likewise.
+
 2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* powerpc/l4/bits/syscall.h (_L4_EXTERN_STUBS): Define macro and

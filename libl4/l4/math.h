@@ -64,7 +64,11 @@ l4_msb (l4_word_t data)
       __L4_MSB_IS(64)
 #endif
     }
-  return data ? __l4_msb (data) : 0;
+
+  if (__builtin_expect (data != 0, 1))
+    return __l4_msb (data);
+  else
+    return 0;
 }
 
 
@@ -101,7 +105,11 @@ l4_lsb (l4_word_t data)
       __L4_LSB_TRY(8); __L4_LSB_TRY(7); __L4_LSB_TRY(6); __L4_LSB_TRY(5);
       __L4_LSB_TRY(4); __L4_LSB_TRY(3); __L4_LSB_TRY(2); __L4_LSB_IS(1);
     }
-  return data ? __l4_lsb (data) : 0;
+
+  if (__builtin_expect (data != 0, 1))
+    return __l4_lsb (data);
+  else
+    return 0;
 }
 
 #endif	/* l4/math.h */
