@@ -1,3 +1,23 @@
+2004-11-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (task_SOURCES): Add thread.c.
+	* thread.c: New file.
+	* task.h (struct thread): New structure.
+	(thread_t): New typedef.
+	(thread_set_range, thread_alloc_with_id, thread_alloc,
+	thread_dealloc): New prototype.
+	(struct task): Change type of member TASK_ID to hurd_task_id_t.
+	Change type of member THREADS to thread_t.
+	* task-class.c (task_reinit): Walk what is now the list of
+	threads.
+	(task_thread_alloc): Implement.
+	(task_demuxer): Change msg ID of task_thread_alloc RPC (256 was
+	taken by the cap-server implementation).
+	(task_alloc): Create the list of threads.
+	* task.c: Remove superflusous newlines from panic messages.
+	(first_free_thread_no): Move global variable to ...
+	(setup_threads): ... here (as local).  Call thread_set_range.
+
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* task.h (struct task): Remove member OBJ.

@@ -100,18 +100,18 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 
 	  err = task_alloc (task_id, nr_threads, threads, &task);
 	  if (err)
-	    panic ("task_alloc: %i\n", err);
+	    panic ("task_alloc: %i", err);
 
 	  obj = hurd_cap_obj_from_user (task_t, task);
 	  hurd_cap_obj_unlock (obj);
 
 	  err = task_id_enter (task);
 	  if (err)
-	    panic ("task_id_enter: %i\n", err);
+	    panic ("task_id_enter: %i", err);
 
 	  err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
 	  if (err)
-	    panic ("hurd_cap_bucket_inject: %i\n", err);
+	    panic ("hurd_cap_bucket_inject: %i", err);
 
 	  hurd_cap_obj_lock (obj);
 	  hurd_cap_obj_drop (obj);
@@ -133,15 +133,13 @@ get_task_id ()
 }
 
 
-/* The first free thread number.  */
-l4_word_t first_free_thread_no;
-
 /* Initialize the thread support, and return the L4 thread ID to be
    used for the server thread.  */
 static l4_thread_id_t
 setup_threads (void)
 {
   l4_word_t err;
+  l4_word_t first_free_thread_no;
   pthread_t thread;
   l4_thread_id_t server_thread;
   l4_thread_id_t main_thread;
@@ -174,7 +172,7 @@ setup_threads (void)
   err = pthread_create (&thread, 0, 0, 0);
 
   if (err)
-    panic ("could not create main thread: %i\n", err);
+    panic ("could not create main thread: %i", err);
 
   /* FIXME: This is unecessary as soon as we implement this properly
      in pthread (of course, within the task server, we will use an
@@ -196,6 +194,10 @@ setup_threads (void)
 			       (l4_address (__hurd_startup_data->utcb_area)
 				+ 3 * l4_utcb_size ()));
   pthread_pool_add_np (extra_thread);
+
+  /* FIXME: Look up the real limits on the KIP, or get them from wortel.  */
+  thread_set_range (l4_global_id (first_free_thread_no + 3, 1),
+		    l4_global_id (first_free_thread_no & 0xffff, 1));
 
   return server_thread;
 }
@@ -252,11 +254,11 @@ main (int argc, char *argv[])
 
   err = task_class_init ();
   if (err)
-    panic ("task_class_init: %i\n", err);
+    panic ("task_class_init: %i", err);
 
   err = hurd_cap_bucket_create (&bucket);
   if (err)
-    panic ("bucket_create: %i\n", err);
+    panic ("bucket_create: %i", err);
 
   create_bootstrap_caps (bucket);
 
@@ -265,7 +267,7 @@ main (int argc, char *argv[])
 				       task_server, bucket);
 
   if (err)
-    panic ("pthread_create_from_l4_tid_np: %i\n", err);
+    panic ("pthread_create_from_l4_tid_np: %i", err);
   pthread_detach (manager);
 
   bootstrap_final ();

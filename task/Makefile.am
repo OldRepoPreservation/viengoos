@@ -30,7 +30,7 @@ task_CPPFLAGS = -I$(top_builddir)/include			\
 task_SOURCES = $(ARCH_SOURCES)					\
 	output.h output.c					\
 	physmem-user.h physmem-user.c mmap.c malloc-wrap.c	\
-	task.h task.c task-class.c task-id.c
+	task.h task.c task-class.c task-id.c thread.c
 
 # Doug Lea's malloc is included by malloc-wrap.c.
 EXTRA_task_SOURCES = malloc.c

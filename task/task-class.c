@@ -36,16 +36,18 @@ static void
 task_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 {
   task_t task = hurd_cap_obj_to_user (task_t, obj);
-  unsigned int i;
+  thread_t thread;
+
+  thread = task->threads;
 
   /* Destroy all threads.  */
-  for (i = 0; i < task->nr_threads; i++)
+  while (thread)
     {
       /* FIXME: We are ignoring an error here.  */
-      wortel_thread_control (task->threads[i], l4_nilthread, l4_nilthread,
+      wortel_thread_control (thread->thread_id, l4_nilthread, l4_nilthread,
 			     l4_nilthread, (void *) -1);
-      /* FIXME: Return the thread number to the list of free thread
-	 numbers for future allocation.  */
+      thread_dealloc (thread);
+      thread = thread->next;
     }
 
   /* FIXME: Return the task ID to the list of free task IDs for future
@@ -56,6 +58,41 @@ task_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 error_t
 task_thread_alloc (hurd_cap_rpc_context_t ctx)
 {
+  task_t task = hurd_cap_obj_to_user (task_t, ctx->obj);
+  error_t err;
+  thread_t thread;
+  void *utcb;
+  l4_word_t result;
+
+  /* Does not need to be checked.  */
+  utcb = (void *) l4_msg_word (ctx->msg, 1);
+
+  err = thread_alloc (&thread);
+  if (err)
+    return err;
+
+  thread->thread_id = l4_global_id (l4_thread_no (thread->thread_id),
+				    task->task_id);
+
+  /* Put the thread into the task as an active thread.  FIXME:
+     Scheduler.  */
+  result = wortel_thread_control (thread->thread_id, task->threads->thread_id,
+			       l4_myself (), thread->thread_id, utcb);
+  if (result)
+    {
+      /* FIXME: Convert error codes in wortel.h.  */
+      thread_dealloc (thread);
+      return EINVAL;
+    }
+
+  thread->next = task->threads;
+  task->threads = thread;
+  task->nr_threads++;
+
+  /* Prepare reply message.  */
+  l4_msg_clear (ctx->msg);
+  l4_msg_append_word (ctx->msg, thread->thread_id);
+
   return 0;
 }
 
@@ -68,7 +105,7 @@ task_demuxer (hurd_cap_rpc_context_t ctx)
   switch (l4_msg_label (ctx->msg))
     {
       /* TASK_THREAD_ALLOC */
-    case 256:
+    case 512:
       err = task_thread_alloc (ctx);
       break;
 
@@ -111,9 +148,39 @@ task_alloc (l4_word_t task_id, unsigned int nr_threads,
   task = hurd_cap_obj_to_user (task_t, obj);
 
   task->task_id = task_id;
-  assert (nr_threads <= MAX_THREADS);
+
+  /* Add the threads from back to front.  */
+  task->threads = NULL;
+
+  while (nr_threads--)
+    {
+      thread_t thread;
+      
+      err = thread_alloc_with_id (threads[nr_threads], &thread);
+      if (err)
+	{
+	  /* Roll back the thread creation manually to defeat the
+	     automatic deallocation routines, which will actually go
+	     and kill those wortel-provided threads.  */
+	  thread = task->threads;
+	  while (thread)
+	    {
+	      thread->thread_id = l4_nilthread;
+	      thread_dealloc (thread);
+	      thread = thread->next;
+	    }
+
+	  task->threads = NULL;
+	  task->nr_threads = 0;
+	  hurd_cap_obj_drop (obj);
+
+	  return err;
+	}
+
+      thread->next = task->threads;
+      task->threads = thread;
+    }
   task->nr_threads = nr_threads;
-  memcpy (task->threads, threads, sizeof (l4_thread_id_t) * nr_threads);
 
   *r_task = task;
   return 0;

@@ -46,6 +46,37 @@ int main (int argc, char *argv[]);
 void switch_thread (l4_thread_id_t from, l4_thread_id_t to);
 
 
+/* Thread objects.  These are not capabilities, but components of task
+   objects.  */
+struct thread
+{
+  /* The next pointer in a linked list of threads.  */
+  struct thread *next;
+
+  /* The thread ID of the thread.  The version part is the task_id the
+     thread is assigned to, or undefined if the thread is unassigned.
+     The thread number is determined at construction and fixed.  */
+  l4_thread_id_t thread_id;
+
+  /* FIXME: More members like priority, CPU usage etc.  */
+};
+typedef struct thread *thread_t;
+
+
+/* Set the range of thread IDs that we are allowed to allocate.  */
+void thread_set_range (l4_thread_id_t first, l4_thread_id_t last);
+
+/* Allocate a new thread object with the thread ID THREAD_ID and
+   return it in THREAD.  Only used at bootstrap.  */
+error_t thread_alloc_with_id (l4_thread_id_t thread_id, thread_t *thread);
+
+/* Allocate a new thread object and return it in THREAD.  */
+error_t thread_alloc (thread_t *thread);
+
+/* Deallocate the thread THREAD.  */
+void thread_dealloc (thread_t thread);
+
+
 /* Task objects.  */
 
 struct task
@@ -57,13 +88,11 @@ struct task
      so it is limited to L4_THREAD_VERSION_BITS (14/32) bits and must
      not have its lower 6 bits set to all zero (because that indicates
      a local thread ID).  */
-  l4_word_t task_id;
+  hurd_task_id_t task_id;
 
-  /* FIXME: Just for testing and dummy stuff: A small table of the
-     threads in this task.  */
-#define MAX_THREADS 4
-  l4_thread_id_t threads[MAX_THREADS];
+  /* The threads in this task.  */
   unsigned int nr_threads;
+  thread_t threads;
 };
 typedef struct task *task_t;
 
