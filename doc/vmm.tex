@@ -193,45 +193,69 @@ system.
 
 \subsection{Allocation Policy}
 
+\subsubsection{Guaranteed Pages and Extra Pages}
+
 The physical memory server maintains a concept of \keyword{guaranteed
 pages} and \keyword{extra pages}.  The former are pages that a given
 task is guaranteed to map in a very short amount of time.  Given this
 predicate, the total number of guaranteed pages can never exceed the
 total number of frames in the system.  Extra pages are pages which are
 given to clients who have reached their guaranteed page allocation
-limit.  The phsyical memory server may request that a client
+limit.  The physical memory server may request that a client
 relinquish a number of extant extra pages at any time.  The client
 must return the pages to the physical memory (i.e. free them) in a
-short amount of time.  Should a task fail to do this, it risks having
-all of its memory dropped (i.e. not swapped out or saved in anyway)
-and reclaimed by the physical memory server.
+short amount of time.  The task should not assume that it has enough
+time to send pages to backing store.  As such, extra pages should only
+contain remanufacturable data (i.e. cached data).  Should a task fail
+to return the pages in a reasonable amount of time, it risks having
+all of its memory dropped---not swapped out or saved in anyway---and
+reclaimed by the physical memory server.  Note that the physical
+memory server does not know if a given page is considered guaranteed
+or extra: it knows that a given task has $G$ guaranteed pages and $G +
+E$ allocated pages, it has $E$ extra pages.  The distinction between
+guaranteed and extra pages must be made by the task itself.  One
+strategy is to remember which pages can be remanufactured (e.g. reread
+from disk or recalculated) and promote them to guaranteed pages when
+the page becomes dirty being careful to never have less than $E$ clean
+pages in the task.  Given these semantics, guanteed pages should not
+be thought of as wired (e.g. \fuction{mlock}ed in the POSIX
+sense)---although they can have this property---but as frames which
+the task itself must multiplex.  Thus the idea of self-paged tasks.
 
-Readers familiar with VMS will see a striking difference between these
-two systems.  This is not without reason.  Yet, differences remains:
-VMS does not have extra pages and the number of pages is fixed at task
-creation time.  VMS than maintains a dirty list of pages thereby
-having a very fast backing store and essentially allowing tasks to
-have more than their quota of memory if there is no memory pressure.
-One reason that this is copied in this design is that unlike in VMS,
-the file systems and device drivers are in user space.  Thus, the
-caching that was being done by VMS can not be done intelligently by
-the physical memory server.
+Readers familiar with VMS will see striking similarities with the
+self-paging and guaranteed page paradigms.  This is not without
+reason.  Yet, differences remain: VMS does not have extra pages and
+the number of guaranteed pages is fixed at task creation time.  Pages
+returned to VMS (in order to allocate a new page) are placed in a
+dirty list (thus the actual multiplexing of frames is done in VMS, not
+in user space) thereby simulating a two level backing store: a fast
+memory backing store where pages are waylaid and swap, where they are
+sent when memory pressure forces out.  It is in this way that a given
+task may get at more than its quota of memory when there is low memory
+contention.  Our divergence from VMS is motivated by the location of
+file systems and device drivers in the Hurd: unlike in VMS, the file
+systems and device drivers are in user space.  Thus, the caching that
+was being done by VMS cannot be done intelligently by the physical
+memory server.
+
+\subsubsection{An External Memory Policy Server}
 
 The number of guaranteed pages that a given task has access to is not
 determined by the physical memory server but by the \keyword{memory
 policy server}.  This division allows the physical memory server to
-only concern itself with the mechanisms and means that it must know
-essentially nothing about how the underlying operating system
-functions.  (The implication is that although tailored for Hurd
-specific needs, the physical memory server is completely separate from
-the Hurd and can be used by other operating systems running on the
-microkernel.)  Thus, it is the memory policy server's responsibility
-to determine who gets how much memory.  This may be determined as a
-function of the user or looking in file on disk for e.g. quotas.  As
+concern itself primarily with the allocation mechanisms and delegate
+all the policy decisions to the underlying operating system.  (An
+important implication is that although tailored for Hurd specific
+needs, the physical memory server is completely separate from the Hurd
+and can be used by other operating systems running on the L4
+microkernel.)  It is the memory policy server's responsibility to
+determine who gets how much memory.  This may be determined as a
+function of the user or looking in a file on disk for e.g. quotas.  As
 can be seen this type of data acquisition could add significant
 complexity to the physical memory server and require blocking states
 (e.g. waiting for a read operation on file i/o) and could create
-circular dependencies.
+circular dependencies.  The default memory policy server's mechanisms
+and policies will be discussed later.
 
 The physical memory server and the memory policy server will contain a
 shared buffer of tupples indexed by task id containing the number of
@@ -242,7 +266,9 @@ written to by the memory policy server.  The number of allocated pages
 may only be written to by the physical memory server.  This scheme
 means that no locking in required.  (On some architectures where a
 read of a given field cannot be performed in a single operation, the
-read may have to be done twice).
+read may have to be done twice.)  The memory policy server must not
+over commit the number of frames, i.e. the total number of guaranteed
+pages must never exceed the number of frames avilable for allocation.
 
 Until the memory policy server makes the intial contact with the
 physical memory server, memory will be allocated on a first come first
@@ -250,35 +276,112 @@ serve basis.  The memory policy server shall use the following remote
 procedure call to contact the physical memory server:
 
 \begin{code}
-error\_t physical\_memory\_server\_introduce (void)
+error\_t pm\_get\_control (out hurd\_cap\_t control)
 \end{code}
 
 \noindent
-This function will succeed the first time it is called.  It will fail
-all subsequent times.  The physical memory server will record the
-sender of this rpc as the memory policy server and begin allocating
-memory according to the previously described protocol.
+This function will succeed the first time it is called and return a
+control capability.  It will fail all subsequent times.  By using a
+capability, the acquiring task may move or copy the capability to
+another task.  This permits replacing the policy server on a live
+system.  At this point, the physical memory server will begin
+allocating memory according to the previously described protocol.
+Note that the inital buffer will be initialized with the current total
+allocations but the guaranteed pages will be set to zero.  The memory
+policy server must request the shared policy buffer as soon as
+possible and adjust these values.
 
 The shared policy buffer may be obtained from the physical memory
 server by the policy by calling:
 
 \begin{code}
-error\_t physical\_memory\_server\_get\_policy\_buffer (out l4\_map\_t buffer)
+error\_t pm\_get\_policy\_buffer (out l4\_map\_t buffer)
 \end{code}
 
 \noindent
 The returned buffer is mapped with read and write access into the
-policy memory server's address space.  It may need to be resized.  If
-this is the case, the physical memory server shall unmap the buffer
-from the policy memory server's address space, copy the buffer
-internally as required.  The policy memory server will fault on the
-memory region on its next access and it may repeat the call.  This
-call will succeed when the sender is the memory policy server, it will
-fail otherwise.
+policy memory server's address space.  It may need to be resized due
+to the number of tasks in the system.  When this is the case, the
+physical memory server shall unmap the buffer from the memory policy
+server's address space and copy the buffer internally as required.
+The memory policy server will fault on the memory region on its next
+access and it may rerequest the buffer.  This call will succeed when
+the sender is the memory policy server, it will fail otherwise.
 
 \subsection{Allocation Mechanisms}
 
-Applications are able allocate memory by  Memory allocation will be 
+Applications are able allocate memory into containers.  Containers may
+be created using:
+
+\begin{code}
+error\_t pm\_container\_create (out container\_t container)
+\end{code}
+
+Memory allocation does not allocate physical frames: if so, it would
+be impossible to move memory around and memory would have to be
+returned to the same spot after being swapped out and back in.
+Containers are useful for grouping and then moving memory around.
+
+How to get pages.  Type of pages (e.g. DMA) or fixed physical address.
+
+Memory is not allocate until map time (and not always then,
+e.g. logical copies).
+
+\section{Mapping Memory from Containers}
+
+A map will occur in a short amount of time: this is not guaranteed to
+happen immediately as the pages are only allocated at this point.
+They may currently be in the form of extra pages for another task.
+
+Pages may be unmapped at any time by the physical memory server.  This
+allows pages to be moved in memory by the physical memory server
+thereby permitting page blocking (i.e. construct superpages), opening
+up DMAable memory areas or other specific physical address, and to
+create contiguous blocks of memory (i.e. to defragment the memory).
+The task must always be read to reestablish a mapping.
+
+Mapping can be made readable.  A task may request that a mapping be
+read/write, however, the physical memory server may not grant a
+read/write mapping if the page is copy on write, COW.  In this case, a
+read mapping will be returned.  In order to get a read/write mapping,
+the task must request add the enforced flag.
+
+\section{Moving Data}
+
+In a monolithic kernel, little data is exchanged between tasks.  In a
+multiserver system, file systems live in their own tasks and thus
+reading and writing involve servers.  Thus, powerful primatives for
+moving memory around with the least number of physical copies,
+i.e. using virtual copy mechanisms which preserve COW pages, etc.
+
+It is important that an fs does not map from one task to another
+directly: the client may not trust the source or the source may die,
+etc.  Doing the mapping via the phys memory server means all trust
+issues are resolved at the time of mapping and can be reported to the
+user: the fs cannot pretend to be nice and then revoke mappings and
+silently harm the client.
+
+Data will be moved around using containers.  Describe how to read and
+write.  Task -> FS -> Device drivers.  Locking memory.  Caching.
+
+It is important that clients do the allocation for the memory which
+they use: not the servers doing allocations on behalf on clients: in
+the latter, there is no way to do resource tracking.
+
+Discuss mmap: local function call.  RPC is done when a page is
+faulted: do a read from the fs (into a container), then map the data
+from the container into the AS as required.
+
+MAP_COPY sucks: fs must save all modified data.  What happens when a
+100MB file is completely rewritten (or 1GB, etc)?  can we use upcalls?
+If we do, the fs still needs to hold the data in the intern.  Can we
+copy the file on disk and use that as backing store (think how
+deleting an open file works).
+
+Can a readonly private mapping once faulted be dropped or must we
+promote it to anonymous memory and send it to swap fearing that the
+underlying block might change between dropping it and rereading it
+(e.g. by another task modifying the file)?
 
 \section{Caching Store Accesses}
 
@@ -416,6 +519,55 @@ offsets to container identifiers is used, this will pollute the cache
 container's name space.
 \end{comment}
 
+\subsection{Caching Interfaces}
+
+The physical memory server will do an up call to a victim task
+requesting a number of pages back.  The physical memory server may do
+this at any time for any reason and it expects to receive the pages
+back from the task within a short amount of time (the victim task
+should not expect to be able to send the pages to backing store in
+that amount of time).  The physical memory server will never request
+guaranteed pages.  As such, this number will always be less than or
+equal to the number of allocated pages minus the number of guaranteed
+pages.
+
+\begin{code}
+void pm_return_pages (in int count);
+\end{code}
+
+The physical memory send this message to the task's memory control
+thread.  The thread must always be ready to receive: the physical
+memory server will never wait (thus, the thread must be in the
+receiving state).  If the thread is not ready, the physical memory
+server assumes that the task is misbehaving.  The physical memory
+server does not wait for a reply, instead, the client must free the
+pages using \function{pm_release_pages} as described above.
+
+\section{The Memory Policy Server}
+
+At task creation time, the task must negotiate a medium-term contract
+for guaranteed pages and determine if it shall have access to extra
+pages.  This may be renegotiated later.  It must be renegotiated when
+the contract expires.  The policy server will give the task enough
+time to send pages to swap before committing if the number of
+guaranteed pages is reduced.
+
+\section{Sending Data to Swap}
+
+Data must be sent to swap.  The swap server must be in the phsyical
+memory server in order to preserve logical copies in swap (if not, X
+tasks swap a page to the swap server thus X writes/reads to swap
+instead of 1 when all tasks release their references to the page).
+
+Swap quotas (put the policy in the memory policy server).
+
+Memory kept on an inactive list thus allowing recover before a page is
+flushed to swap (i.e. a swap operation is not synchronous).
+
+\section{Self Paging}
+
+Tasks multiplex guaranteed pages.  Must manage their own memory.  How
+to get data (e.g. extend malloc via the slab mechanism, extend fopen).
 
 
 % Traditionally, monolithical kernels, but even kernels like Mach,
