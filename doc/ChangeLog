@@ -1,3 +1,9 @@
+2005-03-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* threads-tasks.tex (Task manager capability): Fix number of
+	available task IDs calculation.
+	Reported by Elias Martenson <elias@success.nu>.
+	
 2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* booting.tex (The device access server archive): Update this

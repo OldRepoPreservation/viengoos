@@ -118,8 +118,8 @@ easily.
   The version field is 14 bit on 32-bit architectures, and 32 bit on
   64 bit architectures.  Because the lower six bits must not be all
   zero (to make global thread IDs different from local thread IDs),
-  the number of available task IDs is $2^{14} - 2^6$ resp. $2^{32} -
-  2^6$.
+  the number of available task IDs is $2^{14} - 2^8$ resp. $2^{32} -
+  2^26$.
   
   If several systems are running in parallel on the same host, they
   might share thread IDs by encoding the system ID in the upper bits
