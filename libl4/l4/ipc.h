@@ -153,7 +153,7 @@ typedef union
   _L4_map_item_t raw;
 
   /* We need the following member to avoid breaking the aliasing rules.  */
-  l4_word_t mr[2];
+  _L4_word_t mr[2];
 
   struct
   {
@@ -296,7 +296,7 @@ typedef union
   _L4_string_item_t raw;
 
   /* We need the following member to avoid breaking the aliasing rules.  */
-  l4_word_t mr[2];
+  _L4_word_t mr[2];
 
   struct
   {

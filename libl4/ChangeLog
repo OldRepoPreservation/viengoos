@@ -1,3 +1,7 @@
+2005-01-30  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/ipc.h: Replace l4_word_t with _L4_word_t.
+
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32/l4/bits/arch.h: Include <l4/syscall.h>.
