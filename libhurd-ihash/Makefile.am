@@ -24,6 +24,8 @@ lib_LIBRARIES = libhurd-ihash.a
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = ihash.h
 
-AM_CPPFLAGS = -I$(top_builddir)/include
+# FIXME: Build a special libhurd-ihash.a using libc-parts for the rootservers,
+# and a normal for everybody else.
+AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts
 AM_CFLAGS = -std=gnu99
 libhurd_ihash_a_SOURCES = ihash.h ihash.c
