@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdint.h>
+#include <l4/thread.h>
 
 #include <hurd/cap.h>
 
@@ -74,7 +75,7 @@ _hurd_cap_sconn_dealloc (hurd_cap_sconn_t sconn)
     }
 
   /* Now we can remove the object.  */
-  hurd_ihash_remove (&server_to_sconn, sconn->server_thread.raw);
+  hurd_ihash_remove (&server_to_sconn, sconn->server_thread);
   pthread_mutex_unlock (&server_to_sconn_lock);
 
   /* Finally, we can destroy it.  */
@@ -129,7 +130,7 @@ _hurd_cap_sconn_enter (hurd_cap_sconn_t sconn_provided,
     {
       /* It might have become available by now.  */
       pthread_mutex_lock (&server_to_sconn_lock);
-      sconn = hurd_ihash_find (&server_to_sconn, server_thread.raw);
+      sconn = hurd_ihash_find (&server_to_sconn, server_thread);
       if (sconn)
 	hurd_cap_deallocate (server_task_info);
       else
@@ -158,7 +159,7 @@ _hurd_cap_sconn_enter (hurd_cap_sconn_t sconn_provided,
 	  sconn->refs = 0;
 
 	  /* Enter the new server connection object.  */
-	  err = hurd_ihash_add (&server_to_sconn, server_thread.raw, sconn);
+	  err = hurd_ihash_add (&server_to_sconn, server_thread, sconn);
 	  if (err)
 	    {
 	      pthread_mutex_destroy (&sconn->lock);
