@@ -1238,6 +1238,79 @@ protocol.  It also provides a good set of test cases that you can test
 your own protocols, and improvements to the above protocol against.
 
 
+\subsubsection{The trust rule}
+
+The protocol to copy a capability from one client to another task has
+a dramatic consequence on the design of the Hurd interfaces.
+
+Because the receiver of the capability must make blocking calls to the
+server providing the capability, the receiver of the capability
+\emph{must} trust the server providing the capability.
+
+This means also: If the receiver of a capability does not trust the
+server providing the capability, it \emph{must not} accept it.
+
+The consequence is that normally, servers can not accept capabilities
+from clients, unless they are provided by a specific trusted server.
+This can be the \texttt{task} or \texttt{auth} server for example.
+
+This rule is even true if the receiver does not actually want to use
+the capability for anything.  Just accepting the capability requires
+trusting the server providing it already.
+
+In the Hurd on Mach, ports (which are analogous to capabilities in
+this context) can be passed around freely.  There is no security risk
+in accepting a port from any source, because the kernel implements
+them as protected objects.  Using a port by sending blocking messages
+to it requires trust, but simply storing the port on the server side
+does not.
+
+This is different in the Hurd on L4: A server must not accept
+capabilities unless it trusts the server providing them.  Because
+capabilities are used for many different purposes (remote objects,
+authentication, identification), one has to be very careful in
+designing the interfaces.  The Hurd interfaces on Mach use ports in a
+way that is not possible on L4.  Such interfaces need to be
+redesigned.
+
+Often, redesigning such an interface also fixes some other security
+problems that exists with in the Hurd on L4, in particular DoS
+attacks.  A good part of this paper is about redesigning the Hurd to
+avoid storing untrusted capabilities on the server side.
+
+\begin{comment}
+  Examples are:
+
+  \begin{itemize}
+  \item The new authentication protocol, which eliminates the need for
+    a rendezvous port and is not only faster, but also does not
+    require the server to block on the client anymore (see section
+    \ref{auth} on page \pageref{auth}).
+    
+  \item The signal handling, which does not require the \texttt{proc}
+    server to hold the signal port for every task anymore (see section
+    \ref{signals} on page \pageref{signals}).
+    
+  \item The new exec protocol, which eliminates the need to pass all
+    capabilities that need to be transfered to the new executable from
+    the old program to the filesystem server, and then to the
+    \texttt{exec} server (see section \ref{exec} on page
+    \pageref{exec}).
+    
+  \item The new way to implement Unix Domain Sockets, which don't
+    require a trusted system server, so that descriptor passing (which
+    is really capability passing) can work (see section
+    \ref{unixdomainsockets} on page \pageref{unixdomainsockets}.
+
+  \item The way parent and child filesystem are linked to each other,
+    in other words: how mounting a filesystem works (see section
+    \ref{xfslookup} on page \pageref{xfslookup}).
+    
+  \item The replacement for the \verb/file_reparent()/ RPC (see
+    section \ref{reparenting} on page \pageref{reparenting}).
+  \end{itemize}
+\end{comment}
+
 \subsection{Synchronous IPC}
 
 The Hurd only needs synchronous IPC.  Asynchronous IPC is usually not
@@ -1756,6 +1829,7 @@ and the task control caps.
 
 
 \subsubsection{Signals}
+\label{signals}
 
 Each process can register the thread ID of a signal thread with the
 \texttt{proc} server.  The proc server will give the signal thread ID
@@ -1821,6 +1895,7 @@ To be written.
 
 
 \subsubsection{The \texttt{exec()} function}
+\label{exec}
 
 The exec() operation will be done locally in a task.  Traditionally,
 exec() overlays the same task with a new process image, because
@@ -1905,6 +1980,7 @@ idea.  The details will depend a lot on the actual implementation.
 
 
 \subsection{Unix Domain Sockets}
+\label{unixdomainsockets}
 
 In the Hurd on Mach, there was a global pflocal server that provided
 unix domain sockets and pipes to all users.  This will not work very
@@ -2053,6 +2129,7 @@ solutions.
 
 
 \subsubsection{Reparenting}
+\label{reparenting}
 
 The Hurd on Mach contains a curious RPC, \verb/file_reparent/, which
 allows you to create a new capability for the same node, with the
