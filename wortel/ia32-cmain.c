@@ -151,7 +151,7 @@ add_unused_area (l4_word_t start, l4_word_t size)
       if (i == wortel_unused_fpages_count)
 	{
 	  l4_fpage_t fpage = l4_fpage (start, min_page_size);
-	  fpage = l4_fpage_add_rights (fpage, l4_fully_accessible);
+	  fpage = l4_fpage_add_rights (fpage, L4_FPAGE_FULLY_ACCESSIBLE);
 	  sigma0_get_fpage (fpage);
 	  wortel_unused_fpages[i] = fpage;
 	  wortel_unused_fpages_count++;

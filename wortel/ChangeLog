@@ -1,3 +1,19 @@
+2004-03-16  Marcus Brinkmann  <marcus@gnu.org>
+
+	* sigma0.c: Rewritten to use new interface.
+	* wortel.c (make_fpages): Use L4_FPAGE_FULLY_ACCESSIBLE, not
+	l4_fully_accessible.
+	(start_components): Use new message interface.
+	(serve_bootstrap_requests): Likewise.
+	* loader.h (loader_get_memory_desc): Change return type to
+	l4_memory_desc_t *.
+	* wortel.c (loader_get_memory_desc): Change return type to
+	l4_memory_desc_t *.
+	* loader.c (mem_check): Change type of MEMDESC to l4_memory_desc_t *.
+	* shutdown.c (halt): Use L4_NEVER, not l4_never.
+	* ia32-cmain.c (add_unused_area): Use L4_FPAGE_FULLY_ACCESSIBLE,
+	not l4_fully_accessible.
+
 2003-10-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (AM_CPPFLAGS): Removed.

@@ -37,7 +37,7 @@
 static void
 mem_check (const char *name, l4_word_t start, l4_word_t end)
 {
-  l4_memory_desc_t memdesc;
+  l4_memory_desc_t *memdesc;
   int nr;
   int fits = 0;
   int conflicts = 0;

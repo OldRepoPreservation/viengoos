@@ -49,11 +49,11 @@ sigma0_set_verbosity (l4_word_t level)
   l4_msg_t msg;
   l4_msg_tag_t tag;
 
-  l4_msg_clear (&msg);
-  l4_set_msg_label (&msg, SIGMA0_EXT);
-  l4_msg_append_word (&msg, SIGMA0_EXT_SET_VERBOSITY);
-  l4_msg_append_word (&msg, level);
-  l4_msg_load (&msg);
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, SIGMA0_EXT);
+  l4_msg_append_word (msg, SIGMA0_EXT_SET_VERBOSITY);
+  l4_msg_append_word (msg, level);
+  l4_msg_load (msg);
   tag = l4_send (SIGMA0_TID);
   if (l4_ipc_failed (tag))
     panic ("%s: request failed during %s: %u", __func__,
@@ -70,11 +70,11 @@ sigma0_dump_memory (int wait)
   l4_msg_t msg;
   l4_msg_tag_t tag;
 
-  l4_msg_clear (&msg);
-  l4_set_msg_label (&msg, SIGMA0_EXT);
-  l4_msg_append_word (&msg, SIGMA0_EXT_DUMP_MEMORY);
-  l4_msg_append_word (&msg, wait);
-  l4_msg_load (&msg);
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, SIGMA0_EXT);
+  l4_msg_append_word (msg, SIGMA0_EXT_DUMP_MEMORY);
+  l4_msg_append_word (msg, wait);
+  l4_msg_load (msg);
   if (wait)
     tag = l4_call (SIGMA0_TID);
   else
@@ -94,12 +94,12 @@ sigma0_get_fpage (l4_fpage_t fpage)
   l4_msg_tag_t tag;
   l4_map_item_t map_item;
 
-  l4_accept (l4_map_grant_items (l4_complete_address_space));
-  l4_msg_clear (&msg);
-  l4_set_msg_label (&msg, SIGMA0_RPC);
-  l4_msg_append_word (&msg, fpage.raw);
-  l4_msg_append_word (&msg, L4_DEFAULT_MEMORY);
-  l4_msg_load (&msg);
+  l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, SIGMA0_RPC);
+  l4_msg_append_word (msg, fpage);
+  l4_msg_append_word (msg, L4_DEFAULT_MEMORY);
+  l4_msg_load (msg);
   tag = l4_call (SIGMA0_TID);
   if (l4_ipc_failed (tag))
     panic ("%s: request failed during %s: %u", __func__,
@@ -107,13 +107,14 @@ sigma0_get_fpage (l4_fpage_t fpage)
 	   (l4_error_code () >> 1) & 0x7);
   if (l4_untyped_words (tag) != 0 || l4_typed_words (tag) != 2)
     panic ("%s: invalid format of sigma0 reply", __func__);
-  l4_msg_store (tag, &msg);
-  l4_msg_get_map_item (&msg, 0, &map_item);
-  if (l4_is_nil_fpage (map_item.send_fpage))
+  l4_msg_store (tag, msg);
+  l4_msg_get_map_item (msg, 0, &map_item);
+  if (l4_is_nil_fpage (l4_map_item_snd_fpage (map_item)))
     panic ("%s: sigma0 rejected mapping", __func__);
-  if (l4_address (fpage) != l4_address (map_item.send_fpage))
+  if (l4_address (fpage) != l4_address (l4_map_item_snd_fpage (map_item)))
     panic ("%s: sigma0 returned wrong address 0x%x (expected 0x%x)",
-	   __func__, l4_address (map_item.send_fpage), l4_address (fpage));
+	   __func__, l4_address (l4_map_item_snd_fpage (map_item)),
+	   l4_address (fpage));
 }
 
 
@@ -127,12 +128,12 @@ sigma0_get_any (unsigned int size)
   l4_map_item_t map_item;
   l4_fpage_t fpage = l4_fpage_log2 (-1, size);
 
-  l4_accept (l4_map_grant_items (l4_complete_address_space));
-  l4_msg_clear (&msg);
-  l4_set_msg_label (&msg, SIGMA0_RPC);
-  l4_msg_append_word (&msg, fpage.raw);
-  l4_msg_append_word (&msg, L4_DEFAULT_MEMORY);
-  l4_msg_load (&msg);
+  l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, SIGMA0_RPC);
+  l4_msg_append_word (msg, fpage);
+  l4_msg_append_word (msg, L4_DEFAULT_MEMORY);
+  l4_msg_load (msg);
   tag = l4_call (SIGMA0_TID);
   if (l4_ipc_failed (tag))
     panic ("%s: request failed during %s: %u", __func__,
@@ -141,7 +142,7 @@ sigma0_get_any (unsigned int size)
   if (l4_untyped_words (tag) != 0
       || l4_typed_words (tag) != 2)
     panic ("%s: invalid format of sigma0 reply", __func__);
-  l4_msg_store (tag, &msg);
-  l4_msg_get_map_item (&msg, 0, &map_item);
-  return map_item.send_fpage;
+  l4_msg_store (tag, msg);
+  l4_msg_get_map_item (msg, 0, &map_item);
+  return l4_map_item_snd_fpage (map_item);
 }

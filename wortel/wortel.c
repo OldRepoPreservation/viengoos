@@ -107,7 +107,7 @@ loader_get_num_memory_desc (void)
 
 /* Return the NRth memory descriptor.  The first memory descriptor is
    indexed by 0.  */
-l4_memory_desc_t
+l4_memory_desc_t *
 loader_get_memory_desc (l4_word_t nr)
 {
   return l4_memory_desc (nr);
@@ -159,7 +159,7 @@ make_fpages (l4_word_t start, l4_word_t end, l4_fpage_t *fpages)
 
       fpages[nr_fpages]
 	= l4_fpage_add_rights (l4_fpage_log2 (start, size_align),
-			       l4_fully_accessible);
+			       L4_FPAGE_FULLY_ACCESSIBLE);
       start += l4_size (fpages[nr_fpages]);
       nr_fpages++;
     }
@@ -292,7 +292,8 @@ start_components (void)
   ret = l4_thread_control (server, server, l4_myself (), l4_nilthread,
 			   (void *) -1);
   if (!ret)
-    panic ("Creation of initial physmem thread failed");
+    panic ("could not create initial physmem thread: %s",
+	   l4_strerror (l4_error_code ()));
 
   /* The UTCB area must be controllable in some way, see above.  Same
      for KIP area.  */
@@ -303,18 +304,20 @@ start_components (void)
 					 l4_utcb_area_size_log2 ()),
 			  l4_anythread, &control);
   if (!ret)
-    panic ("Creation of physmem address space failed");
+    panic ("could not create physmem address space: %s",
+	   l4_strerror (l4_error_code ()));
 
   ret = l4_thread_control (server, server, l4_nilthread, l4_myself (),
 			   (void *) (wortel_start + l4_kip_area_size ()));
   if (!ret) 
-    panic ("Activation of initial physmem thread failed");
+    panic ("activation of initial physmem thread failed: %s",
+	   l4_strerror (l4_error_code ()));
 
-  l4_msg_clear (&msg);
-  l4_set_msg_label (&msg, 0);
-  l4_msg_append_word (&msg, mods[MOD_PHYSMEM].ip);
-  l4_msg_append_word (&msg, 0);
-  l4_msg_load (&msg);
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, 0);
+  l4_msg_append_word (msg, mods[MOD_PHYSMEM].ip);
+  l4_msg_append_word (msg, 0);
+  l4_msg_load (msg);
   tag = l4_send (server);
   if (l4_ipc_failed (tag))
     panic ("Sending startup message to physmem thread failed: %u",
@@ -346,10 +349,10 @@ start_components (void)
 		 (l4_error_code () >> 1) & 0x7);
 	if ((l4_label (tag) >> 4) != 0xffe)
 	  panic ("Message from physmem thread is not a page fault");
-	l4_msg_store (tag, &msg);
+	l4_msg_store (tag, msg);
 	if (l4_untyped_words (tag) != 2 || l4_typed_words (tag) != 0)
 	  panic ("Invalid format of page fault message");
-	addr = l4_msg_word (&msg, 0);
+	addr = l4_msg_word (msg, 0);
 	if (addr != mods[MOD_PHYSMEM].ip)
 	  panic ("Page fault at unexpected address 0x%x (expected 0x%x)",
 		 addr, mods[MOD_PHYSMEM].ip);
@@ -373,13 +376,13 @@ start_components (void)
 	   load_components, so grant it right away.  */
 	debug ("Granting fpage: 0x%x/%u\n", l4_address (fpage),
 	       l4_size_log2 (fpage));
-	l4_msg_clear (&msg);
-	l4_set_msg_label (&msg, 0);
+	l4_msg_clear (msg);
+	l4_set_msg_label (msg, 0);
 	/* FIXME: Keep track of mappings already provided.  Possibly
 	   map text section rx and data rw.  */
 	grant_item = l4_grant_item (fpage, l4_address (fpage));
-	l4_msg_append_grant_item (&msg, grant_item);
-	l4_msg_load (&msg);
+	l4_msg_append_grant_item (msg, grant_item);
+	l4_msg_load (msg);
 	l4_reply (server);
       }
   }
@@ -421,7 +424,7 @@ serve_bootstrap_requests (void)
      high address and provide it to physmem.  */
   for (i = 0; i < loader_get_num_memory_desc (); i++)
     {
-      l4_memory_desc_t memdesc = loader_get_memory_desc (i);
+      l4_memory_desc_t *memdesc = loader_get_memory_desc (i);
       if (memdesc->low == 0)
 	get_page_zero = (memdesc->type == L4_MEMDESC_CONVENTIONAL);
     }
@@ -442,8 +445,8 @@ serve_bootstrap_requests (void)
       label = l4_label (tag);
       /* FIXME: Shouldn't store the whole msg before checking access
 	 rights.  */
-      l4_msg_store (tag, &msg);
-      if (!WORTEL_CAP_VALID (l4_msg_word (&msg, 0), l4_version (from)))
+      l4_msg_store (tag, msg);
+      if (!WORTEL_CAP_VALID (l4_msg_word (msg, 0), l4_version (from)))
 	/* FIXME: Shouldn't be a panic of course.  */
 	panic ("Unprivileged user attemps to access wortel rootserver");
 
@@ -461,7 +464,7 @@ serve_bootstrap_requests (void)
 	      || l4_typed_words (tag) != 0)
 	    panic ("Invalid format of putchar msg");
 
-	  chr = (int) l4_msg_word (&msg, 1);
+	  chr = (int) l4_msg_word (msg, 1);
 	  putchar (chr);
 	  /* No reply needed.  */
 	  continue;
@@ -488,10 +491,10 @@ serve_bootstrap_requests (void)
 	    do
 	      {
 		fpage = sigma0_get_any (get_mem_size);
-		if (fpage.raw == l4_nilpage.raw)
+		if (fpage == L4_NILPAGE)
 		  get_mem_size--;
 	      }
-	    while (fpage.raw == l4_nilpage.raw
+	    while (fpage == L4_NILPAGE
 		   && get_mem_size >= L4_MIN_PAGE_SIZE_LOG2);
 
 	  /* When we get the nilpage, then this is an indication that
@@ -500,9 +503,9 @@ serve_bootstrap_requests (void)
 	     output driver is using (for example VGA mapped
 	     memory).  */
 	  grant_item = l4_grant_item (fpage, l4_address (fpage));
-	  l4_msg_clear (&msg);
-	  l4_msg_append_grant_item (&msg, grant_item);
-	  l4_msg_load (&msg);
+	  l4_msg_clear (msg);
+	  l4_msg_append_grant_item (msg, grant_item);
+	  l4_msg_load (msg);
 	  l4_reply (from);
 	}
       else if (label == WORTEL_MSG_GET_CAP_REQUEST)
@@ -514,12 +517,12 @@ serve_bootstrap_requests (void)
 	  if (mod_idx == mods_count)
 	    {
 	      /* Request the global control capability now.  */
-	      l4_msg_clear (&msg);
-	      l4_set_msg_label (&msg, 0);
+	      l4_msg_clear (msg);
+	      l4_set_msg_label (msg, 0);
 
-	      l4_msg_append_word (&msg,
+	      l4_msg_append_word (msg,
 				  l4_version (mods[MOD_ROOT_FS].main_thread));
-	      l4_msg_load (&msg);
+	      l4_msg_load (msg);
 	      l4_reply (from);
 	    }
 	  else if (mod_idx > mods_count)
@@ -542,20 +545,20 @@ serve_bootstrap_requests (void)
 		panic ("%s: Module %s is too large and has an "
 		       "unfortunate alignment", __func__, mods[mod_idx].name);
 
-	      l4_msg_clear (&msg);
-	      l4_set_msg_label (&msg, 0);
-	      l4_msg_append_word (&msg, server_task);
-	      l4_msg_append_word (&msg, mods[mod_idx].start);
-	      l4_msg_append_word (&msg, mods[mod_idx].end);
+	      l4_msg_clear (msg);
+	      l4_set_msg_label (msg, 0);
+	      l4_msg_append_word (msg, server_task);
+	      l4_msg_append_word (msg, mods[mod_idx].start);
+	      l4_msg_append_word (msg, mods[mod_idx].end);
 	      while (nr_fpages--)
 		{
 		  l4_grant_item_t grant_item;
 		  l4_fpage_t fpage = fpages[nr_fpages];
 
 		  grant_item = l4_grant_item (fpage, l4_address (fpage));
-		  l4_msg_append_grant_item (&msg, grant_item);
+		  l4_msg_append_grant_item (msg, grant_item);
 		}
-	      l4_msg_load (&msg);
+	      l4_msg_load (msg);
 	      l4_reply (from);
 	    }
 	}
@@ -568,9 +571,9 @@ serve_bootstrap_requests (void)
 	  if (mod_idx > mods_count)
 	    panic ("Invalid get cap reply message");
 	  else if (mod_idx == mods_count)
-	    physmem_master = l4_msg_word (&msg, 1);
+	    physmem_master = l4_msg_word (msg, 1);
 	  else
-	    mods[mod_idx].mem_cont = l4_msg_word (&msg, 1);
+	    mods[mod_idx].mem_cont = l4_msg_word (msg, 1);
 
 	  /* Does not require a reply.  */
 	  mod_idx++;
@@ -584,10 +587,10 @@ serve_bootstrap_requests (void)
 	  if (l4_untyped_words (tag) != 2 || l4_typed_words (tag) != 0)
 	    panic ("Invalid format of page fault message");
 	  panic ("Unexpected page fault from 0x%x at address 0x%x (IP 0x%x)",
-		 from.raw, l4_msg_word (&msg, 0), l4_msg_word (&msg, 1));
+		 from, l4_msg_word (msg, 0), l4_msg_word (msg, 1));
 	}
       else
-	panic ("Invalid message with tag 0x%x", tag.raw);
+	panic ("Invalid message with tag 0x%x", tag);
     }
   while (1);
 }
@@ -611,8 +614,8 @@ serve_requests (void)
       label = l4_label (msg_tag);
       /* FIXME: Shouldn't store the whole msg before checking access
 	 rights.  */
-      l4_msg_store (msg_tag, &msg);
-      if (!WORTEL_CAP_VALID (l4_msg_word (&msg, 0), l4_version (from)))
+      l4_msg_store (msg_tag, msg);
+      if (!WORTEL_CAP_VALID (l4_msg_word (msg, 0), l4_version (from)))
 	/* FIXME: Shouldn't be a panic of course.  */
 	panic ("Unprivileged user attemps to access wortel rootserver");
 
@@ -626,7 +629,7 @@ serve_requests (void)
 	      || l4_typed_words (msg_tag) != 0)
 	    panic ("Invalid format of putchar msg");
 
-	  chr = (int) l4_msg_word (&msg, 1);
+	  chr = (int) l4_msg_word (msg, 1);
 	  putchar (chr);
 	  /* No reply needed.  */
 	  continue;
@@ -634,7 +637,7 @@ serve_requests (void)
       else if (label == WORTEL_MSG_SHUTDOWN)
 	panic ("Bootstrap failed");
       else
-	panic ("Invalid message with tag 0x%x", msg_tag.raw);
+	panic ("Invalid message with tag 0x%x", msg_tag);
     }
   while (1);
 }

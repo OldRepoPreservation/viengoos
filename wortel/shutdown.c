@@ -37,7 +37,7 @@ int shutdown_reset;
 void
 halt (void)
 {
-  l4_sleep (l4_never);
+  l4_sleep (L4_NEVER);
 }
 
 
