@@ -1,3 +1,8 @@
+2005-02-12  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (boot_PROGRAMS): Move startup to ...
+	(noinst_PROGRAMS): ... this new target.
+
 2005-01-30  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.c (start_elf): If MOD is MOD_ROOT_FS, set up the

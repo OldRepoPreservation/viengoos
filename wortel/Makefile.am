@@ -25,7 +25,8 @@ if ARCH_IA32
 endif
 
 bootdir = $(prefix)/boot
-boot_PROGRAMS = startup wortel
+boot_PROGRAMS = wortel
+noinst_PROGRAMS = startup
 
 # The startup "program" is glue code that is injected into a new task
 # started by wortel.  It is responsible for mapping in the from the
