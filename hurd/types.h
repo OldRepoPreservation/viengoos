@@ -19,6 +19,9 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
+#ifndef _HURD_TYPES_H
+#define _HURD_TYPES_H	1
+
 #include <l4/types.h>
 
 
@@ -70,3 +73,5 @@ hurd_cap_id (hurd_cap_t cap)
 {
   return cap & ((L4_WORD_C(1) << HURD_CAP_ID_BITS) - 1);
 }
+
+#endif	/* _HURD_TYPES_H */
