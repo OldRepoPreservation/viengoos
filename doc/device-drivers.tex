@@ -1,0 +1,422 @@
+\chapter{Device Drivers}
+
+This section written by Peter De Schrijver and Daniel Wagner.
+
+\section{Requirements}
+
+  \begin{itemize}
+  \item Performance: Speed is important!
+  \item Portability: Framework should work on different architectures.
+    
+    Also: Useable in a not hurdisch environment with only
+    small changes.
+
+  \item Flexibility
+  \item Convenient interfaces
+  \item Consistency 
+  \item Safety: driver failure should have as minimal system impact as
+    possible.
+  \end{itemize}
+
+\section{Overview}
+
+ The framework consists of: 
+ \begin{itemize}
+ \item Bus drivers
+ \item Device drivers
+ \item Service servers (plugin managers, $\omega_0$, rootserver)
+ \end{itemize}
+
+\subsection{Drivers and the filesystem}
+  
+  The device driver framework will only offer a physical device view.
+  Ie. it will be a tree with devices as the leaves connected by
+  various bus technologies.  Any logical view and naming persistence
+  will have to be build on top of this (translator).
+
+\subsection{Layer of the drivers}
+
+  The device driver framework consists only of the lower level drivers
+  and doesn't need to have a complicated scheme for access control.
+  This is because it should be possible to share devices, e.g. for
+  neighbour Hurd.  The authentication is done by installing a virtual
+  driver in each OS/neighour Hurd.  The driver framework trusts these
+  virtual drivers.  So it's possible for a non Hurdish system to use
+  the driver framework just by implementing these virtual drivers.
+  
+  Only threads which have registered as trusted are allowed to access
+  device drivers.  The check is simply done by checking the senders
+  ID against a table of known threads.
+
+\subsection{Address spaces}
+
+  Drivers always reside in their own AS. The overhead for cross AS IPC
+  is small enough to do so.
+
+\subsection{Zero copying and DMA}
+  
+  It is assumed that there are no differences between physical memory
+  pages. For example each physical memory page can be used for DMA
+  transfers. Of course, older hardware like ISA devices can so not be
+  supported. Who cares?
+  
+  With this assumption, the device driver framework can be given any
+  physical memory page for DMA operation.  This physical memory page
+  must be pinned down.
+  
+  If an application wants to send or receive data to/from a device
+  driver it has to tell the virtual driver the page on which the
+  operation has to be executed.  Since the application doesn't know
+  the virtual-real memory mapping, it has to ask the physical memory
+  manager for the real memory address of the page in question.  If the
+  page is not directly mapped from the physical memory manager the
+  application ask the mapper (another application which has mapped
+  this memory region the first application) to resolve the mapping.
+  This can be done recursively.  Normally, this resolving of mapping
+  can be speed up using a cache services, since a small number of
+  pages are reused very often.
+  
+  With the scheme, the drivers do not have to take special care of
+  zero copying if there is only one virtual driver.  When there is
+  more than one virtual driver pages have to copied for all other
+  virtual drivers.
+
+\subsection{Root bus driver}
+  
+  The root bus is the entrypoint to look up devices.
+  
+  XXX There should be iterators/visitors for operating on
+  busses/devices.  (daniel)
+
+\subsection{Physical versus logical device view}
+  
+  The device driver framework will only offer a physical device view.
+  Ie. it will be a tree with devices as the leaves connected by
+  various bus technologies.  Any logical view and naming persistence
+  will have to be build on top of this (translator).
+
+\subsection{Things for the future}
+
+  \begin{itemize}
+  \item Interaction with the task server (e.g. listings driver threads 
+    with ps,etc.)
+  \item Powermanagement
+  \end{itemize}
+
+\section{Bus Drivers}
+
+A bus driver is responsible to manage the bus and provide access to
+devices connected to it.  In practice it means a bus driver has to
+perform the following tasks:
+
+\begin{itemize}
+\item Handle hotplug events
+  
+  Busses which do not support hotplugging, will treated as if there is
+  1 insertion event for every device connected to it when the bus
+  driver is started.  Drivers which don't support autoprobing of
+  devices will probably have to read some configuration data from a
+  file or if the driver is a needed for bootstrapping configuration
+  can be given as argument on its stack.  In some cases the bus
+  doesn't generate insertion/removal events, but can still support
+  some form of hotplug functionality if the user tells the driver when
+  a change to the bus configuration has happened (eg. SCSI).
+
+\item Configure client device drivers
+    
+  The bus driver should start the appropriate client device driver
+  translator when an insertion event is detected.  It should also
+  provide the client device driver with all necessary configuration
+  info, so it can access the device it needs.  This configuration data
+  typically consists of the bus addresses of the device and possibly
+  IRQ numbers or DMA channel ID's.  The device driver is loaded by the
+  assotiatet plugin manager.
+
+\item Provide access to devices
+  
+  This means the bus driver should be able to perform a bus
+  transaction on behalf of a client device driver.  In some cases this
+  involves sending a message and waiting for reply (eg. SCSI, USB,
+  IEEE 1394, Fibre Channel,...).  The driver should provide
+  send/receive message primitives in this case.  In other cases
+  devices on the bus can be accessed by doing a memory accesses or by
+  using special I/O instructions.  In this case the driver should
+  provide mapping and unmapping primitives so a client device driver
+  can get access to the memory range or is allowed to access the I/O
+  addresses.  The client device driver should use a library, which is
+  bus dependant, to access the device on the bus.  This library hides
+  the platform specific details of accessing the bus.
+  
+  Furthermore the bus driver must also support rescans for hardware.
+  It might be that not all drivers are found during bootstrapping and
+  hence later on drivers could be loaded.  This is done by regenerate
+  new attach notification sending to bus's plugin manager.  The plugin
+  manager loads then if possible a new driver.  A probe funtion is not
+  needed since all supported hardware can be identified by
+  vendor/device identifactions (unlike ISA hardware).  For hardware
+  busses which don't support such identifaction (ISA) only static
+  configuration is possible (configuration scripts etc.)
+\end{itemize}
+
+
+\subsection{Plugin Manager}
+
+  Each bus driver has a handle/reference to which insert/remove events
+  are send.  The owner of the handle/refence must then take
+  appropriate action like loading the drivers.  These actors are
+  called plugin managers.
+
+\subsection{Generic Bus Driver}
+
+  Operations:
+  \begin{itemize}
+  \item notify (attach, detach)
+  \item string enumerate
+  \end{itemize}
+  
+  XXX Extract generic bus services from the PCI Bus Driver section
+  which could be also be used other PCI related busses (ISA) be used.
+  The name for this service is missleading, since a SCSI Bus Driver
+  does not have anything in common with a PCI bus.  (daniel)
+
+\subsection{ISA Bus Driver}
+Inherits from:
+
+\begin{itemize}
+\item Generic Bus Driver
+\end{itemize}
+
+Operations:
+\begin{itemize}
+\item (none)
+\end{itemize}
+
+XXX The interface has not been defined up to now. (daniel)
+
+
+\subsection{PCI Bus Driver}
+
+Inherits from:
+\begin{itemize}
+\item Generic Bus Driver
+\end{itemize}
+
+Operations:
+\begin{itemize}
+\item map\_mmio: map a PCI BAR for MMIO
+\item map\_io: map a PCI BAR for I/O
+\item map\_mem: map a PCI BAR for memory
+\item read\_mmio\_{8,16,32,64}: read from a MMIO register
+\item write\_mmio\_{8,16,32,64}: write to a MMIO register
+\item read\_io\_{8,16,32,64}: read from an IO register
+\item write\_io\_{8,16,32,64}: write to an IO register
+\item read\_config\_{8,16,32,?}: read from a PCI config register
+\item write\_config\_{8,16,32,?}: write to a PCI config register
+\item alloc\_dma\_mem(for non zero copying): allocate main memory useable for DMA
+\item free\_dma\_mem  (for non zero copying): free main memory useable for DMA
+\item prepare\_dma\_read: write back CPU cachelines for DMAable memory area
+\item sync\_dma\_write: discard CPU cachelines for DMAable memory area
+\item alloc\_consistent\_mem: allocate memory which is consistent between CPU 
+  and device
+\item free\_consistent\_mem: free memory which
+  is consistent between CPU and device
+\item get\_irq\_mapping (A,B,C,D): get the IRQ matching the INT(A,B,C,D) line
+\end{itemize}
+
+\section{Device Drivers}
+\subsection{Classes}
+\begin{itemize}
+\item character: This the standard tty as known in the Unix environment.
+\item block
+\item human input: Keyboard, mouse, ...
+\item packet switched network
+\item circuit switched network
+\item framebuffer
+\item streaming audio
+\item streaming video
+\item solid state storage: flash memory
+\end{itemize}
+
+\subsection{Human input devices (HID) and the console}
+
+The HIDs and the console are critical for user interaction with the
+system.  Furthmore, the console should be working as soons as possible
+to give feedback.  Log messages which are send to the console before
+the hardware has been initialized should be buffered.
+
+\subsection{Generic Device Driver}
+Operations:
+\begin{itemize}
+\item init : prepare hardware for use
+\item start : start normal operation
+\item stop : stop normal operation
+\item deinit : shutdown hardware
+\item change\_irq\_peer : change peer thread to propagate irq message to.
+\end{itemize}
+
+
+\subsection{ISA Devices}
+Inherits from:
+\begin{itemize}
+\item Generic Device Driver
+\end{itemize}
+
+Supported devices
+\begin{itemize}
+\item Keyboard (ps2)
+\item serial port (mainly for debugging purposses)
+\item parallel port
+\end{itemize}
+
+XXX interface definition for each device driver is missing. (daniel)
+
+
+\subsection{PCI Devices}
+Inherits from:
+\begin{itemize}
+\item Generic Device Driver
+\end{itemize}
+  
+Supported devices:
+\begin{itemize}
+\item block devices
+\item ...
+\end{itemize}
+
+XXX interface definition for each device driver is missing. (daniel)
+
+
+\section{Resource Management}
+
+
+\subsection{IRQ handling}
+
+\subsubsection{IRQ based interrupt vectors}
+
+Some CPU architectures (eg 68k, IA32) can directly jump to an
+interrupt vector depending on the IRQ number. This is typically the
+case on CISC CPU's. In this case there is some priorization scheme. On
+IA32 for example, the lowest IRQ number has the highest priority.
+Sometimes the priorities are programmable.  Most RISC CPU's have only
+a few interrupt vectors which are connected external IRQs. (typically
+1 or 2). This means the IRQ handler should read a register in the
+interrupt controller to determine which IRQ handler has to be
+executed.  Sometimes the hardware assists here by providing a register
+which indicates the highest priority interrupt according to some
+(programmable) scheme.
+
+\subsubsection{IRQ acknowlegdement}
+
+The IRQ acknowledgement is done in two steps. First inform the
+hardware about the successful IRQ acceptance. Then inform the ISRs
+about the IRQ event.
+
+\subsubsection{Edge versus level triggered IRQs}
+
+Edge triggered IRQs typically don't need explicit acknowledgment by
+the CPU at the device level. You can just acknowledge them at the
+interrupt controller level.  Level triggered IRQs typically need to
+explicitly acknowledged by the CPU at the device level. The CPU has to
+read or write a register from the IRQ generating peripheral to make
+the IRQ go away. If this is not done, the IRQ handler will be
+reentered immediatly after it ended, effectively creating an endless
+loop. Another way of preventing this would be to mask the IRQ.
+
+\subsubsection{Multiple interrupt controllers}
+
+Some systems have multiple interrupt controllers in cascade. This is
+for example the case on a PC, where you have 2 8259 interrupt
+controllers. The second controller is connected to the IRQ 2 pin of
+the first controller. It is also common in non PC systems which still
+use some standard PC components such as a Super IO controller. In this
+case the 2 8259's are connected to 1 pin of the primary interrupt
+controller. Important for the software here is that you need to
+acknowledge IRQ's at each controller. So to acknowledge an IRQ from
+the second 8259 connected to the first 8259 connected to another
+interrupt controller, you have to give an ACK command to each of those
+controllers.  Another import fact is that on PC architecture the order
+of the ACKs is important.
+
+\subsubsection{Shared IRQs}
+
+Some systems have shared IRQs. In this case the IRQ handler has to
+look at all devices using the same IRQ...
+
+\subsubsection{IRQ priorities}
+
+All IRQs on L4 have priorities, so if an IRQ occurs any IRQ lower then
+the first IRQ will be blocked until the first IRQ has been
+acknowlegded.  ISR priorities must much the hardware priority (danger
+of priority inversion).  Furthermore the IRQ acknowledgment order is
+important.
+
+The 8259 also supports a specific IRQ acknowledge iirc. But, this
+scheme does not work in most level triggered IRQ environments. In
+these environments you must acknowledge (or mask) the IRQ before
+leaving the IRQ handler, otherwise the CPU will immediately reenter
+the IRQ handler, effectively creating an endless loop. In this case L4
+would have to mask the IRQ. The IRQ thread would have to unmask it
+after acknowledgement and processing.
+
+\subsubsection{IRQ handling by L4/x86}
+
+The L4 kernel does handle IRQ acknowlegdment. 
+
+ 
+\subsection{$\omega_0$}
+
+$\omega_0$ is a system-central IRQ-logic server. It runs in the
+privileged AS space in order to be allowed rerouting IRQ IPC.
+
+If an IRQ is shared between several devices, the drivers are daisy
+chained and have to notify their peers if an IRQ IPC has arrived.
+
+XXX For more detail see XXX URL missing
+
+Operations:
+\begin{itemize}
+\item attach\_irq : attach an ISR thread to the IRQ 
+\item detach\_irq : detach an ISR thread form the IRQ
+\end{itemize}
+
+
+\subsection{Memory}
+If no physical memory pages are provided by the OS the device driver
+framework alloces pages from the physical memory manager.  The device
+driver framework has at no point of time to handle any virtual to
+physical page mapping.
+
+
+\section{Bootstrapping}
+
+A simpleFS provides initial drivers for bootstraping.  The root bus
+driver and simpleFS is loaded by grub as module.  It then signals for
+loading new (bus) drivers.  As before if there is no driver avaible
+for some reason for the device, the bus driver doesn't change the
+device state and waits for a notifaction that there are new drivers
+avaible. This simpleFS might be based on BSD libstand (library for
+standalone applications).  simpleFS doesn't need to be writeable
+either.
+
+
+\subsection{Plugin Manager}
+A Plugin manager handles driver loading for devices.  It searches for
+driver in seach pathes (on filesystems).  It's possible to add new
+search pathes later.  This allows the system to bootstrap with only
+one search path (the simpleFS).  When the search path is changed, the
+device tree will be scanned for devices which don't have a driver
+loaded yet.  If a driver has become available, it will be loaded.
+
+
+\section{Order of implementation}
+
+\begin{enumerate}
+\item rootserver, plugin server
+\item root bus server
+\item pci bus
+\item isa bus
+\item serial port  (isa bus)
+\item console 
+\end{enumerate}
+
+

@@ -1,0 +1,10 @@
+\chapter{Debugging}
+\label{debug}
+
+L4 does not support debugging.  So every task has to implement a debug
+interface and implement debugging locally.  gdb needs to be changed to
+make use of this interface.  How to perform the required
+authentication, and how the debug thread is advertised to gdb, and how
+the debug interface should look like, are all open questions.
+
+

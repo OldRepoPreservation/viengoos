@@ -1,0 +1,271 @@
+\chapter{Booting}
+
+A multiboot-compliant bootloader, for example GNU GRUB, loads the
+loader program \texttt{laden}, the kernel, $\sigma_0$, the rootserver
+and further modules.  The loader is started, patches the kernel
+interface page, and starts the kernel.  The kernel starts $\sigma_0$
+and the rootserver.  The rootserver has to deal with the other
+modules.
+
+
+\section{System bootstrap}
+
+The initial part of the boot procedure is system specific.
+
+
+\subsection{Booting the ia32}
+
+On the ia32, the BIOS will be one of the first things to run.
+Eventually, the BIOS will start the bootloader.  The Hurd requires a
+multiboot-compliant bootloader, such as GNU GRUB.  A typical
+configuration file entry in the \verb/menu.list/ file of GNU GRUB will
+look like this:
+
+\begin{verbatim}
+title = The GNU Hurd on L4
+root = (hd0,0)
+kernel = /boot/laden
+module = /boot/ia32-kernel
+module = /boot/sigma0
+module = /boot/rootserver
+module = ...more servers...
+\end{verbatim}
+
+\begin{comment}
+  The name of the rootserver and the further modules are not specified
+  yet.
+\end{comment}
+
+GNU GRUB loads the binary image files into memory and jumps to the
+entry point of \texttt{laden}.
+
+
+\section{The loader \texttt{laden}}
+
+\texttt{laden} is a multiboot compliant kernel from the perspective of
+GNU GRUB.  It expects at least three modules.  The first module is the
+L4 kernel image, the second module is the $\sigma_0$ server image, and
+the third module is the rootserver image.
+
+\begin{comment}
+  Later, the L4 kernel will support the optional UTCB paging server
+  $\sigma_1$, which has to be treated like the other initial servers
+  by \texttt{laden}.  A command line option to \texttt{laden} will
+  allow the user to specify if the third module is the rootserver or
+  $\sigma_1$.  If $\sigma_1$ is used, the rootserver is the fourth
+  module in the list.
+\end{comment}
+
+\texttt{laden} copies (or moves) the three executable images to the
+right location in memory, according to their respective ELF headers.
+It also initializes the BSS section to zero.
+
+\begin{comment}
+  Laden has to deal with overlapping source and destination memory
+  areas in an intelligent way.  It currently will detect such
+  situations, but is not always able to find a solution, even if one
+  exists.
+  
+  If a memory area stretches out to the very last page addressible in
+  32 bit, the high address of the memory descriptor will overflow.
+  This is in fact the behaviour of \texttt{kickstart}.  \texttt{laden}
+  currently truncates such an area by one page.  This needs
+  clarification in the L4 standard.
+\end{comment}
+
+Then it searches for the kernel interface page (KIP) in the L4 kernel
+image and modifies it in the following way:
+
+\begin{itemize}
+\item The memory descriptors are filled in according to the memory
+  layout of the system.  On ia32, this information is -- at least
+  partially -- provided by GNU GRUB.
+
+  \begin{comment}
+    GNU GRUB seems to omit information about the memory that is shared
+    with the VGA card.  \texttt{laden} creates a special entry for
+    that region, overriding any previous memory descriptor.
+  \end{comment}
+  
+\item The start and end addresses and the entry point of the initial
+  servers are filled in.
+
+  \begin{comment}
+    A future version of L4 should support adding information about the
+    UTCB area of the initial rootserver as well.  Until then, the
+    rootserver has no clean way to create a new thread (a hack is used
+    by the rootserver to calculate the UTCB addresses for other
+    threads).
+  \end{comment}
+
+\item The \verb/boot_info/ field is initialized.
+
+  \begin{comment}
+    The \verb/boot_info/ field is currently set to the GNU GRUB
+    \verb/multiboot_info/ structure.  This only works for the ia32
+    architecture of course.  We might want to have a more architecture
+    independent way to pass the information about further modules to
+    the rootserver.  We also might want to gather the information
+    provided by GNU GRUB in a single page (if it is not).
+  \end{comment}
+\end{itemize}
+
+
+\section{The L4 kernel}
+
+The L4 kernel initializes itself and then creates the address spaces
+and threads for the initial servers $\sigma_0$ and the rootserver.  It
+maps all physical memory idempotently into $\sigma_0$, and sets the
+pager of the rootserver thread to $\sigma_0$.  Then it starts the
+initial servers.
+
+
+\section{The initial server $\sigma_0$}
+
+$\sigma_0$ acts as the pager for the rootserver, answering page fault
+messages by mapping the page at the fault address idempotently in the
+rootserver.
+
+\begin{comment}
+  $\sigma_0$ can also be used directly by sending messages to it,
+  according to the $\sigma_0$ RPC protocol.  This is used by the kernel
+  to allocate reserved memory, but can also be used by the user to
+  explicitely allocate more memory than single pages indirectly via
+  page faults.
+\end{comment}
+
+The thread ID of $\sigma_0$ is (\verb/UserBase, 1)/.
+
+\begin{comment}
+  We will write all thread IDs in the form (\verb/thread nr/,
+  \verb/version/).
+\end{comment}
+
+Any fpage will only be provided to one thread.  $\sigma_0$ will return
+an error if another thread attempts to map or manipulate an fpage that
+has already been given to some other thread, even if both threads
+reside in the same address space.
+
+
+\section{The initial server $\sigma_1$}
+
+$\sigma_1$ is intended to provide a paging service for UTCB memory.
+This will allow orthogonal persistence to be implemented.  It is not
+yet supported.
+
+The thread ID of $\sigma_1$ is (\verb/UserBase + 1, 1)/.
+
+
+\section{The rootserver}
+\label{rootserver}
+
+The rootserver is the only task in the system which threads can
+perform privileged system calls.  So the rootserver must provide
+wrappers for the system calls to other unprivileged system tasks.
+
+\begin{comment}
+  For this, a simple authentication scheme is required.  The
+  rootserver can keep a small, statically allocated table of threads
+  which are granted access to the system call wrappers.  The caller
+  could provide the index in the table for fast O(1) lookup instead
+  linear search.  Threads with access could be allowed to add other
+  threads or change existing table entries.  The same scheme can be
+  used in the device driver framework.
+  
+  The rootserver should have one thread per CPU, and run at a high
+  priority.
+\end{comment}
+
+The rootserver has the following initial state:
+
+\begin{itemize}
+\item Its thread ID is (\verb/UserBase + 2/, 1).
+
+\item The priority is set to the 255, the maximum value.
+
+  \begin{comment}
+    The rootserver, or at least the system call wrapper, should run at
+    a very high priority.
+  \end{comment}
+
+\item The instruction pointer \verb/%eip/ is set to the entry point,
+all other registers are undefined (including the stack pointer).
+
+\item The pager is set to $\sigma_0$.
+  
+\item The exception handler set to \verb/nilthread/.
+  
+\item The scheduler is set to the rootserver thread itself.
+\end{itemize}
+
+So the first thing the rootserver has to do is to set up a simple
+stack.
+
+Then the rootserver should evaluate the \verb/boot_info/ field in the
+KIP to find the information about the other modules.  It should parse
+the information and create the desired initial tasks of the operating
+system.  The Hurd uses a boot script syntax to allow to pass
+information about other initial tasks and the root tasks to each
+initial task in a generalized manner.
+
+\begin{comment}
+  The exact number and type of initial tasks necessary to boot the
+  Hurd are not yet known.  Chances are that this list includes the
+  \texttt{task} server, the physical memory server, the device
+  servers, and the boot filesystem.  The boot filesystem might be a
+  small simple filesystem, which also includes the device drivers
+  needed to access the real root filesystem.
+\end{comment}
+
+
+\section{The physical memory server}
+
+To be written.
+
+\begin{comment}
+  In fact, I already have some ideas.  Here they are:
+  
+  The rootserver copies (or moves) the physical memory server
+  executable image to the right location in memory, according to its
+  respective ELF header.  It also initializes the BSS section to zero.
+  
+  Then it follows the \texttt{exec()} protocol to startup the new
+  task.  This should be done as transparently as possible.  All pages
+  the rootserver provides because of page faults should be granted.
+  The rootserver waits for the physical memory server to contact the
+  rootserver thread.  Then the following startup protocol is walked
+  through:
+
+  \begin{enumerate}
+  \item The physical memory server requests all system memory from the
+    rootserver.  The rootserver maps the memory from $\sigma_0$ and
+    grants it to the physical memory server.  Alternatively, the
+    physical memory server might get the memory directly from
+    $\sigma_0$, but it should ask the rootserver for the amount and
+    location of memory to get.
+    
+  \item For each module that has not been used yet, the rootserver
+    requests a capability in the physical memory server that can be
+    used to map in pages from the range of memory that the module
+    occupies.  These capabilities should implement the same pager
+    interface that mappable files implement.
+    
+    The idea is that these capabilities can be used in the
+    \texttt{exec()} protocol to start up the tasks for these modules.
+    If a module is not a task, the capability can be used to access
+    the module data by mapping it into the address space like a file.
+    The physical memory server can even swap out pages that back these
+    objects on memory pressure.
+    
+    So, the physical memory server is in fact a simple filesystem for
+    these initial tasks, usable only for mapping operations.
+    
+  \item The rootserver can then start up the other tasks in the module
+    list using the normal \texttt{exec()} protocol.
+  \end{enumerate}
+  
+  The result is that all tasks except for the rootserver can be
+  started like normal Hurd tasks, and can also be swapped out.
+\end{comment}
+
+

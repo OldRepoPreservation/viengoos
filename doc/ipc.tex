@@ -1,0 +1,1126 @@
+\chapter{Inter-process communication (IPC)}
+\label{ipc}
+
+The Hurd requires a capability system.  Capabilities are used to proof
+your identity to other servers (authentication), and access
+server-side implemented objects like devices, files, directories,
+terminals, and other things.  The server can use a capability for
+whatever it wants.  Capabilities provide interfaces.  Interfaces can
+be invoked by sending messages to the capability.  In L4, this means
+that a message is sent to a thread in the server providing the
+capability, with the identifier for the capability in the message.
+
+Capabilities are protected objects.  Access to a capability needs to
+be granted by the server.  Once you have a capability, you can copy it
+to other tasks (if the server permits it, which is usually the case).
+In the Hurd, access to capabilities is always granted to a whole task,
+not to individual threads.
+
+\begin{comment}
+  There is no reason for the server not to permit it, because the
+  holder of the capability could also just act as a proxy for the
+  intended receiver instead copying the capability to it.  The
+  operation might fail anyway, for example because of resource
+  shortage, in particular if the server puts a quota on the number of
+  capabilities a user can hold.
+\end{comment}
+
+Capabilities provide two essential services to the Hurd.  They are
+used to restrict access to a server function, and they are the
+standard interface the components in the Hurd use to communicate with
+each others.  Thus, it is important that their implementation is fast
+and secure.
+
+\begin{comment}
+  There are several ways to implement such a capability system.  A
+  more traditional design would be a global, trusted capability server
+  that provides capabilities to all its users.  The L4 redirector
+  could be used to reroute all client traffic automatically through
+  this server.  This approach has several disadvantages:
+
+  \begin{itemize}
+  \item It adds a lot of overhead to every single RPC, because all
+    traffic has to be routed through the capability server, which must
+    then perform the authentication on the server's behalf.
+  \item It would be difficult to copy a capability to another task.
+    Either the cap server would have to provide interfaces for clients
+    to do it, or it would be have to know the message format for every
+    interface and do it automatically.
+  \item It would be a single point of failure.  If it had a bug and
+    crashed, the whole system would be affected.
+  \item Users could not avoid it, it would be enforced system code.
+  \item It is inflexible.  It would be hard to replace or extend at
+    run-time.
+  \end{itemize}
+  
+  Another approach is taken by CORBA with IORs.  IORs contain long
+  random numbers which allow the server to identify a user of an
+  object.  This approach is not feasible for the following reasons:
+
+  \begin{itemize}
+  \item Even good random numbers can be guessed.  Long enough random
+    numbers can reduce the likelihood to arbitrary small numbers,
+    though (below the probability of a hardware failure).
+  \item Good random numbers are in short supply, and is slow to
+    generate.  Good pseudo random is faster, but it is still difficult
+    to generate.  The random number generator would become a critical
+    part of the operating system.
+  \item The random number had to be transfered in every single
+    message.  Because it would have to be long, it would have a
+    significant negative impact on IPC performance.
+  \end{itemize}
+\end{comment}
+
+The Hurd implements the capability system locally in each task.  A
+common default implementation will be shared by all programs.
+However, a malicious untrusted program can do nothing to disturb the
+communication of other tasks.  A capability is identified in the
+client task by the server thread and a local identifier (which can be
+different from client to client).  The server thread will receive
+messages for the capabilities.  The first argument in the message is
+the capability identifier.  Although every task can get different IDs
+for the same capability, a well-behaving server will give the same ID
+to a client which already has a capability and gets the same
+capability from another client.  So clients can compare capability IDs
+from the server numerically to check if two capabilities are the same,
+but only if one of the two IDs is received while the client already
+had the other one.
+
+Because access to a capability must be restricted, the server needs to
+be careful in only allowing registered and known users to access the
+capability.  For this, the server must be sure that it can determine
+the sender of a message.  In L4, this is easy on the surface: The
+kernel provides the receiving thread with the sender's thread ID,
+which also contains the task ID in the version field.  However, the
+server must also know for sure if this task is the same task that it
+gave access to the capability.  Comparing the task IDs numerically is
+not good enough, the server must also somehow have knowledge or
+influence on how task IDs are reused when tasks die and are created.
+
+The same is true for the client, of course, which trusts the server
+and thus must be sure that it is not tricked into trusting on
+unreliable data from an imposter, or sends sensitive data to it.
+
+\begin{comment}
+  The \texttt{task} server wants to reuse thread numbers because that
+  makes best use of kernel memory.  Reusing task IDs, the version
+  field of a thread ID, is not so important, but there are only 14
+  bits for the version field (and the lower six bits must not be all
+  zero).  So a thread ID is bound to be reused eventually.
+  
+  Using the version field in a thread ID as a generation number is not
+  good enough, because it is so small.  Even on 64-bit architectures,
+  where it is 32 bit long, it can eventually overflow.
+\end{comment}
+
+The best way to prevent that a task can be tricked into talking to an
+imposter is to have the \texttt{task} server notify the task if the
+communication partner dies.  The \texttt{task} server must guarantee
+that the task ID is not reused until all tasks that got such a
+notification acknowledge that it is processed, and thus no danger of
+confusion exists anymore.
+
+The \texttt{task} server provides references to task IDs in form of
+\emph{task info capabilities}.  If a task has a task info capability
+for another task, it prevents that this other task's task ID is reused
+even if that task dies, and it also makes sure that task death
+notifications are delivered in that case.
+
+\begin{comment}
+  Because only the \texttt{task} server can create and destroy tasks,
+  and assign task IDs, there is no need to hold such task info
+  capabilities for the \texttt{task} server, nor does the
+  \texttt{task} server need to hold task info capabilities for its
+  clients.  This avoids the obvious bootstrap problem in providing
+  capabilities in the \texttt{task} server.  This will even work if
+  the \texttt{task} server is not the real \texttt{task} server, but a
+  proxy task server (see section \ref{proxytaskserver} on page
+  \pageref{proxytaskserver}).
+\end{comment}
+
+As task IDs are a global resource, care has to be taken that this
+approach does not allow for a DoS-attack by exhausting the task ID
+number space, see section \ref{taskinfocap} on page
+\pageref{taskinfocap} for more details.
+
+
+\section{Capabilities}
+
+This subsection contains implementation details about capabilities.
+
+A server will usually operate on objects, and not capabilities.  In
+the case of a filesystem, this could be file objects, for example.
+
+\begin{comment}
+  In the Hurd, filesystem servers have to keep different objects for
+  each time a file is looked up (or ``opened''), because some state,
+  for example authentication, open flags and record locks, are
+  associated not with the file directly, but with this instance of
+  opening the file.  Such a state structure (``credential'') will also
+  contain a pointer and reference to the actual file node.  For
+  simplicity, we will assume that the capability is associated with a
+  file node directly.
+\end{comment}
+
+To provide access to the object to another task, the server creates a
+capability, and associates it with the object (by setting a hook
+variable in the capability).  From this capability, the server can
+either create send references to itself, or to other tasks.  If the
+server creates send references for itself, it can use the capability
+just as it can use capabilities implemented by other servers.  This
+makes access to locally and remotely implemented capabilities
+identical.  If you write code to work on capabilities, it can be used
+for remote objects as well as for local objects.
+
+If the server creates a send reference for another task (a client), a
+new capability ID will be created for this task.  This ID will only be
+valid for this task, and should be returned to the client.
+
+The client itself will create a capability object from this capability
+ID.  The capability will also contain information about the server,
+for example the server thread which should be used for sending
+messages to the capability.
+
+If the client wants to send a message, it will send it to the provided
+server thread, and use the capability ID it got from the server as the
+first argument in the RPC.  The server receives the message, and now
+has to look up the capability ID in the list of capabilties for this
+task.
+
+\begin{comment}
+  The server knows the task ID from the version field of the sender's
+  thread ID.  It can look up the list of capabilities for this task in
+  a hash table.  The capability ID can be an index into an array, so
+  the server only needs to perform a range check.  This allows to
+  verify quickly that the user is allowed to access the object.
+  
+  This is not enough if several systems run in parallel on the same
+  host.  Then the version ID for the threads in the other systems will
+  not be under the control of the Hurd's \texttt{task} server, and can
+  thus not be trusted.  The server can still use the version field to
+  find out the task ID, which will be correct \emph{if the thread is
+    part of the same subsystem}.  It also has to verify that the
+  thread belongs to this subsystem.  Hopefully the subsystem will be
+  encoded in the thread ID.  Otherwise, the \texttt{task} server has
+  to be consulted (and, assuming that thread numbers are not shared by
+  the different systems, the result can be cached).
+\end{comment}
+
+The server reads out the capability associated with the capability ID,
+and invokes the server stub according to the message ID field in the
+message.
+
+After the message is processed, the server sends it reply to the
+sender thread with a zero timeout.
+
+\begin{comment}
+  Servers must never block on sending messages to clients.  Even a
+  small timeout can be used for DoS-attacks.  The client can always
+  make sure that it receives the reply by using a combined send and
+  receive operation together with an infinite timeout.
+\end{comment}
+
+The above scheme assumes that the server and the client already have
+task info caps for the respective other task.  This is the normal
+case, because acquiring these task info caps is part of the protocol
+that is used when a capability is copied from one task to another.
+
+
+\subsection{Bootstrapping a client-server connection}
+\label{ipcbootstrap}
+
+If the client and the server do not know about each other yet, then
+they can bootstrap a connection without support from any other task
+except the \texttt{task} server.  The purpose of the initial handshake
+is to give both participants a chance to acquire a task info cap for
+the other participants task ID, so they can be sure that from there on
+they will always talk to the same task as they talked to before.
+
+\subsubsection{Preconditions}
+The client knows the thread ID of the server thread that receives and
+processes the bootstrap messages.  Some other task might hold a task
+info capability to the server the client wants to connect to.
+
+\begin{comment}
+  If no such other tasks exists, the protocol will still work.
+  However, the client might not get a connection to the server that
+  run at the time the client started the protocol, but rather to the
+  server that run at the time the client acquired the task info cap
+  for the server's task ID (after step 1 below).
+ 
+  This is similar to how sending signals works in Unix: Technically,
+  at the time you write \texttt{kill 203}, and press enter, you do not
+  know if the process with the PID 203 you thought of will receive the
+  signal, or some other process that got the PID in the time between
+  you getting the information about the PID and writing the
+  \texttt{kill}-command.
+\end{comment}
+
+FIXME: Here should be the pseudo code for the protocol.  For now, you
+have to take it out of the long version.
+
+\begin{enumerate}
+  
+\item The client acquires a task info capability for the server's task
+  ID, either directly from the \texttt{task} server, or from another
+  task in a capability copy.  From that point on, the client can be
+  sure to always talk to the same task when talking to the server.
+  
+  Of course, if the client already has a task info cap for the server
+  it does not need to do anything in this step.
+
+\begin{comment}
+  As explained above, if the client does not have any other task
+  holding the task info cap already, it has no secure information
+  about what this task is for which it got a task info cap.
+\end{comment}
+
+\item The client sends a message to the server, requesting the initial
+  handshake.
+  
+\item The server receives the message, and acquires a task info cap
+  for the client task (directly from the \texttt{task} server).
+  
+  Of course, if the server already has a task info cap for the client
+  it does not need to do anything in this step.
+
+\begin{comment}
+  At this point, the server knows that future messages from this task
+  will come from the same task as it got the task info cap for.
+  However, it does not know that this is the same task that sent the
+  initial handshake request in step 2 above.  This shows that there is
+  no sense in verifying the task ID or perform any other
+  authentication before acquiring the task info cap.
+\end{comment}
+
+\item The server replies to the initial handshake request with an
+  empty reply message.
+
+\begin{comment}
+  Because the reply now can go to a different task than the request
+  came from, sending the reply might fail.  It might also succeed and
+  be accepted by the task that replaced the requestor.  Or it might
+  succeed normally.  The important thing is that it does not matter to
+  the server at all.  It would have provided the same ``service'' to
+  the ``imposter'' of the client, if he had bothered to do the
+  request.  As no authentication is done yet, there is no point for
+  the server to bother.
+  
+  This means however, that the server needs to be careful in not
+  consuming too many resources for this service.  However, this is
+  easy to achieve.  Only one task info cap per client task will ever
+  be held in the server.  The server can either keep it around until
+  the task dies (and a task death notification is received), or it can
+  clean it up after some timeout if the client does not follow up and
+  do some real authentication.
+\end{comment}
+
+\item The client receives the reply message to its initial handshake
+  request.
+  
+\item The client sends a request to create its initial capability.
+  How this request looks depends on the type of the server and the
+  initial capabilities it provides.  Here are some examples:
+
+  \begin{itemize}
+  \item A filesystem might provide an unauthenticated root directory
+    object in return of the underlying node capability, which is
+    provided by the parent filesystem and proves to the filesystem
+    that the user was allowed to look up the root node of this
+    filesystem (see section \ref{xfslookup} on page
+    \pageref{xfslookup}).
+
+    \begin{comment}
+      In this example, the parent filesystem will either provide the
+      task info cap for the child filesystem to the user, or it will
+      hold the task info cap while the user is creating their own
+      (which the user has to verify by repeating the lookup, though).
+      Again, see section \ref{xfslookup} on page \pageref{xfslookup}.
+      
+      The unauthenticated root directory object will then have the be
+      authenticated using the normal reauthentication mechanism (see
+      section \ref{auth} on pageref{auth}).  This can also be combined
+      in a single RPC.
+    \end{comment}
+    
+  \item Every process acts as a server that implements the signal
+    capability for this process.  Tasks who want to send a signal to
+    another task can perform the above handshake, and then provide
+    some type of authentication capability that indicates that they
+    are allowed to send a signal.  Different authentication
+    capabilities can be accepted by the signalled task for different
+    types of signals.
+
+    \begin{comment}
+      The Hurd used to store the signal capability in the proc server,
+      where authorized tasks could look it up.  This is no longer
+      possible because a server can not accept capabilities
+      implemented by untrusted tasks, see below.
+    \end{comment}
+  \end{itemize}
+  
+\item The server replies with whatever capability the client
+  requested, provided that the client could provide the necessary
+  authentication capabilities, if any.
+
+  \begin{comment}
+    It is not required that the server performs any authentication at
+    all, but it is recommended, and all Hurd servers will do so.
+    
+    In particular, the server should normally only allow access from
+    tasks running in the same system, if running multiple systems on
+    the same host is possible.
+  \end{comment}
+\end{enumerate}
+
+\subsubsection{Result}
+The client has a task info capability for the server and an
+authenticated capability.  The server has a task info capability for
+the client and seen some sort of authentication for the capability it
+gave to the client.
+
+\begin{comment}
+  If you think that the above protocol is complex, you have seen
+  nothing yet!  Read on.
+\end{comment}
+
+
+\subsection{Returning a capability from a server to a client}
+
+Before we go on to the more complex case of copying a capability from
+one client to another, let us point out that once a client has a
+capability from a server, it is easy for the server to return more
+capabilities it implements to the client.
+
+The server just needs to create the capability, acquire a capability
+ID in the client's cap ID space, and return the information in the
+reply RPC.
+
+FIXME: Here should be the pseudo code for the protocol.  For now, you
+have to take it out of the long version.
+
+\begin{comment}
+  The main point of this section is to point out that only one task
+  info capability is required to protect all capabilities provided to
+  a single task.  The protocols described here always assume that no
+  task info caps are held by anyone (except those mentioned in the
+  preconditions).  In reality, sometimes the required task info caps
+  will already be held.
+\end{comment}
+
+
+\subsection{Copying a capability from one client to another task}
+
+The most complex operation in managing capabilities is to copy or move
+a capability from the client to another task, which subsequently
+becomes a client of the server providing the capability.  The
+difficulty here lies in the fact that the protocol should be fast, but
+also robust and secure.  If any of the participants dies unexpectedly,
+or any of the untrusted participants is malicious, the others should
+not be harmed.
+
+\subsubsection{Preconditions}
+The client $C$ has a capability from server $S$ (this implies that $C$
+has a task info cap for $S$ and $S$ has a task info cap for $C$).  It
+wants to copy the capability to the destination task $D$.  For this,
+it will have to make RPCs to $D$, so $C$ has also a capability from
+$D$ (this implies that $C$ has a task info cap for $D$ and $D$ has a
+task info cap for $C$).  Of course, the client $C$ trusts its servers
+$S$ and $D$.  $D$ might trust $S$ or not, and thus accept or reject
+the capability that $C$ wants to give to $D$.  $S$ does not trust
+either $C$ or $D$.
+  
+The \texttt{task} server is also involved, because it provides the
+task info capabilities.  Everyone trusts the \texttt{task} server they
+use.  This does not need to be the same one for every participant.
+
+FIXME: Here should be the pseudo code for the protocol.  For now, you
+have to take it out of the long version.
+
+\begin{enumerate}
+\item The client invokes the \verb/cap_ref_cont_create/ RPC on the
+  capability, providing the task ID of the intended receiver $D$ of
+  the capability.
+  
+\item The server receives the \verb/cap_ref_cont_create/ RPC from the
+  client.  It requests a task info cap for $D$ from its trusted task
+  server, under the constraint that $C$ is still living.
+
+  \begin{comment}
+    A task can provide a constraint when creating a task info cap in
+    the \texttt{task} server.  The constraint is a task ID.  The task
+    server will only create the task info cap and return it if the
+    task with the constraint task ID is not destroyed.  This allows
+    for a task requesting a task info capability to make sure that
+    another task, which also holds this task info cap, is not
+    destroyed.  This is important, because if a task is destroyed, all
+    the task info caps it held are released.
+
+    In this case, the server relies on the client to hold a task info
+    cap for $D$ until it established its own.  See below for what can
+    go wrong if the server would not provide a constraint and both,
+    the client and the destination task would die unexpectedly.
+  \end{comment}
+  
+  Now that the server established its own task info cap for $D$, it
+  creates a reference container for $D$, that has the following
+  properties:
+
+  \begin{itemize}
+  \item The reference container has a single new reference for the
+    capability.
+    
+  \item The reference container has an ID that is unique among all
+    reference container IDs for the client $C$.
+    
+  \item The reference container is associated with the client $C$.  If
+    $C$ dies, and the server processes the task death notification for
+    it, the server will destroy the reference container and release
+    the capability reference it has (if any).  All resources
+    associated with the reference container will be released.  If this
+    reference container was the only reason for $S$ to hold the task
+    info cap for $D$, the server will also release the task info cap
+    for $D$.
+    
+  \item The reference container is also associated with the
+    destination task $D$.  If $D$ dies, and the server processes the
+    task death notification for it, the server will release the
+    capability reference that is in the reference container (if any).
+    It will not destroy the part of the container that is associated
+    with $C$.
+  \end{itemize}
+
+  The server returns the reference container ID $R$ to the client.
+
+\item The client receives the reference container ID $R$.
+
+  \begin{comment}
+    If several capabilities have to be copied in one message, the
+    above steps need to be repeated for each capability.  With
+    appropriate interfaces, capabilities could be collected so that
+    only one call per server has to be made.  We are assuming here
+    that only one capability is copied.
+  \end{comment}
+
+\item The client sends the server thread ID $T$ and the reference
+  container ID $R$ to the destination task $D$.
+  
+\item The destination task $D$ receives the server thread ID $T$ and
+  the reference container ID $R$ from $C$.
+  
+  It now inspects the server thread ID $T$, and in particular the task
+  ID component of it.  $D$ has to make the decision if it trusts this
+  task to be a server for it, or if it does not trust this task.
+  
+  If $D$ trusts $C$, it might decide to always trust $T$, too,
+  irregardless of what task contains $T$.
+  
+  If $D$ does not trust $C$, it might be more picky about the task
+  that contains $T$.  This is because $D$ will have to become a client
+  of $T$, so it will trust it.  For example, it will block on messages
+  it sends to $T$.
+
+  \begin{comment}
+    If $D$ is a server, it will usually only accept capabilities from
+    its client that are provided by specific other servers it trusts.
+    This can be the authentication server, for example (see section
+    \ref{auth} on page \pageref{auth}).
+    
+    Usually, the type of capability that $D$ wants to accept from $C$
+    is then further restricted, and only one possible trusted server
+    implements that type of capabilities.  Thus, $D$ can simply
+    compare the task ID of $T$ with the task ID of its trusted server
+    (authentication server, ...) to make the decision if it wants to
+    accept the capability or not.
+  \end{comment}
+  
+  If $D$ does not trust $T$, it replies to $C$ (probably with an error
+  value indicating why the capability was not accepted).  In that
+  case, jump to step \ref{copycapout}.
+  
+  Otherwise, it requests a task info cap for $S$ from its trusted task
+  server, under the constraint that $C$ is still living.
+  
+  Then $D$ sends a \verb/cap_ref_cont_accept/ RPC to the server $S$,
+  providing the task ID of the client $C$ and the reference container
+  ID $R$.
+
+\begin{comment}
+  \verb/cap_ref_cont_accept/ is one of the few interfaces that is not
+  sent to a (real) capability, of course.  Nevertheless, it is part of
+  the capability object interface, hence the name.  You can think of
+  it as a static member in the capability class, that does not require
+  an instance of the class.
+\end{comment}
+  
+\item The server receives the \verb/cap_ref_cont_accept/ RPC from the
+  destination task $D$.  It verifies that a reference container exists
+  with the ID $R$, that is associated with $D$ and $C$.
+  
+  \begin{comment}
+    The server will store the reference container in data structures
+    associated with $C$, under an ID that is unique but local to $C$.
+    So $D$ needs to provide both information, the task ID and the
+    reference container ID of $C$.
+  \end{comment}
+
+  If that is the case, it takes the reference from the reference
+  container, and creates a capability ID for $D$ from it.  The
+  capability ID for $D$ is returned in the reply message.
+  
+  From that moment on, the reference container is deassociated from
+  $D$.  It is still associated with $C$, but it does not contain any
+  reference for the capability.
+
+  \begin{comment}
+    It is not deassociated from $C$ and removed completely, so that
+    its ID $R$ (or at least the part of it that is used for $C$) is
+    not reused.  $C$ must explicitely destroy the reference container
+    anyway because $D$ might die unexpectedly or return an error that
+    gives no indication if it accepted the reference or not.
+  \end{comment}
+  
+\item The destination task $D$ receives the capability ID and enters
+  it into its capability system.  It sends a reply message to $C$.
+
+  \begin{comment}
+    If the only purpose of the RPC was to copy the capability, the
+    reply message can be empty.  Usually, capabilities will be
+    transfered as part of a larger operation, though, and more work
+    will be done by $D$ before returning to $C$.
+  \end{comment}
+  
+\item \label{copycapout} The client $C$ receives the reply from $D$.
+  Irregardless if it indicated failure or success, it will now send
+  the \verb/cap_ref_cont_destroy/ message to the server $S$, providing
+  the reference container $R$.
+
+  \begin{comment}
+    This message can be a simple message.  It does not require a reply
+    from the server.
+  \end{comment}
+  
+\item The server receives the \verb/cap_ref_cont_destroy/ message and
+  removes the reference container $R$.  The reference container is
+  deassociated from $C$ and $D$.  If this was the only reason that $S$
+  held a task info cap for $D$, this task info cap is also released.
+
+  \begin{comment}
+    Because the reference container can not be deassociated from $C$
+    by any other means than this interface, the client does not need
+    to provide $D$.  $R$ can not be reused without the client $C$
+    having it destroyed first.  This is different from the
+    \verb/cap_ref_cont_accept/ call made by $D$, see above.
+  \end{comment}
+
+\end{enumerate}
+
+\subsubsection{Result}
+For the client $C$, nothing has changed.  The destination task $D$
+either did not accept the capability, and nothing has changed for it,
+and also not for the server $S$.  Or $D$ accepted the capability, and
+it now has a task info cap for $S$ and a reference to the capability
+provided by $S$.  In this case, the server $S$ has a task info cap for
+$D$ and provides a capability ID for this task.
+
+The above protocol is for copying a capability from $C$ to $D$.  If
+the goal was to move the capability, then $C$ can now release its
+reference to it.
+
+\begin{comment}
+  Originally we considered to move capabilities by default, and
+  require the client to acquire an additional reference if it wanted
+  to copy it instead.  However, it turned out that for the
+  implementation, copying is easier to handle.  One reason is that the
+  client usually will use local reference counting for the
+  capabilities it holds, and with local reference counting, one
+  server-side reference is shared by many local references.  In that
+  case, you would need to acquire a new server-side reference even if
+  you want to move the capability.  The other reason is cancellation.
+  If an RPC is cancelled, and you want to back out of it, you need to
+  restore the original situation.  And that is easier if you do not
+  change the original situation in the first place until the natural
+  ``point of no return''.
+\end{comment}
+
+The above protocol quite obviously achieves the result as described in
+the above concluding paragraph.  However, many other, and often
+simpler, protocols would also do that.  The other protocols we looked
+at are not secure or robust though, or require more operations.  To
+date we think that the above is the shortest (in particular in number
+of IPC operations) protocol that is also secure and robust (and if it
+is not we think it can be fixed to be secure and robust with minimal
+changes).  We have no proof for its correctness.  Our confidence comes
+from the scrutiny we applied to it.  If you find a problem with the
+above protocol, or if you can prove various aspects of it, we would
+like to hear about it.
+
+To understand why the protocol is laid out as it is, and why it is a
+secure and robust protocol, one has to understand what could possibly
+go wrong and why it does not cause any problems for any participant if
+it follows its part of the protocol (independent on what the other
+participants do).  In the following paragraphs, various scenarios are
+suggested where things do not go as expected in the above protocol.
+This is probably not a complete list, but it should come close to it.
+If you find any other problematic scenario, again, let us know.
+
+\begin{comment}
+  Although some comments like this appear in the protocol description
+  above, many comments have been spared for the following analysis of
+  potential problems.  Read the analysis carefully, as it provides
+  important information about how, and more importantly, why it works.
+\end{comment}
+
+\subsubsection{The server $S$ dies}
+What happens if the server $S$ dies unexpectedly sometime throughout
+the protocol?
+
+\begin{comment}
+  At any time a task dies, the task info caps it held are released.
+  Also, task death notifications are sent to any task that holds task
+  info caps to the now dead task.  The task death notifications will
+  be processed asynchrnouly, so they might be processed immediately,
+  or at any later time, even much later after the task died!  So one
+  important thing to keep in mind is that the release of task info
+  caps a task held, and other tasks noticing the task death, are
+  always some time apart.
+\end{comment}
+
+Because the client $C$ holds a task info cap for $S$ no imposter can
+get the task ID of $S$.  $C$ and $D$ will get errors when trying to
+send messages to $S$.
+
+\begin{comment}
+  You might now wonder what happens if $C$ also dies, or if $C$ is
+  malicious and does not hold the task info cap.  You can use this as
+  an exercise, and try to find the answer on your own.  The answers
+  are below.
+\end{comment}
+
+Eventually, $C$ (and $D$ if it already got the task info cap for $S$)
+will process the task death notification and clean up their state.
+
+\subsubsection{The client $C$ dies}
+The server $S$ and the destination task $D$ hold a task info cap for
+$C$, so no imposter can get its task ID.  $S$ and $D$ will get errors
+when trying to send messages to $C$.  Depending on when $C$ dies, the
+capability might be copied successfully or not at all.
+
+Eventually, $S$ and $D$ will process the task death notification and
+release all resources associated with $C$.  If the reference was not
+yet copied, this will include the reference container associated with
+$C$, if any.  If the reference was already copied, this will only
+include the empty reference container, if any.
+
+\begin{comment}
+  Of course, the participants need to use internal locking to protect
+  the integrity of their internal data structures.  The above protocol
+  does not show where locks are required.  In the few cases where some
+  actions must be performed atomically, a wording is used that
+  suggests that.
+\end{comment}
+
+\subsubsection{The destination task $D$ dies}
+
+The client $C$ holds a task info cap for $D$ over the whole operation,
+so no imposter can get its task ID.  Depending on when $D$ dies, it
+has either not yet accepted the capability, then $C$ will clean up by
+destroying the reference container, or it has, and then $S$ will clean
+up its state when it processes the task death notification for $D$.
+
+\subsubsection{The client $C$ and the destination task $D$ die}
+
+This scenario is the reason why the server acquires its own task info
+cap for $D$ so early, and why it must do that under the constraint
+that $C$ still lives.  If $C$ and $D$ die before the server created
+the reference container, then either no request was made, or creating
+the task info cap for $D$ fails because of the constraint.  If $C$ and
+$D$ die afterwards, then no imposter can get the task ID of $D$ and
+try to get at the reference in the container, because the server has
+its own task info cap for $D$.
+
+\begin{comment}
+  This problem was identified very late in the development of this
+  protocol.  We just did not think of both clients dieing at the same
+  time!  In an earlier version of the protocol, the server would
+  acquire its task info cap when $D$ accepts its reference.  This is
+  too late: If $C$ and $D$ die just before that, an imposter with
+  $D$'s task ID can try to get the reference in the container before
+  the server processes the task death notification for $C$ and
+  destroys it.
+\end{comment}
+
+Eventually, the server will receive and process the task death
+notifications.  If it processes the task death notification for $C$
+first, it will destroy the whole container immediately, including the
+reference, if any.  If it processes the task death notification for
+$D$ first, it will destroy the reference, and leave behind the empty
+container associated with $C$, until the other task death notification
+is processed.  Either way no imposter can get at the capability.
+
+Of course, if the capability was already copied at the time $C$ and
+$D$ die, the server will just do the normal cleanup.
+
+\subsubsection{The client $C$ and the server $S$ die}
+
+This scenario does not cause any problems, because on the one hand,
+the destination task $D$ holds a task info cap for $C$, and it
+acquires its own task info cap for $S$.  Although it does this quite
+late in the protocol, it does so under the constraint that $C$ still
+lives, which has a task info cap for $S$ for the whole time (until it
+dies).  It also gets the task info cap for $S$ before sending any
+message to it.  An imposter with the task ID of $S$, which it was
+possible to get because $C$ died early, would not receive any message
+from $D$ because $D$ uses $C$ as its constraint in acquireing the task
+info cap for $S$.
+
+\subsubsection{The destination task $D$ and the server $S$ die}
+
+As $C$ holds task info caps for $S$ and $D$, there is nothing that can
+go wrong here.  Eventually, the task death notifications are
+processed, but the task info caps are not released until the protocol
+is completed or aborted because of errors.
+
+\subsubsection{The client $C$, the destination task $D$ and the server $S$ die}
+
+Before the last one of these dies, you are in one of the scenarios
+which already have been covered.  After the last one dies, there is
+nothing to take care of anymore.
+
+\begin{comment}
+  In this case your problem is probably not the capability copy
+  protocol, but the stability of your software!  Go fix some bugs.
+\end{comment}
+
+So far the scenarios where one or more of the participating tasks die
+unexpectedly.  They could also die purposefully.  Other things that
+tasks can try to do purposefully to break the protocol are presented
+in the following paragraphs.
+
+\begin{comment}
+  A task that tries to harm other tasks by not following a protocol
+  and behaving as other tasks might expect it is malicious.  Beside
+  security concerns, this is also an issue of robustness, because
+  malicious behaviour can also be triggered by bugs rather than bad
+  intentions.
+  
+  It is difficult to protect against malicious behaviour by trusted
+  components, like the server $S$, which is trusted by both $C$ and
+  $D$.  If a trusted component is compromised or buggy, ill
+  consequences for software that trusts it must be expected.  Thus, no
+  analysis is provided for scenarious involving a malicious or buggy
+  server $S$.
+\end{comment}
+
+\subsubsection{The client $C$ is malicious}
+
+If the client $C$ wants to break the protocol, it has numerous
+possibilities to do so.  The first thing it can do is to provide a
+wrong destination task ID when creating the container.  But in this
+case, the server will return an error to $D$ when it tries to accept
+it, and this will give $D$ a chance to notice the problem and clean
+up.  This also would allow for some other task to receive the
+container, but the client can give the capability to any other task it
+wants to anyway, so this is not a problem.
+
+\begin{comment}
+  If a malicious behaviour results in an outcome that can also be
+  achieved following the normal protocol with different parameters,
+  then this not a problem at all.
+\end{comment}
+
+The client could also try to create a reference container for $D$ and
+then not tell $D$ about it.  However, a reference container should not
+consume a lot of resources in the server, and all such resources
+should be attributed to $C$.  When $C$ dies eventually, the server
+will clean up any such pending containers when the task death
+notification is processed.
+
+The same argument holds when $C$ leaves out the call to
+\verb/cap_ref_cont_destroy/.
+
+The client $C$ could also provide wrong information to $D$.  It could
+supply a wrong server thread ID $T$.  It could supply a wrong
+reference container ID $R$.  If $D$ does not trust $C$ and expects a
+capability implemented by some specific trusted server, it will verify
+the thread ID numerically and reject it if it does not match.  The
+reference container ID will be verified by the server, and it will
+only be accepted if the reference container was created by the client
+task $C$.  Thus, the only wrong reference container IDs that the
+client $C$ could use to not provoke an error message from the server
+(which then lead $D$ to abort the operation) would be a reference
+container that it created itself in the first place.  However, $C$
+already is frree to send $D$ any reference container it created.
+
+\begin{comment}
+  Again $C$ can not achieve anything it could not achieve by just
+  following the protocol as well.  If $C$ tries to use the same
+  reference container with several RPCs in $D$, one of them would
+  succeed and the others would fail, hurting only $C$.
+  
+  If $D$ does trust $C$, then it can not protect against malicious
+  behaviour by $C$.
+\end{comment}
+
+To summarize the result so far: $C$ can provide wrong data in the
+operations it does, but it can not achieve anything this way that it
+could not achieve by just following the protocol.  In most cases the
+operation would just fail.  If it leaves out some operations, trying
+to provoke resource leaks in the server, it will only hurt itself (as
+the reference container is strictly associated with $C$ until the
+reference is accepted by $D$).
+
+\begin{comment}
+  For optimum performance, the server should be able to keep the
+  information about the capabilities and reference containers a client
+  holds on memory that is allocated on the clients behalf.
+  
+  It might also use some type of quota system.
+\end{comment}
+
+Another attack that $C$ can attempt is to deny a service that $S$ and
+$D$ are expecting of it.  Beside not doing one or more of the RPCs,
+this is in particular holding the task info caps for the time span as
+described in the protocol.  Of course, this can only be potentially
+dangerous in combination with a task death.  If $C$ does not hold the
+server task info capability, then an imposter of $S$ could trick $D$
+into using the imposter as the server.  However, this is only possible
+if $D$ already trusts $C$.  Otherwise it would only allow servers that
+it already trusts, and it would always hold task info caps to such
+trusted servers when making the decision that it trusts them.
+However, if $D$ trusts $C$, it can not protect against $C$ being
+malicious.
+
+\begin{comment}
+  If $D$ does not trust $C$, it should only ever compare the task ID
+  of the server thread against trusted servers it has a task info cap
+  for.  It must not rely on $C$ doing that for $D$.
+  
+  However, if $D$ does trust $C$, it can rely on $C$ holding the
+  server task info cap until it got its own.  Thus, the task ID of $C$
+  can be used as the constraint when acquiring the task info cap in
+  the protocol.
+\end{comment}
+
+If $C$ does not hold the task info cap of $D$, and $D$ dies before the
+server acquires its task info cap for $D$, it might get a task info
+cap for an imposter of $D$.  But if the client wants to achieve that,
+it could just follow the protocol with the imposter as the destination
+task.
+
+\subsubsection{The destination task $D$ is malicious}
+
+The destination task has not as many possibilities as $C$ to attack
+the protocol.  This is because it is trusted by $C$.  So the only
+participant that $D$ can try to attack is the server $S$.  But the
+server $S$ does not rely on any action by $D$.  $D$ does not hold any
+task info caps for $S$.  The only operation it does is an RPC to $S$
+accepting the capability, and if it omits that it will just not get
+the capability (the reference will be cleaned up by $C$ or by the
+server when $C$ dies).
+
+The only thing that $D$ could try is to provide false information in
+the \verb/cap_ref_cont_accept/ RPC.  The information in that RPC is
+the task ID of the client $C$ and the reference container ID $R$.  The
+server will verify that the client $C$ has previously created a
+reference container with the ID $R$ that is destined for $D$.  So $D$
+will only be able to accept references that it is granted access to.
+So it can not achieve anything that it could not achieve by following
+the protocol (possibly the protocol with another client).  If $D$
+accepts capabilities from other transactions outside of the protocol,
+it can only cause other transactions in its own task to fail.
+
+\begin{comment}
+  If you can do something wrong and harm yourself that way, then this
+  is called ``shooting yourself in your foot''.
+  
+  The destination task $D$ is welcome to shoot itself in its foot.
+\end{comment}
+
+\subsubsection{The client $C$ and the destination task $D$ are malicious}
+
+The final question we want to raise is what can happen if the client
+$C$ and the destination task $D$ are malicious.  Can $C$ and $D$
+cooperate and attacking $S$ in a way that $C$ or $D$ alone could not?
+
+In the above analysis, there is no place where we assume any specific
+behaviour of $D$ to help $S$ in preventing an attack on $S$.  There is
+only one place where we make an assumption for $C$ in the analysis of
+a malicious $D$.  If $D$ does not accept a reference container, we
+said that $C$ would clean it up by calling
+\verb/cap_ref_cont_destroy/.  So we have to look at what would happen
+if $C$ were not to do that.
+
+Luckily, we covered this case already.  It is identical to the case
+where $C$ does not even tell $D$ about the reference container and
+just do nothing.  In this case, as said before, the server will
+eventually release the reference container when $C$ dies.  Before
+that, it only occupies resources in the server that are associated
+with $C$.
+
+This analysis is sketchy in parts, but it covers a broad range of
+possible attacks.  For example, all possible and relevant combinations
+of task deaths and malicious tasks are covered.  Although by no means
+complete, it can give us some confidence about the rightness of the
+protocol.  It also provides a good set of test cases that you can test
+your own protocols, and improvements to the above protocol against.
+
+
+\subsection{The trust rule}
+
+The protocol to copy a capability from one client to another task has
+a dramatic consequence on the design of the Hurd interfaces.
+
+Because the receiver of the capability must make blocking calls to the
+server providing the capability, the receiver of the capability
+\emph{must} trust the server providing the capability.
+
+This means also: If the receiver of a capability does not trust the
+server providing the capability, it \emph{must not} accept it.
+
+The consequence is that normally, servers can not accept capabilities
+from clients, unless they are provided by a specific trusted server.
+This can be the \texttt{task} or \texttt{auth} server for example.
+
+This rule is even true if the receiver does not actually want to use
+the capability for anything.  Just accepting the capability requires
+trusting the server providing it already.
+
+In the Hurd on Mach, ports (which are analogous to capabilities in
+this context) can be passed around freely.  There is no security risk
+in accepting a port from any source, because the kernel implements
+them as protected objects.  Using a port by sending blocking messages
+to it requires trust, but simply storing the port on the server side
+does not.
+
+This is different in the Hurd on L4: A server must not accept
+capabilities unless it trusts the server providing them.  Because
+capabilities are used for many different purposes (remote objects,
+authentication, identification), one has to be very careful in
+designing the interfaces.  The Hurd interfaces on Mach use ports in a
+way that is not possible on L4.  Such interfaces need to be
+redesigned.
+
+Often, redesigning such an interface also fixes some other security
+problems that exists with in the Hurd on L4, in particular DoS
+attacks.  A good part of this paper is about redesigning the Hurd to
+avoid storing untrusted capabilities on the server side.
+
+\begin{comment}
+  Examples are:
+
+  \begin{itemize}
+  \item The new authentication protocol, which eliminates the need for
+    a rendezvous port and is not only faster, but also does not
+    require the server to block on the client anymore (see section
+    \ref{auth} on page \pageref{auth}).
+    
+  \item The signal handling, which does not require the \texttt{proc}
+    server to hold the signal port for every task anymore (see section
+    \ref{signals} on page \pageref{signals}).
+    
+  \item The new exec protocol, which eliminates the need to pass all
+    capabilities that need to be transfered to the new executable from
+    the old program to the filesystem server, and then to the
+    \texttt{exec} server (see section \ref{exec} on page
+    \pageref{exec}).
+    
+  \item The new way to implement Unix Domain Sockets, which don't
+    require a trusted system server, so that descriptor passing (which
+    is really capability passing) can work (see section
+    \ref{unixdomainsockets} on page \pageref{unixdomainsockets}.
+
+  \item The way parent and child filesystem are linked to each other,
+    in other words: how mounting a filesystem works (see section
+    \ref{xfslookup} on page \pageref{xfslookup}).
+    
+  \item The replacement for the \verb/file_reparent()/ RPC (see
+    section \ref{reparenting} on page \pageref{reparenting}).
+  \end{itemize}
+\end{comment}
+
+\section{Synchronous IPC}
+
+The Hurd only needs synchronous IPC.  Asynchronous IPC is usually not
+required.  An exception are notifications (see below).
+
+There are possibly some places in the Hurd source code where
+asynchronous IPC is assumed.  These must be replaced with different
+strategies.  One example is the implementation of select() in the GNU
+C library.
+
+\begin{comment}
+  A naive implementation would use one thread per capability to select
+  on.  A better one would combine all capabilities implemented by the
+  same server in one array and use one thread per server.
+  
+  A more complex scheme might let the server process select() calls
+  asynchronously and report the result back via notifications.
+\end{comment}
+
+In other cases the Hurd receives the reply asynchronously from sending
+the message.  This works fine in Mach, because send-once rights are
+used as reply ports and Mach guarantees to deliver the reply message,
+ignoring the kernel queue limit.  In L4, no messages are queued and
+such places need to be rewritten in a different way (for example using
+extra threads).
+
+\begin{comment}
+  What happens if a client does not go into the receive phase after a
+  send, but instead does another send, and another one, quickly many
+  sends, as fast as possible?  A carelessly written server might
+  create worker threads for each request.  Instead, the server should
+  probably reject to accept a request from a client thread that
+  already has a pending request, so the number of worker threads is
+  limited to the number of client threads.
+  
+  This also makes interrupting an RPC operation easier (the client
+  thread ID can be used to identify the request to interrupt).
+\end{comment}
+
+
+\section{Notifications}
+
+Notifications to untrusted tasks happen frequently.  One case is
+object death notifications, in particular task death notifications.
+Other cases might be select() or notifications of changes to the
+filesystem.
+
+The console uses notifications to broadcast change events to the
+console content, but it also uses shared memory to broadcast the
+actual data, so not all notifications need to be received for
+functional operation.  Still, at least one notification is queued by
+Mach, and this is sufficient for the console to wakeup whenever
+changes happened, even if the changes can not be processed
+immediately.
+  
+From the servers point of view, notifications are simply messages with
+a send and xfer timeout of 0 and without a receive phase.
+
+For the client, however, there is only one way to ensure that it will
+receive the notification: It must have the receiving thread in the
+receive phase of an IPC.  While this thread is processing the
+notification (even if it is only delegating it), it might be preempted
+and another (or the same) server might try to send a second
+notification.
+
+\begin{comment}
+  It is an open challenge how the client can ensure that it either
+  receives the notification or at least knows that it missed it, while
+  the server remains save from potential DoS attacks.  The usual
+  strategy, to give receivers of notifications a higher scheduling
+  priority than the sender, is not usable in a system with untrusted
+  receivers (like the Hurd).  The best strategy determined so far is
+  to have the servers retry to send the notification several times
+  with small delays inbetween.  This can increase the chance that a
+  client is able to receive the notification.  However, there is still
+  the question what a server can do if the client is not ready.
+ 
+  An alternative might be a global trusted notification server that
+  runs at a higher scheduling priority and records which servers have
+  notifications for which clients, and that can be used by clients to
+  be notified of pending notifications.  Then the clients can poll the
+  notifications from the servers.
+\end{comment}
+
+

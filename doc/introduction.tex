@@ -1,0 +1,44 @@
+\chapter{Introduction}
+
+The GNU Hurd is a multi-server operating system running on top of a
+microkernel (currently Mach variants).  The core motivation of the
+Hurd is the following:
+
+\begin{quote}
+  \emph{The operating system should enable its users to share the
+    resources of the system without harming each other.}
+\end{quote}
+
+The focus is on the user, the system should try to allow the user to
+do anything that is not harmful for other users.  Many operating
+systems either restrict what the user can do to be more secure, while
+others allow the user to do everything, but fail on protecting the
+users from each other effectively.
+
+The Hurd is designed to minimize the system code that the user is
+required to use, while allowing the user to use, ignore or replace the
+remaining system code, and this without harming other users.
+
+So while the L4 microkernel tries to minimize the policy that the
+kernel enforces on the software running on it, the Hurd tries to
+minimize the policy that the operating system enforces on its users.
+Furthermore, the Hurd also aims to provide a POSIX compatible general
+purpose operating system.  However, this POSIX personality of the Hurd
+is provided for convenience only, and to make the Hurd useful.  Other
+personalities can be implemented and used by the users of the system
+along with the POSIX personality.  This default personality of the
+Hurd also provides some convenient features that allow the user to
+extend the system so that all POSIX compatible programs can take
+advantage of it.
+
+These notes are a moving target in the effort to find the best
+strategy to port the Hurd to the L4 microkernel.
+
+\begin{comment}
+  Remarks about the history of a certain feature and implementation
+  details are set in a smaller font and separated from the main text,
+  just like this paragraph.  Because this is work in progress, there
+  are naturally a lot of such comments.
+\end{comment}
+
+

@@ -34,6 +34,20 @@ AC_PROG_CC
 AM_PROG_AS
 AC_PROG_RANLIB
 
+# Required for building the documentation
+AC_PATH_PROG([LATEX], [latex], no)
+if test "x$LATEX" = xno; then
+  missing_progs="$missing_progs latex"
+fi
+AC_PATH_PROG([DVIPS], [dvips], no)
+if test "x$DVIPS" = xno; then
+  missing_progs="$missing_progs dvips"
+fi
+AC_PATH_PROG([PS2PDF], [ps2pdf], no)
+if test "x$PS2PDF" = xno; then
+  missing_progs="$missing_progs ps2pdf"
+fi
+
 # Checks for libraries.
 
 # Checks for header files.
@@ -56,10 +70,15 @@ esac
 m4_include([libhurd-slab/headers.m4])
 m4_include([libhurd-ihash/headers.m4])
 
+if test "x$missing_progs" != "x"; then
+  AC_MSG_ERROR([The following programs were not found:$missing_progs])
+fi
+
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
                  laden/Makefile
 		 libl4/ia32/Makefile libl4/Makefile
 		 libhurd-slab/Makefile
-		 libhurd-ihash/Makefile])
+		 libhurd-ihash/Makefile
+		 doc/Makefile])
 AC_OUTPUT

@@ -1,0 +1,26 @@
+\chapter{Virtual Memory Management}
+
+Traditionally, monolithical kernels, but even kernels like Mach,
+provide a virtual memory management system in the kernel.  All paging
+decisions are made by the kernel itself.  This requires good
+heuristics.  Smart paging decisions are often not possible because the
+kernel lacks the information about how the data is used.
+
+In the Hurd, paging will be done locally in each task.  A physical
+memory server provides a number of guaranteed physical pages to tasks.
+It will also provide a number of excess pages (over-commit).  The task
+might have to return any number of excess pages on short notice.  If
+the task does not comply, all mappings are revoked (essentially
+killing the task).
+
+A problem arises when data has to be exchanged between a client and a
+server, and the server wants to have control over the content of the
+pages (for example, pass it on to other servers, like device drivers).
+The client can not map the pages directly into the servers address
+space, as it is not trusted.  Container objects created in the
+physical memory server and mapped into the client and/or the servers
+address space will provide the necessary security features to allow
+this.  This can be used for DMA and zero-copying in the data exchange
+between device drivers and (untrusted) user tasks.
+
+
