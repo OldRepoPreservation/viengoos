@@ -49,7 +49,7 @@ EXTRA_DIST = $(patches) $(hurd_l4_add_on) gcc-3.4.3-i686-gnu.dpatch
 # The GNU C library version that we build against.
 glibc_repository = :pserver:anoncvs@sources.redhat.com:/cvs/glibc
 glibc_module = libc
-glibc_version = 2004-01-23
+glibc_version = 2005-01-23
 
 libc-cvs:
 	test ! -e libc || (echo "GNU C library already checked out." && false)

@@ -1,3 +1,7 @@
+2005-02-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (glibc_version): Fix date.
+
 2005-01-31  Marcus Brinkmann  <marcus@gnu.org>
 
 	* hurd-l4/sysdeps/l4/getclktck.c: New file.
