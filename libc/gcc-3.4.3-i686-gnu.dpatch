@@ -1,0 +1,44 @@
+#! /bin/sh -e
+
+# You can drop this patch right into the Debian package of gcc, into the
+# directory debian/patches.  Then you need to add it to the debian_patches
+# variable in debian/rules.patch.
+
+# DP: Do not use %gs:OFFSET by default on i386-gnu.
+
+dir=
+if [ $# -eq 3 -a "$2" = '-d' ]; then
+    pdir="-d $3"
+    dir="$3/"
+elif [ $# -ne 1 ]; then
+    echo >&2 "`basename $0`: script expects -patch|-unpatch as argument"
+    exit 1
+fi
+case "$1" in
+    -patch)
+        patch $pdir -f --no-backup-if-mismatch -p0 < $0
+        ;;
+    -unpatch)
+        patch $pdir -f --no-backup-if-mismatch -R -p0 < $0
+        ;;
+    *)
+        echo >&2 "`basename $0`: script expects -patch|-unpatch as argument"
+        exit 1
+esac
+exit 0
+
+
+--- gcc/config/i386/gnu.h.orig	2005-01-28 01:51:22.000000000 +0100
++++ gcc/config/i386/gnu.h	2005-01-28 01:55:09.000000000 +0100
+@@ -16,6 +16,11 @@
+     }						\
+   while (0)
+ 
++/* L4 uses a segmented model, so the %gs segment only covers a small
++   kernel area.  We override the default by linux.h here. */
++#undef TARGET_TLS_DIRECT_SEG_REFS_DEFAULT
++#define TARGET_TLS_DIRECT_SEG_REFS_DEFAULT 0
++
+ #undef CPP_SPEC
+ #define CPP_SPEC "%{posix:-D_POSIX_SOURCE} %{bsd:-D_BSD_SOURCE}"
+ 

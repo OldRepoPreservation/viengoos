@@ -43,7 +43,7 @@ hurd_l4 = configure configure.in Makeconfig Makefile \
 hurd_l4_add_on = $(addprefix hurd-l4/, $(hurd_l4))
 
 
-EXTRA_DIST = $(patches) $(hurd_l4_add_on)
+EXTRA_DIST = $(patches) $(hurd_l4_add_on) gcc-3.4.3-i686-gnu.dpatch
 
 
 # The GNU C library version that we build against.

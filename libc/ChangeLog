@@ -1,3 +1,8 @@
+2005-01-28  Marcus Brinkmann  <marcus@gnu.org>
+
+	* gcc-3.4.3-i686-gnu.dpatch: New file.
+	* Makefile.am (EXTRA_DIST): Add gcc-3.4.3-i686-gnu.dpatch.
+
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* hurd-l4/sysdeps/l4/hurd/i386: New directory.
