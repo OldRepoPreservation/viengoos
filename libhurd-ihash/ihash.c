@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <stdint.h>
 #include <assert.h>
 
 #include <hurd/ihash.h>
@@ -31,7 +32,7 @@
 
 /* The odd prime numbers greater than twice the last and less than
    2^40 (nobody needs more than 640 GB of memory).  */
-static const unsigned int ihash_sizes[] =
+static const uint64_t ihash_sizes[] =
 {
   3,
   7,
@@ -62,15 +63,15 @@ static const unsigned int ihash_sizes[] =
   359339171,
   718678369,
   1437356741,
-  2874713497,
-  5749427029,
-  11498854069,
-  22997708177,
-  45995416409,
-  91990832831,
-  183981665689,
-  367963331389,
-  735926662813
+  UINT64_C (2874713497),
+  UINT64_C (5749427029),
+  UINT64_C (11498854069),
+  UINT64_C (22997708177),
+  UINT64_C (45995416409),
+  UINT64_C (91990832831),
+  UINT64_C (183981665689),
+  UINT64_C (367963331389),
+  UINT64_C (735926662813)
 };
 
 
@@ -282,7 +283,10 @@ hurd_ihash_add (hurd_ihash_t ht, hurd_ihash_key_t key,
   for (i = 0; i < ihash_nsizes; i++)
     if (ihash_sizes[i] > old_ht.size)
       break;
-  if (i == ihash_nsizes)
+  if (i == ihash_nsizes
+      || ihash_sizes[i] > SIZE_MAX / sizeof (hurd_ihash_value_t)
+      || ihash_sizes[i] > SIZE_MAX / sizeof (hurd_ihash_key_t)
+      || ihash_sizes[i] > SIZE_MAX / sizeof (hurd_ihash_locp_t *))
     return ENOMEM;		/* Surely will be true momentarily.  */
     
   ht->size = ihash_sizes[i];
