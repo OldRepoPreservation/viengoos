@@ -1,3 +1,12 @@
+2005-02-23  Marco Gerards  <metgerards@student.han.nl>
+
+	* l4/sigma0.h (_L4_sigma0_get_page_rcv_window): Add local variable TAG.
+	* l4/compat/sigma0.h (L4_Sigma0_GetAny): Change the argument name
+	rcvwindow to rcv_window.  Add local variable fpage.
+	* l4/gnu/sigma0.h (l4_sigma0_set_verbosity): Do not store the
+	return value of _L4_call.
+	(l4_sigma0_dump_memory): Likewise, also for l4_send.  Fix typos.
+
 2005-02-22  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/syscall.h (l4_strerror): Drop superfluous const from the

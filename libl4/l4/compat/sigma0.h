@@ -45,8 +45,9 @@ L4_Sigma0_GetPage (L4_ThreadId_t sigma0, L4_Fpage_t fpage)
 
 static inline L4_Fpage_t
 _L4_attribute_always_inline
-L4_Sigma0_GetAny (L4_ThreadId_t sigma0, L4_Word_t size, L4_Fpage_t rcvwindow)
+L4_Sigma0_GetAny (L4_ThreadId_t sigma0, L4_Word_t size, L4_Fpage_t rcv_window)
 {
+  L4_Fpage_t fpage;
   fpage.raw = _L4_sigma0_get_any (sigma0.raw, size, rcv_window.raw);
   return fpage;
 }

@@ -78,7 +78,7 @@ l4_sigma0_set_verbosity (l4_word_t level)
   _L4_set_msg_tag (_tag.raw);
   _L4_load_mr (1, L4_SIGMA0_MSG_EXT_SET_VERBOSITY);
   _L4_load_mr (2, level);
-  tag = _L4_call (L4_SIGMA0_TID);
+  _L4_call (L4_SIGMA0_TID);
 }
 
 
@@ -89,15 +89,15 @@ l4_sigma0_dump_memory (l4_word_t wait)
   __L4_msg_tag_t _tag;
   
   _tag.raw = _L4_niltag;
-  _tag.label = L4_MSG_SIGMA0_EXT;
+  _tag.label = L4_SIGMA0_MSG_EXT;
   _tag.untyped = 2;
 
   _L4_set_msg_tag (_tag.raw);
-  l4_load_mr (1, L4_SIGMA0_EXT_DUMP_MEMORY);
+  l4_load_mr (1, L4_SIGMA0_MSG_EXT_DUMP_MEMORY);
   l4_load_mr (2, wait);
 
   if (wait)
-    tag = l4_call (L4_SIGMA0_TID);
+    l4_call (L4_SIGMA0_TID);
   else
-    tag = l4_send (L4_SIGMA0_TID);
+    l4_send (L4_SIGMA0_TID);
 }

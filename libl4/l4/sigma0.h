@@ -37,6 +37,7 @@ _L4_sigma0_get_page_rcv_window (_L4_thread_id_t sigma0, _L4_fpage_t fpage,
 				_L4_fpage_t rcv_window)
 {
   __L4_msg_tag_t _tag;
+  _L4_msg_tag_t tag;
   _L4_word_t mrs[2];
 
   _L4_accept (_L4_map_grant_items (rcv_window));
