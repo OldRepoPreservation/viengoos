@@ -1,7 +1,10 @@
 2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
 
-	* container.c (container_reinit): New function.
+	* container.c: Include <l4/space.h>.  Use L4_FPAGE_SPAN_MAX
+	instead MAX_FPAGES everywhere.
+	(container_reinit): New function.
 	(container_class_init): Pass container_reinit as reinit function.
+	(MAX_FPAGES): Removed.
 
 2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
 

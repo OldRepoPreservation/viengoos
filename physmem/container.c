@@ -25,23 +25,12 @@
 
 #include <stdlib.h>
 
+#include <l4/space.h>
 #include <hurd/cap-server.h>
 
 #include "physmem.h"
 
 
-
-
-/* The maximum number of fpages required to cover a page aligned range
-   of memory.  This is k if the maximum memory range size to cover is
-   2^(k + min_page_size_log2), which can be easily proved by
-   induction.  The minimum page size in L4 is at least
-   L4_MIN_PAGE_SIZE.  We also need to have each fpage aligned to a
-   multiple of its own size.  This makes the proof by induction a bit
-   more convoluted, but does not change the result.  */
-/* FIXME: Could be made more architecture specific wrt the minimum
-   page size.  */
-#define MAX_FPAGES (sizeof (l4_word_t) * 8 - L4_MIN_PAGE_SIZE_LOG2)
 
 
 struct container
@@ -51,9 +40,9 @@ struct container
   struct hurd_cap_obj obj;
 
   /* For now, a container is nothing more than a contiguous,
-     page-aligned range of memory.  This is the reason why MAX_FPAGES
-     are sufficient.  */
-  l4_fpage_t fpages[MAX_FPAGES];
+     page-aligned range of memory.  This is the reason why
+     L4_FPAGE_SPAN_MAX fpages are sufficient.  */
+  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
 
   /* The number of entries in FPAGES.  */
   l4_word_t nr_fpages;
@@ -71,7 +60,7 @@ container_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
 
   while (nr_fpages > 0)
     {
-      l4_fpage_t fpage = obj->fpages[--nr_fpages];
+      l4_fpage_t fpage = container->fpages[--nr_fpages];
       zfree (l4_address (fpage), l4_size (fpage));
     }
 }
@@ -111,7 +100,7 @@ container_alloc (l4_word_t nr_fpages, l4_word_t *fpages,
   if (err)
     return err;
 
-  assert (nr_fpages <= MAX_FPAGES);
+  assert (nr_fpages <= L4_FPAGE_SPAN_MAX);
   container->nr_fpages = nr_fpages;
   memcpy (container->fpages, fpages, sizeof (l4_fpage_t) * nr_fpages);
 
