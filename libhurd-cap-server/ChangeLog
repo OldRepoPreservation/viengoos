@@ -1,5 +1,9 @@
 2004-11-30  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-server-intern.h (_hurd_cap_obj_drop): Reverse faulty logic.
+
+2004-11-30  Neal H. Walfield  <neal@gnu.org>
+
 	* bucket-manage-mt.c (manage_mt_get_next_worker): If
 	pthread_create_from_l4_tid_np fails, return WORKER to pthread's
 	available thread pool.

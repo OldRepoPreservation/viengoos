@@ -116,7 +116,7 @@ void _hurd_cap_obj_dealloc (hurd_cap_obj_t obj)
 static inline void
 _hurd_cap_obj_drop (hurd_cap_obj_t obj)
 {
-  if (EXPECT_FALSE (atomic_decrement_and_test (&obj->refs)))
+  if (EXPECT_TRUE (!atomic_decrement_and_test (&obj->refs)))
     hurd_cap_obj_unlock (obj);
   else
     _hurd_cap_obj_dealloc (obj);
