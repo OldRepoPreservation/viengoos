@@ -631,6 +631,24 @@ l4_timeouts (l4_time_t send_timeout, l4_time_t receive_timeout)
 
 static inline l4_msg_tag_t
 _L4_attribute_always_inline
+l4_ipc (l4_thread_id_t dest, l4_thread_id_t from_spec,
+	l4_word_t timeouts, l4_thread_id_t *from)
+{
+  return _L4_ipc (dest, from_spec, timeouts, from);
+}
+
+
+static inline l4_msg_tag_t
+_L4_attribute_always_inline
+l4_lipc (l4_thread_id_t dest, l4_thread_id_t from_spec,
+	l4_word_t timeouts, l4_thread_id_t *from)
+{
+  return _L4_lipc (dest, from_spec, timeouts, from);
+}
+
+
+static inline l4_msg_tag_t
+_L4_attribute_always_inline
 l4_call_timeouts (l4_thread_id_t dest, l4_time_t send_timeout,
 		  l4_time_t receive_timeout)
 {
