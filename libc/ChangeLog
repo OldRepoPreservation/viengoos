@@ -1,5 +1,10 @@
 2005-01-30  Marcus Brinkmann  <marcus@gnu.org>
 
+	* hurd-l4/sysdeps/l4/gettimeofday.c,
+	hurd-l4/sysdeps/l4/nanosleep.c, hurd-l4/sysdeps/l4/sleep.c,
+	hurd-l4/sysdeps/l4/sched_yield.c, hurd-l4/sysdeps/l4/usleep.c:
+	New files.
+
 	* hurd-l4/sysdeps/l4/hurd/read.c: New file.
 	* hurd-l4/sysdeps/l4/hurd/write.c: New file.
 
