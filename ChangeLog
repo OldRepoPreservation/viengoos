@@ -1,5 +1,7 @@
 2005-01-22  Marcus Brinkmann  <marcus@gnu.org>
 
+	* README: Add patch for L4 TLS support.
+
 	* configure.ac (AC_CONFIG_FILES): Add ruth/Makefile.
 	* Makefile.am (SUBDIRS): Add ruth.
 
