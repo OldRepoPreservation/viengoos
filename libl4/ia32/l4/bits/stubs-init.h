@@ -31,7 +31,7 @@ extern void (*__l4_ ## name) (void);					\
 
 /* Initialize the syscall stubs.  */
 static inline void
-__attribute__((__always_inline__))
+_L4_attribute_always_inline
 l4_init_stubs (void)
 {
   __L4_SETUP_SYSCALL (exchange_registers);

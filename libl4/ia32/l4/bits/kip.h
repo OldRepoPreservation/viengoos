@@ -1,5 +1,5 @@
-/* kip.h - L4 KIP features for powerpc.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/bits/kip.h - L4 KIP features for ia32.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -23,5 +23,12 @@
 # error "Never use <l4/bits/kip.h> directly; include <l4/kip.h> instead."
 #endif
 
+
 /* Kernel features.  */
-#define L4_FEATURE_SMALLSPACES "smallspaces"
+#define _L4_FEATURE_SMALLSPACES "smallspaces"
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_GNU
+#include <l4/bits/gnu/kip.h>
+#endif

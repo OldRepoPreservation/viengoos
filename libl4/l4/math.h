@@ -1,5 +1,5 @@
-/* math.h - Public interface to L4 mathematical support functions.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/math.h - Public interface to L4 mathematical support functions.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -22,18 +22,19 @@
 #ifndef _L4_MATH_H
 #define _L4_MATH_H	1
 
+#include <l4/features.h>
 #include <l4/types.h>
 
-/* <l4/bits/math.h> defines__l4_msb() and __l4_lsb().  */
+/* The architecture specific file defines __L4_msb() and __L4_lsb().  */
 #include <l4/bits/math.h>
 
-
+
 /* Return 0 if DATA is 0, or the bit number of the most significant
    bit set in DATA.  The least significant bit is 1, the most
    significant bit 32 resp. 64.  */
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_msb (l4_word_t data)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_msb (_L4_word_t data)
 {
   if (__builtin_constant_p (data))
     {
@@ -50,7 +51,7 @@ l4_msb (l4_word_t data)
       __L4_MSB_TRY(21); __L4_MSB_TRY(22); __L4_MSB_TRY(23); __L4_MSB_TRY(24);
       __L4_MSB_TRY(25); __L4_MSB_TRY(26); __L4_MSB_TRY(27); __L4_MSB_TRY(28);
       __L4_MSB_TRY(29); __L4_MSB_TRY(30); __L4_MSB_TRY(31);
-#if L4_WORDSIZE == L4_WORDSIZE_32
+#if _L4_WORDSIZE == _L4_WORDSIZE_32
       __L4_MSB_IS(32);
 #else
       __L4_MSB_TRY(32); __L4_MSB_TRY(33); __L4_MSB_TRY(34); __L4_MSB_TRY(35);
@@ -66,7 +67,7 @@ l4_msb (l4_word_t data)
     }
 
   if (__builtin_expect (data != 0, 1))
-    return __l4_msb (data);
+    return __L4_msb (data);
   else
     return 0;
 }
@@ -75,9 +76,9 @@ l4_msb (l4_word_t data)
 /* Return 0 if DATA is 0, or the bit number of the least significant
    bit set in DATA.  The least significant bit is 1, the most
    significant bit 32 resp. 64.  */
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_lsb (l4_word_t data)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_lsb (_L4_word_t data)
 {
   if (__builtin_constant_p (data))
     {
@@ -86,7 +87,7 @@ l4_lsb (l4_word_t data)
 
       if (!data)
 	return 0;
-#if L4_WORDSIZE == L4_WORDSIZE_64
+#if _L4_WORDSIZE == _L4_WORDSIZE_64
       __L4_LSB_TRY(64); __L4_LSB_TRY(63); __L4_LSB_TRY(62); __L4_LSB_TRY(61);
       __L4_LSB_TRY(60); __L4_LSB_TRY(59); __L4_LSB_TRY(58); __L4_LSB_TRY(57);
       __L4_LSB_TRY(56); __L4_LSB_TRY(55); __L4_LSB_TRY(54); __L4_LSB_TRY(53);
@@ -107,9 +108,15 @@ l4_lsb (l4_word_t data)
     }
 
   if (__builtin_expect (data != 0, 1))
-    return __l4_lsb (data);
+    return __L4_lsb (data);
   else
     return 0;
 }
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_GNU
+#include <l4/gnu/math.h>
+#endif
 
 #endif	/* l4/math.h */

@@ -1,4 +1,4 @@
-/* space.h - Public interface to L4 spaces.
+/* l4/space.h - Public interface to L4 spaces.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -27,212 +27,279 @@
 #include <l4/bits/space.h>
 #include <l4/syscall.h>
 
-/* fpage support.  */
-#define l4_no_access		0x00
-#define l4_executable		0x01
-#define l4_writable		0x02
-#define l4_readable		0x04
-#define l4_fully_accessible	(l4_readable | l4_writable | l4_executable)
-#define l4_read_exec_only	(l4_readable | l4_executable)
+
+typedef _L4_RAW
+(_L4_word_t, _L4_STRUCT3
+ ({
+   _L4_BITFIELD3
+     (_L4_word_t,
+      _L4_BITFIELD (rights, 4),
+      _L4_BITFIELD (log2_size, 6),
+      _L4_BITFIELD_32_64 (base, 22, 54));
+ },
+ {
+   /* Alias names for RIGHTS.  */
+   _L4_BITFIELD3
+     (_L4_word_t,
+      _L4_BITFIELD (executable, 1),
+      _L4_BITFIELD (writable, 1),
+      _L4_BITFIELD (readable, 1));
+ },
+ {
+   /* Names for status bits as returned from l4_unmap.  */
+   _L4_BITFIELD3
+     (_L4_word_t,
+      _L4_BITFIELD (executed, 1),
+      _L4_BITFIELD (written, 1),
+      _L4_BITFIELD (referenced, 1));
+ })) __L4_fpage_t;
 
-/* FIXME: These are compound statements and can not be used for
-   initialization of global variables in C99.  */
-#define l4_nilpage ((l4_fpage_t) { .raw = 0 })
-/* FIXME: When gcc supports unnamed fields in initializer.  */
-#define l4_complete_address_space \
-  ((l4_fpage_t) { .page.rights = 0, .page.log2_size = 1, .page.base = 0 })
+/* fpage support.  */
+#define _L4_no_access		0x00
+#define _L4_executable		0x01
+#define _L4_writable		0x02
+#define _L4_readable		0x04
+#define _L4_fully_accessible	(_L4_readable | _L4_writable | _L4_executable)
+#define _L4_read_exec_only	(_L4_readable | _L4_executable)
+
+#define _L4_nilpage			((_L4_fpage_t) 0)
+#define _L4_complete_address_space	((_L4_fpage_t) (1 << 4))
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_is_nil_fpage (l4_fpage_t fpage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_nil_fpage (_L4_fpage_t fpage)
 {
-  return fpage.raw == l4_nilpage.raw;
+  return fpage == _L4_nilpage;
 }
 
 
-static inline l4_fpage_t
-__attribute__((__always_inline__))
-l4_fpage (l4_word_t base, int size)
+static inline _L4_fpage_t
+_L4_attribute_always_inline
+_L4_fpage (_L4_word_t base, int size)
 {
-  l4_fpage_t fpage;
-  l4_word_t msb = l4_msb (size) - 1;
+  __L4_fpage_t fpage;
+  _L4_word_t msb = _L4_msb (size) - 1;
 
   fpage.base = base >> 10;
   fpage.log2_size = size ? ((1 << msb) == size ? msb : msb + 1) : 0;
-  fpage.rights = l4_no_access;
+  fpage.rights = _L4_no_access;
 
-  return fpage;
+  return fpage.raw;
 }
 
 
-static inline l4_fpage_t
-__attribute__((__always_inline__))
-l4_fpage_log2 (l4_word_t base, int log2_size)
+static inline _L4_fpage_t
+_L4_attribute_always_inline
+_L4_fpage_log2 (_L4_word_t base, int log2_size)
 {
-  l4_fpage_t fpage;
+  __L4_fpage_t fpage;
 
   fpage.base = base >> 10;
   fpage.log2_size = log2_size;
-  fpage.rights = l4_no_access;
-  return fpage;
+  fpage.rights = _L4_no_access;
+
+  return fpage.raw;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_address (l4_fpage_t fpage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_address (_L4_fpage_t fpage)
 {
-  return fpage.base << 10;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = fpage;
+  return _fpage.base << 10;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_size (l4_fpage_t fpage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_size (_L4_fpage_t fpage)
 {
-  return 1 << fpage.log2_size;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = fpage;
+  return 1 << _fpage.log2_size;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_size_log2 (l4_fpage_t fpage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_size_log2 (_L4_fpage_t fpage)
 {
-  return fpage.log2_size;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = fpage;
+  return _fpage.log2_size;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_rights (l4_fpage_t fpage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_rights (_L4_fpage_t fpage)
 {
-  return fpage.rights;
-}
+  __L4_fpage_t _fpage;
 
-
-static inline void
-__attribute__((__always_inline__))
-l4_set_rights (l4_fpage_t *fpage, l4_word_t rights)
-{
-  fpage->rights = rights;
-}
-
-
-static inline l4_fpage_t
-__attribute__((__always_inline__))
-l4_fpage_add_rights (l4_fpage_t fpage, l4_word_t rights)
-{
-  l4_fpage_t new_fpage = fpage;
-  new_fpage.rights |= rights;
-  return new_fpage;
+  _fpage.raw = fpage;
+  return _fpage.rights;
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_fpage_add_rights_to (l4_fpage_t *fpage, l4_word_t rights)
+_L4_attribute_always_inline
+_L4_set_rights (_L4_fpage_t *fpage, _L4_word_t rights)
 {
-  fpage->rights |= rights;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = *fpage;
+  _fpage.rights = rights;
+  *fpage = _fpage.raw;
 }
 
 
-static inline l4_fpage_t
-__attribute__((__always_inline__))
-l4_fpage_remove_rights (l4_fpage_t fpage, l4_word_t rights)
+static inline _L4_fpage_t
+_L4_attribute_always_inline
+_L4_fpage_add_rights (_L4_fpage_t fpage, _L4_word_t rights)
 {
-  l4_fpage_t new_fpage = fpage;
-  new_fpage.rights &= ~rights;
-  return new_fpage;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = fpage;
+  _fpage.rights |= rights;
+  return _fpage.raw;
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_fpage_remove_rights_from (l4_fpage_t *fpage, l4_word_t rights)
+_L4_attribute_always_inline
+_L4_fpage_add_rights_to (_L4_fpage_t *fpage, _L4_word_t rights)
 {
-  fpage->rights &= ~rights;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = *fpage;
+  _fpage.rights |= rights;
+  *fpage = _fpage.raw;
+}
+
+
+static inline _L4_fpage_t
+_L4_attribute_always_inline
+_L4_fpage_remove_rights (_L4_fpage_t fpage, _L4_word_t rights)
+{
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = fpage;
+  _fpage.rights &= ~rights;
+  return _fpage.raw;
+}
+
+
+static inline void
+_L4_attribute_always_inline
+_L4_fpage_remove_rights_from (_L4_fpage_t *fpage, _L4_word_t rights)
+{
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = *fpage;
+  _fpage.rights &= ~rights;
+  *fpage = _fpage.raw;
 }
 
 
 /* l4_unmap convenience interface.  */
 
 static inline void
-__attribute__((__always_inline__))
-l4_unmap_fpage (l4_fpage_t fpage)
+_L4_attribute_always_inline
+_L4_unmap_fpage (_L4_fpage_t fpage)
 {
-  l4_load_mr (0, fpage.raw);
-  l4_unmap (0);
-  l4_store_mr (0, &fpage.raw);
+  _L4_load_mr (0, fpage);
+  _L4_unmap (0);
+  _L4_store_mr (0, &fpage);
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_unmap_fpages (l4_word_t nr, l4_fpage_t *fpages)
+_L4_attribute_always_inline
+_L4_unmap_fpages (_L4_word_t nr, _L4_fpage_t *fpages)
 {
-  l4_load_mrs (0, nr, (l4_word_t *) fpages);
-  l4_unmap ((nr - 1) & L4_UNMAP_COUNT_MASK);
-  l4_store_mrs (0, nr, (l4_word_t *) fpages);
+  _L4_load_mrs (0, nr, fpages);
+  _L4_unmap ((nr - 1) & _L4_UNMAP_COUNT_MASK);
+  _L4_store_mrs (0, nr, fpages);
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_flush (l4_fpage_t fpage)
+_L4_attribute_always_inline
+_L4_flush (_L4_fpage_t fpage)
 {
-  l4_load_mr (0, fpage.raw);
-  l4_unmap (L4_UNMAP_FLUSH);
-  l4_store_mr (0, &fpage.raw);
+  _L4_load_mr (0, fpage);
+  _L4_unmap (_L4_UNMAP_FLUSH);
+  _L4_store_mr (0, &fpage);
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_flush_fpages (l4_word_t nr, l4_fpage_t *fpages)
+_L4_attribute_always_inline
+_L4_flush_fpages (_L4_word_t nr, _L4_fpage_t *fpages)
 {
-  l4_load_mrs (0, nr, (l4_word_t *) fpages);
-  l4_unmap (L4_UNMAP_FLUSH | ((nr - 1) & L4_UNMAP_COUNT_MASK));
-  l4_store_mrs (0, nr, (l4_word_t *) fpages);
+  _L4_load_mrs (0, nr, fpages);
+  _L4_unmap (_L4_UNMAP_FLUSH | ((nr - 1) & _L4_UNMAP_COUNT_MASK));
+  _L4_store_mrs (0, nr, fpages);
 }
 
 
-static inline l4_fpage_t
-__attribute__((__always_inline__))
-l4_get_status (l4_fpage_t fpage)
+static inline _L4_fpage_t
+_L4_attribute_always_inline
+_L4_get_status (_L4_fpage_t fpage)
 {
-  l4_fpage_t save_fpage;
-  l4_fpage_t status;
-  
-  save_fpage = l4_fpage_remove_rights (fpage, l4_fully_accessible);
-  l4_load_mr (0, save_fpage.raw);
-  l4_unmap (0);
-  l4_store_mr (0, &status.raw);
-  return status;
+  _L4_fpage_remove_rights_from (&fpage, _L4_fully_accessible);
+  _L4_load_mr (0, fpage);
+  _L4_unmap (0);
+  _L4_store_mr (0, &fpage);
+  return fpage;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_was_referenced (l4_fpage_t fpage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_was_referenced (_L4_fpage_t fpage)
 {
-  return fpage.referenced;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = fpage;
+  return _fpage.referenced;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_was_written (l4_fpage_t fpage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_was_written (_L4_fpage_t fpage)
 {
-  return fpage.written;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = fpage;
+  return _fpage.written;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_was_executed (l4_fpage_t fpage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_was_executed (_L4_fpage_t fpage)
 {
-  return fpage.executed;
+  __L4_fpage_t _fpage;
+
+  _fpage.raw = fpage;
+  return _fpage.executed;
 }
 
-#endif	/* l4/syscall.h */
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/compat/space.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/gnu/space.h>
+#endif
+
+#endif	/* l4/space.h */

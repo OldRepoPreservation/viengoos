@@ -1,5 +1,5 @@
-/* space.h - Architecture dependent part of public interface to L4 threads.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/bits/space.h - L4 spaces definitions for powerpc.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -25,3 +25,12 @@
 
 
 /* Nothing yet.  */
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/bits/compat/space.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/bits/gnu/space.h>
+#endif

@@ -23,4 +23,11 @@
 # error "Never use <l4/bits/kip.h> directly; include <l4/kip.h> instead."
 #endif
 
+
 /* Nothing yet.  */
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_GNU
+#include <l4/bits/gnu/kip.h>
+#endif

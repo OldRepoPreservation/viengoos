@@ -1,5 +1,5 @@
-/* types.h - L4 machine type definitions for powerpc.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/bits/types.h - L4 machine type definitions for powerpc.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -23,8 +23,9 @@
 # error "Never use <l4/bits/types.h> directly; include <l4/types.h> instead."
 #endif
 
+
 /* PowerPC has 32 bits per word.  */
-#define L4_WORDSIZE	L4_WORDSIZE_32
+#define _L4_WORDSIZE	_L4_WORDSIZE_32
 
 /* PowerPC is big-endian.  */
-#define L4_BYTE_ORDER	L4_BIG_ENDIAN
+#define _L4_BYTE_ORDER	_L4_BIG_ENDIAN

@@ -1,5 +1,5 @@
-/* globals.h - Global variables for libl4.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/globals.h - Global variables for libl4.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -27,4 +27,4 @@
 #include <l4/kip.h>
 
 /* The global kernel interface page.  */
-l4_kip_t __l4_kip;
+_L4_kip_t __l4_kip;

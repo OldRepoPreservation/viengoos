@@ -45,39 +45,41 @@
    the API flags, and the kernel ID.  */
 
 static inline l4_kip_t
-__attribute__((__always_inline__, __const__))
-l4_kernel_interface (l4_api_version_t *api_version, l4_api_flags_t *api_flags,
-		     l4_kernel_id_t *kernel_id)
+_L4_attribute_always_inline _L4_attribute_const
+_L4_kernel_interface (_L4_api_version_t *api_version,
+		      _L4_api_flags_t *api_flags,
+		      _L4_kernel_id_t *kernel_id)
 {
   register void *kip asm ("r3");
-  register l4_word_t version asm ("r4");
-  register l4_word_t flags asm ("r5");
-  register l4_word_t id asm ("r6");
+  register _L4_word_t version asm ("r4");
+  register _L4_word_t flags asm ("r5");
+  register _L4_word_t id asm ("r6");
 
   __asm__ ("tlbia\n"
 	   : "+r" (kip), "+r" (version), "+r" (flags), "+r" (id));
 
-  api_version->raw = version;
-  api_flags->raw = flags;
-  kernel_id->raw = id;
+  *api_version = version;
+  *api_flags = flags;
+  *kernel_id = id;
 
   return kip;
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_exchange_registers (l4_thread_id_t *dest_p, l4_word_t *control_p,
-		       l4_word_t *sp_p, l4_word_t *ip_p, l4_word_t *flags_p,
-		       l4_word_t *user_handle_p, l4_thread_id_t *pager_p)
+_L4_attribute_always_inline
+_L4_exchange_registers (_L4_thread_id_t *dest_p, _L4_word_t *control_p,
+			_L4_word_t *sp_p, _L4_word_t *ip_p,
+			_L4_word_t *flags_p, _L4_word_t *user_handle_p,
+			_L4_thread_id_t *pager_p)
 {
-  register l4_word_t dest_result asm ("r3") = dest_p->raw;
-  register l4_word_t control asm ("r4") = *control_p;
-  register l4_word_t sp asm ("r5") = *sp_p;
-  register l4_word_t ip asm ("r6") = *ip_p;
-  register l4_word_t flags asm ("r7") = *flags_p;
-  register l4_word_t user_handle asm ("r8") = *user_handle_p;
-  register l4_word_t pager asm ("r9") = pager_p->raw;
+  register _L4_word_t dest_result asm ("r3") = *dest_p;
+  register _L4_word_t control asm ("r4") = *control_p;
+  register _L4_word_t sp asm ("r5") = *sp_p;
+  register _L4_word_t ip asm ("r6") = *ip_p;
+  register _L4_word_t flags asm ("r7") = *flags_p;
+  register _L4_word_t user_handle asm ("r8") = *user_handle_p;
+  register _L4_word_t pager asm ("r9") = *pager_p;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -87,27 +89,27 @@ l4_exchange_registers (l4_thread_id_t *dest_p, l4_word_t *control_p,
 			: [addr] "r" (__l4_exchange_registers)
 			: "r10", __L4_PPC_CLOB);
 
-  dest_p->raw = dest_result;
+  *dest_p = dest_result;
   *control_p = control;
   *sp_p = sp;
   *ip_p = ip;
   *flags_p = flags;
   *user_handle_p = user_handle;
-  pager_p->raw = pager;
+  *pager_p = pager;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_thread_control (l4_thread_id_t dest, l4_thread_id_t space,
-		   l4_thread_id_t scheduler, l4_thread_id_t pager,
-		   void *utcb_loc)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_thread_control (_L4_thread_id_t dest, _L4_thread_id_t space,
+		    _L4_thread_id_t scheduler, _L4_thread_id_t pager,
+		    void *utcb_loc)
 {
-  register l4_word_t dest_result asm ("r3") = dest.raw;
-  register l4_word_t space_raw asm ("r4") = space.raw;
-  register l4_word_t scheduler_raw asm ("r5") = scheduler.raw;
-  register l4_word_t pager_raw asm ("r6") = pager.raw;
-  register l4_word_t utcb asm ("r7") = (l4_word_t) utcb_loc;
+  register _L4_word_t dest_result asm ("r3") = dest;
+  register _L4_word_t space_raw asm ("r4") = space;
+  register _L4_word_t scheduler_raw asm ("r5") = scheduler;
+  register _L4_word_t pager_raw asm ("r6") = pager;
+  register _L4_word_t utcb asm ("r7") = (_L4_word_t) utcb_loc;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -121,12 +123,12 @@ l4_thread_control (l4_thread_id_t dest, l4_thread_id_t space,
 }
 
 
-static inline l4_clock_t
-__attribute__((__always_inline__))
-l4_system_clock (void)
+static inline _L4_clock_t
+_L4_attribute_always_inline
+_L4_system_clock (void)
 {
-  register l4_word_t time_low asm ("r3");
-  register l4_word_t time_high asm ("r4");
+  register _L4_word_t time_low asm ("r3");
+  register _L4_word_t time_high asm ("r4");
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -135,15 +137,15 @@ l4_system_clock (void)
 			: "r5", "r6", "r7", "r8", "r9", "r10",
 			__L4_PPC_CLOB);
 
-  return (((l4_clock_t) time_high) << 32) | time_low;
+  return (((_L4_clock_t) time_high) << 32) | time_low;
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_thread_switch (l4_thread_id_t dest)
+_L4_attribute_always_inline
+_L4_thread_switch (_L4_thread_id_t dest)
 {
-  register l4_word_t dest_raw asm ("r3") = dest.raw;
+  register _L4_word_t dest_raw asm ("r3") = dest;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -153,17 +155,17 @@ l4_thread_switch (l4_thread_id_t dest)
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_schedule (l4_thread_id_t dest, l4_word_t time_control,
-	     l4_word_t proc_control, l4_word_t prio,
-	     l4_word_t preempt_control, l4_word_t *old_time_control)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_schedule (_L4_thread_id_t dest, _L4_word_t time_control,
+	      _L4_word_t proc_control, _L4_word_t prio,
+	      _L4_word_t preempt_control, _L4_word_t *old_time_control)
 {
-  register l4_word_t dest_result asm ("r3") = dest.raw;
-  register l4_word_t time asm ("r4") = time_control;
-  register l4_word_t proc asm ("r5") = proc_control;
-  register l4_word_t priority asm ("r6") = prio;
-  register l4_word_t preempt asm ("r7") = preempt_control;
+  register _L4_word_t dest_result asm ("r3") = dest;
+  register _L4_word_t time asm ("r4") = time_control;
+  register _L4_word_t proc asm ("r5") = proc_control;
+  register _L4_word_t priority asm ("r6") = prio;
+  register _L4_word_t preempt asm ("r7") = preempt_control;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -178,10 +180,10 @@ l4_schedule (l4_thread_id_t dest, l4_word_t time_control,
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_unmap (l4_word_t control)
+_L4_attribute_always_inline
+_L4_unmap (_L4_word_t control)
 {
-  register l4_word_t ctrl asm ("r3") = control;
+  register _L4_word_t ctrl asm ("r3") = control;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -192,17 +194,17 @@ l4_unmap (l4_word_t control)
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_space_control (l4_thread_id_t space, l4_word_t control,
-		  l4_fpage_t kip_area, l4_fpage_t utcb_area,
-		  l4_thread_id_t redirector, l4_word_t *old_control)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_space_control (_L4_thread_id_t space, _L4_word_t control,
+		   _L4_fpage_t kip_area, _L4_fpage_t utcb_area,
+		   _L4_thread_id_t redirector, _L4_word_t *old_control)
 {
-  register l4_word_t space_result asm ("r3") = space.raw;
-  register l4_word_t ctrl asm ("r4") = control;
-  register l4_word_t kip asm ("r5") = kip_area.raw;
-  register l4_word_t utcb asm ("r6") = utcb_area.raw;
-  register l4_word_t redir asm ("r7") = redirector.raw;
+  register _L4_word_t space_result asm ("r3") = space;
+  register _L4_word_t ctrl asm ("r4") = control;
+  register _L4_word_t kip asm ("r5") = kip_area;
+  register _L4_word_t utcb asm ("r6") = utcb_area;
+  register _L4_word_t redir asm ("r7") = redirector;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -216,25 +218,25 @@ l4_space_control (l4_thread_id_t space, l4_word_t control,
 }
 
 
-static inline l4_msg_tag_t
-__attribute__((__always_inline__))
-l4_ipc (l4_thread_id_t to, l4_thread_id_t from_spec,
-	l4_word_t timeouts, l4_thread_id_t *from)
+static inline _L4_msg_tag_t
+_L4_attribute_always_inline
+_L4_ipc (_L4_thread_id_t to, _L4_thread_id_t from_spec,
+	 _L4_word_t timeouts, _L4_thread_id_t *from)
 {
-  l4_word_t *mr = __l4_utcb () + __L4_UTCB_MR0;
-  register l4_word_t mr9 asm ("r0") = mr[9];
-  register l4_word_t mr1 asm ("r3") = mr[1];
-  register l4_word_t mr2 asm ("r4") = mr[2];
-  register l4_word_t mr3 asm ("r5") = mr[3];
-  register l4_word_t mr4 asm ("r6") = mr[4];
-  register l4_word_t mr5 asm ("r7") = mr[5];
-  register l4_word_t mr6 asm ("r8") = mr[6];
-  register l4_word_t mr7 asm ("r9") = mr[7];
-  register l4_word_t mr8 asm ("r10") = mr[8];
-  register l4_word_t mr0 asm ("r14") = mr[0];
-  register l4_word_t to_raw asm ("r15") = to.raw;
-  register l4_word_t from_spec_raw asm ("r16") = from_spec.raw;
-  register l4_word_t time_outs asm ("r17") = timeouts;
+  _L4_word_t *mr = _L4_utcb () + _L4_UTCB_MR0;
+  register _L4_word_t mr9 asm ("r0") = mr[9];
+  register _L4_word_t mr1 asm ("r3") = mr[1];
+  register _L4_word_t mr2 asm ("r4") = mr[2];
+  register _L4_word_t mr3 asm ("r5") = mr[3];
+  register _L4_word_t mr4 asm ("r6") = mr[4];
+  register _L4_word_t mr5 asm ("r7") = mr[5];
+  register _L4_word_t mr6 asm ("r8") = mr[6];
+  register _L4_word_t mr7 asm ("r9") = mr[7];
+  register _L4_word_t mr8 asm ("r10") = mr[8];
+  register _L4_word_t mr0 asm ("r14") = mr[0];
+  register _L4_word_t to_raw asm ("r15") = to;
+  register _L4_word_t from_spec_raw asm ("r16") = from_spec;
+  register _L4_word_t time_outs asm ("r17") = timeouts;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -248,7 +250,7 @@ l4_ipc (l4_thread_id_t to, l4_thread_id_t from_spec,
   /* FIXME: Make it so that we can use l4_is_nilthread?  */
   if (from_spec_raw)
     {
-      from->raw = from_spec_raw;
+      *from = from_spec_raw;
       mr[1] = mr1;
       mr[2] = mr2;
       mr[3] = mr3;
@@ -259,29 +261,29 @@ l4_ipc (l4_thread_id_t to, l4_thread_id_t from_spec,
       mr[8] = mr8;
       mr[9] = mr9;
     }
-  return (l4_msg_tag_t) { .raw = mr0 };
+  return mr0;
 }
 
 
-static inline l4_msg_tag_t
-__attribute__((__always_inline__))
-l4_lipc (l4_thread_id_t to, l4_thread_id_t from_spec,
-	 l4_word_t timeouts, l4_thread_id_t *from)
+static inline _L4_msg_tag_t
+_L4_attribute_always_inline
+_L4_lipc (_L4_thread_id_t to, _L4_thread_id_t from_spec,
+	  _L4_word_t timeouts, _L4_thread_id_t *from)
 {
-  l4_word_t *mr = __l4_utcb () + __L4_UTCB_MR0;
-  register l4_word_t mr9 asm ("r0") = mr[9];
-  register l4_word_t mr1 asm ("r3") = mr[1];
-  register l4_word_t mr2 asm ("r4") = mr[2];
-  register l4_word_t mr3 asm ("r5") = mr[3];
-  register l4_word_t mr4 asm ("r6") = mr[4];
-  register l4_word_t mr5 asm ("r7") = mr[5];
-  register l4_word_t mr6 asm ("r8") = mr[6];
-  register l4_word_t mr7 asm ("r9") = mr[7];
-  register l4_word_t mr8 asm ("r10") = mr[8];
-  register l4_word_t mr0 asm ("r14") = mr[0];
-  register l4_word_t to_raw asm ("r15") = to.raw;
-  register l4_word_t from_spec_raw asm ("r16") = from_spec.raw;
-  register l4_word_t time_outs asm ("r17") = timeouts;
+  _L4_word_t *mr = _L4_utcb () + _L4_UTCB_MR0;
+  register _L4_word_t mr9 asm ("r0") = mr[9];
+  register _L4_word_t mr1 asm ("r3") = mr[1];
+  register _L4_word_t mr2 asm ("r4") = mr[2];
+  register _L4_word_t mr3 asm ("r5") = mr[3];
+  register _L4_word_t mr4 asm ("r6") = mr[4];
+  register _L4_word_t mr5 asm ("r7") = mr[5];
+  register _L4_word_t mr6 asm ("r8") = mr[6];
+  register _L4_word_t mr7 asm ("r9") = mr[7];
+  register _L4_word_t mr8 asm ("r10") = mr[8];
+  register _L4_word_t mr0 asm ("r14") = mr[0];
+  register _L4_word_t to_raw asm ("r15") = to;
+  register _L4_word_t from_spec_raw asm ("r16") = from_spec;
+  register _L4_word_t time_outs asm ("r17") = timeouts;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -295,7 +297,7 @@ l4_lipc (l4_thread_id_t to, l4_thread_id_t from_spec,
   /* FIXME: Make it so that we can use l4_is_nilthread?  */
   if (from_spec_raw)
     {
-      from->raw = from_spec_raw;
+      *from = from_spec_raw;
       mr[1] = mr1;
       mr[2] = mr2;
       mr[3] = mr3;
@@ -306,19 +308,19 @@ l4_lipc (l4_thread_id_t to, l4_thread_id_t from_spec,
       mr[8] = mr8;
       mr[9] = mr9;
     }
-  return (l4_msg_tag_t) { .raw = mr0 };
+  return mr0;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_processor_control (l4_word_t proc, l4_word_t int_freq,
-		      l4_word_t ext_freq, l4_word_t voltage)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_processor_control (_L4_word_t proc, _L4_word_t int_freq,
+		       _L4_word_t ext_freq, _L4_word_t voltage)
 {
-  register l4_word_t proc_result asm ("r3") = proc;
-  register l4_word_t internal_freq asm ("r4") = int_freq;
-  register l4_word_t external_freq asm ("r5") = ext_freq;
-  register l4_word_t volt asm ("r6") = voltage;
+  register _L4_word_t proc_result asm ("r3") = proc;
+  register _L4_word_t internal_freq asm ("r4") = int_freq;
+  register _L4_word_t external_freq asm ("r5") = ext_freq;
+  register _L4_word_t volt asm ("r6") = voltage;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -333,14 +335,14 @@ l4_processor_control (l4_word_t proc, l4_word_t int_freq,
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_memory_control (l4_word_t control, l4_word_t *attributes)
+_L4_attribute_always_inline
+_L4_memory_control (_L4_word_t control, _L4_word_t *attributes)
 {
-  register l4_word_t ctrl asm ("r3") = control;
-  register l4_word_t attr0 asm ("r4") = attributes[0];
-  register l4_word_t attr1 asm ("r5") = attributes[1];
-  register l4_word_t attr2 asm ("r6") = attributes[2];
-  register l4_word_t attr3 asm ("r7") = attributes[3];
+  register _L4_word_t ctrl asm ("r3") = control;
+  register _L4_word_t attr0 asm ("r4") = attributes[0];
+  register _L4_word_t attr1 asm ("r5") = attributes[1];
+  register _L4_word_t attr2 asm ("r6") = attributes[2];
+  register _L4_word_t attr3 asm ("r7") = attributes[3];
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"

@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libl4.
-# Copyright (C) 2003 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -26,8 +26,19 @@ if ARCH_POWERPC
 endif
 SUBDIRS =  $(ARCH_SUBDIR)
 
+# Header files that must be provided by all interfaces.
+common_headers := ipc.h kip.h message.h misc.h schedule.h space.h	\
+	syscall.h thread.h types.h
+# Interface-specific header files.
+gnu_headers := $(common_headers) math.h
+compat_headers := $(common_headers)
+
+# Main libl4 header files.
+l4_headers = features.h globals.h init.h ipc.h kip.h math.h message.h	\
+	misc.h schedule.h space.h stubs-init.h stubs.h syscall.h	\
+	thread.h types.h vregs.h
+
 include_HEADERS = l4.h
-nobase_include_HEADERS = l4/types.h l4/math.h l4/globals.h l4/init.h	\
-	l4/vregs.h l4/stubs.h l4/stubs-init.h l4/syscall.h		\
-	l4/kip.h l4/thread.h l4/schedule.h l4/space.h			\
-	l4/ipc.h l4/misc.h
+nobase_include_HEADERS = $(addprefix l4/, $(l4_headers))	\
+	$(addprefix l4/gnu/, $(gnu_headers))			\
+	$(addprefix l4/compat/, $(compat_headers))

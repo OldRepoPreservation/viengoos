@@ -17,17 +17,23 @@ actual code contained in the library is little.  This also applies to
 names of functions and data types, which follow the GNU coding
 standard (except for the compatibility interface).
 
+* Interface extensions.  The official L4 API is pretty minimalistic.
+Some generic convenience functions should just be provided by libl4.
+Having a separate code base means we can deal in the interface as we
+see fit, and be more oriented towards usability in the GNU system
+rather than tight definition.
+
 * No struct returns.  Many small data types in the official interface
 are defined to be of an opaque struct type.  This is nice from a data
 encapsulation point of view, but causes problems in the C language.
-Although all functions the interface defined are usually inlined,
+Although all functions the interface defines are usually inlined,
 user-defined functions on top of the official interface might use
 structure types as return types of functions.  However, there are two
 calling conventions in use for that, one compatible to PCC which
-passes the struct on the stack, and one more efficient that uses
+passes the struct on the stack, and a more efficient one that uses
 registers for small structures.  Unfortunately, the less efficient one
-is the default.  This makes these data types less optimal for use in
-C programs.
+is the default for some platforms.  This makes these data types less
+optimal for use in C programs.
 
 * Making best use of available tools.  Some additional requirements
 lead to code that can be simpler to understand and sometimes even more
@@ -88,3 +94,36 @@ requirements are:
   bit-fields (which sizes add up to word size) in the order of the
   endianess of the architecture into a single word, and the bits
   within the individual bit-fields in the same order.
+
+
+What is the status of the library?
+----------------------------------
+
+The following interfaces are provided
+
+compat	Enabled by default or if _L4_INTERFACE_COMPAT is defined, can
+	be disabled by defining _L4_NON_COMPAT.
+
+The compat interface is supposed to (eventually) be a drop-in
+replacement for the official libl4 library.  Currently, this is not
+the case, though.  Some inofficial interfaces are not implemented, and
+the system call stubs behave differently (the official library
+initializes them lazily, while in GNU libl4 they have to be
+initialized explicitely or implicitely by the linker).
+
+gnu	Enabled if _GNU_SOURCE of _L4_INTERFACE_GNU is defined.
+
+The GNU interface is the interface of our choice.  It provides all of
+the functionality of the official interface, and more.  It does not
+provide a C++ API, though.
+
+
+Overall status:
+
+The operations on the TIME data type have not been implemented
+(_L4_time_point, _L4_time_add_usec, etc) yet.
+
+Architecture specific status:
+
+i386	complete and up-to-date
+powerpc	needs to be tested and updated to latest API version

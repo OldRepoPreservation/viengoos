@@ -1,4 +1,4 @@
-/* stubs.h - Global system call stubs variables for libl4.
+/* l4/stubs.h - Global system call stubs variables for libl4.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -26,6 +26,8 @@
 
 #ifndef _L4_STUBS_H
 #define _L4_STUBS_H	1
+
+#include <l4/features.h>
 
 #include <l4/bits/stubs.h>
 

@@ -1,5 +1,5 @@
-/* types.h - Public interface for L4 types.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/types.h - Public interface for L4 types.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -22,58 +22,49 @@
 #ifndef _L4_TYPES_H
 #define _L4_TYPES_H	1
 
-#define L4_LITTLE_ENDIAN	0
-#define L4_BIG_ENDIAN		1
+#include <l4/features.h>
 
-#define L4_WORDSIZE_32		0
-#define L4_WORDSIZE_64		1
-
-/* <l4/bits/types.h> defines L4_BYTE_ORDER and L4_WORDSIZE.  It also
-   defines the basic type l4_word_t.  */
+/* The architecture specific file defines _L4_BYTE_ORDER and _L4_WORDSIZE.  */
 #include <l4/bits/types.h>
 
-# define __l4_intN_t(N, MODE) \
-  typedef int l4_int##N##_t __attribute__ ((__mode__ (MODE)))
-# define __l4_uintN_t(N, MODE) \
-  typedef unsigned int l4_uint##N##_t __attribute__ ((__mode__ (MODE)))
+
+#define _L4_LITTLE_ENDIAN	0
+#define _L4_BIG_ENDIAN		1
 
-__l4_intN_t (8, __QI__);
-__l4_intN_t (16, __HI__);
-__l4_intN_t (32, __SI__);
-__l4_intN_t (64, __DI__);
+#define _L4_WORDSIZE_32		0
+#define _L4_WORDSIZE_64		1
 
-__l4_uintN_t (8, __QI__);
-__l4_uintN_t (16, __HI__);
-__l4_uintN_t (32, __SI__);
-__l4_uintN_t (64, __DI__);
+# define __L4_intN_t(N, MODE) \
+  typedef int _L4_int##N##_t __attribute__ ((__mode__ (MODE)))
+# define __L4_uintN_t(N, MODE) \
+  typedef unsigned int _L4_uint##N##_t __attribute__ ((__mode__ (MODE)))
 
-#if L4_WORDSIZE == L4_WORDSIZE_32
-typedef l4_uint32_t l4_word_t;
-#define L4_WORD_C(c)	c ## U
-#define __L4_PRI_PREFIX
+__L4_intN_t (8, __QI__);
+__L4_intN_t (16, __HI__);
+__L4_intN_t (32, __SI__);
+__L4_intN_t (64, __DI__);
+
+__L4_uintN_t (8, __QI__);
+__L4_uintN_t (16, __HI__);
+__L4_uintN_t (32, __SI__);
+__L4_uintN_t (64, __DI__);
+#if _L4_WORDSIZE == _L4_WORDSIZE_64
+__L4_uintN_t (128, __TI__);
+#endif
+
+#if _L4_WORDSIZE == _L4_WORDSIZE_32
+typedef _L4_uint32_t _L4_word_t;
+#define _L4_WORD_C(c)	c ## U
+typedef _L4_uint64_t _L4_dword_t;
 #else
-#if L4_WORDSIZE == L4_WORDSIZE_64
-typedef l4_uint64_t l4_word_t;
-#define L4_WORD_C(c)	c ## UL
-#define __L4_PRI_PREFIX	"l"
+#if _L4_WORDSIZE == _L4_WORDSIZE_64
+typedef _L4_uint64_t _L4_word_t;
+#define _L4_WORD_C(c)	c ## UL
+typedef _L4_uint128_t _L4_dword_t;
 #else
 #error "Unsupported word size."
 #endif
 #endif
-
-#define L4_PRIdWORD	__L4_PRI_PREFIX "d"
-#define L4_PRIiWORD	__L4_PRI_PREFIX "i"
-#define L4_PRIoWORD	__L4_PRI_PREFIX "o"
-#define L4_PRIuWORD	__L4_PRI_PREFIX "u"
-#define L4_PRIxWORD	__L4_PRI_PREFIX "x"
-#define L4_PRIXWORD	__L4_PRI_PREFIX "X"
-
-#define L4_SCNdWORD	__L4_PRI_PREFIX "d"
-#define L4_SCNiWORD	__L4_PRI_PREFIX "i"
-#define L4_SCNoWORD	__L4_PRI_PREFIX "o"
-#define L4_SCNuWORD	__L4_PRI_PREFIX "u"
-#define L4_SCNxWORD	__L4_PRI_PREFIX "x"
-#define L4_SCNXWORD	__L4_PRI_PREFIX "X"
 
 
 /* Utility macros for structure definitions.  */
@@ -85,11 +76,11 @@ typedef l4_uint64_t l4_word_t;
 /* Sometimes the bit-field has different sizes depending on the word
    size, and sometimes it only exists on systems with a specific word
    size.  */
-#if L4_WORDSIZE == L4_WORDSIZE_32
+#if _L4_WORDSIZE == _L4_WORDSIZE_32
 #define _L4_BITFIELD_64(name, nr) : 0
 #define _L4_BITFIELD_32_64(name, nr32, nr64) name : nr32
 #else
-#if L4_WORDSIZE == L4_WORDSIZE_64
+#if _L4_WORDSIZE == _L4_WORDSIZE_64
 #define _L4_BITFIELD_64(name, nr) name : nr
 #define _L4_BITFIELD_32_64(name, nr32, nr64) name : nr64
 #endif
@@ -98,7 +89,7 @@ typedef l4_uint64_t l4_word_t;
 /* The representation of a bit-field is system and/or compiler
    specific.  We require that GCC uses a specific representation that
    only depends on the endianess of the system.  */
-#if L4_BYTE_ORDER == L4_LITTLE_ENDIAN
+#if _L4_BYTE_ORDER == _L4_LITTLE_ENDIAN
 #define _L4_BITFIELD2(type, bf1, bf2) type bf1; type bf2
 #define _L4_BITFIELD3(type, bf1, bf2, bf3) type bf1; type bf2; type bf3
 #define _L4_BITFIELD4(type, bf1, bf2, bf3, bf4) \
@@ -110,7 +101,7 @@ typedef l4_uint64_t l4_word_t;
 #define _L4_BITFIELD7(type, bf1, bf2, bf3, bf4, bf5, bf6, bf7) \
   type bf1; type bf2; type bf3; type bf4; type bf5; type bf6; type bf7
 #else
-#if L4_BYTE_ORDER == L4_BIG_ENDIAN
+#if _L4_BYTE_ORDER == _L4_BIG_ENDIAN
 #define _L4_BITFIELD2(type, bf1, bf2) type bf2; type bf1
 #define _L4_BITFIELD3(type, bf1, bf2, bf3) type bf3; type bf2; type bf1
 #define _L4_BITFIELD4(type, bf1, bf2, bf3, bf4) \
@@ -143,118 +134,36 @@ typedef l4_uint64_t l4_word_t;
   struct s1; struct s2; struct s3; struct s4
 
 
-/* The Thread ID type is here to avoid vregs.h requiring thread.h.  */
-/* FIXME: Remove named structs when gcc supports initializers for
-   unnamed fields, and change the initializers in <l4/thread.h>.  */
-typedef _L4_RAW
-(l4_word_t, _L4_STRUCT4
- ({
-   _L4_BITFIELD2
-     (l4_word_t,
-      _L4_BITFIELD_32_64 (version, 14, 32),
-      _L4_BITFIELD_32_64 (thread_no, 18, 32));
- },
- {
-   _L4_BITFIELD2
-     (l4_word_t,
-      _L4_BITFIELD (_all_zero, 6),
-      _L4_BITFIELD_32_64 (local, 26, 58));
- },
- {
-   _L4_BITFIELD2
-     (l4_word_t,
-      _L4_BITFIELD_32_64 (version, 14, 32),
-      _L4_BITFIELD_32_64 (thread_no, 18, 32));
- } global,
- {
-   _L4_BITFIELD2
-     (l4_word_t,
-      _L4_BITFIELD (_all_zero, 6),
-      _L4_BITFIELD_32_64 (local, 26, 58));
- } local)) l4_thread_id_t;
+/* The following basic types need to be defined here, because they are
+   liberally used in various header files (syscall.h for example).  */
 
+typedef _L4_word_t _L4_api_version_t;
+typedef _L4_word_t _L4_api_flags_t;
+typedef _L4_word_t _L4_kernel_id_t;
+struct _L4_kip;
+typedef struct _L4_kip *_L4_kip_t;
 
-
+typedef _L4_word_t _L4_thread_id_t;
+
 /* The clock is 64 bits on all architectures.  The clock base is
    undefined.  The base unit is 1 microsecond.  */
-typedef l4_uint64_t l4_clock_t;
+typedef _L4_uint64_t _L4_clock_t;
+
+typedef _L4_uint16_t _L4_time_t;
+
+typedef _L4_word_t _L4_fpage_t;
+
+typedef _L4_word_t _L4_msg_tag_t;
 
 
-typedef _L4_RAW
-(l4_uint16_t, _L4_STRUCT2
- ({
-   /* This is a time period.  It is 2^e * m usec long.  */
-   _L4_BITFIELD3
-     (l4_uint16_t,
-      _L4_BITFIELD (m, 10),
-      _L4_BITFIELD (e, 5),
-      _L4_BITFIELD (_zero, 1));
- } period,
- {
-   /* This is a time point with validity (2^10 - 1) * 2^e.  */
-   _L4_BITFIELD4
-     (l4_uint16_t,
-      _L4_BITFIELD (m, 10),
-      _L4_BITFIELD (c, 1),
-      _L4_BITFIELD (e, 4),
-      _L4_BITFIELD (_one, 1));
- } point)) l4_time_t;
-
-
-/* FIXME: Remove named structs when gcc supports initializers for
-   unnamed fields, and change the initializers in <l4/space.h>.  */
-typedef _L4_RAW
-(l4_word_t, _L4_STRUCT4
- ({
-   _L4_BITFIELD3
-     (l4_word_t,
-      _L4_BITFIELD (rights, 4),
-      _L4_BITFIELD (log2_size, 6),
-      _L4_BITFIELD_32_64 (base, 22, 54));
- },
- {
-   /* Alias names for RIGHTS.  */
-   _L4_BITFIELD3
-     (l4_word_t,
-      _L4_BITFIELD (executable, 1),
-      _L4_BITFIELD (writable, 1),
-      _L4_BITFIELD (readable, 1));
- },
- {
-   /* Names for status bits as returned from l4_unmap.  */
-   _L4_BITFIELD3
-     (l4_word_t,
-      _L4_BITFIELD (executed, 1),
-      _L4_BITFIELD (written, 1),
-      _L4_BITFIELD (referenced, 1));
- },
- {
-   _L4_BITFIELD3
-     (l4_word_t,
-      _L4_BITFIELD (rights, 4),
-      _L4_BITFIELD (log2_size, 6),
-      _L4_BITFIELD_32_64 (base, 22, 54));
- } page)) l4_fpage_t;
-
-
-/* Message tags.  */
-typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
-  _L4_BITFIELD7
-    (l4_word_t,
-     _L4_BITFIELD (untyped, 6),
-     _L4_BITFIELD (typed, 6),
-     _L4_BITFIELD (propagated, 1),
-     _L4_BITFIELD (redirected, 1),
-     _L4_BITFIELD (cross_cpu, 1),
-     _L4_BITFIELD (error, 1),
-     _L4_BITFIELD_32_64 (label, 16, 48));
-})) l4_msg_tag_t;
-
-
-#ifndef _L4_NO_COMPAT
-
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
 #include <l4/compat/types.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/gnu/types.h>
+#endif
 
-#endif	/* !_L4_NO_COMPAT */
+
 
 #endif	/* l4/types.h */

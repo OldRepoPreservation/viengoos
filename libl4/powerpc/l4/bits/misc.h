@@ -1,5 +1,5 @@
-/* misc.h - L4 miscellaneous definitions for powerpc.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/bits/misc.h - L4 miscellaneous definitions for powerpc.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -23,11 +23,21 @@
 # error "Never use <l4/bits/misc.h> directly; include <l4/misc.h> instead."
 #endif
 
-#define l4_write_through_memory		1
-#define l4_write_back_memory		2
-#define l4_cache_inhibited_memory	3
-#define l4_cache_enabled_memory		4
-#define l4_global_memory		5
-#define l4_local_memory			6
-#define l4_guarded_memory		7
-#define l4_speculative_memory		8
+
+#define _L4_WRITE_THROUGH_MEMORY	_L4_WORD_C(1)
+#define _L4_WRITE_BACK_MEMORY		_L4_WORD_C(2)
+#define _L4_CACHE_INHIBITED_MEMORY	_L4_WORD_C(3)
+#define _L4_CACHE_ENABLED_MEMORY	_L4_WORD_C(4)
+#define _L4_GLOBAL_MEMORY		_L4_WORD_C(5)
+#define _L4_LOCAL_MEMORY		_L4_WORD_C(6)
+#define _L4_GUARDED_MEMORY		_L4_WORD_C(7)
+#define _L4_SPECULATIVE_MEMORY		_L4_WORD_C(8)
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/bits/compat/misc.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/bits/gnu/misc.h>
+#endif

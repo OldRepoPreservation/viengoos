@@ -23,4 +23,14 @@
 # error "Never use <l4/bits/ipc.h> directly; include <l4/ipc.h> instead."
 #endif
 
+
 /* Nothing yet.  */
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/bits/compat/ipc.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/bits/gnu/ipc.h>
+#endif

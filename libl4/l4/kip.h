@@ -1,5 +1,5 @@
-/* kip.h - Public interface to the L4 kernel interface page.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/kip.h - Public interface to the L4 kernel interface page.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -22,15 +22,17 @@
 #ifndef _L4_KIP_H
 #define _L4_KIP_H	1
 
+#include <l4/features.h>
 #include <l4/types.h>
 #include <l4/math.h>
 
 #include <l4/bits/kip.h>
 
 
-typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+/* The API version field.  */
+typedef _L4_RAW (_L4_api_version_t, _L4_STRUCT1 ({
   _L4_BITFIELD4
-    (l4_word_t,
+    (_L4_word_t,
      _L4_BITFIELD (__pad1, 16),
 
      /* The subversion or revision.  */
@@ -40,17 +42,18 @@ typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
      _L4_BITFIELD (version, 8),
 		  
      _L4_BITFIELD_64 (__pad2, 32));
-})) l4_api_version_t;
+})) __L4_api_version_t;
 
 
-#define L4_API_FLAGS_LITTLE_ENDIAN	0x0
-#define L4_API_FLAGS_BIG_ENDIAN		0x1
-#define L4_API_FLAGS_WORDSIZE_32	0x0
-#define L4_API_FLAGS_WORDSIZE_64	0x1
+/* The API flags field.  */
+#define L4_API_FLAGS_LITTLE_ENDIAN	(0x0)
+#define L4_API_FLAGS_BIG_ENDIAN		(0x1)
+#define L4_API_FLAGS_WORDSIZE_32	(0x0)
+#define L4_API_FLAGS_WORDSIZE_64	(0x1)
 
-typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+typedef _L4_RAW (_L4_api_flags_t, _L4_STRUCT1 ({
   _L4_BITFIELD3
-    (l4_word_t,
+    (_L4_word_t,
      /* The endianess.  */
      _L4_BITFIELD (endian, 2),
 
@@ -58,12 +61,13 @@ typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
      _L4_BITFIELD (wordsize, 2),
 
      _L4_BITFIELD_32_64 (__pad, 28, 60));
-})) l4_api_flags_t;
+})) __L4_api_flags_t;
 
 
-typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+/* The kernel ID field.  */
+typedef _L4_RAW (_L4_kernel_id_t, _L4_STRUCT1 ({
   _L4_BITFIELD4
-    (l4_word_t,
+    (_L4_word_t,
      _L4_BITFIELD (__pad, 16),
 
      /* The kernel sub ID.  */
@@ -73,12 +77,15 @@ typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
      _L4_BITFIELD (id, 8),
 
      _L4_BITFIELD_64 (__pad, 32));
-})) l4_kernel_id_t;
+})) __L4_kernel_id_t;
 
 
-typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+/* The page rights field.  */
+typedef _L4_word_t _L4_page_info_t;
+
+typedef _L4_RAW (_L4_page_info_t, _L4_STRUCT1 ({
   _L4_BITFIELD5
-    (l4_word_t,
+    (_L4_word_t,
      /* Execute access right can be independently set.  */
      _L4_BITFIELD (execute, 1),
 
@@ -93,46 +100,49 @@ typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
      /* Page size of 2^(k + 10) is supported by hardware and kernel if
 	bit k is set.  */
      _L4_BITFIELD_32_64 (page_size_mask, 22, 54));
-})) l4_page_info_t;
+})) __L4_page_info_t;
 
 
+/* The rootserver fields.  */
 typedef struct
 {
-  l4_word_t sp;
-  l4_word_t ip;
-  l4_word_t low;
-  l4_word_t high;
-} __l4_rootserver_t;
+  _L4_word_t sp;
+  _L4_word_t ip;
+  _L4_word_t low;
+  _L4_word_t high;
+} _L4_rootserver_t;
 
-typedef struct
+
+/* The kernel interface page.  */
+struct _L4_kip
 {
   char magic[4];
 #if L4_WORDSIZE == L4_WORDSIZE_64
   char __pad1[4];
 #endif
 
-  l4_api_version_t api_version;
-  l4_api_flags_t api_flags;
+  __L4_api_version_t api_version;
+  __L4_api_flags_t api_flags;
 
-  l4_word_t kern_desc_ptr;
+  _L4_word_t kern_desc_ptr;
 
   struct
   {
-    l4_word_t init;
-    l4_word_t entry;
-    l4_word_t low;
-    l4_word_t high;
+    _L4_word_t init;
+    _L4_word_t entry;
+    _L4_word_t low;
+    _L4_word_t high;
   } kdebug;
 
-  __l4_rootserver_t sigma0;
-  __l4_rootserver_t sigma1;
-  __l4_rootserver_t rootserver;
+  _L4_rootserver_t sigma0;
+  _L4_rootserver_t sigma1;
+  _L4_rootserver_t rootserver;
 
-  l4_word_t __pad2[1];
+  _L4_word_t __pad2[1];
 
-  _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+  _L4_RAW (_L4_word_t, _L4_STRUCT1 ({
     _L4_BITFIELD2
-      (l4_word_t,
+      (_L4_word_t,
        /* Number of memory descriptors.  */
        _L4_BITFIELD_32_64 (nr, 16, 32),
 
@@ -140,13 +150,13 @@ typedef struct
        _L4_BITFIELD_32_64 (mem_desc_ptr, 16, 32));
   })) memory_info;
 
-  l4_word_t kdebug_config[2];
+  _L4_word_t kdebug_config[2];
 
-  l4_word_t __pad3[18];
+  _L4_word_t __pad3[18];
 
-  _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+  _L4_RAW (_L4_word_t, _L4_STRUCT1 ({
     _L4_BITFIELD4
-      (l4_word_t,
+      (_L4_word_t,
        /* UTCB size multiplier.  Size of one UTCB block is m *
 	  2^log2_align.  */
        _L4_BITFIELD (size_mul, 10),
@@ -160,25 +170,25 @@ typedef struct
        _L4_BITFIELD_32_64 (__pad, 10, 42));
   })) utcb_info;
 
-  _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+  _L4_RAW (_L4_word_t, _L4_STRUCT1 ({
     _L4_BITFIELD2
-      (l4_word_t,
+      (_L4_word_t,
        /* The size of the KIP area is 2^log2_size.  */
        _L4_BITFIELD (log2_size, 6),
 
        _L4_BITFIELD_32_64 (__pad, 26, 58));
   })) kip_area_info;
 
-  l4_word_t __pad4[2];
+  _L4_word_t __pad4[2];
 
-  l4_word_t boot_info;
+  _L4_word_t boot_info;
 
   /* Offset (in bytes) of processor descriptors in KIP.  */
-  l4_word_t proc_desc_ptr;
+  _L4_word_t proc_desc_ptr;
 
-  _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+  _L4_RAW (_L4_word_t, _L4_STRUCT1 ({
     _L4_BITFIELD3
-      (l4_word_t,
+      (_L4_word_t,
        /* Minimal time difference that can be read with the system
 	  clock syscall.  */
        _L4_BITFIELD (read_precision, 16),
@@ -189,9 +199,9 @@ typedef struct
        _L4_BITFIELD_64 (__pad, 32));
   })) clock_info;
 
-  _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+  _L4_RAW (_L4_word_t, _L4_STRUCT1 ({
     _L4_BITFIELD4
-      (l4_word_t,
+      (_L4_word_t,
        /* Number of valid thread number bits.  */
        _L4_BITFIELD (log2_max_thread, 8),
 
@@ -204,11 +214,11 @@ typedef struct
        _L4_BITFIELD_64 (__pad, 32));
   })) thread_info;
 
-  l4_page_info_t page_info;
+  __L4_page_info_t page_info;
 
-  _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+  _L4_RAW (_L4_word_t, _L4_STRUCT1 ({
     _L4_BITFIELD3
-      (l4_word_t,
+      (_L4_word_t,
        /* The number of processors minus 1.  */
        _L4_BITFIELD (processors, 16),
 
@@ -219,80 +229,94 @@ typedef struct
   })) processor_info;
 
   /* Privileged system call links.  */
-  l4_word_t space_control;
-  l4_word_t thread_control;
-  l4_word_t processor_control;
-  l4_word_t memory_control;
+  _L4_word_t space_control;
+  _L4_word_t thread_control;
+  _L4_word_t processor_control;
+  _L4_word_t memory_control;
 
   /* Normal system call links.  */
-  l4_word_t ipc;
-  l4_word_t lipc;
-  l4_word_t unmap;
-  l4_word_t exchange_registers;
-  l4_word_t system_clock;
-  l4_word_t thread_switch;
-  l4_word_t schedule;
-} *l4_kip_t;
-
-
-struct l4_memory_desc
-{
-  _L4_BITFIELD5
-  (l4_word_t,
-   /* The type of the memory descriptor.  */
-   _L4_BITFIELD (type, 4),
-
-   /* The subtype of the memory descriptor if type is
-     L4_MEMDESC_BOOTLOADER or L4_MEMDESC_ARCH, otherwise
-     undefined.  */
-   _L4_BITFIELD (subtype, 4),
-
-   _L4_BITFIELD (__pad1, 1),
-
-   /* 1 if memory is virtual, 0 if it is physical.  */
-   _L4_BITFIELD (virtual, 1),
-
-   _L4_BITFIELD_32_64 (low, 22, 54));
-
-  _L4_BITFIELD2
-  (l4_word_t,
-   _L4_BITFIELD (__pad2, 10),
-
-   _L4_BITFIELD_32_64 (high, 22, 54));
+  _L4_word_t ipc;
+  _L4_word_t lipc;
+  _L4_word_t unmap;
+  _L4_word_t exchange_registers;
+  _L4_word_t system_clock;
+  _L4_word_t thread_switch;
+  _L4_word_t schedule;
 };
-typedef struct l4_memory_desc *l4_memory_desc_t;
 
-#define L4_MEMDESC_MASK		0xf
-#define L4_MEMDESC_UNDEFINED	0x0
-#define L4_MEMDESC_CONVENTIONAL	0x1
-#define L4_MEMDESC_RESERVED	0x2
-#define L4_MEMDESC_DEDICATED	0x3
-#define L4_MEMDESC_SHARED	0x4
-#define L4_MEMDESC_BOOTLOADER	0xe
-#define L4_MEMDESC_ARCH		0xf
-
-
-typedef struct
+
+/* The memory descriptor field.  */
+typedef union _L4_memory_desc
 {
-  /* External frequency in kHz.  */
-  l4_word_t external_freq;
+  _L4_word_t raw[2];
 
-  /* Internal frequency in kHz.  */
-  l4_word_t internal_freq;
+  struct
+  {
+    _L4_BITFIELD5
+    (_L4_word_t,
+     /* The type of the memory descriptor.  */
+     _L4_BITFIELD (type, 4),
 
-  l4_word_t __pad[2];
-} *l4_proc_desc_t;
+     /* The subtype of the memory descriptor if type is
+	L4_MEMDESC_BOOTLOADER or L4_MEMDESC_ARCH, otherwise
+	undefined.  */
+     _L4_BITFIELD (subtype, 4),
 
+     _L4_BITFIELD (__pad1, 1),
 
+     /* 1 if memory is virtual, 0 if it is physical.  */
+     _L4_BITFIELD (virtual, 1),
+
+     _L4_BITFIELD_32_64 (low, 22, 54));
+
+    _L4_BITFIELD2
+    (_L4_word_t,
+     _L4_BITFIELD (__pad2, 10),
+
+     _L4_BITFIELD_32_64 (high, 22, 54));
+  };
+} __L4_memory_desc_t;
+
+typedef __L4_memory_desc_t *_L4_memory_desc_t;
+
+#define _L4_MEMDESC_UNDEFINED		(0x0)
+#define _L4_MEMDESC_CONVENTIONAL	(0x1)
+#define _L4_MEMDESC_RESERVED		(0x2)
+#define _L4_MEMDESC_DEDICATED		(0x3)
+#define _L4_MEMDESC_SHARED		(0x4)
+#define _L4_MEMDESC_BOOTLOADER		(0xe)
+#define _L4_MEMDESC_ARCH		(0xf)
+
+
+/* The processor descriptor field.  */
+typedef union _L4_proc_desc
+{
+  _L4_word_t raw[2];
+  struct
+  {
+    /* External frequency in kHz.  */
+    _L4_word_t external_freq;
+
+    /* Internal frequency in kHz.  */
+    _L4_word_t internal_freq;
+
+    _L4_word_t __pad[2];
+  };
+} __L4_proc_desc_t;
+
+typedef __L4_proc_desc_t *_L4_proc_desc_t;
+
+
+/* The kernel description fields.  */
 typedef struct
 {
   /* Kernel ID.  */
-  l4_kernel_id_t id;
+  __L4_kernel_id_t id;
 
   /* The kernel generation date.  */
-  _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+  _L4_RAW (_L4_word_t, _L4_STRUCT1 ({
     _L4_BITFIELD4
-      (l4_word_t,
+      (_L4_word_t,
        _L4_BITFIELD (day, 5),
        _L4_BITFIELD (month, 4),
        /* The year from 2000 on.  */
@@ -301,9 +325,9 @@ typedef struct
   })) gen_date;
 
   /* The kernel version.  */
-  _L4_RAW (l4_word_t, _L4_STRUCT1 ({
+  _L4_RAW (_L4_word_t, _L4_STRUCT1 ({
     _L4_BITFIELD4
-      (l4_word_t,
+      (_L4_word_t,
        _L4_BITFIELD (subsubver, 16),
        _L4_BITFIELD (subver, 8),
        _L4_BITFIELD (ver, 8),
@@ -311,317 +335,234 @@ typedef struct
        _L4_BITFIELD_64 (__pad, 32));
   })) version;
 
-  char supplier[4];
-#if L4_WORDSIZE == L4_WORDSIZE_64
-  char __pad[4];
-#endif
+  _L4_word_t supplier;
 
   /* The kernel version string followed by architecture specific
      feature strings.  */
   char version_parts[0];
-} *l4_kern_desc_t;
+} __L4_kern_desc_t;
+
+typedef __L4_kern_desc_t *_L4_kern_desc_t;
 
 
-extern l4_kip_t __l4_kip;
-
-static inline l4_kip_t
-__attribute__((__always_inline__))
-l4_kip (void)
+static inline _L4_api_version_t
+_L4_attribute_always_inline
+_L4_api_version (_L4_kip_t kip)
 {
-  return __l4_kip;
+  return kip->api_version.raw;
 }
 
 
-static inline l4_api_version_t
-__attribute__((__always_inline__))
-l4_api_version (void)
+static inline _L4_api_flags_t
+_L4_attribute_always_inline
+_L4_api_flags (_L4_kip_t kip)
 {
-  return l4_kip ()->api_version;
+  return kip->api_flags.raw;
 }
 
 
-static inline l4_api_flags_t
-__attribute__((__always_inline__))
-l4_api_flags (void)
+static inline _L4_kern_desc_t
+_L4_attribute_always_inline
+_L4_kernel_desc (_L4_kip_t kip)
 {
-  return l4_kip ()->api_flags;
+  return (_L4_kern_desc_t) (((_L4_word_t) kip) + kip->kern_desc_ptr);
 }
 
 
-static inline l4_kernel_id_t
-__attribute__((__always_inline__))
-l4_kernel_id (void)
+static inline _L4_kernel_id_t
+_L4_attribute_always_inline
+_L4_kernel_id (_L4_kip_t kip)
 {
-  l4_kern_desc_t kern;
-
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->kern_desc_ptr);
-  return kern->id;
+  return  _L4_kernel_desc (kip)->id.raw;
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_kernel_gen_date (l4_word_t *year, l4_word_t *month, l4_word_t *day)
+_L4_attribute_always_inline
+_L4_kernel_gen_date (_L4_kip_t kip,
+		     _L4_word_t *year, _L4_word_t *month, _L4_word_t *day)
 {
-  l4_kern_desc_t kern;
+  _L4_kern_desc_t kern = _L4_kernel_desc (kip);
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->kern_desc_ptr);
-
-  if (year)
-    *year = kern->gen_date.year + 2000;
-  if (month)
-    *month = kern->gen_date.month;
-  if (day)
-    *day = kern->gen_date.day;
+  *year = kern->gen_date.year + 2000;
+  *month = kern->gen_date.month;
+  *day = kern->gen_date.day;
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_kernel_version (l4_word_t *ver, l4_word_t *subver, l4_word_t *subsubver)
+_L4_attribute_always_inline
+_L4_kernel_version (_L4_kip_t kip,
+		    _L4_word_t *ver, _L4_word_t *subver, _L4_word_t *subsubver)
 {
-  l4_kern_desc_t kern;
+  _L4_kern_desc_t kern = _L4_kernel_desc (kip);
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->kern_desc_ptr);
-
-  if (ver)
-    *ver = kern->version.ver;
-  if (subver)
-    *subver = kern->version.subver;
-  if (subsubver)
-    *subsubver = kern->version.subsubver;
+  *ver = kern->version.ver;
+  *subver = kern->version.subver;
+  *subsubver = kern->version.subsubver;
 }
 
 
 static inline char *
-__attribute__((__always_inline__))
-l4_kernel_supplier (void)
+_L4_attribute_always_inline
+_L4_kernel_supplier (_L4_kip_t kip)
 {
-  l4_kern_desc_t kern;
+  _L4_kern_desc_t kern = _L4_kernel_desc (kip);
 
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->kern_desc_ptr);
-
-  return kern->supplier;
+  return (char *) &kern->supplier;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_num_processors (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_num_processors (_L4_kip_t kip)
 {
-  return l4_kip ()->processor_info.processors + 1;
+  return kip->processor_info.processors + 1;
 }
 
 
-static inline l4_proc_desc_t
-__attribute__((__always_inline__))
-l4_proc_desc (l4_word_t num)
+static inline _L4_proc_desc_t
+_L4_attribute_always_inline
+_L4_proc_desc (_L4_kip_t kip, _L4_word_t num)
 {
-  if (num >= l4_num_processors ())
-    return (l4_proc_desc_t) 0;
+  if (num >= _L4_num_processors (kip))
+    return (_L4_proc_desc_t) 0;
 
-  return (l4_proc_desc_t) ((l4_word_t) l4_kip () + l4_kip ()->proc_desc_ptr)
-    + num * (1 << l4_kip ()->processor_info.log2_size);
+  return (_L4_proc_desc_t) (((_L4_word_t) kip) + kip->proc_desc_ptr)
+    + num * (1 << kip->processor_info.log2_size);
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_proc_internal_freq (l4_proc_desc_t proc)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_proc_internal_freq (_L4_proc_desc_t proc)
 {
   return proc->internal_freq;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_proc_external_freq (l4_proc_desc_t proc)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_proc_external_freq (_L4_proc_desc_t proc)
 {
   return proc->external_freq;
 }
 
 
-#define L4_MIN_PAGE_SIZE_LOG2	10
-#define L4_MIN_PAGE_SIZE	(L4_WORD_C(1) << L4_MIN_PAGE_SIZE_LOG2)
+#define _L4_MIN_PAGE_SIZE_LOG2	10
+#define _L4_MIN_PAGE_SIZE	(_L4_WORD_C(1) << _L4_MIN_PAGE_SIZE_LOG2)
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_page_size_mask (void)
+
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_page_size_mask (_L4_kip_t kip)
 {
-  return l4_kip ()->page_info.page_size_mask << L4_MIN_PAGE_SIZE_LOG2;
+  return kip->page_info.page_size_mask << _L4_MIN_PAGE_SIZE_LOG2;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_min_page_size_log2 (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_page_rights (_L4_kip_t kip)
 {
-  l4_word_t page_size_mask = l4_kip ()->page_info.page_size_mask;
-
-  /* There'd better be one bit set.  */
-  return l4_lsb (page_size_mask) - 1 + L4_MIN_PAGE_SIZE_LOG2;
+  return kip->page_info.raw;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_min_page_size (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_thread_id_bits (_L4_kip_t kip)
 {
-  return L4_WORD_C(1) << l4_min_page_size_log2 ();
-}
-
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_page_trunc (l4_word_t addr)
-{
-  return (addr & ~(l4_min_page_size () - 1));
-}
-
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_page_round (l4_word_t addr)
-{
-  return ((addr + (l4_min_page_size () - 1)) 
-	  & ~(l4_min_page_size () - 1));
-}
-
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_atop (l4_word_t addr)
-{
-  return ((addr) >> l4_min_page_size_log2 ());
-}
-
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_ptoa (l4_word_t p)
-{
-  return ((p) << l4_min_page_size_log2 ());
-}
-
-static inline l4_page_info_t
-__attribute__((__always_inline__))
-l4_page_rights (void)
-{
-  return l4_kip ()->page_info;
+  return kip->thread_info.log2_max_thread;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_thread_id_bits (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_thread_system_base (_L4_kip_t kip)
 {
-  return l4_kip ()->thread_info.log2_max_thread;
+  return kip->thread_info.system_base;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_thread_user_base (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_thread_user_base (_L4_kip_t kip)
 {
-  return l4_kip ()->thread_info.user_base;
+  return kip->thread_info.user_base;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_thread_system_base (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_read_precision (_L4_kip_t kip)
 {
-  return l4_kip ()->thread_info.system_base;
+  return kip->clock_info.read_precision;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_read_precision (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_schedule_precision (_L4_kip_t kip)
 {
-  return l4_kip ()->clock_info.read_precision;
+  return kip->clock_info.schedule_precision;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_schedule_precision (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_utcb_area_size_log2 (_L4_kip_t kip)
 {
-  return l4_kip ()->clock_info.schedule_precision;
+  return kip->utcb_info.log2_min_size;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_utcb_area_size_log2 (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_utcb_alignment_log2 (_L4_kip_t kip)
 {
-  return l4_kip ()->utcb_info.log2_min_size;
+  return kip->utcb_info.log2_align;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_utcb_area_size (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_utcb_size (_L4_kip_t kip)
 {
-  return 1 << l4_kip ()->utcb_info.log2_min_size;
+  return kip->utcb_info.size_mul
+    * (_L4_WORD_C(1) << _L4_utcb_alignment_log2 (kip));
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_utcb_alignment_log2 (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_kip_area_size_log2 (_L4_kip_t kip)
 {
-  return l4_kip ()->utcb_info.log2_align;
+  return kip->kip_area_info.log2_size;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_utcb_size (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_boot_info (_L4_kip_t kip)
 {
-  return l4_kip ()->utcb_info.size_mul
-    * (1 << l4_utcb_alignment_log2 ());
-}
-
-
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_kip_area_size_log2 (void)
-{
-  return l4_kip ()->kip_area_info.log2_size;
-}
-
-
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_kip_area_size (void)
-{
-  return 1 << l4_kip ()->kip_area_info.log2_size;
-}
-
-
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_boot_info (void)
-{
-  return l4_kip ()->boot_info;
+  return kip->boot_info;
 }
 
 
 static inline char *
-__attribute__((__always_inline__))
-l4_kernel_version_string (void)
+_L4_attribute_always_inline
+_L4_kernel_version_string (_L4_kip_t kip)
 {
-  l4_kern_desc_t kern;
-
-  kern = (l4_kern_desc_t) ((l4_word_t) l4_kip ()
-			   + l4_kip ()->kern_desc_ptr);
-
-  return kern->version_parts;
+  return _L4_kernel_desc (kip)->version_parts;
 }
 
 
 static inline char *
-__attribute__((__always_inline__))
-l4_feature (l4_word_t num)
+_L4_attribute_always_inline
+_L4_feature (_L4_kip_t kip, _L4_word_t num)
 {
-  char *feature = l4_kernel_version_string ();
+  char *feature = _L4_kernel_version_string (kip);
 
   do
     {
@@ -637,40 +578,40 @@ l4_feature (l4_word_t num)
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_num_memory_desc (void)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_num_memory_desc (_L4_kip_t kip)
 {
-  return l4_kip ()->memory_info.nr;
+  return kip->memory_info.nr;
 }
 
 
-static inline l4_memory_desc_t
-__attribute__((__always_inline__))
-l4_memory_desc (l4_word_t num)
+static inline _L4_memory_desc_t
+_L4_attribute_always_inline
+_L4_memory_desc (_L4_kip_t kip, _L4_word_t num)
 {
-  l4_memory_desc_t mem;
+  _L4_memory_desc_t mem;
 
-  if (num >= l4_num_memory_desc ())
-    return (l4_memory_desc_t) 0;
+  if (num >= _L4_num_memory_desc (kip))
+    return (_L4_memory_desc_t) 0;
 
-  mem = (l4_memory_desc_t) ((l4_word_t) l4_kip ()
-			    + l4_kip ()->memory_info.mem_desc_ptr);
+  mem = (_L4_memory_desc_t) (((_L4_word_t) kip)
+			     + kip->memory_info.mem_desc_ptr);
   return mem + num;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_is_memory_desc_virtual (l4_memory_desc_t mem)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_memory_desc_virtual (_L4_memory_desc_t mem)
 {
   return mem->virtual;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_memory_desc_type (l4_memory_desc_t mem)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_memory_desc_type (_L4_memory_desc_t mem)
 {
   return (mem->subtype << 4) + mem->type;
 }
@@ -678,9 +619,9 @@ l4_memory_desc_type (l4_memory_desc_t mem)
 
 /* Return the address of the first byte of the memory region described
    by MEM.  */
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_memory_desc_low (l4_memory_desc_t mem)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_memory_desc_low (_L4_memory_desc_t mem)
 {
   /* The lower 10 bits are hard-wired to 0.  */
   return mem->low << 10;
@@ -689,12 +630,22 @@ l4_memory_desc_low (l4_memory_desc_t mem)
 
 /* Return the address of the last byte of the memory region described
    by MEM.  */
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_memory_desc_high (l4_memory_desc_t mem)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_memory_desc_high (_L4_memory_desc_t mem)
 {
   /* The lower 10 bits are hard-wired to 1.  */
   return (mem->high << 10) | ((1 << 10) - 1);
 }
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#include <l4/syscall.h>
+#ifdef _L4_INTERFACE_L4
+#include <l4/compat/kip.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/gnu/kip.h>
+#endif
 
 #endif	/* l4/kip.h */

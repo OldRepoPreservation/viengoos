@@ -1,5 +1,5 @@
-/* ipc.h - L4 IPC features for ia32.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/bits/ipc.h - L4 IPC features for ia32.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -23,6 +23,16 @@
 # error "Never use <l4/bits/ipc.h> directly; include <l4/ipc.h> instead."
 #endif
 
-#define l4_allocate_new_cache_lines		1
-#define l4_do_not_allocate_new_cache_lines	2
-#define l4_allocate_only_new_cache_lines	3
+
+#define _L4_ALLOCATE_NEW_CACHE_LINES		1
+#define _L4_DO_NOT_ALLOCATE_NEW_CACHE_LINES	2
+#define _L4_ALLOCATE_ONLY_NEW_CACHE_LINES	3
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/bits/compat/ipc.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/bits/gnu/ipc.h>
+#endif

@@ -1,5 +1,5 @@
-/* init.h - Public interface to L4 for initialization.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/init.h - Public interface to L4 for initialization.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -22,20 +22,21 @@
 #ifndef _L4_INIT_H
 #define _L4_INIT_H	1
 
+#include <l4/features.h>
 #include <l4/kip.h>
 #include <l4/syscall.h>
 
 
 /* Initialize the global data.  */
 static inline void
-__attribute__((__always_inline__))
+_L4_attribute_always_inline
 l4_init (void)
 {
-  l4_api_version_t version;
-  l4_api_flags_t flags;
-  l4_kernel_id_t id;
+  _L4_api_version_t version;
+  _L4_api_flags_t flags;
+  _L4_kernel_id_t id;
 
-  __l4_kip = l4_kernel_interface (&version, &flags, &id);
+  __l4_kip = _L4_kernel_interface (&version, &flags, &id);
 };
 
 #endif	/* l4/init.h */

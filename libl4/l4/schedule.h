@@ -1,5 +1,5 @@
-/* schedule.h - Public interface to the L4 scheduler.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/schedule.h - Public interface to the L4 scheduler.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -28,101 +28,207 @@
 #include <l4/thread.h>
 
 
-/* FIXME: These are compound statements and can not be used for
-   initialization of global variables in C99.  */
-#define l4_never	((l4_time_t) { .raw = 0 })
-#define l4_zero_time \
-	((l4_time_t) { .period.m = 0, .period.e = 5, .period._zero = 0 })
+typedef _L4_RAW
+(_L4_time_t, _L4_STRUCT2
+ ({
+   /* This is a time period.  It is 2^e * m usec long.  */
+   _L4_BITFIELD3
+     (_L4_uint16_t,
+      _L4_BITFIELD (m, 10),
+      _L4_BITFIELD (e, 5),
+      _L4_BITFIELD (_zero, 1));
+ } period,
+ {
+   /* This is a time point with validity (2^10 - 1) * 2^e.  */
+   _L4_BITFIELD4
+     (_L4_uint16_t,
+      _L4_BITFIELD (m, 10),
+      _L4_BITFIELD (c, 1),
+      _L4_BITFIELD (e, 4),
+      _L4_BITFIELD (_one, 1));
+ } point)) __L4_time_t;
 
-static inline l4_time_t
-__attribute__((__always_inline__))
-l4_time_period (l4_uint64_t usec)
+
+#define _L4_never	((_L4_time_t) 0)
+/* _L4_zero_time is a time period with mantisse 0 and exponent 1.  */
+#define _L4_zero_time	((_L4_time_t) (1 << 10))
+
+
+static inline _L4_time_t
+_L4_attribute_always_inline
+_L4_time_add_usec (_L4_time_t time, _L4_word_t usec)
+{
+  /* FIXME: Implement me.  */
+  return 0;
+}
+
+
+static inline _L4_time_t
+_L4_attribute_always_inline
+_L4_time_sub_usec (_L4_time_t time, _L4_word_t usec)
+{
+  /* FIXME: Implement me.  */
+  return 0;
+}
+
+
+static inline _L4_time_t
+_L4_attribute_always_inline
+_L4_time_add (_L4_time_t time1, _L4_time_t time2)
+{
+  /* FIXME: Implement me.  */
+  return 0;
+}
+
+
+static inline _L4_time_t
+_L4_attribute_always_inline
+_L4_time_sub (_L4_time_t time1, _L4_time_t time2)
+{
+  /* FIXME: Implement me.  */
+  return 0;
+}
+
+
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_time_longer (_L4_time_t time1, _L4_time_t time2)
+{
+  /* FIXME: Implement me.  */
+  return 0;
+}
+
+
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_time_shorter (_L4_time_t time1, _L4_time_t time2)
+{
+  /* FIXME: Implement me.  */
+  return 0;
+}
+
+
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_time_equal (_L4_time_t time1, _L4_time_t time2)
+{
+  /* FIXME: Implement me.  */
+  return 0;
+}
+
+
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_time_not_equal (_L4_time_t time1, _L4_time_t time2)
+{
+  /* FIXME: Implement me.  */
+  return 0;
+}
+
+
+
+static inline _L4_time_t
+_L4_attribute_always_inline
+_L4_time_period (_L4_uint64_t usec)
 {
   /* FIXME: If usec is a built-in constant, optimize.  Optimize the
      loop for the run-time case.  Probably just use optimized version
      from Karlsruhe.  */
-  l4_time_t time = { .raw = 0 };
+  __L4_time_t time = { .raw = 0 };
 
   while (usec & ~((1 << 10) - 1))
     {
       if (time.period.e == 31)
-	return l4_never;
+	return _L4_never;
 
       time.period.e++;
       usec = usec >> 1;
     }
   time.period.m = usec;
 
-  return time;
+  return time.raw;
+}
+
+
+static inline _L4_time_t
+_L4_attribute_always_inline
+_L4_time_point (_L4_uint64_t at)
+{
+  /* FIXME: Implement me.  */
+  return 0;
 }
 
 
 /* Convenience interface for l4_thread_switch.  */
 
 static inline void
-__attribute__((__always_inline__))
-l4_yield (void)
+_L4_attribute_always_inline
+_L4_yield (void)
 {
-  l4_thread_switch (l4_nilthread);
+  _L4_thread_switch (_L4_nilthread);
 }
 
 
-/* Convenience interface for l4_schedule.  */
+/* Convenience interface for _L4_schedule.  */
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_set_priority (l4_thread_id_t dest, l4_word_t priority)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_set_priority (_L4_thread_id_t dest, _L4_word_t priority)
 {
-  l4_word_t prio = priority & ((1 << 16) - 1);
-  l4_word_t dummy;
-  return l4_schedule (dest, -1, -1, prio, -1, &dummy);
+  _L4_word_t prio = priority & ((1 << 16) - 1);
+  _L4_word_t dummy;
+  return _L4_schedule (dest, -1, -1, prio, -1, &dummy);
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_set_processor_no (l4_thread_id_t dest, l4_word_t proc_num)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_set_processor_no (_L4_thread_id_t dest, _L4_word_t proc_num)
 {
-  l4_word_t proc = proc_num & ((1 << 8) - 1);
-  l4_word_t dummy;
-  return l4_schedule (dest, -1, proc, -1, -1, &dummy);
+  _L4_word_t proc = proc_num & ((1 << 8) - 1);
+  _L4_word_t dummy;
+  return _L4_schedule (dest, -1, proc, -1, -1, &dummy);
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_time_slice (l4_thread_id_t dest, l4_time_t *ts, l4_time_t *tq)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_time_slice (_L4_thread_id_t dest, _L4_time_t *ts, _L4_time_t *tq)
 {
-  l4_word_t time_control;
-  return l4_schedule (dest, -1, -1, -1, -1, &time_control);
-  ts->raw = time_control >> 16;
-  tq->raw = time_control & ((1 << 16) - 1);
+  _L4_word_t time_control;
+  return _L4_schedule (dest, -1, -1, -1, -1, &time_control);
+  *ts = time_control >> 16;
+  *tq = time_control & ((1 << 16) - 1);
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_set_time_slice (l4_thread_id_t dest, l4_time_t ts, l4_time_t tq)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_set_time_slice (_L4_thread_id_t dest, _L4_time_t ts, _L4_time_t tq)
 {
-  l4_word_t time_control = (ts.raw << 16) | tq.raw;
-  l4_word_t dummy;
-  return l4_schedule (dest, time_control, -1, -1, -1, &dummy);
+  _L4_word_t time_control = (ts << 16) | tq;
+  _L4_word_t dummy;
+  return _L4_schedule (dest, time_control, -1, -1, -1, &dummy);
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_preemption_delay (l4_thread_id_t dest, l4_word_t sensitive_prio,
-		     l4_word_t max_delay)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_set_preemption_delay (_L4_thread_id_t dest, _L4_word_t sensitive_prio,
+			  _L4_word_t max_delay)
 {
-  l4_word_t preempt_control = (sensitive_prio << 16)
+  _L4_word_t preempt_control = (sensitive_prio << 16)
     | (max_delay & ((1 << 16) - 1));
-  return l4_schedule (dest, -1, -1, -1, -1, &preempt_control);
+  return _L4_schedule (dest, -1, -1, -1, -1, &preempt_control);
 }
 
-
 
-#ifndef _L4_NOT_COMPAT
-#endif	/* !_L4_NOT_COMPAT */
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/compat/schedule.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/gnu/schedule.h>
+#endif
 
 #endif	/* l4/schedule.h */

@@ -1,5 +1,5 @@
-/* misc.h - Public interface to L4 miscellaneous functions.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/misc.h - Public interface to L4 miscellaneous functions.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -30,25 +30,34 @@
 
 /* l4_memory_control convenience interface.  */
 
-#define L4_DEFAULT_MEMORY	0x0
+#define _L4_DEFAULT_MEMORY	(_L4_WORD_C(0))
 
-static inline void
-__attribute__((__always_inline__))
-l4_set_page_attribute (l4_fpage_t fpage, l4_word_t attribute)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_set_page_attribute (_L4_fpage_t fpage, _L4_word_t attribute)
 {
-  l4_set_rights (&fpage, 0);
-  l4_load_mr (0, fpage.raw);
-  l4_memory_control (0, &attribute); 
+  _L4_set_rights (&fpage, 0);
+  _L4_load_mr (0, fpage);
+  return _L4_memory_control (0, &attribute); 
 }
 
 
-static inline void
-__attribute__((__always_inline__))
-l4_set_pages_attributes (l4_word_t nr, l4_fpage_t *fpages,
-			 l4_word_t *attributes)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_set_pages_attributes (_L4_word_t nr, _L4_fpage_t *fpages,
+			  _L4_word_t *attributes)
 {
-  l4_load_mrs (0, nr, (l4_word_t *) fpages);
-  l4_memory_control (nr - 1, attributes);
+  _L4_load_mrs (0, nr, (_L4_word_t *) fpages);
+  return _L4_memory_control (nr - 1, attributes);
 }
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/compat/misc.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/gnu/misc.h>
+#endif
 
 #endif	/* misc.h */

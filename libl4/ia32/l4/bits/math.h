@@ -1,5 +1,5 @@
-/* math.h - Math support routines for ia32.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/bits/math.h - Math support routines for ia32.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -25,11 +25,11 @@
 
 
 /* Calculate the MSB set in DATA.  DATA is not 0.  */
-static inline l4_word_t
-__attribute__((__always_inline__, __const__))
-__l4_msb (l4_word_t data)
+static inline _L4_word_t
+_L4_attribute_always_inline _L4_attribute_const
+__L4_msb (_L4_word_t data)
 {
-  l4_word_t msb;
+  _L4_word_t msb;
 
   __asm__ ("bsr %[data], %[msb]"
 	   : [msb] "=r" (msb)
@@ -40,11 +40,11 @@ __l4_msb (l4_word_t data)
 
 
 /* Calculate the LSB set in DATA.  DATA is not 0.  */
-static inline l4_word_t
-__attribute__((__always_inline__, __const__))
-__l4_lsb (l4_word_t data)
+static inline _L4_word_t
+_L4_attribute_always_inline _L4_attribute_const
+__L4_lsb (_L4_word_t data)
 {
-  l4_word_t lsb;
+  _L4_word_t lsb;
 
   __asm__ ("bsf %[data], %[lsb]"
 	   : [lsb] "=r" (lsb)

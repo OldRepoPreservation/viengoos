@@ -1,4 +1,4 @@
-/* syscall.h - Public interface to the L4 system calls.
+/* l4/syscall.h - Public interface to the L4 system calls.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -22,63 +22,103 @@
 #ifndef _L4_SYSCALL_H
 #define _L4_SYSCALL_H	1
 
+#include <l4/features.h>
 #include <l4/types.h>
 #include <l4/vregs.h>
-#include <l4/kip.h>
 
-/* <l4/bits/syscall.h> defines all system calls.  */
+/* The system calls are defined by the architecture specific header file.  */
 #include <l4/bits/syscall.h>
 
-/* l4_exchange_registers control argument.  */
+
+/* _L4_exchange_registers control argument.  */
 
 /* Input.  */
-#define L4_XCHG_REGS_HALT		0x0001
-#define L4_XCHG_REGS_CANCEL_RECV	0x0002
-#define L4_XCHG_REGS_CANCEL_SEND	0x0004
-#define L4_XCHG_REGS_CANCEL_IPC		(L4_XCHG_REGS_CANCEL_RECV	\
-					 | L4_XCHG_REGS_CANCEL_SEND)
-#define L4_XCHG_REGS_SET_SP		0x0008
-#define L4_XCHG_REGS_SET_IP		0x0010
-#define L4_XCHG_REGS_SET_FLAGS		0x0020
-#define L4_XCHG_REGS_SET_USER_HANDLE	0x0040
-#define L4_XCHG_REGS_SET_PAGER		0x0080
-#define L4_XCHG_REGS_SET_HALT		0x0100
+#define _L4_XCHG_REGS_HALT		_L4_WORD_C(0x0001)
+#define _L4_XCHG_REGS_CANCEL_RECV	_L4_WORD_C(0x0002)
+#define _L4_XCHG_REGS_CANCEL_SEND	_L4_WORD_C(0x0004)
+#define _L4_XCHG_REGS_CANCEL_IPC	(_L4_XCHG_REGS_CANCEL_RECV	\
+					 | _L4_XCHG_REGS_CANCEL_SEND)
+#define _L4_XCHG_REGS_SET_SP		_L4_WORD_C(0x0008)
+#define _L4_XCHG_REGS_SET_IP		_L4_WORD_C(0x0010)
+#define _L4_XCHG_REGS_SET_FLAGS		_L4_WORD_C(0x0020)
+#define _L4_XCHG_REGS_SET_USER_HANDLE	_L4_WORD_C(0x0040)
+#define _L4_XCHG_REGS_SET_PAGER		_L4_WORD_C(0x0080)
+#define _L4_XCHG_REGS_SET_HALT		_L4_WORD_C(0x0100)
 
 /* Output.  */
-#define L4_XCHG_REGS_HALTED		0x01
-#define L4_XCHG_REGS_RECEIVING		0x02
-#define L4_XCHG_REGS_SENDING		0x04
-#define L4_XCHG_REGS_IPCING		(L4_XCHG_REGS_RECEIVING		\
-					 | L4_XCHG_REGS_SENDING)
-
-/* l4_schedule return codes.  */
-#define L4_SCHEDULE_ERROR		0
-#define L4_SCHEDULE_DEAD		1
-#define L4_SCHEDULE_INACTIVE		2
-#define L4_SCHEDULE_RUNNING		3
-#define L4_SCHEDULE_PENDING_SEND	4
-#define L4_SCHEDULE_SENDING		5
-#define L4_SCHEDULE_WAITING		6
-#define L4_SCHEDULE_RECEIVING		7
+#define _L4_XCHG_REGS_HALTED		_L4_WORD_C(0x01)
+#define _L4_XCHG_REGS_RECEIVING		_L4_WORD_C(0x02)
+#define _L4_XCHG_REGS_SENDING		_L4_WORD_C(0x04)
+#define _L4_XCHG_REGS_IPCING		(_L4_XCHG_REGS_RECEIVING	\
+					 | _L4_XCHG_REGS_SENDING)
 
 
-/* l4_unmap flags.  */
-#define L4_UNMAP_FLUSH		0x40
-#define L4_UNMAP_COUNT_MASK	0x3f
+/* _L4_schedule return codes.  */
+#define _L4_SCHEDULE_ERROR		_L4_WORD_C(0)
+#define _L4_SCHEDULE_DEAD		_L4_WORD_C(1)
+#define _L4_SCHEDULE_INACTIVE		_L4_WORD_C(2)
+#define _L4_SCHEDULE_RUNNING		_L4_WORD_C(3)
+#define _L4_SCHEDULE_PENDING_SEND	_L4_WORD_C(4)
+#define _L4_SCHEDULE_SENDING		_L4_WORD_C(5)
+#define _L4_SCHEDULE_WAITING		_L4_WORD_C(6)
+#define _L4_SCHEDULE_RECEIVING		_L4_WORD_C(7)
 
-#ifndef _L4_NOT_COMPAT
-#define L4_ExchangeRegisters	l4_exchange_registers
-#define L4_ThreadControl	l4_thread_control
-#define L4_SystemClock() \
- ({ return ((L4_Clock_t) { .clock = l4_system_clock () })
-#define L4_ThreadSwitch		l4_thread_switch
-#define L4_Schedule		l4_schedule
-#define L4_Ipc			l4_ipc
-#define L4_Lipc			l4_lipc
-#define L4_Unmap		l4_unmap
-#define L4_SpaceControl		l4_space_control
-#define L4_ProcessorControl	l4_processor_control
-#define L4_MemoryControl	l4_memory_control
-#endif	/* !_L4_NOT_COMPAT */
+
+/* _L4_unmap flags.  */
+#define _L4_UNMAP_FLUSH			_L4_WORD_C(0x40)
+#define _L4_UNMAP_COUNT_MASK		_L4_WORD_C(0x3f)
+
+
+/* Error codes.  */
+#define _L4_ERR_NO_PRIVILEGE		_L4_WORD_C(1)
+#define _L4_ERR_INV_THREAD		_L4_WORD_C(2)
+#define _L4_ERR_INV_SPACE		_L4_WORD_C(4)
+#define _L4_ERR_INV_SCHEDULER		_L4_WORD_C(5)
+#define _L4_ERR_INV_PARAM		_L4_WORD_C(6)
+#define _L4_ERR_UTCB_AREA		_L4_WORD_C(7)
+#define _L4_ERR_KIP_AREA		_L4_WORD_C(8)
+#define _L4_ERR_NO_MEM			_L4_WORD_C(9)
+
+
+static inline const char *const
+_L4_attribute_always_inline
+_L4_strerror (_L4_word_t err_code)
+{
+  switch (err_code)
+    {
+    case _L4_ERR_NO_PRIVILEGE:
+      return "no privilege";
+
+    case _L4_ERR_INV_THREAD:
+      return "invalid thread";
+
+    case _L4_ERR_INV_SPACE:
+      return "invalid space";
+
+    case _L4_ERR_INV_PARAM:
+      return "invalid parameter";
+
+    case _L4_ERR_UTCB_AREA:
+      return "invalid utcb area";
+
+    case _L4_ERR_KIP_AREA:
+      return "invalid kip area";
+
+    case _L4_ERR_NO_MEM:
+      return "out of memory";
+
+    default:
+      return "unknown error code";
+    }
+}
+
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/compat/syscall.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/gnu/syscall.h>
+#endif
 
 #endif	/* l4/syscall.h */

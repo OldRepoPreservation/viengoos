@@ -1,4 +1,4 @@
-/* stubs-init.h - Initialization function for system call stubs.
+/* l4/stubs-init.h - Initialization function for system call stubs.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -22,6 +22,7 @@
 #ifndef _L4_STUBS_INIT_H
 #define _L4_STUBS_INIT_H	1
 
+#include <l4/features.h>
 #include <l4/types.h>
 #include <l4/kip.h>
 

@@ -1,3 +1,11 @@
+2004-03-16  Marcus Brinkmann  <marcus@gnu.org>
+
+	Total overhaul, and I am not going to list all the changes.  Every
+	single file, and every single interface has been touched, to be
+	able to cleanly provide multiple interfaces in parallel.  The
+	compatibility interface has been added.  Some bugs have been
+	fixed, some others have been introduced.
+
 2003-10-20  Johan Rydberg  <jrydberg@night.trouble.net>
 
 	* l4/kip.h (l4_page_trunc): New function.

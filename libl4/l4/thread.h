@@ -1,5 +1,5 @@
-/* thread.h - Public interface to L4 threads.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* l4/thread.h - Public interface to L4 threads.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -26,307 +26,335 @@
 #include <l4/vregs.h>
 #include <l4/syscall.h>
 
-/* FIXME: These are compound statements and can not be used for
-   initialization of global variables in C99.  */
-#define l4_nilthread	((l4_thread_id_t) { .raw = 0 })
-#define l4_anythread	((l4_thread_id_t) { .raw = (l4_word_t) -1 })
-/* FIXME: When gcc supports unnamed fields as initializers, use them.  */
-#define l4_anylocalthread \
-	((l4_thread_id_t) { .local.local = -1, .local._all_zero = 0 })
+
+typedef _L4_RAW
+(_L4_word_t, _L4_STRUCT2
+ ({
+   _L4_BITFIELD2
+     (_L4_word_t,
+      _L4_BITFIELD_32_64 (version, 14, 32),
+      _L4_BITFIELD_32_64 (thread_no, 18, 32));
+ },
+ {
+   _L4_BITFIELD2
+     (_L4_word_t,
+      _L4_BITFIELD (_all_zero, 6),
+      _L4_BITFIELD_32_64 (local, 26, 58));
+ })) __L4_thread_id_t;
+
+
+#if _L4_WORDSIZE == _L4_WORDSIZE_32
+#define _L4_THREAD_NO_BITS	(32 - 6)
+#else
+#define _L4_THREAD_NO_BITS	(64 - 6)
+#endif
+#define _L4_THREAD_VERSION_BITS	(6)
+
+#define _L4_THREAD_NO_MASK	((_L4_WORD_C(1) << _L4_THREAD_NO_BITS) - 1)
+#define _L4_THREAD_VERSION_MASK	((_L4_WORD_C(1) << _L4_THREAD_VERSION_BITS) -1)
+
+/* These define the raw versions of the special thread IDs.  */
+#define _L4_nilthread		_L4_WORD_C(0)
+#define _L4_anythread		(~ _L4_WORD_C(0))
+#define _L4_anylocalthread	((~ _L4_WORD_C(0)) << _L4_THREAD_VERSION_BITS)
 
 
-static inline  l4_thread_id_t
-__attribute__((__always_inline__))
-l4_global_id (l4_word_t thread_no, l4_word_t version)
+static inline _L4_thread_id_t
+_L4_attribute_always_inline
+_L4_global_id (_L4_word_t thread_no, _L4_word_t version)
 {
-  l4_thread_id_t thread;
+  __L4_thread_id_t tid;
 
-  thread.thread_no = thread_no;
-  thread.version = version;
+  tid.thread_no = thread_no;
+  tid.version = version;
 
-  return thread;
+  return tid.raw;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_version (l4_thread_id_t thread)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_version (_L4_thread_id_t thread)
 {
-  return thread.version;
+  __L4_thread_id_t tid;
+
+  tid.raw = thread;
+  return tid.version;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_thread_no (l4_thread_id_t thread)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_thread_no (_L4_thread_id_t thread)
 {
-  return thread.thread_no;
+  __L4_thread_id_t tid;
+
+  tid.raw = thread;
+  return tid.thread_no;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_is_thread_equal (l4_thread_id_t thread1, l4_thread_id_t thread2)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_thread_equal (_L4_thread_id_t thread1, _L4_thread_id_t thread2)
 {
-  return thread1.raw == thread2.raw;
+  return thread1 == thread2;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_is_thread_not_equal (l4_thread_id_t thread1, l4_thread_id_t thread2)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_thread_not_equal (_L4_thread_id_t thread1, _L4_thread_id_t thread2)
 {
-  return thread1.raw != thread2.raw;
+  return thread1 != thread2;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_is_nil_thread (l4_thread_id_t thread)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_nil_thread (_L4_thread_id_t thread)
 {
-  return thread.raw == 0;
+  return thread == _L4_nilthread;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_is_local_id (l4_thread_id_t thread)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_local_id (_L4_thread_id_t thread)
 {
-  return thread._all_zero == 0;
+  __L4_thread_id_t tid;
+
+  tid.raw = thread;
+  return tid._all_zero == 0;
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_is_global_id (l4_thread_id_t thread)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_is_global_id (_L4_thread_id_t thread)
 {
-  return thread._all_zero != 0;
+  __L4_thread_id_t tid;
+
+  tid.raw = thread;
+  return tid._all_zero != 0;
 }
 
 
-static inline l4_thread_id_t
-__attribute__((__always_inline__))
-l4_myself (void)
+static inline _L4_thread_id_t
+_L4_attribute_always_inline
+_L4_myself (void)
 {
-  return l4_my_global_id ();
+  return _L4_my_global_id ();
 }
 
 
-static inline l4_thread_id_t
-__attribute__((__always_inline__))
-l4_global_id_of (l4_thread_id_t thread)
+static inline _L4_thread_id_t
+_L4_attribute_always_inline
+_L4_global_id_of (_L4_thread_id_t thread)
 {
-  if (l4_is_global_id (thread))
+  if (_L4_is_global_id (thread))
     return thread;
   else
     {
-      l4_thread_id_t dest = thread;
-      l4_word_t control = 0;
-      l4_word_t dummy = 0;
-      l4_thread_id_t pager = l4_nilthread;
+      _L4_word_t control = 0;
+      _L4_word_t dummy = 0;
+      _L4_thread_id_t pager = _L4_nilthread;
 
-      l4_exchange_registers (&dest, &control, &dummy, &dummy, &dummy,
-			     &dummy, &pager);
-      return dest;
+      _L4_exchange_registers (&thread, &control, &dummy, &dummy, &dummy,
+			      &dummy, &pager);
+      return thread;
     }
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_same_threads (l4_thread_id_t thread1, l4_thread_id_t thread2)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_same_threads (_L4_thread_id_t thread1, _L4_thread_id_t thread2)
 {
-  l4_thread_id_t global1 = l4_global_id_of (thread1);
-  l4_thread_id_t global2 = l4_global_id_of (thread2);
+  _L4_thread_id_t global1 = _L4_global_id_of (thread1);
+  _L4_thread_id_t global2 = _L4_global_id_of (thread2);
 
-  return global1.raw == global2.raw;
+  return global1 == global2;
 }
 
 
-static inline l4_thread_id_t
-__attribute__((__always_inline__))
-l4_local_id_of (l4_thread_id_t thread)
+static inline _L4_thread_id_t
+_L4_attribute_always_inline
+_L4_local_id_of (_L4_thread_id_t thread)
 {
-  if (l4_is_local_id (thread))
+  if (_L4_is_local_id (thread))
     return thread;
   else
     {
-      l4_thread_id_t dest = thread;
-      l4_word_t control = 0;
-      l4_word_t dummy = 0;
-      l4_thread_id_t pager = l4_nilthread;
+      _L4_word_t control = 0;
+      _L4_word_t dummy = 0;
+      _L4_thread_id_t pager = _L4_nilthread;
 
-      l4_exchange_registers (&dest, &control, &dummy, &dummy, &dummy,
-			     &dummy, &pager);
-      return dest;
+      _L4_exchange_registers (&thread, &control, &dummy, &dummy, &dummy,
+			      &dummy, &pager);
+      return thread;
     }
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_user_defined_handle_of (l4_thread_id_t thread)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_user_defined_handle_of (_L4_thread_id_t thread)
 {
-  l4_thread_id_t dest = thread;
-  l4_word_t control = 0;
-  l4_word_t user_handle = 0;
-  l4_word_t dummy = 0;
-  l4_thread_id_t pager = l4_nilthread;
+  _L4_word_t control = 0;
+  _L4_word_t user_handle = 0;
+  _L4_word_t dummy = 0;
+  _L4_thread_id_t pager = _L4_nilthread;
 
-  l4_exchange_registers (&dest, &control, &dummy, &dummy, &dummy,
-			 &user_handle, &pager);
+  _L4_exchange_registers (&thread, &control, &dummy, &dummy, &dummy,
+			  &user_handle, &pager);
   return user_handle;
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_set_user_defined_handle_of (l4_thread_id_t thread, l4_word_t handle)
+_L4_attribute_always_inline
+_L4_set_user_defined_handle_of (_L4_thread_id_t thread, _L4_word_t handle)
 {
-  l4_thread_id_t dest = thread;
-  l4_word_t control = L4_XCHG_REGS_SET_USER_HANDLE;
-  l4_word_t user_handle = handle;
-  l4_word_t dummy = 0;
-  l4_thread_id_t pager = l4_nilthread;
+  _L4_word_t control = _L4_XCHG_REGS_SET_USER_HANDLE;
+  _L4_word_t user_handle = handle;
+  _L4_word_t dummy = 0;
+  _L4_thread_id_t pager = _L4_nilthread;
 
-  l4_exchange_registers (&dest, &control, &dummy, &dummy, &dummy,
-			 &user_handle, &pager);
+  _L4_exchange_registers (&thread, &control, &dummy, &dummy, &dummy,
+			  &user_handle, &pager);
 }
 
 
-static inline l4_thread_id_t
-__attribute__((__always_inline__))
-l4_pager_of (l4_thread_id_t thread)
+static inline _L4_thread_id_t
+_L4_attribute_always_inline
+_L4_pager_of (_L4_thread_id_t thread)
 {
-  l4_thread_id_t dest = thread;
-  l4_word_t control = 0;
-  l4_thread_id_t pager = l4_nilthread;
-  l4_word_t dummy = 0;
+  _L4_word_t control = 0;
+  _L4_thread_id_t pager = _L4_nilthread;
+  _L4_word_t dummy = 0;
 
-  l4_exchange_registers (&dest, &control, &dummy, &dummy, &dummy,
-			 &dummy, &pager);
+  _L4_exchange_registers (&thread, &control, &dummy, &dummy, &dummy,
+			  &dummy, &pager);
   return pager;
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_set_pager_of (l4_thread_id_t thread, l4_thread_id_t pager_thread)
+_L4_attribute_always_inline
+_L4_set_pager_of (_L4_thread_id_t thread, _L4_thread_id_t pager_thread)
 {
-  l4_thread_id_t dest = thread;
-  l4_word_t control = L4_XCHG_REGS_SET_PAGER;
-  l4_thread_id_t pager = pager_thread;
-  l4_word_t dummy = 0;
+  _L4_word_t control = _L4_XCHG_REGS_SET_PAGER;
+  _L4_thread_id_t pager = pager_thread;
+  _L4_word_t dummy = 0;
 
-  l4_exchange_registers (&dest, &control, &dummy, &dummy, &dummy,
-			 &dummy, &pager);
+  _L4_exchange_registers (&thread, &control, &dummy, &dummy, &dummy,
+			  &dummy, &pager);
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_start (l4_thread_id_t thread)
+_L4_attribute_always_inline
+_L4_start (_L4_thread_id_t thread)
 {
-  l4_thread_id_t dest = thread;
-  l4_word_t control = L4_XCHG_REGS_SET_HALT;
-  l4_word_t dummy = 0;
-  l4_thread_id_t pager = l4_nilthread;
+  _L4_word_t control = _L4_XCHG_REGS_SET_HALT;
+  _L4_word_t dummy = 0;
+  _L4_thread_id_t pager = _L4_nilthread;
 
-  l4_exchange_registers (&dest, &control, &dummy, &dummy, &dummy,
-			 &dummy, &pager);
+  _L4_exchange_registers (&thread, &control, &dummy, &dummy, &dummy,
+			  &dummy, &pager);
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_start_sp_ip (l4_thread_id_t thread, l4_word_t sp_data, l4_word_t ip_data)
+_L4_attribute_always_inline
+_L4_start_sp_ip (_L4_thread_id_t thread, _L4_word_t sp, _L4_word_t ip)
 {
-  l4_thread_id_t dest = thread;
-  l4_word_t control = L4_XCHG_REGS_SET_HALT | L4_XCHG_REGS_SET_SP
-    | L4_XCHG_REGS_SET_IP;
-  l4_word_t sp = sp_data;
-  l4_word_t ip = ip_data;
-  l4_word_t dummy = 0;
-  l4_thread_id_t pager = l4_nilthread;
+  _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_SET_SP
+    | _L4_XCHG_REGS_SET_IP;
+  _L4_word_t dummy = 0;
+  _L4_thread_id_t pager = _L4_nilthread;
 
-  l4_exchange_registers (&dest, &control, &sp, &ip, &dummy, &dummy, &pager);
+  _L4_exchange_registers (&thread, &control, &sp, &ip, &dummy, &dummy, &pager);
 }
 
 
 static inline void
-__attribute__((__always_inline__))
-l4_start_sp_ip_flags (l4_thread_id_t thread, l4_word_t sp_data,
-		      l4_word_t ip_data, l4_word_t flags_data)
+_L4_attribute_always_inline
+_L4_start_sp_ip_flags (_L4_thread_id_t thread, _L4_word_t sp,
+		      _L4_word_t ip, _L4_word_t flags)
 {
-  l4_thread_id_t dest = thread;
-  l4_word_t control = L4_XCHG_REGS_SET_HALT | L4_XCHG_REGS_SET_SP
-    | L4_XCHG_REGS_SET_IP | L4_XCHG_REGS_SET_FLAGS;
-  l4_word_t sp = sp_data;
-  l4_word_t ip = ip_data;
-  l4_word_t flags = flags_data;
-  l4_word_t dummy = 0;
-  l4_thread_id_t pager = l4_nilthread;
+  _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_SET_SP
+    | _L4_XCHG_REGS_SET_IP | _L4_XCHG_REGS_SET_FLAGS;
+  _L4_word_t dummy = 0;
+  _L4_thread_id_t pager = _L4_nilthread;
 
-  l4_exchange_registers (&dest, &control, &sp, &ip, &flags, &dummy, &pager);
+  _L4_exchange_registers (&thread, &control, &sp, &ip, &flags, &dummy, &pager);
 }
 
 
-#define __L4_STOP(name, extra_control)				\
-static inline l4_word_t						\
-__attribute__((__always_inline__))				\
-name (l4_thread_id_t thread)					\
-{								\
-  l4_thread_id_t dest = thread;					\
-  l4_word_t control = L4_XCHG_REGS_SET_HALT | L4_XCHG_REGS_HALT	\
-    | (extra_control);						\
-  l4_word_t dummy = 0;						\
-  l4_thread_id_t pager = l4_nilthread;				\
-								\
-  l4_exchange_registers (&dest, &control, &dummy, &dummy,	\
-			 &dummy, &dummy, &pager);		\
-  return control;						\
-}								\
-								\
-								\
-static inline l4_word_t						\
-__attribute__((__always_inline__))				\
-name ## _sp_ip_flags (l4_thread_id_t thread, l4_word_t *sp,	\
-                      l4_word_t *ip, l4_word_t *flags)		\
-{								\
-  l4_thread_id_t dest = thread;					\
-  l4_word_t control = L4_XCHG_REGS_SET_HALT | L4_XCHG_REGS_HALT	\
-    | L4_XCHG_REGS_SET_SP | L4_XCHG_REGS_SET_IP			\
-    | (extra_control);						\
-  l4_word_t dummy = 0;						\
-  l4_thread_id_t pager = l4_nilthread;				\
-								\
-  l4_exchange_registers (&dest, &control, sp, ip, flags,	\
-			 &dummy, &pager);			\
-  return control;						\
+#define __L4_STOP(name, extra_control)					\
+static inline _L4_word_t						\
+_L4_attribute_always_inline						\
+name (_L4_thread_id_t thread)						\
+{									\
+  _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_HALT	\
+    | (extra_control);							\
+  _L4_word_t dummy = 0;							\
+  _L4_thread_id_t pager = _L4_nilthread;				\
+									\
+  _L4_exchange_registers (&thread, &control, &dummy, &dummy,		\
+			  &dummy, &dummy, &pager);			\
+  return control;							\
+}									\
+									\
+									\
+static inline _L4_word_t						\
+_L4_attribute_always_inline						\
+name ## _sp_ip_flags (_L4_thread_id_t thread, _L4_word_t *sp,		\
+                      _L4_word_t *ip, _L4_word_t *flags)		\
+{									\
+  _L4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_HALT	\
+    | _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP			\
+    | (extra_control);							\
+  _L4_word_t dummy = 0;							\
+  _L4_thread_id_t pager = _L4_nilthread;				\
+									\
+  _L4_exchange_registers (&thread, &control, sp, ip, flags,		\
+			  &dummy, &pager);				\
+  return control;							\
 }
 
-__L4_STOP (l4_stop, 0)
-__L4_STOP (l4_abort_receive_and_stop, L4_XCHG_REGS_CANCEL_RECV)
-__L4_STOP (l4_abort_send_and_stop, L4_XCHG_REGS_CANCEL_SEND)
-__L4_STOP (l4_abort_ipc_and_stop, L4_XCHG_REGS_CANCEL_IPC)
+__L4_STOP (_L4_stop, 0)
+__L4_STOP (_L4_abort_receive_and_stop, _L4_XCHG_REGS_CANCEL_RECV)
+__L4_STOP (_L4_abort_send_and_stop, _L4_XCHG_REGS_CANCEL_SEND)
+__L4_STOP (_L4_abort_ipc_and_stop, _L4_XCHG_REGS_CANCEL_IPC)
 
 
 /* Convenience interface for l4_thread_control.  */ 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_associate_interrupt (l4_thread_id_t irq, l4_thread_id_t handler)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_associate_interrupt (_L4_thread_id_t irq, _L4_thread_id_t handler)
 {
-  return l4_thread_control (irq, irq, l4_nilthread, handler, (void *) -1);
+  return _L4_thread_control (irq, irq, _L4_nilthread, handler, (void *) -1);
 }
 
 
-static inline l4_word_t
-__attribute__((__always_inline__))
-l4_deassociate_interrupt (l4_thread_id_t irq)
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_deassociate_interrupt (_L4_thread_id_t irq)
 {
-  return l4_thread_control (irq, irq, l4_nilthread, irq, (void *) -1);
+  return _L4_thread_control (irq, irq, _L4_nilthread, irq, (void *) -1);
 }
 
+
+/* Now incorporate the public interfaces the user has selected.  */
+#ifdef _L4_INTERFACE_L4
+#include <l4/compat/thread.h>
+#endif
+#ifdef _L4_INTERFACE_GNU
+#include <l4/gnu/thread.h>
+#endif
 
 #endif	/* l4/thread.h */
