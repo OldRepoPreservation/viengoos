@@ -1,5 +1,7 @@
 2005-01-26  Marcus Brinkmann  <marcus@gnu.org>
 
+	* wortel.c (start_elf): Do not add an extra zero byte to argz.
+
 	* wortel.c (start_elf): Initialize PHYS_STARTUP->envz and
 	PHYS_STARTUP->envz_len.
 

@@ -539,6 +539,8 @@ start_elf (unsigned int mod)
 
       /* Determine the argument line dimensions.  */
       src = mods[mod].args;
+      /* The below code will automatically copy the trailing zero byte
+	 over if we include it in the length.  */
       len = strlen (src) + 1;
       ALLOCA (len);
       argz = (char *) stack;
@@ -563,9 +565,6 @@ start_elf (unsigned int mod)
 		  argz_len++;
 		}
 	      while (len && !(*src == ' ' || *src == '\t'));
-
-	      *(dst++) = '\0';
-	      argz_len++;
 	    }
 	}
     }
