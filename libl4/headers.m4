@@ -20,6 +20,7 @@ AC_CONFIG_LINKS([
   include/l4/math.h:libl4/l4/math.h
   include/l4/message.h:libl4/l4/message.h
   include/l4/misc.h:libl4/l4/misc.h
+  include/l4/pagefault.h:libl4/l4/pagefault.h
   include/l4/schedule.h:libl4/l4/schedule.h
   include/l4/space.h:libl4/l4/space.h
   include/l4/stubs-init.h:libl4/l4/stubs-init.h
@@ -43,6 +44,7 @@ AC_CONFIG_LINKS([
   include/l4/gnu/math.h:libl4/l4/gnu/math.h
   include/l4/gnu/message.h:libl4/l4/gnu/message.h
   include/l4/gnu/misc.h:libl4/l4/gnu/misc.h
+  include/l4/gnu/pagefault.h:libl4/l4/gnu/pagefault.h
   include/l4/gnu/schedule.h:libl4/l4/gnu/schedule.h
   include/l4/gnu/space.h:libl4/l4/gnu/space.h
   include/l4/gnu/syscall.h:libl4/l4/gnu/syscall.h

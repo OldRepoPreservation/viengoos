@@ -1,5 +1,10 @@
 2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/pagefault.h, l4/gnu/pagefault.h: New files.
+	* Makefile.am (gnu_headers): Add pagefault.h.
+	(l4_headers): Likewise.
+	* headers.m4: Add l4/pagefault.h and l4/gnu/pagefault.h.
+
 	* l4/thread-start.h, l4/gnu/thread-start.h: New files.
 	* Makefile.am (gnu_headers): Add thread-start.h.
 	(l4_headers): Likewise.
