@@ -208,7 +208,7 @@ physmem_server (void *arg)
   /* FIXME: Use a worker timeout (eventually).  */
   err = hurd_cap_bucket_manage_mt (bucket, NULL, 0, 0);
   if (err)
-    debug ("bucket_manage_mt failed: %i\n");
+    debug ("bucket_manage_mt failed: %i\n", err);
 
   panic ("bucket_manage_mt returned!");
 }
