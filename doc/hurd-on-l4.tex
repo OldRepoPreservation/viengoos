@@ -127,6 +127,12 @@ It also initializes the BSS section to zero.
   areas in an intelligent way.  It currently will detect such
   situations, but is not always able to find a solution, even if one
   exists.
+  
+  If a memory area stretches out to the very last page addressible in
+  32 bit, the high address of the memory descriptor will overflow.
+  This is in fact the behaviour of \texttt{kickstart}.  \texttt{laden}
+  currently truncates such an area by one page.  This needs
+  clarification in the L4 standard.
 \end{comment}
 
 Then it searches for the kernel interface page (KIP) in the L4 kernel
