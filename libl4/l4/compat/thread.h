@@ -28,11 +28,6 @@
 
 /* Generic Programming Interface.  */
 
-typedef struct
-{
-  L4_Word_t raw;
-} L4_ThreadId_t;
-
 #define L4_nilthread		((L4_ThreadId_t) { .raw = _L4_nilthread })
 #define L4_anythread		((L4_ThreadId_t) { .raw = _L4_anythread })
 #define L4_anylocalthread	((L4_ThreadId_t) { .raw = _L4_anylocalthread })

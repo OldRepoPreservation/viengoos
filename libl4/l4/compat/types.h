@@ -34,3 +34,10 @@ typedef struct
 {
   L4_Word_t raw;
 } L4_Fpage_t;
+
+
+typedef struct
+{
+  L4_Word_t raw;
+} L4_ThreadId_t;
+

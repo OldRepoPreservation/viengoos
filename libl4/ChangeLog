@@ -1,3 +1,8 @@
+2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/compat/thread.h (L4_ThreadId_t): Move to ...
+	* l4/compat/types.h (L4_ThreadId_t): ... here.
+
 2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/gnu/space.h (l4_fpage_xspan): New function.
