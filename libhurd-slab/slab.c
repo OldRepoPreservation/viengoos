@@ -151,13 +151,11 @@ remove_slab (struct hurd_slab_space *space, struct hurd_slab *slab)
 
 /* Iterate through slabs in SPACE and release memory for slabs that
    are complete (no allocated buffers).  */
-error_t
+static error_t
 reap (struct hurd_slab_space *space)
 {
   struct hurd_slab *s, *next, *new_first;
   error_t err = 0;
-
-  pthread_mutex_lock (&space->lock);
 
   for (s = space->slab_first; s; s = next)
     {
@@ -205,7 +203,6 @@ reap (struct hurd_slab_space *space)
     }
   space->first_free = new_first;
 
-  pthread_mutex_unlock (&space->lock);
   return err;
 }
 
@@ -219,7 +216,10 @@ hurd_slab_reap (void)
   pthread_mutex_lock (&list_lock);
   for (space = space_list; space; space = space->space_next)
     {
-      if ((err = reap (space)))
+      pthread_mutex_lock (&space->lock);
+      err = reap (space);
+      pthread_mutex_unlock (&space->lock);
+      if (err)
 	break;
     }
   pthread_mutex_unlock (&list_lock);
@@ -255,7 +255,25 @@ grow (struct hurd_slab_space *space)
       /* Invoke constructor at object creation time, not when it is
 	 really allocated (for faster allocation).  */
       if (space->constructor)
-	(*space->constructor) (space->hook, p);
+	{
+	  error_t err = (*space->constructor) (space->hook, p);
+	  if (err)
+	    {
+	      /* The allocated page holds both slab and memory
+		 objects.  Call the destructor for objects that has
+		 been initialized.  */
+	      for (bufctl = new_slab->free_list; bufctl;
+		   bufctl = bufctl->next)
+		{
+		  void *buffer = (((void *) bufctl) 
+				  - (space->size - sizeof *bufctl));
+		  (*space->destructor) (space->hook, buffer);
+		}
+
+	      munmap (p, getpagesize ());
+	      return err;
+	    }
+	}
 
       /* The most activity is in front of the object, so it is most
 	 likely to be overwritten if a freed buffer gets accessed.
@@ -346,8 +364,46 @@ hurd_slab_create (size_t size, size_t alignment,
 error_t
 hurd_slab_destroy (hurd_slab_space_t space)
 {
-  /* FIXME: Implement me.  */
-  return ENOSYS;
+  hurd_slab_space_t *prevp;
+  error_t err;
+
+  /* The caller wants to destory the slab.  It can not be destroyed if
+     there are any outstanding memory allocations.  */
+  pthread_mutex_lock (&space->lock);
+  err = reap (space);
+  if (err)
+    {
+      pthread_mutex_unlock (&space->lock);
+      return err;
+    }
+  if (space->slab_first)
+    {
+      /* There are still slabs, i.e. there is outstanding allocations.
+	 Return EBUSY.  */
+      pthread_mutex_unlock (&space->lock);
+      return EBUSY;
+    }
+
+  /* The locking order is to take the list lock before any slab space
+     lock.  Unlock the slab space and take the list lock.  No need to
+     re-take the slab space lock again since the space is about to be
+     destroyed.  The only thing that can happen between unlocking the
+     space and getting the list lock is that someone tries to reap the
+     slab space with a call to hurd_slab_reap.  */
+  pthread_mutex_unlock (&space->lock);
+  pthread_mutex_lock (&list_lock);
+
+  /* Hold both list lock and space lock (in that order).  Remove space
+     from global list and release resources for it.  */
+  for (prevp = &space_list; *prevp != space;)
+    prevp = &(*prevp)->space_next;
+  *prevp = space->space_next;
+
+  pthread_mutex_unlock (&list_lock);
+
+  pthread_mutex_destory (&space->lock);
+  free (space);
+  return 0;
 }
 
 

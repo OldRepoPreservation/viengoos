@@ -1,3 +1,11 @@
+2004-03-25  Johan Rydberg  <jrydberg@gnu.org>
+
+        * slab.c (grow): Release memory if constructor fails to initialize
+        object.  Return error value from constructor.
+        (reap): Make function static.  Do not take space lock.
+        (hurd_slab_reap): Take space lock.
+        (hurd_slab_destroy): Implement.
+
 2004-03-21  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (AM_CPPFLAGS): Add -I$(top_srcdir)/libc-parts for
