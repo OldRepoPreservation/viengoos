@@ -1,5 +1,11 @@
 2005-02-08  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/ipc.h: Major overhaul.  Avoid breaking struct aliasing rules.
+	Fix many bugs.  Beautify the code.
+	* l4/misc.h (_L4_set_pages_attributes): Remove superfluous cast.
+	* l4/pagefault.h (_L4_pagefault_reply): Avoid breaking the strict
+	aliasing rules.
+
 	* l4/gnu/schedule.h (l4_is_time_longer): Change return type to
 	bool.
 

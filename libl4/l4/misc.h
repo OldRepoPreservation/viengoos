@@ -28,9 +28,9 @@
 #include <l4/syscall.h>
 
 
-/* l4_memory_control convenience interface.  */
+/* _L4_memory_control convenience interface.  */
 
-#define _L4_DEFAULT_MEMORY	(_L4_WORD_C(0))
+#define _L4_DEFAULT_MEMORY	(_L4_WORD_C (0))
 
 static inline _L4_word_t
 _L4_attribute_always_inline
@@ -50,7 +50,7 @@ _L4_attribute_always_inline
 _L4_set_pages_attributes (_L4_word_t nr, _L4_fpage_t *fpages,
 			  _L4_word_t *attributes)
 {
-  _L4_load_mrs (0, nr, (_L4_word_t *) fpages);
+  _L4_load_mrs (0, nr, fpages);
   return _L4_memory_control (nr - 1, attributes);
 }
 

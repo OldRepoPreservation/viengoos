@@ -1,5 +1,5 @@
 /* l4/pagefault.h - Public interface to the pagefault protocol.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -77,7 +77,9 @@ _L4_pagefault_reply (_L4_thread_id_t to, void *item)
   _L4_msg_tag_t tag;
   _L4_word_t msg[2];
 
-  *((_L4_dword_t *) msg) = *((_L4_dword_t *) item);
+  /* We have to use memcpy here to avoid breaking the strict aliasing
+     rules, as we don't know the type of ITEM.  */
+  __builtin_memcpy (msg, item, sizeof (msg));
 
   _tag.raw = _L4_niltag;
   _tag.typed = 2;
