@@ -5,7 +5,7 @@
 \newenvironment{comment}{\footnotesize \begin{quote}}{\end{quote}}
 
 \title{Porting the GNU Hurd to the L4 Micorkernel}
-\author{Marcus Brinkmann, Peter De Schrijver, Daniel Wagner}
+\author{Marcus Brinkmann}
 \date{August 2003}
 
 \begin{document}
@@ -798,7 +798,7 @@ have to take it out of the long version.
   
   If $D$ does not trust $T$, it replies to $C$ (probably with an error
   value indicating why the capability was not accepted).  In that
-  case, jump to step 8.
+  case, jump to step \ref{copycapout}.
   
   Otherwise, it requests a task info cap for $S$ from its trusted task
   server, under the constraint that $C$ is still living.
@@ -852,10 +852,10 @@ have to take it out of the long version.
     will be done by $D$ before returning to $C$.
   \end{comment}
   
-\item The client $C$ receives the reply from $D$.  Irregardless if it
-  indicated failure or success, it will now send the
-  \verb/cap_ref_cont_destroy/ message to the server $S$, providing the
-  reference container $R$.
+\item \label{copycapout} The client $C$ receives the reply from $D$.
+  Irregardless if it indicated failure or success, it will now send
+  the \verb/cap_ref_cont_destroy/ message to the server $S$, providing
+  the reference container $R$.
 
   \begin{comment}
     This message can be a simple message.  It does not require a reply
@@ -1667,6 +1667,8 @@ that no time is spent in the kernel (which is mostly true).  So system
 time will always be reported as 0.00, or 0.01.
 
 \section{Device Drivers}
+
+This section written by Peter De Schrijver and Daniel Wagner.
 
 \subsection{Requirements}
 
