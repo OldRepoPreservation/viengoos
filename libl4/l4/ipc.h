@@ -933,14 +933,14 @@ l4_lreply_wait (l4_thread_id_t dest, l4_thread_id_t *from)
 _L4_EXTERN_INLINE l4_word_t
 l4_ipc_succeeded (l4_msg_tag_t tag)
 {
-  return tag.error;
+  return !tag.error;
 }
 
 
 _L4_EXTERN_INLINE l4_word_t
 l4_ipc_failed (l4_msg_tag_t tag)
 {
-  return !tag.error;
+  return tag.error;
 }
 
 

@@ -1,3 +1,8 @@
+2003-09-08  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/ipc.h (l4_ipc_succeeded): Invert return value.
+	(l4_ipc_failed): Likewise.
+
 2003-07-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Initial check-in.
