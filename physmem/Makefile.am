@@ -18,22 +18,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-AM_CPPFLAGS = -I$(top_builddir)/include
-
 if ARCH_IA32
   ARCH_SOURCES = ia32-crt0.S ia32-cmain.c
 endif
 
 noinst_PROGRAMS = physmem
 
-physmem_CFLAGS = -I$(srcdir) -I$(top_srcdir)/include $(AM_CFLAGS)
+physmem_CPPFLAGS = -I$(top_builddir)/include			\
+	-I$(top_builddir)/libc-parts $(AM_CPPFLAGS)
 
 physmem_SOURCES = $(ARCH_SOURCES)				\
 	output.h output.c					\
-	zalloc.h zalloc.c					\
+	zalloc.h zalloc.c malloc-wrap.c				\
 	physmem.h physmem.c
 
-/* FIXME: Make linkbase configurable.  */
+# Doug Lea's malloc is included by malloc-wrap.c.
+EXTRA_physmem_SOURCES = mallo.c
+
+# FIXME: Make linkbase configurable.
 physmem_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x35000
 
 physmem_LDADD = -lgcc ../libc-parts/libc-parts.a
