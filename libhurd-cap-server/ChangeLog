@@ -1,5 +1,23 @@
 2004-03-22  Marcus Brinkmann  <marcus@gnu.org>
 
+	* Makefile.am (AM_CFLAGS): New variable.
+	* headers.m4: Add table.h	
+	* table.h (hurd_table_entry_t): Type removed.
+	(struct hurd_table): Change type of DATA to char *.  New member
+	ENTRY_SIZE.
+	(HURD_TABLE_INITIALIZER): Take argument SIZE_OF_ONE.  Initialize
+	ENTRY_SIZE.
+	(hurd_table_init): Add new argument ENTRY_SIZE to prototype.
+	(hurd_table_enter): Change type of DATA to void *.
+	(hurd_table_lookup): Change return type to void *.  Return 0, not
+	HURD_TABLE_EMPTY.  Reimplement for new semantics.
+	* table.c: Include <assert.h>.
+	(hurd_table_init): Add new argument ENTRY_SIZE.  Pass it to
+	HURD_TABLE_INITIALIZER.
+	(hurd_table_enter): Use TABLE->entry_size for reallocation.
+	Adjust code to fit new semantics.  Add 1 to TABLE->first_free to
+	make that point to the element after the one we just added.
+
 	* Makefile.am (libhurd_cap_server_a_SOURCES): Add table.h, table.c.
 	* table.h, table.c: New files.
 

@@ -19,21 +19,63 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
+#ifndef _HURD_TABLE_H
+#define _HURD_TABLE_H	1
+
 #include <errno.h>
 #include <stdlib.h>
 #include <assert.h>
+
+
+/* The hurd_table data type is a fancy array.  At initialization time,
+   you have to provide the size ENTRY_SIZE of each table entry.  When
+   you enter an element, you get an index number in return.  This
+   index can be used for fast lookup of table elements.  You access
+   the table elements through pointers to the beginning of the each
+   block of ENTRY_SIZE bytes.
+
+   Embedded at the beginning of the ENTRY_SIZE bytes in each slot is a
+   void pointer.  You can use this void pointer freely for your own
+   purpose with the following restriction: In a used table entry, it
+   must never be NULL.  NULL at the beginning of a table entry
+   indicates an unused (free) table entry.
+
+   The table will grow (and eventually shrink, not yet implemented)
+   automatically.  New elements are always allocated from the
+   beginning of the table.  This means that when a new element is
+   added, the free slot with the lowest index is always used.  This
+   makes slot usage predictable and attempts to prevent fragmentation
+   and sparse usage.
+
+   Note that tables, unlike hashes, can not be reorganized, because
+   the index is not stable under reorganization.
+
+   Of all operations supported, only lookup is immediate.  Entering
+   new elements is usually fast, too, unless the first free slot is
+   unknown and has to be searched for, or there are no more free slots
+   and the table has to be enlarged.
+
+   Iterating over the used elements of the table is always
+   of the order of the table size.
+
+   In the future, removing an element can also shrink the table.  In
+   order to be able to do this, the implementation keeps track of the
+   last used slot.  For this reason, the remove operation is sometimes
+   not immediate.  */
 
 
 /* The value used for empty table entries.  */
 #define HURD_TABLE_EMPTY	(NULL)
 
 
-/* The type of a table entry.  */
-typedef void *hurd_table_entry_t;
-
-
 struct hurd_table
 {
+  /* The size of one entry.  Must at least be sizeof (void *).  At the
+     beginning of each entry, a void * should be present that is
+     HURD_TABLE_EMPTY for unused elements and something else for used
+     table elements.  */
+  unsigned int entry_size;
+
   /* The number of allocated table entries.  */
   unsigned int size;
 
@@ -50,18 +92,28 @@ struct hurd_table
   unsigned int last_used;
 
   /* The table data.  */
-  hurd_table_entry_t *data;
+  char *data;
 };
 typedef struct hurd_table *hurd_table_t;
 
 
-#define HURD_TABLE_INITIALIZER						\
-  { .size = 0, .init_size = 0, .used = 0, .first_free = 0,		\
-    .last_used = 0, .data = NULL }
+#define HURD_TABLE_INITIALIZER(size_of_one)				\
+  { .entry_size = size_of_one, .size = 0, .init_size = 0, .used = 0,	\
+    .first_free = 0, .last_used = 0, .data = NULL }
+
+/* Fast accessor without range check.  */
+#define HURD_TABLE_LOOKUP(table, idx)					\
+  (&(table)->data[(idx) * (table)->entry_size])
+
+/* This is an lvalue for the pointer embedded in the table entry.  */
+#define _HURD_TABLE_ENTRY(entry)	(*(void **) (entry))
+
+#define _HURD_TABLE_ENTRY_LOOKUP(table, idx)				\
+  _HURD_TABLE_ENTRY (HURD_TABLE_LOOKUP (table, idx))
 
 
 /* Initialize the table TABLE.  */
-error_t hurd_table_init (hurd_table_t table);
+error_t hurd_table_init (hurd_table_t table, unsigned int entry_size);
 
 
 /* Destroy the table TABLE.  */
@@ -69,23 +121,27 @@ void hurd_table_destroy (hurd_table_t table);
 
 
 /* Add the table element DATA to the table TABLE.  The index for this
-   element is returned in R_IDX.  */
-error_t hurd_table_enter (hurd_table_t table, hurd_table_entry_t data,
-			  unsigned int *r_idx);
+   element is returned in R_IDX.  Note that the data is added by
+   copying ENTRY_SIZE bytes into the table (the ENTRY_SIZE parameter
+   was provided at table initialization time).  */
+error_t hurd_table_enter (hurd_table_t table, void *data, unsigned int *r_idx);
 
 
 /* Lookup the table element with the index IDX in the table TABLE.  If
-   there is no element with this index, return HURD_TABLE_EMPTY.  */
-static inline hurd_table_entry_t
+   there is no element with this index, return NULL.  Otherwise a
+   pointer to the table entry is returned.  */
+static inline void *
 hurd_table_lookup (hurd_table_t table, unsigned int idx)
 {
   error_t err;
-  hurd_table_entry_t result;
+  void *result;
 
   if (idx >= table->init_size)
-    result = HURD_TABLE_EMPTY;
-  else
-    result = table->data[idx];
+    return NULL;
+
+  result = HURD_TABLE_LOOKUP (table, idx);
+  if (_HURD_TABLE_ENTRY (result) == HURD_TABLE_EMPTY)
+    return NULL;
 
   return result;
 }
@@ -96,17 +152,22 @@ hurd_table_lookup (hurd_table_t table, unsigned int idx)
 static inline void
 hurd_table_remove (hurd_table_t table, unsigned int idx)
 {
-  assert (idx < table->init_size);
-  assert (table->data[idx] != HURD_TABLE_EMPTY);
+  void *entry;
 
-  table->data[idx] = HURD_TABLE_EMPTY;
+  assert (idx < table->init_size);
+
+  entry = HURD_TABLE_LOOKUP (table, idx);
+  assert (_HURD_TABLE_ENTRY (entry) != HURD_TABLE_EMPTY);
+
+  _HURD_TABLE_ENTRY (entry) = HURD_TABLE_EMPTY;
 
   if (idx < table->first_free)
     table->first_free = idx;
 
   if (idx == table->last_used - 1)
     while (--table->last_used > 0)
-      if (table->data[table->last_used - 1] == HURD_TABLE_EMPTY)
+      if (_HURD_TABLE_ENTRY_LOOKUP (table, table->last_used - 1)
+	  == HURD_TABLE_EMPTY)
 	break;
 
   table->used--;
@@ -136,7 +197,6 @@ hurd_table_remove (hurd_table_t table, unsigned int idx)
    table entry with the fast macro HURD_TABLE_LOOKUP.  */
 #define HURD_TABLE_ITERATE(table, idx)					\
   for (unsigned int idx = 0; idx < (table)->init_size; idx++)		\
-    if ((table)->data[idx] != HURD_TABLE_EMPTY)
+    if (_HURD_TABLE_ENTRY_LOOKUP ((table), (idx)) != HURD_TABLE_EMPTY)
 
-/* Fast accessor for HURD_TABLE_ITERATE users.  */
-#define HURD_TABLE_LOOKUP(table, idx)	((table)->data[idx])
+#endif	/* _HURD_TABLE_H */

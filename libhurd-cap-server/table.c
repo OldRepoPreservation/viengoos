@@ -23,14 +23,19 @@
 #include <config.h>
 #endif
 
+#include <assert.h>
+#include <string.h>
+
 #include "table.h"
 
 
 /* Initialize the table TABLE.  */
 error_t
-hurd_table_init (hurd_table_t table)
+hurd_table_init (hurd_table_t table, unsigned int entry_size)
 {
-  *table = (struct hurd_table) HURD_TABLE_INITIALIZER;
+  assert (sizeof (entry_size) >= sizeof (void *));
+
+  *table = (struct hurd_table) HURD_TABLE_INITIALIZER (entry_size);
 }
 
 
@@ -46,6 +51,10 @@ hurd_table_destroy (hurd_table_t table)
 /* The initial table size.  */
 #define TABLE_START_SIZE	4
 
+/* Add the table element DATA to the table TABLE.  The index for this
+   element is returned in R_IDX.  Note that the data is added by
+   copying ENTRY_SIZE bytes into the table (the ENTRY_SIZE parameter
+   was provided at table initialization time).  */
 error_t
 hurd_table_enter (hurd_table_t table, void *data, unsigned int *r_idx)
 {
@@ -55,10 +64,9 @@ hurd_table_enter (hurd_table_t table, void *data, unsigned int *r_idx)
   if (table->used == table->size)
     {
       unsigned int size_new = table->size ? 2 * table->size : TABLE_START_SIZE;
-      hurd_table_entry_t *data_new;
+      void *data_new;
 
-      data_new = realloc (table->data,
-			  size_new * sizeof (hurd_table_entry_t));
+      data_new = realloc (table->data, size_new * table->entry_size);
       if (!data_new)
 	return errno;
 
@@ -68,14 +76,19 @@ hurd_table_enter (hurd_table_t table, void *data, unsigned int *r_idx)
     }
 
   for (idx = table->first_free; idx < table->init_size; idx++)
-    if (table->data[idx] == HURD_TABLE_EMPTY)
+    if (_HURD_TABLE_ENTRY_LOOKUP (table, idx) == HURD_TABLE_EMPTY)
       break;
-  table->first_free = idx;
+
+  /* The following setting for FIRST_FREE is safe, because if this was
+     the last table entry, then the table is full and we will grow the
+     table the next time we are called (if no elements are removed in
+     the meantime.  */
+  table->first_free = idx + 1;
 
   if (idx == table->init_size)
     table->init_size++;
 
-  table->data[idx] = data;
+  memcpy (HURD_TABLE_LOOKUP (table, idx), data, table->entry_size);
   table->used++;
   *r_idx = idx;
   return 0;

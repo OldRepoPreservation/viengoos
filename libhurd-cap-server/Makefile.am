@@ -27,6 +27,7 @@ includehurd_HEADERS = cap-server.h
 # FIXME: Build a special libhurd-ihash.a using libc-parts for the rootservers,
 # and a normal for everybody else.
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts
+AM_CFLAGS = -std=gnu99
 libhurd_cap_server_a_SOURCES = table.h table.c				\
 	cap-server.h class-create.c class-destroy.c			\
 	class-alloc.c class-dealloc.c
