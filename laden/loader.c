@@ -82,7 +82,7 @@ mem_check (const char *name, unsigned long start, unsigned long end)
 
 static struct
 {
-  char *name;
+  const char *name;
   l4_word_t start;
   l4_word_t end;
 } used_regions[MAX_REGIONS];
@@ -93,7 +93,7 @@ static int nr_regions;
 /* Check that the region with the name NAME from START to END does not
    overlap with an existing region.  */
 static void
-check_region (char *name, l4_word_t start, l4_word_t end)
+check_region (const char *name, l4_word_t start, l4_word_t end)
 {
   int i;
 
@@ -115,7 +115,7 @@ check_region (char *name, l4_word_t start, l4_word_t end)
    regions to check against.  Before doing that, check for overlaps
    with existing regions.  */
 void
-loader_add_region (char *name, l4_word_t start, l4_word_t end)
+loader_add_region (const char *name, l4_word_t start, l4_word_t end)
 {
   debug ("Protected Region: %s (0x%x - 0x%x)\n", name, start, end);
 
@@ -142,7 +142,7 @@ loader_remove_region (const char *name)
       break;
 
   if (i == nr_regions)
-    panic ("Assertion failure: Could not find region %s for removal");
+    panic ("Assertion failure: Could not find region %s for removal", name);
 
   while (i < nr_regions - 1)
     {
@@ -159,7 +159,7 @@ loader_remove_region (const char *name)
    program in NEW_START_P and NEW_END_P, and the entry point in
    ENTRY.  */
 void
-loader_elf_load (char *name, l4_word_t start, l4_word_t end,
+loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
 		 l4_word_t *new_start_p, l4_word_t *new_end_p,
 		 l4_word_t *entry)
 {

@@ -38,7 +38,7 @@ l4_memory_desc_t loader_get_memory_desc (l4_word_t nr);
 /* Add the region with the name NAME from START to END to the table of
    regions to check against.  Before doing that, check for overlaps
    with existing regions.  */
-void loader_add_region (char *name, l4_word_t start, l4_word_t end);
+void loader_add_region (const char *name, l4_word_t start, l4_word_t end);
 
 /* Remove the region with the name NAME from the table.  */
 void loader_remove_region (const char *name);
@@ -48,7 +48,7 @@ void loader_remove_region (const char *name);
    program).  Return the lowest and highest address used by the
    program in NEW_START_P and NEW_END_P, and the entry point in
    ENTRY.  */
-void loader_elf_load (char *name, l4_word_t start, l4_word_t end,
+void loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
 		      l4_word_t *new_start_p, l4_word_t *new_end_p,
 		      l4_word_t *entry);
 
