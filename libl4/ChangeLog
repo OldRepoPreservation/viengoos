@@ -76,7 +76,6 @@
 
 	* l4/thread.h (__L4_STOP): Undefine after last use.
 
->>>>>>> 1.27
 2004-03-16  Marcus Brinkmann  <marcus@gnu.org>
 
 	Total overhaul, and I am not going to list all the changes.  Every

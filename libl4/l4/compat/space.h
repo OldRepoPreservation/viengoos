@@ -212,7 +212,7 @@ L4_UnmapFpage (L4_Fpage_t fpage)
 static inline void
 _L4_attribute_always_inline
 #ifdef _cplusplus
-L4_Unmap (L4_Word_t n, L4_Fpage_t *fpages, )
+L4_Unmap (L4_Word_t n, L4_Fpage_t *fpages)
 #else
 L4_UnmapFpages (L4_Word_t n, L4_Fpage_t *fpages)
 #endif
@@ -233,7 +233,7 @@ L4_Flush (L4_Fpage_t fpage)
 static inline void
 _L4_attribute_always_inline
 #ifdef _cplusplus
-L4_Flush (L4_Word_t n, L4_Fpage_t *fpages, )
+L4_Flush (L4_Word_t n, L4_Fpage_t *fpages)
 #else
 L4_FlushFpage (L4_Word_t n, L4_Fpage_t *fpages)
 #endif
