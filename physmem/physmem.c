@@ -250,8 +250,7 @@ setup_threads (void)
   while (--extra_threads > 0)
     {
       l4_thread_id_t tid;
-      tid = l4_global_id (l4_thread_no (l4_my_global_id ()) + 1
-			  + extra_threads,
+      tid = l4_global_id (l4_thread_no (l4_my_global_id ()) + extra_threads,
 			  l4_version (l4_my_global_id ()));
       pthread_pool_add_np (tid);
     }
