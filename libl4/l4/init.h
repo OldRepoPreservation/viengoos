@@ -1,4 +1,4 @@
-/* stubs-init.h - Initialization function for system call stubs.
+/* init.h - Public interface to L4 for initialization.
    Copyright (C) 2003 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -19,12 +19,22 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-#ifndef _L4_STUBS_INIT_H
-#define _L4_STUBS_INIT_H	1
+#ifndef _L4_INIT_H
+#define _L4_INIT_H	1
 
-#include <l4/types.h>
 #include <l4/kip.h>
 
-#include <l4/bits/stubs-init.h>
+
+/* Initialize the global data.  */
+static inline void
+__attribute__((__always_inline__))
+l4_init (void)
+{
+  l4_api_version_t version;
+  l4_api_flags_t flags;
+  l4_kernel_id_t id;
 
-#endif	/* l4/stubs-init.h */
+  __l4_kip = l4_kernel_interface (&version, &flags, &id);
+};
+
+#endif	/* l4/init.h */

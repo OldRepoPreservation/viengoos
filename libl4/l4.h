@@ -31,17 +31,4 @@
 #include <l4/misc.h>
 #include <l4/kip.h>
 
-
-/* Initialize the global data.  */
-static inline void
-__attribute__((__always_inline__))
-l4_init (void)
-{
-  l4_api_version_t version;
-  l4_api_flags_t flags;
-  l4_kernel_id_t id;
-
-  __l4_kip = l4_kernel_interface (&version, &flags, &id);
-};
-
 #endif	/* l4.h */

@@ -1,5 +1,8 @@
 2003-09-18  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4.h (l4_init): Move to ...
+	* l4/init.h (l4_init): ... here.  New file.
+
 	* l4/kip.h (l4_api_version): Replace with always inlined static
 	inline function.
 	* l4/thread.h (_L4_EXTERN_INLINE): Do not define.  Replace all

@@ -66,8 +66,9 @@ What if I am not using the dynamic linker?
 ------------------------------------------
 
 If you are not using the dynamic linker, you can either link to libl4,
-or include <l4/globals.h> somewhere (but only once!) in your program.
-You also have to run l4_init() manually (defined in <l4.h>) to
+or include <l4/globals.h> and <l4/stubs.h> somewhere (but only once
+each!)  in your program.  You also have to run l4_init() (defined in
+<l4/init.h>) and l4_init_stubs() (defined in <l4/stubs-init.h>) to
 initialize the global variables and fixup the system call stubs.
 
 
