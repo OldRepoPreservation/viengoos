@@ -1,3 +1,8 @@
+2003-10-24  Daniel Wagner  <wagi@gmx.ch>
+
+	* Makefile.am (physmem_CPPFLAGS): Use top_scrdir instead of 
+	top_builddir.
+
 2003-10-16  Marcus Brinkmann  <marcus@gnu.org>
 
 	* output.c (shutdown): New function.
