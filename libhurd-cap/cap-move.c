@@ -151,6 +151,25 @@ cap_receive (l4_thread_id_t sender_thread,
 
 /* The server side.  */
 
+/* Containers are created in both the sender and receiver user list,
+   so that at look up time (when the messages come in), only one of
+   the both lists (the right one) is locked and verified.  Otherwise
+   there could be DoS attacks where a malicious receiver constantly
+   claims it wants to accept a container from another client and keeps
+   the user list of that client locked during the verification
+   attempts.
+
+   First the sender container is created.
+
+   Then the receiver container is created.
+
+   Removal of containers works the other way round.  This is the most
+   robust way to do it, in case the sender destroys the container
+   asynchronously with the receiver trying to accept the container.
+   First an invalid send container (id) has to be allocated, then the
+   receiver container has to be created, and then the sender container
+   can be filled with the right receiver container id.  */
+
 /* Create a reference container for DEST.  */
 error_t
 hurd_cap_server_create_ref_cont_S (l4_thread_id_t sender_thread,
@@ -213,4 +232,22 @@ hurd_cap_server_accept_ref_cont (l4_thread_id_t sender_thread,
 
   4. Enter the capability into the SENDER user list.  Return its
   ID.  */
+}
+
+
+error_t
+hurd_cap_server_destroy_ref_cont (hurd_cap_t cap, hurd_cap_scid_t cont_id)
+{
+  /* 1. Look up the container in the sender user list.  Verify the
+     request.  Then unlock the sender user list.
+
+     The order matters! in the following two steps (the reason is that
+     otherwise a sender container id could be reused while
+     concurrently a receiver tries to accept the handle, and get the
+     wrong one.  This is a robustness issue for the case of a canceled
+     RPC, for example):
+
+     2. Remove the container from the receiver user list.
+     
+     3. Remove the container from the sender user list.  */
 }
