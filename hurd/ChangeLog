@@ -1,3 +1,8 @@
+2004-04-07  Marcus Brinkmann  <marcus@gnu.org>
+
+	* types.h (hurd_cap_make): New function.
+	(_HURD_CAP_CLIENT_ID_MASK, _HURD_CAP_ID_MASK): New macros.
+
 2004-04-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* types.h: Include <l4/thread.h>.

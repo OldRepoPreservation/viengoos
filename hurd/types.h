@@ -54,6 +54,10 @@ typedef l4_word_t hurd_cap_t;
 #define HURD_CAP_CLIENT_ID_BITS	HURD_TASK_ID_BITS
 #define HURD_CAP_ID_BITS	((sizeof (hurd_cap_t) * 8) - HURD_TASK_ID_BITS)
 
+#define _HURD_CAP_CLIENT_ID_MASK \
+  ((L4_WORD_C(1) << HURD_CAP_CLIENT_ID_BITS) - 1)
+#define _HURD_CAP_ID_MASK ((L4_WORD_C(1) << HURD_CAP_ID_BITS) - 1)
+
 typedef l4_uint32_t hurd_cap_id_t;
 typedef l4_uint32_t hurd_cap_client_id_t;
 
@@ -72,7 +76,17 @@ hurd_cap_client_id (hurd_cap_t cap)
 static inline hurd_cap_id_t
 hurd_cap_id (hurd_cap_t cap)
 {
-  return cap & ((L4_WORD_C(1) << HURD_CAP_ID_BITS) - 1);
+  return cap & _HURD_CAP_ID_MASK;
 }
+
+
+/* Create a new capability from the client and cap ID.  */
+static inline hurd_cap_t
+hurd_cap_make (hurd_cap_client_id_t client_id, hurd_cap_id_t cap_id)
+{
+  return ((client_id & _HURD_CAP_CLIENT_ID_MASK) << HURD_CAP_ID_BITS)
+    || (cap_id & _HURD_CAP_ID_MASK);
+}
+
 
 #endif	/* _HURD_TYPES_H */
