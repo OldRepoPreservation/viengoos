@@ -114,7 +114,7 @@ L4_Set_Rights (L4_Fpage_t *fpage, L4_Word_t AccessRights)
 
 static inline L4_Fpage_t
 _L4_attribute_always_inline
-#ifdef _cplusplus
+#ifdef __cplusplus
 operator + (const L4_Fpage_t l, const L4_Word_t r)
 #else
 L4_FpageAddRights (L4_Fpage_t l, L4_Word_t r)
@@ -129,7 +129,7 @@ L4_FpageAddRights (L4_Fpage_t l, L4_Word_t r)
 
 static inline L4_Fpage_t
 _L4_attribute_always_inline
-#ifdef _cplusplus
+#ifdef __cplusplus
 operator - (const L4_Fpage_t l, const L4_Word_t r)
 #else
 L4_FpageRemoveRights (const L4_Fpage_t l, const L4_Word_t r)
@@ -142,7 +142,7 @@ L4_FpageRemoveRights (const L4_Fpage_t l, const L4_Word_t r)
 }
 
 
-#ifdef _cplusplus
+#ifdef __cplusplus
 
 static inline L4_Fpage_t&
 _L4_attribute_always_inline
@@ -199,7 +199,7 @@ L4_Unmap (L4_Word_t control)
 
 static inline L4_Fpage_t
 _L4_attribute_always_inline
-#ifdef _cplusplus
+#ifdef __cplusplus
 L4_Unmap (L4_Fpage_t fpage)
 #else
 L4_UnmapFpage (L4_Fpage_t fpage)
@@ -212,7 +212,7 @@ L4_UnmapFpage (L4_Fpage_t fpage)
 
 static inline void
 _L4_attribute_always_inline
-#ifdef _cplusplus
+#ifdef __cplusplus
 L4_Unmap (L4_Word_t n, L4_Fpage_t *fpages)
 #else
 L4_UnmapFpages (L4_Word_t n, L4_Fpage_t *fpages)
@@ -233,10 +233,10 @@ L4_Flush (L4_Fpage_t fpage)
 
 static inline void
 _L4_attribute_always_inline
-#ifdef _cplusplus
+#ifdef __cplusplus
 L4_Flush (L4_Word_t n, L4_Fpage_t *fpages)
 #else
-L4_FlushFpage (L4_Word_t n, L4_Fpage_t *fpages)
+L4_FlushFpages (L4_Word_t n, L4_Fpage_t *fpages)
 #endif
 {
   _L4_flush_fpages (n, &fpages[0].raw);
