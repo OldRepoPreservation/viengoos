@@ -49,9 +49,11 @@ __l4_uintN_t (64, __DI__);
 
 #if L4_WORDSIZE == L4_WORDSIZE_32
 typedef l4_uint32_t l4_word_t;
+#define L4_WORD_C(c) c ## ULL
 #else
 #if L4_WORDSIZE == L4_WORDSIZE_64
 typedef l4_uint64_t l4_word_t;
+#define L4_WORD_C(c) c ## UL
 #else
 #error "Unsupported word size."
 #endif

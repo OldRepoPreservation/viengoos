@@ -1,3 +1,10 @@
+2003-09-18  Marcus Brinkmann  <marcus@g10code.de>
+
+	* l4/kip.h (l4_min_page_size): New function.
+	(l4_min_page_size_log2): Likewise.
+
+	* l4/types.h (L4_WORD_C): Define macro.
+
 2003-09-17  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/math.h (__l4_msb): Rename to ...

@@ -1,3 +1,24 @@
+/* kip.h - Public interface for the L4 kernel interface page.
+   Copyright (C) 2003 Free Software Foundation, Inc.
+   Written by Marcus Brinkmann <marcus@gnu.org>.
+
+   This file is part of the GNU L4 library.
+ 
+   The GNU L4 library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation; either version 2.1 of
+   the License, or (at your option) any later version.
+ 
+   The GNU L4 library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+ 
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU L4 library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 #ifndef _L4_KIP_H
 #define _L4_KIP_H	1
 
@@ -36,7 +57,7 @@ typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
 
      _L4_BITFIELD_32_64 (__pad, 28, 60));
 })) l4_api_flags_t;
- 
+
 
 typedef _L4_RAW (l4_word_t, _L4_STRUCT1 ({
   _L4_BITFIELD4
@@ -412,10 +433,43 @@ l4_proc_external_freq (l4_proc_desc_t proc)
 }
 
 
+#define L4_MIN_PAGE_SIZE_LOG2	10
+
 _L4_EXTERN_INLINE l4_word_t
 l4_page_size_mask (void)
 {
-  return l4_get_kernel_interface ()->page_info.page_size_mask << 10;
+  return l4_get_kernel_interface ()->page_info.page_size_mask
+    << L4_MIN_PAGE_SIZE_LOG2;
+}
+
+
+_L4_EXTERN_INLINE l4_word_t l4_min_page_size_log2 (void)
+     __attribute__((__const__));
+
+_L4_EXTERN_INLINE l4_word_t
+l4_min_page_size_log2 (void)
+{
+  page_size_mask = l4_get_kernel_interface ()->page_info.page_size_mask;
+  unsigned int page_size_log2 = L4_MIN_PAGE_SIZE_LOG2;
+  
+  /* There'd better be one bit set.  */
+  while (!(page_size_mask & 1))
+    {
+      page_size_log2++;
+      page_size_mask >>= 1;
+    }
+
+  return page_size_log2;
+}
+
+
+_L4_EXTERN_INLINE l4_word_t l4_min_page_size_log2 (void)
+     __attribute__((__const__));
+
+_L4_EXTERN_INLINE l4_word_t
+l4_min_page_size (void)
+{
+  return L4_WORD_C(1) << l4_min_page_size_log2 ();
 }
 
 
