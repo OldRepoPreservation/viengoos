@@ -204,7 +204,7 @@ L4_Unmap (L4_Fpage_t fpage)
 L4_UnmapFpage (L4_Fpage_t fpage)
 #endif
 {
-  _L4_unmap_fpage (fpage.raw);
+  fpage.raw = _L4_unmap_fpage (fpage.raw);
   return fpage;
 }
 
@@ -225,7 +225,7 @@ static inline L4_Fpage_t
 _L4_attribute_always_inline
 L4_Flush (L4_Fpage_t fpage)
 {
-  _L4_flush (fpage.raw);
+  fpage.raw = _L4_flush (fpage.raw);
   return fpage;
 }
 

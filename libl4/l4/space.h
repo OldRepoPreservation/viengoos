@@ -209,13 +209,15 @@ _L4_fpage_remove_rights_from (_L4_fpage_t *fpage, _L4_word_t rights)
 
 /* l4_unmap convenience interface.  */
 
-static inline void
+static inline _L4_fpage_t
 _L4_attribute_always_inline
 _L4_unmap_fpage (_L4_fpage_t fpage)
 {
   _L4_load_mr (0, fpage);
   _L4_unmap (0);
   _L4_store_mr (0, &fpage);
+
+  return fpage;
 }
 
 
@@ -229,13 +231,15 @@ _L4_unmap_fpages (_L4_word_t nr, _L4_fpage_t *fpages)
 }
 
 
-static inline void
+static inline _L4_fpage_t
 _L4_attribute_always_inline
 _L4_flush (_L4_fpage_t fpage)
 {
   _L4_load_mr (0, fpage);
   _L4_unmap (_L4_UNMAP_FLUSH);
   _L4_store_mr (0, &fpage);
+
+  return fpage;
 }
 
 

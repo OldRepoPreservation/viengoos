@@ -131,11 +131,11 @@ l4_fpage_remove_rights_from (l4_fpage_t *fpage, l4_word_t rights)
 }
 
 
-static inline void
+static inline l4_fpage_t
 _L4_attribute_always_inline
 l4_unmap_fpage (l4_fpage_t fpage)
 {
-  _L4_unmap_fpage (fpage);
+  return _L4_unmap_fpage (fpage);
 }
 
 
@@ -147,11 +147,11 @@ l4_unmap_fpages (l4_word_t nr, l4_fpage_t *fpages)
 }
 
 
-static inline void
+static inline l4_fpage_t
 _L4_attribute_always_inline
 l4_flush (l4_fpage_t fpage)
 {
-  _L4_flush (fpage);
+  return _L4_flush (fpage);
 }
 
 

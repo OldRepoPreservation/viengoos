@@ -1,3 +1,16 @@
+2004-04-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/space.h (_L4_unmap_fpage): Change return type to _L4_fpage_t.
+	Return FPAGE.
+	(_L4_flush): Likewise.
+	* l4/compat/space.h (L4_UnmapFpage): Store the result of
+	_L4_unmap_fpage in FPAGE.
+	(L4_Flush): Likewise.
+	* l4/gnu/space.h (l4_unmap_fpage): Change return type to
+	l4_fpage_t.  Return result of _L4_unmap_fpage.
+	(l4_flush): Change return type to l4_fpage_t.  Return result of
+	_L4_flush.
+
 2004-03-30  Wolfgang Jährling  <wolfgang@pro-linux.de>
 
 	* l4/compat/types.h (L4_Word32_t): New type, as required by
