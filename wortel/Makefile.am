@@ -34,6 +34,6 @@ wortel_SOURCES = $(ARCH_SOURCES) string.h string.c		\
 	wortel.h wortel.c
 
 /* FIXME: Make linkbase configurable.  */
-wortel_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x300000 -L/l4/lib
+wortel_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=0x300000
 
 wortel_LDADD = -lgcc

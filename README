@@ -18,7 +18,7 @@ $ ./configure --enable-maintainer-mode --prefix=/l4
 $ cd libl4
 $ make; make install
 $ cd ..
-$ make CFLAGS=-I/l4/include
+$ make CFLAGS=-I/l4/include\ -g\ -O3
 $ mkdir /l4/boot
 $ cp laden/laden /l4/boot
 $ cp wortel/wortel /l4/boot
