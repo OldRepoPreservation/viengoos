@@ -1,3 +1,8 @@
+2005-03-09  Neal H. Walfield  <neal@gnu.org>
+
+	* startup.c (map): Update argument marshalling of the
+	container map RPC.
+
 2005-02-12  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (boot_PROGRAMS): Move startup to ...

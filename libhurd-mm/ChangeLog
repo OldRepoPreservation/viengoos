@@ -1,5 +1,10 @@
 2005-03-09  Neal H. Walfield  <neal@gnu.org>
 
+	* physmem-user.c (hurd_pm_container_map): Update argument
+	marshalling.
+
+2005-03-09  Neal H. Walfield  <neal@gnu.org>
+
 	* map.c: Include "vm.h".
 	(map_init): Cast HURD_STARTUP_ADDR to a uintptr_t.
 	* pager.c (pager): Comment fix.

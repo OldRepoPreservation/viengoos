@@ -90,8 +90,8 @@ container_allocate (hurd_cap_rpc_context_t ctx)
   size_t amount;
   int i;
 
-  /* We require at least three arguments (in addition to the cap id):
-     the flags, the start and the size.  */
+  /* We require three arguments (in addition to the cap id): the
+     flags, the start and the size.  */
   if (l4_untyped_words (l4_msg_msg_tag (ctx->msg)) != 4)
     {
       debug ("incorrect number of arguments passed.  require 4 but got %d\n",
@@ -143,8 +143,8 @@ container_deallocate (hurd_cap_rpc_context_t ctx)
   size_t size = l4_msg_word (ctx->msg, 2);
   struct frame_entry *fe;
 
-  /* We require at least two arguments (in addition to the cap id):
-     the start and the size.  */
+  /* We require two arguments (in addition to the cap id): the start
+     and the size.  */
   if (l4_untyped_words (l4_msg_msg_tag (ctx->msg)) != 3)
     {
       debug ("incorrect number of arguments passed.  require 3 but got %d\n",
@@ -261,15 +261,30 @@ container_map (hurd_cap_rpc_context_t ctx)
 {
   struct container *container = hurd_cap_obj_to_user (struct container *,
 						      ctx->obj);
-  uintptr_t index = l4_page_trunc (l4_msg_word (ctx->msg, 1));
-  l4_word_t rights = l4_msg_word (ctx->msg, 1) & 0x7;
-  size_t size = l4_page_round (l4_msg_word (ctx->msg, 2));
-  uintptr_t vaddr = l4_page_trunc (l4_msg_word (ctx->msg, 3));
+  l4_word_t flags = l4_msg_word (ctx->msg, 1);
+  uintptr_t vaddr = l4_msg_word (ctx->msg, 2);
+  uintptr_t index = l4_msg_word (ctx->msg, 3);
+  size_t size = l4_msg_word (ctx->msg, 4);
   int nr_fpages;
 #define MAX_MAP_ITEMS ((L4_NUM_MRS - 1) / 2)
   int i;
 
+  /* We require four arguments (in addition to the cap id).  */
+  if (l4_untyped_words (l4_msg_msg_tag (ctx->msg)) != 5)
+    {
+      debug ("incorrect number of arguments passed.  require 5 but got %d\n",
+	     l4_untyped_words (l4_msg_msg_tag (ctx->msg)));
+      l4_msg_clear (ctx->msg);
+      return EINVAL;
+    }
+
   l4_msg_clear (ctx->msg);
+
+  /* SIZE must be a multiple of the minimum page size and VADDR must
+     be aligned on a base page boundary.  */
+  if ((size & (L4_MIN_PAGE_SIZE - 1)) != 0
+      || (vaddr & (L4_MIN_PAGE_SIZE - 1)) != 0)
+    return EINVAL;
   
   pthread_mutex_lock (&container->lock);
 
@@ -314,7 +329,7 @@ container_map (hurd_cap_rpc_context_t ctx)
 	  assert (nr_fpages > 0);
 
 	  /* Set the desired permissions.  */
-	  l4_set_rights (&fpages[i], rights);
+	  l4_set_rights (&fpages[i], flags);
 
 	  /* Add the mad item to the message.  */
 	  map_item = l4_map_item (fpages[i], vaddr);
@@ -360,6 +375,15 @@ container_copy (hurd_cap_rpc_context_t ctx)
   int nr_fpages;
   l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
   int i;
+
+  /* We require five arguments (in addition to the cap id).  */
+  if (l4_untyped_words (l4_msg_msg_tag (ctx->msg)) != 6)
+    {
+      debug ("incorrect number of arguments passed.  require 6 but got %d\n",
+	     l4_untyped_words (l4_msg_msg_tag (ctx->msg)));
+      l4_msg_clear (ctx->msg);
+      return EINVAL;
+    }
 
   l4_msg_clear (ctx->msg);
 

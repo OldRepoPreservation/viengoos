@@ -87,9 +87,10 @@ map (l4_thread_id_t server, hurd_cap_handle_t container,
       l4_msg_clear (msg);
       l4_set_msg_label (msg, 134 /* XXX: Magic for container_map_id.  */);
       l4_msg_append_word (msg, container);
-      l4_msg_append_word (msg, offset | rights);
-      l4_msg_append_word (msg, size);
+      l4_msg_append_word (msg, rights);
       l4_msg_append_word (msg, (l4_word_t) vaddr);
+      l4_msg_append_word (msg, offset);
+      l4_msg_append_word (msg, size);
       l4_msg_load (msg);
 
       tag = l4_call (server);

@@ -1,3 +1,9 @@
+2005-03-09  Neal H. Walfield  <neal@gnu.org>
+
+	* container.c (container_map): Update argument marshalling.
+	Sanity check SIZE and VADDR.
+	(container_copy): Strengthen the argument checking.
+
 2005-03-08  Neal H. Walfield  <neal@gnu.org>
 
 	* container.c (container_create): Lock OBJ before calling

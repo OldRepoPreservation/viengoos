@@ -141,12 +141,13 @@ hurd_pm_container_deallocate (hurd_pm_container_t container,
 }
 					     
 
-/* Map the memory at offset OFFSET with size SIZE at address VADDR
-   from the container CONT in the physical memory server PHYSMEM.  */
+/* Map the COUNT bytes of physical memory in container CONTAINER
+   starting at byte INDEX at virtual memory address VADDR of the
+   calling task according to the flags FLAGS.  */
 error_t
 hurd_pm_container_map (hurd_pm_container_t container,
-		       l4_word_t offset, size_t size,
-		       uintptr_t vaddr, l4_word_t rights)
+		       l4_word_t index, size_t count,
+		       uintptr_t vaddr, l4_word_t flags)
 {
   l4_msg_t msg;
   l4_msg_tag_t tag;
@@ -157,14 +158,17 @@ hurd_pm_container_map (hurd_pm_container_t container,
   l4_msg_clear (msg);
   l4_set_msg_label (msg, container_map_id);
   l4_msg_append_word (msg, container);
-  l4_msg_append_word (msg, offset | rights);
-  l4_msg_append_word (msg, size);
+  l4_msg_append_word (msg, flags);
   l4_msg_append_word (msg, vaddr);
+  l4_msg_append_word (msg, index);
+  l4_msg_append_word (msg, count);
   l4_msg_load (msg);
 
   tag = l4_call (physmem);
   l4_msg_store (tag, msg);
 
+  printf ("%s(%x,%xk,%xk,%xk,%x)->", __FUNCTION__,
+	  container, index >> 10, count >> 10, vaddr >> 10, flags);
   for (int i = 0;
        i < l4_typed_words (tag);
        i += sizeof (l4_map_item_t) / sizeof (l4_word_t))
@@ -172,9 +176,10 @@ hurd_pm_container_map (hurd_pm_container_t container,
       l4_map_item_t mi;
       l4_msg_get_map_item (msg, i, &mi);
       assert (l4_is_map_item (mi));
-      printf ("fpage(%x,%x)@%x ", l4_address (l4_map_item_snd_fpage (mi)),
-	      l4_size (l4_map_item_snd_fpage (mi)),
-	      l4_map_item_snd_base (mi));
+      printf ("(%xk,%xk)@%xk ",
+	      l4_address (l4_map_item_snd_fpage (mi)) >> 10,
+	      l4_size (l4_map_item_snd_fpage (mi)) >> 10,
+	      l4_map_item_snd_base (mi) >> 10);
     }
   printf ("\n");
 
