@@ -1,3 +1,11 @@
+2004-11-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (deva_SOURCES): Add task-user.h and task-user.c.
+	* task-user.h, task-user.c: New files.
+	* deva.c: Include "task-user.h".
+	(create_bootstrap_caps): Remove variable startup_cap.
+	(setup_threads): Implement it.
+
 2004-11-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* deva-class.c (struct deva): Remove member obj (and add dummy

@@ -30,6 +30,7 @@ deva_CPPFLAGS = -I$(top_builddir)/include			\
 deva_SOURCES = $(ARCH_SOURCES)					\
 	output.h output.c					\
 	physmem-user.h physmem-user.c mmap.c malloc-wrap.c	\
+	task-user.h task-user.c					\
 	deva.h deva.c deva-class.c
 
 # Doug Lea's malloc is included by malloc-wrap.c.

@@ -30,6 +30,7 @@
 #include <hurd/wortel.h>
 
 #include "deva.h"
+#include "task-user.h"
 
 
 /* Initialized by the machine-specific startup-code.  */
@@ -70,7 +71,6 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 {
   error_t err;
   hurd_cap_handle_t cap;
-  hurd_cap_handle_t startup_cap;
   hurd_cap_obj_t obj;
   bool master;
 
@@ -133,39 +133,30 @@ get_task_id ()
 static l4_thread_id_t
 setup_threads (void)
 {
-#if 0
-  l4_word_t err;
-  pthread_t thread;
+  error_t err;
   l4_thread_id_t server_thread;
-  l4_thread_id_t main_thread;
-  l4_thread_id_t extra_thread;
+  l4_thread_id_t tid;
   l4_thread_id_t pager;
+  pthread_t thread;
+  struct hurd_startup_cap *task = &__hurd_startup_data->task;
 
-  first_free_thread_no = wortel_get_first_free_thread_no ();
-
-  /* Use the first free thread as main thread.  */
-  main_thread = l4_global_id (first_free_thread_no, get_task_id ());
   server_thread = l4_my_global_id ();
-
-  /* Create the main thread as an active thread.  The scheduler is
-     us.  */
-  err = wortel_thread_control (main_thread, l4_myself (), l4_myself (),
-			       main_thread,
-			       (void *)
-			       (l4_address (__hurd_startup_data->utcb_area)
-				+ l4_utcb_size ()));
+  err = task_thread_alloc (task->server, task->cap_handle,
+			   (void *)
+			   (l4_address (__hurd_startup_data->utcb_area)
+			   + l4_utcb_size ()),
+			   &tid);
   if (err)
-    panic ("could not create main task thread: %s", l4_strerror (err));
+    panic ("could not create main task thread: %i", err);
 
   /* Switch threads.  We still need the current main thread as the
      server thread.  */
   pager = l4_pager ();
-  switch_thread (server_thread, main_thread);
+  switch_thread (server_thread, tid);
   l4_set_pager (pager);
 
   /* Create the main thread.  */
   err = pthread_create (&thread, 0, 0, 0);
-
   if (err)
     panic ("could not create main thread: %i\n", err);
 
@@ -174,24 +165,27 @@ setup_threads (void)
      override to not actually make an RPC to ourselves.  */
 
   /* Now add the remaining extra threads to the pool.  */
-  extra_thread = l4_global_id (first_free_thread_no + 1, get_task_id ());
-  err = wortel_thread_control (extra_thread, l4_myself (), l4_myself (),
-			       extra_thread,
-			       (void *)
-			       (l4_address (__hurd_startup_data->utcb_area)
-				+ 2 * l4_utcb_size ()));
-  pthread_pool_add_np (extra_thread);
+  err = task_thread_alloc (task->server, task->cap_handle,
+			   (void *)
+			   (l4_address (__hurd_startup_data->utcb_area)
+			    + 2 * l4_utcb_size ()),
+			   &tid);
+  if (err)
+    panic ("could not create first extra thread: %i", err);
 
-  extra_thread = l4_global_id (first_free_thread_no + 2, get_task_id ());
-  err = wortel_thread_control (extra_thread, l4_myself (), l4_myself (),
-			       extra_thread,
-			       (void *)
-			       (l4_address (__hurd_startup_data->utcb_area)
-				+ 3 * l4_utcb_size ()));
-  pthread_pool_add_np (extra_thread);
+  pthread_pool_add_np (tid);
+
+  err = task_thread_alloc (task->server, task->cap_handle,
+			   (void *)
+			   (l4_address (__hurd_startup_data->utcb_area)
+			    + 3 * l4_utcb_size ()),
+			   &tid);
+  if (err)
+    panic ("could not create first extra thread: %i", err);
+
+  pthread_pool_add_np (tid);
 
   return server_thread;
-#endif
 }
 
 
