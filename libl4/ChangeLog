@@ -1,3 +1,14 @@
+2003-09-22  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (ARCH_SUBDIR) [ARCH_POWERPC]: Add powerpc.
+	* headers-powerpc.m4: New file.
+	* powerpc/Makefile.am: New file.
+	* powerpc/l4/bits/ipc.h, powerpc/l4/bits/space.h,
+	powerpc/l4/bits/types.h, powerpc/l4/bits/kip.h,
+	powerpc/l4/bits/stubs-init.h, powerpc/l4/bits/vregs.h,
+	powerpc/l4/bits/math.h, powerpc/l4/bits/stubs.h,
+	powerpc/l4/bits/misc.h, powerpc/l4/bits/syscall.h: New files.
+	
 2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/init.h: Include <l4/syscall.h>

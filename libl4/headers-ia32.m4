@@ -1,5 +1,5 @@
 # headers-ia32.m4 - Autoconf snippets to install links for header files.
-# Copyright 20013 Free Software Foundation, Inc.
+# Copyright 2003 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann <marcus@gnu.org>.
 #
 # This file is free software; as a special exception the author gives
