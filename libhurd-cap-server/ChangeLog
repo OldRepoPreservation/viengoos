@@ -1,3 +1,8 @@
+2004-03-22  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (libhurd_cap_server_a_SOURCES): Add table.h, table.c.
+	* table.h, table.c: New files.
+
 2004-03-21  Marcus Brinkmann  <marcus@gnu.org>
 
 	* cap-server.h (hurd_cap_obj_rele): Require at least two
