@@ -36,7 +36,7 @@ typedef void *hurd_ihash_value_t;
    The difference is that searches continue though HASH_DEL, but stop
    at _HURD_IHASH_EMPTY.  */
 #define _HURD_IHASH_EMPTY	((hurd_ihash_value_t) 0)
-#define _HURD_IHASH_DELETED     	((hurd_ihash_value_t) -1)
+#define _HURD_IHASH_DELETED	((hurd_ihash_value_t) -1)
 
 
 /* The type of integer we want to use for the keys.  */
