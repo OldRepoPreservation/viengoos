@@ -67,6 +67,37 @@ page, and starts the kernel.  The kernel starts $\sigma_0$ and the
 rootserver.  The rootserver has to deal with the other modules.
 
 
+\subsection{System bootstrap}
+
+The initial part of the boot procedure is system specific.
+
+
+\subsubsection{Booting the ia32}
+
+On the ia32, the BIOS will be one of the first things to run.
+Eventually, the BIOS will start the bootloader.  The Hurd requires a
+multiboot-compliant bootloader, such as GRUB.  A typical configuration
+file entry in the \verb/menu.list/ file of GRUB will look like this:
+
+\begin{verbatim}
+title = The GNU Hurd on L4
+root = (hd0,0)
+kernel = /boot/laden
+module = /boot/ia32-kernel
+module = /boot/sigma0
+module = /boot/rootserver
+module = ...more servers...
+\end{verbatim}
+
+\begin{comment}
+  The name of the rootserver and the further modules are not specified
+  yet.
+\end{comment}
+
+GRUB loads the binary image files into memory and jumps to the entry
+point of \texttt{laden}.
+
+
 \subsection{The loader \texttt{laden}}
 
 \texttt{laden} is a multiboot compliant kernel from the perspective of
@@ -178,6 +209,7 @@ The thread ID of $\sigma_1$ is (\verb/UserBase + 1, 1)/.
 
 
 \subsection{The rootserver}
+\label{rootserver}
 
 The rootserver is the only task in the system which threads can
 perform privileged system calls.  So the rootserver must provide
@@ -203,6 +235,11 @@ The rootserver has the following initial state:
 
 \item The priority is set to the 255, the maximum value.
 
+  \begin{comment}
+    The rootserver, or at least the system call wrapper, should run at
+    a very high priority.
+  \end{comment}
+
 \item The instruction pointer \verb/%eip/ is set to the entry point,
 all other registers are undefined (including the stack pointer).
 
@@ -226,14 +263,15 @@ initial task in a generalized manner.
 \begin{comment}
   The exact number and type of initial tasks necessary to boot the
   Hurd are not yet known.  Chances are that this list includes the
-  task server, the physical memory server, the device servers, and the
-  boot filesystem.  The boot filesystem might be a small simple
-  filesystem, which also includes the device drivers needed to access
-  the real root filesystem.
+  \texttt{task} server, the physical memory server, the device
+  servers, and the boot filesystem.  The boot filesystem might be a
+  small simple filesystem, which also includes the device drivers
+  needed to access the real root filesystem.
 \end{comment}
 
 
 \section{Inter-process communication (IPC)}
+\label{ipc}
 
 The Hurd requires a capability system.  Capabilities are used to proof
 your identity to other servers (authentication), and access
@@ -336,11 +374,11 @@ and thus must be sure that it is not tricked into trusting on
 unreliable data from an imposter, or sends sensitive data to it.
 
 \begin{comment}
-  The task server wants to reuse thread numbers because that makes
-  best use of kernel memory.  Reusing task IDs, the version field of a
-  thread ID, is not so important, but there are only 14 bits for the
-  version field (and the lower six bits must not be all zero).  So a
-  thread ID is bound to be reused eventually.
+  The \texttt{task} server wants to reuse thread numbers because that
+  makes best use of kernel memory.  Reusing task IDs, the version
+  field of a thread ID, is not so important, but there are only 14
+  bits for the version field (and the lower six bits must not be all
+  zero).  So a thread ID is bound to be reused eventually.
   
   Using the version field in a thread ID as a generation number is not
   good enough, because it is so small.  Even on 64-bit architectures,
@@ -348,63 +386,34 @@ unreliable data from an imposter, or sends sensitive data to it.
 \end{comment}
 
 The best way to prevent that a task can be tricked into talking to an
-imposter is to have the task server notify the task if the
-communication partner dies.  The task server must guarantee that the
-task ID is not reused until all tasks that got such a notification
-acknowledge that it is processed, and thus no danger of confusion
-exists anymore.
+imposter is to have the \texttt{task} server notify the task if the
+communication partner dies.  The \texttt{task} server must guarantee
+that the task ID is not reused until all tasks that got such a
+notification acknowledge that it is processed, and thus no danger of
+confusion exists anymore.
 
-The task server will provide references to task IDs in form of
+The \texttt{task} server provides references to task IDs in form of
 \emph{task info capabilities}.  If a task has a task info capability
-for another task, it will prevent that this other task's task ID is
-reused even if that task dies, and it will also make sure that task
-death notifications are delivered in that case.
+for another task, it prevents that this other task's task ID is reused
+even if that task dies, and it also makes sure that task death
+notifications are delivered in that case.
 
 \begin{comment}
-  Because only the task server can create and destroy tasks, and
-  assign task IDs, there is no need to hold such task info
-  capabilities for the task server, nor does the task server need to
-  hold task info capabilities for its clients.  This avoids the
-  obvious bootstrap problem in providing capabilities in the task
-  server.  This will even work if the task server is not the real task
-  server, but a proxy task server (see section \ref{proxytaskserver}
-  on page \pageref{proxytaskserver}).
+  Because only the \texttt{task} server can create and destroy tasks,
+  and assign task IDs, there is no need to hold such task info
+  capabilities for the \texttt{task} server, nor does the
+  \texttt{task} server need to hold task info capabilities for its
+  clients.  This avoids the obvious bootstrap problem in providing
+  capabilities in the \texttt{task} server.  This will even work if
+  the \texttt{task} server is not the real \texttt{task} server, but a
+  proxy task server (see section \ref{proxytaskserver} on page
+  \pageref{proxytaskserver}).
 \end{comment}
 
 As task IDs are a global resource, care has to be taken that this
 approach does not allow for a DoS-attack by exhausting the task ID
-number space.
-
-\begin{comment}
-  Several strategies can be taken:
-
-  \begin{itemize}
-  \item Task death notifications can be monitored.  If there is no
-    acknowdgement within a certain time period, the task server could
-    be allowed to reuse the task ID anyway.  This is not a good
-    strategy because it can considerably weaken the security of the
-    system (capabilities might be leaked to tasks which reuse such a
-    task ID reclaimed by force).
-  \item The proc server can show dead task IDs which are not released
-    yet, in analogy to the zombie processes in Unix.  It can also make
-    available the list of tasks which prevent reusing the task ID, to
-    allow users or the system administrator to clean up manually.
-  \item Quotas can be used to punish users which do not acknowledge
-    task death timely.  For example, if the number of tasks the user
-    is allowed to create is restricted, the task info caps that the
-    user holds for dead tasks could be counted toward that limit.
-  \item Any task could be restricted to as many task ID references as
-    there are live tasks in the system, plus some slack.  That would
-    prevent the task from creating new task info caps if it does not
-    release old ones from death tasks.  The slack would be provided to
-    not unnecessarily slow down a task that processes task death
-    notifications asynchronously to making connections with new tasks.
-  \end{itemize}
-  
-  In particular the last two approaches should proof to be effective
-  in providing an incentive for tasks to release task info caps they
-  do not need anymore.
-\end{comment}
+number space, see section \ref{taskinfocap} on page
+\pageref{taskinfocap} for more details.
 
 
 \subsection{Capabilities}
@@ -459,14 +468,14 @@ task.
   
   This is not enough if several systems run in parallel on the same
   host.  Then the version ID for the threads in the other systems will
-  not be under the control of the Hurd's task server, and can thus not
-  be trusted.  The server can still use the version field to find out
-  the task ID, which will be correct \emph{if the thread is part of
-    the same subsystem}.  It also has to verify that the thread
-  belongs to this subsystem.  Hopefully the subsystem will be encoded
-  in the thread ID.  Otherwise, the task server has to be consulted
-  (and, assuming that thread numbers are not shared by the different
-  systems, the result can be cached).
+  not be under the control of the Hurd's \texttt{task} server, and can
+  thus not be trusted.  The server can still use the version field to
+  find out the task ID, which will be correct \emph{if the thread is
+    part of the same subsystem}.  It also has to verify that the
+  thread belongs to this subsystem.  Hopefully the subsystem will be
+  encoded in the thread ID.  Otherwise, the \texttt{task} server has
+  to be consulted (and, assuming that thread numbers are not shared by
+  the different systems, the result can be cached).
 \end{comment}
 
 The server reads out the capability associated with the capability ID,
@@ -493,9 +502,9 @@ that is used when a capability is copied from one task to another.
 
 If the client and the server do not know about each other yet, then
 they can bootstrap a connection without support from any other task
-except the task server.  The purpose of the initial handshake is to
-give both participants a chance to acquire a task info cap for the
-other participants task ID, so they can be sure that from there on
+except the \texttt{task} server.  The purpose of the initial handshake
+is to give both participants a chance to acquire a task info cap for
+the other participants task ID, so they can be sure that from there on
 they will always talk to the same task as they talked to before.
 
 \paragraph{Preconditions}
@@ -524,9 +533,9 @@ have to take it out of the long version.
 \begin{enumerate}
   
 \item The client acquires a task info capability for the server's task
-  ID, either directly from the task server, or from another task in a
-  capability copy.  From that point on, the client can be sure to
-  always talk to the same task when talking to the server.
+  ID, either directly from the \texttt{task} server, or from another
+  task in a capability copy.  From that point on, the client can be
+  sure to always talk to the same task when talking to the server.
   
   Of course, if the client already has a task info cap for the server
   it does not need to do anything in this step.
@@ -541,7 +550,7 @@ have to take it out of the long version.
   handshake.
   
 \item The server receives the message, and acquires a task info cap
-  for the client task (directly from the task server).
+  for the client task (directly from the \texttt{task} server).
   
   Of course, if the server already has a task info cap for the client
   it does not need to do anything in this step.
@@ -692,9 +701,9 @@ $S$ and $D$.  $D$ might trust $S$ or not, and thus accept or reject
 the capability that $C$ wants to give to $D$.  $S$ does not trust
 either $C$ or $D$.
   
-The task server is also involved, because it provides the task info
-capabilities.  Everyone trusts the task server they use.  This does
-not need to be the same one for every participant.
+The \texttt{task} server is also involved, because it provides the
+task info capabilities.  Everyone trusts the \texttt{task} server they
+use.  This does not need to be the same one for every participant.
 
 FIXME: Here should be the pseudo code for the protocol.  For now, you
 have to take it out of the long version.
@@ -710,13 +719,13 @@ have to take it out of the long version.
 
   \begin{comment}
     A task can provide a constraint when creating a task info cap in
-    the task server.  The constraint is a task ID.  The task server
-    will only create the task info cap and return it if the task with
-    the constraint task ID is not destroyed.  This allows for a task
-    requesting a task info capability to make sure that another task,
-    which also holds this task info cap, is not destroyed.  This is
-    important, because if a task is destroyed, all the task info caps
-    it held are released.
+    the \texttt{task} server.  The constraint is a task ID.  The task
+    server will only create the task info cap and return it if the
+    task with the constraint task ID is not destroyed.  This allows
+    for a task requesting a task info capability to make sure that
+    another task, which also holds this task info cap, is not
+    destroyed.  This is important, because if a task is destroyed, all
+    the task info caps it held are released.
 
     In this case, the server relies on the client to hold a task info
     cap for $D$ until it established its own.  See below for what can
@@ -934,8 +943,8 @@ If you find any other problematic scenario, again, let us know.
 \end{comment}
 
 \paragraph{The server $S$ dies}
-What happens if the server S dies unexpectedly sometime throughout the
-protocol?
+What happens if the server $S$ dies unexpectedly sometime throughout
+the protocol?
 
 \begin{comment}
   At any time a task dies, the task info caps it held are released.
@@ -1228,12 +1237,11 @@ protocol.  It also provides a good set of test cases that you can test
 your own protocols, and improvements to the above protocol against.
 
 
-
 \subsection{Synchronous IPC}
-  
+
 The Hurd only needs synchronous IPC.  Asynchronous IPC is usually not
 required.  An exception are notifications (see below).
-  
+
 There are possibly some places in the Hurd source code where
 asynchronous IPC is assumed.  These must be replaced with different
 strategies.  One example is the implementation of select() in the GNU
@@ -1257,7 +1265,7 @@ extra threads).
 
 
 \subsection{Notifications}
-  
+
 Notifications to untrusted tasks happen frequently.  One case is
 object death notifications, in particular task death notifications.
 Other cases might be select() or notifications of changes to the
@@ -1273,83 +1281,225 @@ immediately.
   
 From the servers point of view, notifications are simply messages with
 a send and xfer timeout of 0 and without a receive phase.
-  
+
 For the client, however, there is only one way to ensure that it will
 receive the notification: It must have the receiving thread in the
 receive phase of an IPC.  While this thread is processing the
-notification (even if it is only delegating), it might be preempted
+notification (even if it is only delegating it), it might be preempted
 and another (or the same) server might try to send a second
 notification.
-  
-It is an open challenge how the client can ensure that it either
-receives the notification or at least knows that it missed it, while
-the server remains save from potential DoS attacks.  The usual
-strategy, to give receivers of notifications a higher scheduling
-priority than the sender, is not usable in a system with untrusted
-receivers (like the Hurd).  The best strategy determined so far is to
-have the servers retry to send the notification several times with
-small delays inbetween.  This can increase the chance that a client is
-able to receive the notification.  However, there is still the
-question what a server can do if the client is not ready.
-  
-An alternative might be a global trusted notification server that runs
-at a higher scheduling priority and records which servers have
-notifications for which clients, and that can be used by clients to be
-notified of pending notifications.  Then the clients can poll the
-notifications from the servers.
+
+\begin{comment}
+  It is an open challenge how the client can ensure that it either
+  receives the notification or at least knows that it missed it, while
+  the server remains save from potential DoS attacks.  The usual
+  strategy, to give receivers of notifications a higher scheduling
+  priority than the sender, is not usable in a system with untrusted
+  receivers (like the Hurd).  The best strategy determined so far is
+  to have the servers retry to send the notification several times
+  with small delays inbetween.  This can increase the chance that a
+  client is able to receive the notification.  However, there is still
+  the question what a server can do if the client is not ready.
+ 
+  An alternative might be a global trusted notification server that
+  runs at a higher scheduling priority and records which servers have
+  notifications for which clients, and that can be used by clients to
+  be notified of pending notifications.  Then the clients can poll the
+  notifications from the servers.
+\end{comment}
 
 
 \section{Threads and Tasks}
+
+The \texttt{task} server will provide the ability to create tasks and
+threads, and to destroy them.
+
+\begin{comment}
+  In L4, only threads in the privileged address space (the rootserver)
+  are allowed to manipulate threads and address spaces (using the
+  \textsc{ThreadControl} and \textsc{SpaceControl} system calls).  The
+  \texttt{task} server will use the system call wrappers provided by
+  the rootserver, see section \ref{rootserver} on page
+  \pageref{rootserver}.
+\end{comment}
+
+The \texttt{task} server provides three different capability types.
+
+\paragraph{Task control capabilities}
+If a new task is created, it is always associated with a task control
+capability.  The task control capability can be used to create and
+destroy threads in the task, and destroy the task itself.  So the task
+control capability gives the owner of a task control over it.  Task
+control capabilities have the side effect that the task ID of this
+task is not reused, as long as the task control capability is not
+released.  Thus, having a task control capability affects the global
+namespace of task IDs.  If a task is destroyed, task death
+notifications are sent to holders of task control capabilities for
+that task.
+
+\begin{comment}
+  A task is also implicitely destroyed when the last task control
+  capability reference is released.
+\end{comment}
+
+\paragraph{Task info capabilities}
+\label{taskinfocap}
+Any task can create task info capabilities for other tasks.  Such task
+info capabilities are used mainly in the IPC system (see section
+\ref{ipc} on page \pageref{ipc}).  Task info capabilities have the
+side effect that the task ID of this task is not reused, as long as
+the task info capability is not released.  Thus, having a task info
+capability affects the global namespace of task IDs.  If a task is
+destroyed, task death notifications are sent to holders of task info
+capabilities for that task.
+
+\begin{comment}
+  Because of that, holding task info capabilities must be restricted
+  somehow.  Several strategies can be taken:
+
+  \begin{itemize}
+  \item Task death notifications can be monitored.  If there is no
+    acknowdgement within a certain time period, the \texttt{task}
+    server could be allowed to reuse the task ID anyway.  This is not
+    a good strategy because it can considerably weaken the security of
+    the system (capabilities might be leaked to tasks which reuse such
+    a task ID reclaimed by force).
+  \item The proc server can show dead task IDs which are not released
+    yet, in analogy to the zombie processes in Unix.  It can also make
+    available the list of tasks which prevent reusing the task ID, to
+    allow users or the system administrator to clean up manually.
+  \item Quotas can be used to punish users which do not acknowledge
+    task death timely.  For example, if the number of tasks the user
+    is allowed to create is restricted, the task info caps that the
+    user holds for dead tasks could be counted toward that limit.
+  \item Any task could be restricted to as many task ID references as
+    there are live tasks in the system, plus some slack.  That would
+    prevent the task from creating new task info caps if it does not
+    release old ones from death tasks.  The slack would be provided to
+    not unnecessarily slow down a task that processes task death
+    notifications asynchronously to making connections with new tasks.
+  \end{itemize}
   
-The Hurd will encode the task ID in the version part of the L4 thread
-ID.  The version part can only be changed by the privileged system
-code, so it is protected by the kernel.  This allows recipients of a
-message to quickly determine the task from the sender's thread ID.
+  In particular the last two approaches should proof to be effective
+  in providing an incentive for tasks to release task info caps they
+  do not need anymore.
+\end{comment}
 
-Task IDs will not be reused as long as there are still tasks that
-might actively communicate with the (now destroyed) task.  Task info
-capabilities provided by the task server can be used for that.  The
-task info capability will also receive the task death notification (as
-a normap capability death notification).  The task server will reuse a
-task ID only when all task info capabilities for the task with that ID
-have been released.
 
-This of course can open a DoS attack.  Programs can attempt to acquire
-task info capabilities and never release them.  Several strategies can
-be applied to compensate that: The task server can automatically time
-out task info capability references to dead tasks.  The proc server
-can show dead task IDs with task info capability references as some
-variant of zombie tasks, and provide a way to list all tasks
-preventing the task ID from being reused, allowing the system
-administrator to identify malicious or faulty users.  Task ID
-references can be taken into account in quota restrictions, to
-encourage a user to release them when they are not needed anymore (in
-particular, a user holding a task ID reference to a dead task could be
-punished with the same costs as for an additional normal task owned by
-the user).  Another idea is to not allow any task to allocate more
-task info capabilities than there are live tasks in the system, plus
-some slack.  This provides a high incentive for tasks to release their
-info caps (and if they get an error, they could block until their
-notification system has processed the task death notification and
-released the reference, and try again).
 
-Access to task info capabilities can be open to everyone.  The above
-strategies to prevent tasks from allocating too many of them for too
-long work even if access to task info capabilities is given out
-without any preconditions, and there is no real incentive other than
-those above for a task to not pass on a task info capability to any
-interested task anyway.  Allowing every task to create task info
-capabilities for other tasks simplifies the protocols involved and
-allows for some optimizations.
+\paragraph{Task manager capability}
+A task is a relatively simple object, compared to a full blown POSIX
+process, for example.  As the \texttt{task} server is enforced system
+code, the Hurd does not impose POSIX process semantics in the task
+server.  Instead, POSIX process semantics are implemented in a
+different server, the proc server (see also section \ref{proc} on page
+\pageref{proc}).  To allow the \texttt{proc} server to do its work, it
+needs to be able to get the task control capability for any task, and
+gather other statistics about them.  Furthermore, there must be the
+possibility to install quota mechanisms and other monitoring systems.
+The \texttt{task} server provides a task manager capability, that
+allows the holder of that capability to control the behaviour of the
+\texttt{task} server and get access to the information and objects it
+provides.
+
+\begin{comment}
+  For example, the task manager capability could be used to install a
+  policy capability that is used by the \texttt{task} server to make
+  upcalls to a policy server whenever a new task or thread is created.
+  The policy server could then indicate if the creation of the task or
+  thread is allowed by that user.  For this to work, the \texttt{task}
+  server itself does not need to know about the concept of a user, or
+  the policies that the policy server implements.
+  
+  Now that I am writing this, I realize that without any further
+  support by the \texttt{task} server, the policy server would be
+  restricted to the task and thread ID of the caller (or rather the
+  task control capability used) to make its decision.  A more
+  capability oriented approach would then not be possible.  This
+  requires more thought.
+  
+  The whole task manager interface is not written yet.
+\end{comment}
+
+When creating a new task, the \texttt{task} server allocates a new
+task ID for it.  The task ID will be used as the version field of the
+thread ID of all threads created in the task.  This allows the
+recipient of a message to verify the sender's task ID efficiently and
+easily.
+
+\begin{comment}
+  The version field is 14 bit on 32-bit architectures, and 32 bit on
+  64 bit architectures.  Because the lower six bits must not be all
+  zero (to make global thread IDs different from local thread IDs),
+  the number of available task IDs is $2^{14} - 2^6$ resp. $2^{32} -
+  2^6$.
+  
+  If several systems are running in parallel on the same host, they
+  might share thread IDs by encoding the system ID in the upper bits
+  of the thread number.
+\end{comment}
+
+Task IDs will be reused only if there are no task control or info
+capabilities for that task ID held by any task in the system.
+
+\begin{comment}
+  If the \texttt{task} server never ignores this rule, even if a task
+  does not release task control or info capabilities voluntarily, then
+  there is no need for the \texttt{task} server to not keep task IDs
+  small and reuse them as early as possible.
+\end{comment}
+
+When creating a new task, the \texttt{task} server also has to create
+the initial thread.  This thread will be inactive.  Once the creation
+and activation of the initial thread has been requested by the user,
+it will be activated.  When the user requests to destroy the last
+thread in a task, the \texttt{task} server makes that thread inactive
+again.
+
+\begin{comment}
+  In L4, an address space can only be implicitely created (resp.
+  destroyed) with the first (resp. last) thread in that address space.
+\end{comment}
+
+Some operations, like starting and stopping threads in a task, can not
+be supported by the task server, but have to be implemented locally in
+each task because of the minimality of L4.  If external control over
+the threads in a task at this level is required, the debugger
+interface might be used (see section \ref{debug} on page
+\pageref{debug}).
+
+
+\subsection{Accounting}
+
+We want to allow the users of the system to use the \texttt{task}
+server directly, and ignore other task management facilities like the
+\texttt{proc} server.  However, the system administrator still needs
+to be able to identify the user who created such anonymous tasks.
+
+For this, a simple accounting mechanism is provided by the task
+server.  An identifier can be set for a task by the task manager
+capability, which is inherited at task creation time from the parent
+task.  This accounting ID can not be changed without the task manager
+capability.
+
+The \texttt{proc} server sets the accounting ID to the process ID
+(PID) of the task whenever a task registers itself with the
+\texttt{proc} server.  This means that all tasks which do not register
+themself with the \texttt{proc} server will be grouped together with
+the first parent task that did.  This allows to easily kill all
+unregistered tasks together with its registered parent.
+
+The \texttt{task} server does not interpret or use the accounting ID
+in any way.
 
 
 \subsection{Proxy Task Server}
 \label{proxytaskserver}
 
-The task server can be safely proxied, and the users of such a proxy
-task server can use it like the real task server, even though
-capabilities work a bit different for the task server than for other
-servers.
+The \texttt{task} server can be safely proxied, and the users of such
+a proxy task server can use it like the real \texttt{task} server,
+even though capabilities work a bit differently for the \texttt{task}
+server than for other servers.
 
 The problem exists because the proxy task server would hold the real
 task info capabilities for the task info capabilities that it provides
@@ -1363,8 +1513,30 @@ it will be the only task which holds task control capabilities for the
 tasks that use it.  When the proxy task server dies, all tasks that
 were created with it will be destroyed when these tak control
 capabilities are released.  The proxy task server is a vital system
-component for the tasks that use it, just as the real task server is a
-vital system component for the whole system.
+component for the tasks that use it, just as the real \texttt{task}
+server is a vital system component for the whole system.
+
+
+\subsection{Scheduling}
+
+The task server is the natural place to implement a simple, initial
+scheduler for the Hurd.  A first version can at least collect some
+information about the cpu time of a task and its threads.  Later a
+proper scheduler has to be written that also has SMP support.
+
+The scheduler should run at a higher priority than normal threads.
+
+\begin{comment}
+  This might require that the whole task server must run at a higher
+  priority, which makes sense anyway.
+  
+  Not much thought has been given to the scheduler so far.  This is
+  work that still needs to be done.
+\end{comment}
+
+There is no way to get at the ``system time'' in L4, it is assumed
+that no time is spent in the kernel (which is mostly true).  So system
+time will always be reported as $0.00$, or $0.01$.
 
 
 \section{Virtual Memory Management}
@@ -1393,43 +1565,35 @@ this.  This can be used for DMA and zero-copying in the data exchange
 between device drivers and (untrusted) user tasks.
 
 
-\section{Task Management}
+\section{Authentication}
+\label{auth}
 
-A task server will provide the ability to create and destroy tasks and
-threads, nd get some basic information about them.  The task server
-might also server as the initial scheduler for simple usage statistics
-(cpu time of a process), which is not otherwise provided by L4.  Of
-course, other information like creation time of a process will also be
-provided.
+The auth server gives out auth objects that contain zero or more of
+effective user IDs, available user IDs, effective group IDs and
+available group IDs.  New objects can be created from existing
+objects, but only as subsets from the union of the IDs a user
+possesses.  If an auth object has an effective or available user ID 0,
+then arbitrary new auth objects can be created from that.
 
-A proc server (which is logically different but might be implemented
-in the same process as the task server) will provide POSIX process
-semantics for tasks.  Registration with the proc server is optional.
+A passport can be created from an auth object that can be used by
+everyone who possesses a handle to the passport object to verify the
+IDs of the auth object that the passport was created from, and if the
+auth object is owned by any particular task (normally the user
+requesting the.
 
-An accounting ID that can be set by the proc server and is inherited
-at task creation allows to kill a group of (from proc's point of view)
-unregistered tasks at once.  This is also useful to prevent left-over
-of child processes that are incapable of running with exec() (see
-below).  The accounting ID will usually be set to the PID of a process
-as soon as it registers itself with proc.
+The auth server should always create new passport objects for
+different tasks, even if the underlying auth object is the same, so
+that a task having the passport capability can not spy on other tasks
+unless they were given the passport object by that task.
 
-If the last reference to a task control capability is released, the
-task should be destroyed and the task server should release all task
-control and info capabilities it held.  This should happen
-recursively, of course.  However, it is important that the task
-control capabilities are released before the info capabilities (so
-that tasks for which this tasked had the only control capability,
-which relied on this task to hold info capabilities for them, are
-killed and not attackable by an imposter).  This is important for
-tasks creating new tasks (which have to talk to other tasks, for
-example their parent, before they get their own control capability),
-or for proxy task servers (which hold the task control and info
-capabilities for all tasks they proxy).
 
-Other operations, like starting and stopping threads in a task, can
-not be supported by the task server, but have to be implemented in
-locally in each task because of the minimality of L4.
+\section{Process Management}
+\label{proc}
 
+The \texttt{proc} server.
+
+
+\section{Miscs}
 
 \subsection{Exec}
 
@@ -1513,28 +1677,6 @@ comparable.
 
 This is a coarse and incomplete description, but it shows the general
 idea.  The details will depend a lot on the actual implementation.
-
-
-\section{Authentication}
-\label{auth}
-
-The auth server gives out auth objects that contain zero or more of
-effective user IDs, available user IDs, effective group IDs and
-available group IDs.  New objects can be created from existing
-objects, but only as subsets from the union of the IDs a user
-possesses.  If an auth object has an effective or available user ID 0,
-then arbitrary new auth objects can be created from that.
-
-A passport can be created from an auth object that can be used by
-everyone who possesses a handle to the passport object to verify the
-IDs of the auth object that the passport was created from, and if the
-auth object is owned by any particular task (normally the user
-requesting the.
-
-The auth server should always create new passport objects for
-different tasks, even if the underlying auth object is the same, so
-that a task having the passport capability can not spy on other tasks
-unless they were given the passport object by that task.
 
 
 \section{Unix Domain Sockets and Pipes}
@@ -1629,6 +1771,24 @@ root directory capability in exchange).
   it could be redirected to another (that means: for all filesystems
   for which it does not use \verb/O_NOTRANS/).  This is quite an
   overhead to the common case.
+
+\begin{verbatim}
+<marcus> I have another idea
+<marcus> the client does not give a container
+<marcus> server sees child fs, no container -> returns O_NOTRANS node
+<marcus> then client sees error, uses O_NOTRANS node, "" and container
+<marcus> problem solved
+<marcus> this seems to be the optimum
+<neal> hmm.
+<neal> So lazily supply a container.
+<marcus> yeah
+<neal> Hoping you won't need one.
+<marcus> and the server helps you by doing as much as it can usefully
+<neal> And that is the normal case.
+<neal> Yeah, that seems reasonable.
+<marcus> the trick is that the server won't fail completely
+<marcus> it will give you at least the underlying node
+\end{verbatim}
 \end{comment}
 
 The actual creation of the child filesystem can be performed much like
@@ -1647,6 +1807,7 @@ solutions.
 
 
 \section{Debugging}
+\label{debug}
 
 L4 does not support debugging.  So every task has to implement a debug
 interface and implement debugging locally.  gdb needs to be changed to
@@ -1654,17 +1815,6 @@ make use of this interface.  How to perform the required
 authentication, and how the debug thread is advertised to gdb, and how
 the debug interface should look like, are all open questions.
 
-
-\section{Scheduling}
-
-The task server might implement an initial scheduler that just keeps
-track of consumed CPU time, so we have some statistics.  Later, a
-scheduler has to be written, that also can do SMP.  All of this is
-still in the open.
-
-There is no way to get at the ``system time'' in L4, it is assumed
-that no time is spent in the kernel (which is mostly true).  So system
-time will always be reported as 0.00, or 0.01.
 
 \section{Device Drivers}
 
