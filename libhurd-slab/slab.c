@@ -37,11 +37,6 @@
 /* Number of pages the slab allocator has allocated.  */
 static int __hurd_slab_nr_pages;
 
-/* List of created slab spaces.  */
-static hurd_slab_space_t space_list;
-
-/* Protect __hurd_space_list.  */
-static pthread_mutex_t list_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Buffer control structure.  Lives at the end of an object.  If the
    buffer is allocated, SLAB points to the slab to which it belongs.
@@ -71,43 +66,6 @@ struct hurd_slab
 };
 
 
-/* The type of a slab space.  */
-struct hurd_slab_space
-{
-  /* Protects this structure, along with all the slabs.  */
-  pthread_mutex_t lock;
-
-  struct hurd_slab *slab_first;
-  struct hurd_slab *slab_last;
-
-  /* Link in the list of created slab spaces.  */
-  struct hurd_slab_space *space_next;
-
-  /* In the double linked list of slabs, empty slabs come first,
-     after that there is the slabs that have some buffers allocated,
-     and finally the complete slabs (refcount == 0).  FIRST_FREE
-     points to the first non-empty slab.  */
-  struct hurd_slab *first_free;
-
-  /* For easy checking, this holds the value the reference counter
-     should have for an empty slab.  */
-  int full_refcount;
-
-  /* The size of one object.  Should include possible alignment as
-     well as the size of the bufctl structure.  */
-  size_t size;
-
-  /* The constructor.  */
-  hurd_slab_constructor_t constructor;
-
-  /* The destructor.  */
-  hurd_slab_destructor_t destructor;
-
-  /* The user's private data.  */
-  void *hook;
-};
-
-
 /* Insert SLAB into the list of slabs in SPACE.  SLAB is expected to
    be complete (so it will be inserted at the end).  */
 static void
@@ -123,6 +81,7 @@ insert_slab (struct hurd_slab_space *space, struct hurd_slab *slab)
       space->slab_last = slab;
     }
 }
+
 
 /* Remove SLAB from list of slabs in SPACE.  */
 static void
@@ -148,6 +107,7 @@ remove_slab (struct hurd_slab_space *space, struct hurd_slab *slab)
       space->slab_last = slab->prev;
     }
 }
+
 
 /* Iterate through slabs in SPACE and release memory for slabs that
    are complete (no allocated buffers).  */
@@ -206,25 +166,34 @@ reap (struct hurd_slab_space *space)
   return err;
 }
 
-/* Release unused memory.  */
-error_t
-hurd_slab_reap (void)
-{
-  struct hurd_slab_space *space;
-  error_t err = 0;
 
-  pthread_mutex_lock (&list_lock);
-  for (space = space_list; space; space = space->space_next)
-    {
-      pthread_mutex_lock (&space->lock);
-      err = reap (space);
-      pthread_mutex_unlock (&space->lock);
-      if (err)
-	break;
-    }
-  pthread_mutex_unlock (&list_lock);
-  return err;
+/* Initialize slab space SPACE.  */
+static void
+init_space (hurd_slab_space_t space)
+{
+  size_t size = space->requested_size + sizeof (union hurd_bufctl);
+  size_t alignment = space->requested_align;
+
+  /* If SIZE is so big that one object can not fit into a page
+     something gotta be really wrong.  */ 
+  size = (size + alignment - 1) & ~(alignment - 1);
+  assert (size <= (getpagesize () 
+		   - sizeof (struct hurd_slab) 
+		   - sizeof (union hurd_bufctl)));
+
+  space->size = size;
+
+  /* Number of objects that fit into one page.  Used to detect when
+     there are no free objects left in a slab.  */
+  space->full_refcount 
+    = ((getpagesize () - sizeof (struct hurd_slab)) / size);
+
+  /* FIXME: Notify pager's reap functionality about this slab
+     space.  */
+
+  space->initialized = true;
 }
+
 
 /* SPACE has no more memory.  Allocate new slab and insert it into the
    list, repoint free_list and return possible error.  */
@@ -235,6 +204,12 @@ grow (struct hurd_slab_space *space)
   union hurd_bufctl *bufctl;
   int nr_objs, i;
   void *p;
+
+  /* If the space has not yet been initialized this is the place to do
+     so.  It is okay to test some fields such as first_free prior to
+     initialization since they will be a null pointer in any case.  */
+  if (!space->initialized)
+    init_space (space);
 
   p = mmap (NULL, getpagesize (), PROT_READ|PROT_WRITE,
 	    MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
@@ -292,21 +267,6 @@ grow (struct hurd_slab_space *space)
   return 0;
 }
 
-/* Insert SPACE into list of created slab spaces.  */
-static void
-insert_space (struct hurd_slab_space *space)
-{
-  pthread_mutex_lock (&list_lock);
-  if (!space_list)
-    space_list = space;
-  else
-    {
-      space->space_next = space_list;
-      space_list = space;
-    }
-  pthread_mutex_unlock (&list_lock);
-}
-
 
 /* Create a new slab space with the given object size, alignment,
    constructor and destructor.  ALIGNMENT can be zero.  */
@@ -315,46 +275,48 @@ hurd_slab_create (size_t size, size_t alignment,
 		  hurd_slab_constructor_t constructor,
 		  hurd_slab_destructor_t destructor,
 		  void *hook,
-		  hurd_slab_space_t *space)
+		  hurd_slab_space_t *r_space)
 {
+  hurd_slab_space_t space;
   error_t err;
 
-  /* If SIZE is so big that one object can not fit into a page, return
-     EINVAL.  FIXME: this doesn't take ALIGNMENT into account.  */
+  if (!alignment)
+    /* FIXME: Is this a good default?  Maybe eight (8) is better,
+       since several architectures require that double and friends are
+       eight byte aligned.  */
+    alignment = __alignof__ (void *);
+
+  space = calloc (1, sizeof (struct hurd_slab_space));
+  if (!space)
+    return ENOMEM;
+
+  space->requested_size = size;
+  space->requested_align = alignment;
+
+  /* Testing the size here avoids an assertion in init_space.  */
+  size = size + sizeof (union hurd_bufctl);
+  size = (size + alignment - 1) & ~(alignment - 1);
   if (size > (getpagesize () - sizeof (struct hurd_slab)
 	      - sizeof (union hurd_bufctl)))
-    return EINVAL;
+    {
+      free (space);
+      return EINVAL;
+    }
 
-  *space = malloc (sizeof (struct hurd_slab_space));
-  if (!*space)
-    return ENOMEM;
-  memset (*space, 0, sizeof (struct hurd_slab_space));
-
-  err = pthread_mutex_init (&(*space)->lock, NULL);
+  err = pthread_mutex_init (&space->lock, NULL);
   if (err)
     {
-      free (*space);
+      free (space);
       return err;
     }
 
-  /* The size should include the size of the buffer control
-     structure.  */
-  (*space)->size = size + sizeof (union hurd_bufctl);
+  space->constructor = constructor;
+  space->destructor = destructor;
+  space->hook = hook;
 
-  /* If the user has specified any alignment demand, simply round up
-     the size of the buffer to the alignment.  */
-  if (alignment)
-    (*space)->size = (((*space)->size + alignment - 1) & ~(alignment - 1));
+  /* The remaining fields will be initialized by init_space.  */
 
-  (*space)->constructor = constructor;
-  (*space)->destructor = destructor;
-  (*space)->hook = hook;
-
-  /* Calculate the number of objects that fit in a slab.  */
-  (*space)->full_refcount 
-    = ((getpagesize () - sizeof (struct hurd_slab)) / (*space)->size);
-
-  insert_space (*space);
+  *r_space = space;
   return 0;
 }
 
@@ -367,7 +329,7 @@ hurd_slab_destroy (hurd_slab_space_t space)
   hurd_slab_space_t *prevp;
   error_t err;
 
-  /* The caller wants to destory the slab.  It can not be destroyed if
+  /* The caller wants to destroy the slab.  It can not be destroyed if
      there are any outstanding memory allocations.  */
   pthread_mutex_lock (&space->lock);
   err = reap (space);
@@ -376,6 +338,7 @@ hurd_slab_destroy (hurd_slab_space_t space)
       pthread_mutex_unlock (&space->lock);
       return err;
     }
+
   if (space->slab_first)
     {
       /* There are still slabs, i.e. there is outstanding allocations.
@@ -384,24 +347,23 @@ hurd_slab_destroy (hurd_slab_space_t space)
       return EBUSY;
     }
 
-  /* The locking order is to take the list lock before any slab space
-     lock.  Unlock the slab space and take the list lock.  No need to
-     re-take the slab space lock again since the space is about to be
-     destroyed.  The only thing that can happen between unlocking the
-     space and getting the list lock is that someone tries to reap the
-     slab space with a call to hurd_slab_reap.  */
-  pthread_mutex_unlock (&space->lock);
-  pthread_mutex_lock (&list_lock);
+  /* FIXME: Remove slab space from pager's reap functionality.  */
 
-  /* Hold both list lock and space lock (in that order).  Remove space
-     from global list and release resources for it.  */
-  for (prevp = &space_list; *prevp != space;)
-    prevp = &(*prevp)->space_next;
-  *prevp = space->space_next;
-
-  pthread_mutex_unlock (&list_lock);
-
+  /* The only resource that needs to be deallocated is the mutex.  */
   pthread_mutex_destory (&space->lock);
+  return 0;
+}
+
+
+/* Destroy all objects and the slab space SPACE.  If there were no
+   outstanding allocations free the slab space.  Returns EBUSY if
+   there are still allocated objects in the slab space.  */
+error_t
+hurd_slab_free (hurd_slab_space_t space)
+{
+  error_t err = hurd_slab_destory (space);
+  if (err)
+    return err;
   free (space);
   return 0;
 }
@@ -417,7 +379,8 @@ hurd_slab_alloc (hurd_slab_space_t space, void **buffer)
   pthread_mutex_lock (&space->lock);
 
   /* If there is no slabs with free buffer, the cache has to be
-     expanded with another slab.  */
+     expanded with another slab.  If the slab space has not yet been
+     initialized this is always true.  */
   if (!space->first_free)
     {
       err = grow (space);
@@ -475,6 +438,8 @@ hurd_slab_dealloc (hurd_slab_space_t space, void *buffer)
 {
   struct hurd_slab *slab;
   union hurd_bufctl *bufctl;
+
+  assert (space->initialized);
 
   pthread_mutex_lock (&space->lock);
 

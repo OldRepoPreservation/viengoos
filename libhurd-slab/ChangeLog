@@ -1,3 +1,21 @@
+2004-03-26  Johan Rydberg  <jrydberg@gnu.org>
+
+        * slab.c (space_list): Remove variable.
+        (list_lock): Likewise.
+        (hurd_slab_reap): Remove function.
+        (insert_space): Likewise.
+        (hurd_slab_create): Do not call insert_space.  Delay
+        initialization of slab to first allocation.
+        (hurd_slab_destroy): Do not remove space from global list.
+        (init_space): New function.
+        (hurd_slab_dealloc): Assert that space is initialized.
+        (hurd_slab_free): New function.
+	(struct hurd_slab_space): Move from here ...
+        * slab.h (struct hurd_slab_space): ... to here.
+	(HURD_SLAB_SPACE_INITIALIZER): Defined.
+        (hurd_slab_reap): Remove prototype.
+	(hurd_slab_free): New prototype.
+
 2004-03-25  Johan Rydberg  <jrydberg@gnu.org>
 
         * slab.c (grow): Release memory if constructor fails to initialize

@@ -23,12 +23,9 @@
 #define _HURD_SLAB_H	1
 
 #include <errno.h>
+#include <stdbool.h>
 
 
-/* A slab space is an opaque type.  */
-struct hurd_slab_space;
-typedef struct hurd_slab_space *hurd_slab_space_t;
-
 /* Initialize the slab object pointed to by BUFFER.  HOOK is as
    provided to hurd_slab_create.  */
 typedef error_t (*hurd_slab_constructor_t) (void *hook, void *buffer);
@@ -36,6 +33,81 @@ typedef error_t (*hurd_slab_constructor_t) (void *hook, void *buffer);
 /* Destroy the slab object pointed to by BUFFER.  HOOK is as provided
    to hurd_slab_create.  */
 typedef void (*hurd_slab_destructor_t) (void *hook, void *buffer);
+
+
+/* The type of a slab space.  
+
+   The structure is divided into two parts: the first is only used
+   while the slab space is constructed.  Its fields are either
+   initialized by a static initializer (HURD_SLAB_SPACE_INITIALIZER)
+   or by the hurd_slab_create function.  The initialization of the
+   space is delayed until the first allocation.  After that only the
+   second part is used.  */
+
+typedef struct hurd_slab_space *hurd_slab_space_t;
+struct hurd_slab_space
+{
+  /* First part.  Used when initializing slab space object.   */
+  
+  /* True if slab space has been initialized.  */
+  bool inited;
+  
+  /* Protects this structure, along with all the slabs.  No need to
+     delay initialization of this field.  */
+  pthread_mutex_t lock;
+
+  /* The size and alignment of objects allocated using this slab
+     space.  These to fields are used to calculate the final object
+     size, which is put in SIZE (defined below).  */
+  size_t requested_size;
+  size_t requested_align;
+
+  /* The constructor.  */
+  hurd_slab_constructor_t constructor;
+
+  /* The destructor.  */
+  hurd_slab_destructor_t destructor;
+
+  /* The user's private data.  */
+  void *hook;
+
+  /* Second part.  Runtime information for the slab space.  */
+
+  struct hurd_slab *slab_first;
+  struct hurd_slab *slab_last;
+
+  /* In the doubly-linked list of slabs, empty slabs come first, after
+     that the slabs that have some buffers allocated, and finally the
+     complete slabs (refcount == 0).  FIRST_FREE points to the first
+     non-empty slab.  */
+  struct hurd_slab *first_free;
+
+  /* For easy checking, this holds the value the reference counter
+     should have for an empty slab.  */
+  int full_refcount;
+
+  /* The size of one object.  Should include possible alignment as
+     well as the size of the bufctl structure.  */
+  size_t size;
+};
+
+
+/* Static initializer.  TYPE is used to get size and alignment of
+   objects the slab space will be used to allocate.  CTOR and DTOR is
+   constructor and destructor, respectivly.  HOOK is passed as user
+   data to the constructor and destructor.  */
+#define HURD_SLAB_SPACE_INITIALIZER(TYPE, CTOR, DTOR, HOOK) 	\
+  {								\
+    false,							\
+    PTHREAD_MUTEX_INITIALIZER, 					\
+    sizeof (TYPE),						\
+    __alignof__ (TYPE),						\
+    CTOR,							\
+    DTOR,							\
+    HOOK							\
+    /* The rest of the structure will be filled with zeros,     \
+       which is good for us.  */				\
+  }
 
 
 /* Create a new slab space with the given object size, alignment,
@@ -57,7 +129,9 @@ error_t hurd_slab_alloc (hurd_slab_space_t space, void **buffer);
 /* Deallocate the object BUFFER from the slab space SPACE.  */
 void hurd_slab_dealloc (hurd_slab_space_t space, void *buffer);
 
-/* Release unused memory.  */
-error_t hurd_slab_reap (void);
+/* Destroy all objects and the slab space SPACE.  If there were no
+   outstanding allocations free the slab space.  Returns EBUSY if
+   there are still allocated objects in the slab space.  */
+error_t hurd_slab_free (hurd_slab_space_t space);
 
 #endif	/* _HURD_SLAB_H */
