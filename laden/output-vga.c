@@ -53,7 +53,7 @@ vga_set_cursor_pos (unsigned int pos)
 }
 
 
-/* Set the cursor position to POS, which is (x_pos + y_pos * width).  */
+/* Get the cursor position, which is (x_pos + y_pos * width).  */
 static unsigned int
 vga_get_cursor_pos (void)
 {

@@ -59,11 +59,11 @@ shutdown (void)
   /* Never reached.  */
   if (shutdown_reset)
     {
-      printf ("Error: Unable to reset this machine.\n");
+      printf ("Unable to reset this machine.\n");
       halt ();
     }
 
-  printf ("Error: Unable to halt this machine.\n");
+  printf ("Unable to halt this machine.\n");
   while (1)
     ;
 }
@@ -145,9 +145,9 @@ parse_args (int argc, char *argv[])
 	  debug = 1;
 	}
       else if (argv[i][0] == '-')
-	panic ("Error: Unsupported option %s", argv[i]);
+	panic ("Unsupported option %s", argv[i]);
       else
-	panic ("Error: Invalid non-option argument %s", argv[i]);
+	panic ("Invalid non-option argument %s", argv[i]);
     }
 }
 

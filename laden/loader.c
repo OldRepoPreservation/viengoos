@@ -61,12 +61,12 @@ mem_check (const char *name, unsigned long start, unsigned long end)
 	}
     }
   if (conflicts)
-    panic ("Error: %s (0x%x - 0x%x) conflicts with memory of "
+    panic ("%s (0x%x - 0x%x) conflicts with memory of "
 	   "type %i/%i (0x%x - 0x%x)", name, start, end,
 	   memory_map[nr].type, memory_map[nr].subtype,
 	   memory_map[nr].low << 10, memory_map[nr].high << 10);
   if (!fits)
-    panic ("Error: %s (0x%x - 0x%x) does not fit into memory",
+    panic ("%s (0x%x - 0x%x) does not fit into memory",
 	   name, start, end);
 }
 
@@ -98,7 +98,7 @@ check_region (char *name, l4_word_t start, l4_word_t end)
     {
       if ((start >= used_regions[i].start && start < used_regions[i].end)
 	  || (end >= used_regions[i].start && end < used_regions[i].end))
-	panic ("Error: %s (0x%x - 0x%x) conflicts with %s (0x%x - 0x%x)",
+	panic ("%s (0x%x - 0x%x) conflicts with %s (0x%x - 0x%x)",
 	       name, start, end, used_regions[i].name, used_regions[i].start,
 	       used_regions[i].end);
     }
@@ -112,7 +112,7 @@ static void
 add_region (char *name, l4_word_t start, l4_word_t end)
 {
   if (nr_regions == MAX_REGIONS)
-    panic ("Error: Too many memory regions, region %s doesn't fit", name);
+    panic ("Too many memory regions, region %s doesn't fit", name);
 
   check_region (name, start, end);
 
@@ -164,19 +164,19 @@ elf_load (char *name, l4_word_t start, l4_word_t end,
       || elf->e_ident[EI_MAG1] != ELFMAG1
       || elf->e_ident[EI_MAG2] != ELFMAG2
       || elf->e_ident[EI_MAG3] != ELFMAG3)
-    panic ("Error: %s is not an ELF file", name);
+    panic ("%s is not an ELF file", name);
 
   if (elf->e_type != ET_EXEC)
-    panic ("Error: %s is not an executable file", name);
+    panic ("%s is not an executable file", name);
 
   if (!elf->e_phoff)
-    panic ("Error: %s has no valid program header offset", name);
+    panic ("%s has no valid program header offset", name);
 
 #ifdef i386
   if (elf->e_ident[EI_CLASS] != ELFCLASS32
       || elf->e_ident[EI_DATA] != ELFDATA2LSB
       || elf->e_machine != EM_386)
-    panic ("Error: %s is not for this architecture", name);
+    panic ("%s is not for this architecture", name);
 #else
 #error Not ported to this architecture!
 #endif
@@ -223,18 +223,18 @@ void
 load_components (void)
 {
   if (!kernel.low)
-    panic ("Error: No L4 kernel found");
+    panic ("No L4 kernel found");
   add_region ("kernel-mod", kernel.low, kernel.high);
 
   if (!sigma0.low)
-    panic ("Error: No sigma0 server found");
+    panic ("No sigma0 server found");
   add_region ("sigma0-mod", sigma0.low, sigma0.high);
 
   if (sigma1.low)
     add_region ("sigma1-mod", sigma1.low, sigma1.high);
 
   if (!rootserver.low)
-    panic ("Error: No rootserver server found");
+    panic ("No rootserver server found");
   add_region ("rootserver-mod", rootserver.low, rootserver.high);
 
   elf_load ("kernel", kernel.low, kernel.high,

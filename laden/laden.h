@@ -51,7 +51,7 @@ extern int memory_map_size;
 #define add_memory_map(start,end,mtype,msubtype)				\
   ({									\
     if (memory_map_size == MEMORY_MAP_MAX)				\
-      panic ("Error: No more memory descriptor slots available.\n");	\
+      panic ("No more memory descriptor slots available.\n");		\
       memory_map[memory_map_size].low = (start) >> 10;			\
       memory_map[memory_map_size].high = ((end) + (1 << 10) - 1) >> 10;	\
       memory_map[memory_map_size].virtual = 0;				\
@@ -135,7 +135,13 @@ void putchar (int chr);
 void printf (const char *fmt, ...);
 
 /* Print an error message and fail.  */
-#define panic(...) ({ printf (__VA_ARGS__); putchar ('\n'); shutdown (); })
+#define panic(...)				\
+  ({						\
+    printf ("laden: error: ");			\
+    printf (__VA_ARGS__);			\
+    putchar ('\n');				\
+    shutdown ();				\
+  })
 
 /* True if debug mode is enabled.  */
 extern int debug;

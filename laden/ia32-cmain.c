@@ -19,6 +19,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
 #include <alloca.h>
+#include <stdint.h>
 
 #include "laden.h"
 
@@ -44,17 +45,17 @@ help_arch (void)
 /* Setup the argument vector and pass control over to the main
    function.  */
 void
-cmain (unsigned long magic, multiboot_info_t *mbi)
+cmain (uint32_t magic, multiboot_info_t *mbi)
 {
   int argc = 0;
   char **argv = 0;
 
   /* Verify that we are booted by a Multiboot-compliant boot loader.  */
   if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
-    panic ("Error: Invalid magic number: 0x%x", magic);
+    panic ("Invalid magic number: 0x%x", magic);
 
   if (!CHECK_FLAG (mbi->flags, 0) && !CHECK_FLAG (mbi->flags, 6))
-    panic ("Error: Bootloader did not provide a memory map");
+    panic ("Bootloader did not provide a memory map");
 
   if (CHECK_FLAG (mbi->flags, 2))
     {
@@ -111,7 +112,7 @@ cmain (unsigned long magic, multiboot_info_t *mbi)
   /* The boot info is set to the multiboot info on ia32.  We use this
      also to get at the multiboot info from other functions called at
      a later time.  */
-  boot_info = (unsigned long) mbi;
+  boot_info = (uint32_t) mbi;
 
   /* Now invoke the main function.  */
   main (argc, argv);
@@ -148,12 +149,13 @@ debug_dump (void)
       int nr = 1;
 
       for (mmap = (memory_map_t *) mbi->mmap_addr;
-	   (unsigned long) mmap < mbi->mmap_addr + mbi->mmap_length;
-	   mmap = (memory_map_t *) ((unsigned long) mmap
+	   (uint32_t) mmap < mbi->mmap_addr + mbi->mmap_length;
+	   mmap = (memory_map_t *) ((uint32_t) mmap
 				    + mmap->size + sizeof (mmap->size)))
 	debug ("Memory Map %i: Type %i, Base 0x%x%x, Length 0x%x%x\n",
-	       nr++, mmap->type, mmap->base_addr_high, mmap->base_addr_low,
-	       mmap->length_high, mmap->length_low);
+	       nr++, mmap->type, mmap->base_addr >> 32,
+	       mmap->base_addr & ((1ULL << 32) - 1),
+	       mmap->length >> 32, mmap->length & ((1ULL << 32) - 1));
     }
 }
 
@@ -196,31 +198,43 @@ find_components (void)
       memory_map_t *mmap;
 
       for (mmap = (memory_map_t *) mbi->mmap_addr;
-	   (unsigned long) mmap < mbi->mmap_addr + mbi->mmap_length;
-	   mmap = (memory_map_t *) ((unsigned long) mmap
+	   (uint32_t) mmap < mbi->mmap_addr + mbi->mmap_length;
+	   mmap = (memory_map_t *) ((uint32_t) mmap
 				    + mmap->size + sizeof (mmap->size)))
 	{
-	  unsigned long long end;
+	  uint64_t end;
 
-	  if (mmap->base_addr_high)
-	    panic ("Error: L4 does not support more than 4 GB on ia32");
+	  if (mmap->base_addr >> 32)
+	    panic ("L4 does not support more than 4 GB on ia32");
 
-	  end = (((unsigned long long) mmap->base_addr_high) << 32)
-	    | mmap->base_addr_low;
-	  end += (((unsigned long long) mmap->length_high) << 32)
-	    | mmap->length_low;
+	  end = mmap->base_addr + mmap->length;
 
-	  if (end >> 32)
-	    panic ("Error: L4 does not support more than 4 GB on ia32");
+	  if (end == (1ULL << 32))
+	    {
+#if 0
+	    panic ("L4 does not support exactly 4 GB on ia32");
+#elif 1
+	      /* The L4 specification does not seem to allow this
+		 configuration.  Truncate the region by dropping the
+		 last page.  FIXME: kickstart overflows and sets the
+		 high address to 0.  This is unambiguous, but needs to
+		 be supported by sigma0 and the operating system.
+		 Clarification of the specification is required.  */
+	      end = (1ULL << 32) - (1 << 10);
+#else
+	      /* This is effectively what kickstart does.  */
+	      end = 0;
+#endif
+	    }
+	  else if (end >> 32)
+	    panic ("L4 does not support more than 4 GB on ia32");
 
-	  if ((end + (1 << 10) - 1) >> 32)
-	    panic ("Error: L4 does not support exactly 4 GB on ia32");
+	  if (mmap->base_addr & ((1 << 10) - 1)
+	      || mmap->length & ((1 << 10) - 1))
+	    panic ("Memory region (0x%x - 0x%x) is unaligned",
+		   (uint32_t) mmap->base_addr, (uint32_t) end);
 
-	  if (mmap->base_addr_low & 0x2ff || mmap->length_low & 0x2ff)
-	    panic ("Error: Memory region (0x%x - 0x%x) is unaligned",
-		   mmap->base_addr_low, (unsigned long) end);
-
-	  add_memory_map (mmap->base_addr_low, (unsigned long) end,
+	  add_memory_map ((uint32_t) mmap->base_addr, (uint32_t) end,
 			  mmap->type == 1
 			  ? L4_MEMDESC_CONVENTIONAL : L4_MEMDESC_ARCH,
 			  mmap->type == 1 ? 0 : mmap->type);
@@ -230,10 +244,10 @@ find_components (void)
     {
       /* mem_* are valid.  */
       if (mbi->mem_lower & 0x2ff)
-	panic ("Error: Lower memory end address 0x%x is unaligned",
+	panic ("Lower memory end address 0x%x is unaligned",
 	       mbi->mem_lower);
       if (mbi->mem_upper & 0x2ff)
-	panic ("Error: Upper memory end address 0x%x is unaligned",
+	panic ("Upper memory end address 0x%x is unaligned",
 	       mbi->mem_upper);
 
       add_memory_map (0, mbi->mem_lower << 10, L4_MEMDESC_CONVENTIONAL, 0);
@@ -255,18 +269,19 @@ find_components (void)
       memory_map_t *mmap;
 
       for (mmap = (memory_map_t *) mbi->mmap_addr;
-	   (unsigned long) mmap < mbi->mmap_addr + mbi->mmap_length;
-	   mmap = (memory_map_t *) ((unsigned long) mmap
+	   (uint32_t) mmap < mbi->mmap_addr + mbi->mmap_length;
+	   mmap = (memory_map_t *) ((uint32_t) mmap
 				    + mmap->size + sizeof (mmap->size)))
 	{
 	  if (mmap->type != 1)
 	    continue;
 
-	  if (mmap->length_low >= KMEM_SIZE
-	      && mmap->base_addr_low <= KMEM_MAX - KMEM_SIZE)
+	  if (((uint32_t) mmap->length) >= KMEM_SIZE
+	      && ((uint32_t) mmap->base_addr) <= KMEM_MAX - KMEM_SIZE)
 	    {
-	      unsigned long high = mmap->base_addr_low + mmap->length_low;
-	      unsigned long low;
+	      uint32_t high = ((uint32_t) mmap->base_addr)
+			       + ((uint32_t) mmap->length);
+	      uint32_t low;
 
 	      if (high > KMEM_MAX)
 		high = KMEM_MAX;
@@ -282,8 +297,8 @@ find_components (void)
     {
       if ((mbi->mem_upper << 10) >= KMEM_SIZE)
 	{
-	  unsigned long high = (mbi->mem_upper << 10) + 0x100000;
-	  unsigned long low;
+	  uint32_t high = (mbi->mem_upper << 10) + 0x100000;
+	  uint32_t low;
 
 	  if (high > KMEM_MAX)
 	    high = KMEM_MAX;

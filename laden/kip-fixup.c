@@ -34,7 +34,7 @@ kip_fixup (void)
     kip = (l4_kip_t) (((l4_word_t) kip) + 0x1000);
 
   if ((l4_word_t) kip >= kernel.high)
-    panic ("Error: No KIP found in the kernel.\n");
+    panic ("No KIP found in the kernel.\n");
   debug ("KIP found at address 0x%x.\n", kip);
 
   kip2 = kip + 0x1000;
@@ -44,12 +44,14 @@ kip_fixup (void)
     kip2 = (l4_kip_t) (((l4_word_t) kip2) + 0x1000);
 
   if ((l4_word_t) kip2 < kernel.high)
-    panic ("Error: More than one KIP found in kernel.\n");
+    panic ("More than one KIP found in kernel.\n");
 
   /* Load the rootservers into the KIP.  */
   kip->sigma0 = sigma0;
   kip->sigma1 = sigma1;
   kip->rootserver = rootserver;
+  /* FIXME: We should be able to specify the UTCB area for the
+     rootserver here, but L4 lacks this feature.  */
 
   debug ("Sigma0: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
 	 sigma0.low, sigma0.high, sigma0.ip, sigma0.sp);
@@ -61,7 +63,7 @@ kip_fixup (void)
 
   /* Load the memory map into the KIP.  */
   if (memory_map_size > kip->memory_info.nr)
-    panic ("Error: Memory map table in KIP is too small.");
+    panic ("Memory map table in KIP is too small.");
 
   memcpy ((char *) (((l4_word_t) kip) + kip->memory_info.mem_desc_ptr),
 	  (char *) memory_map,
