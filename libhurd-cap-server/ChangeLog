@@ -1,3 +1,8 @@
+2004-08-02  Peter Bruin  <pjbruin@dds.nl>
+
+	* cap-server-intern.h (_hurd_cap_bucket_cond_check): Call
+	_hurd_cap_bucket_cond_busy instead taking its address.
+
 2004-04-12  Marcus Brinkmann  <marcus@gnu.org>
 
 	* bucket-manage-mt.c (manage_mt_worker): Set CTX.obj to NULL
