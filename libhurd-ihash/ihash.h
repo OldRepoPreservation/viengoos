@@ -190,7 +190,7 @@ hurd_ihash_value_t hurd_ihash_find (hurd_ihash_t ht, hurd_ihash_key_t key);
 
    Or even like this:
 
-     hurd_ihash_iterate (ht, value)
+     HURD_IHASH_ITERATE (ht, value)
        foo (value);
 
    The block will be run for every element in the hash table HT.  The
