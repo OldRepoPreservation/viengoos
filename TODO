@@ -1,3 +1,31 @@
+* Design
+** physmem should probably support marking a container as being the
+   default paging container for a certain task (providing a specific
+   virtual address for this container).
+   Then the last-resort pager in a task can run on memory in this
+   container, and physmem can freely unmap that memory temporarily
+   (for reorganization).  The last-resort pager would use physmem as
+   its pager.  This relieves the need to wire down the memory the
+   pager is running on.
+   This can also be used for startup code, which is currently mapped
+   directly from starting task to started task.  This is not
+   acceptable under the paranoid constrain that all mappings must be
+   installed by physmem, to avoid DoS attacks on the page tables.
+
+   Deep integration in libhurd-cap-server to handle page fault
+   messages transparently as RPC messages could be provided by hooks.
+   Alternatively, special server thread could be designated to handle
+   the page faults.
+
+   This does not eliminate all need to wire down memory.  Buffers for
+   receiving string items must not page fault, and although physmem
+   could be trusted to handle such a page fault, the server has no way
+   to enforce the use of a trusted pager for such memory on the client
+   side.  So, either some form of wiring must still be supported, or
+   containers or other trusted buffer objects must be used instead of
+   string items.
+
+
 * libl4
 ** The main TODO list for libl4 is in the file libl4/TODO.
 ** We need cancellable forms of ipc() and lipc()!
@@ -28,6 +56,11 @@
    Mark all bootloader stuff as bootloader specific, to prevent that
    L4 scribbles over it accidently.  This includes the GRUB info as
    well as all modules beyond the rootserver module.
+
+
+* root server libraries
+** More code should be explicitely shared by the root servers.
+** Use ptmalloc, not malloc+USE_MALLOC_LOCK.
 
 
 * wortel
@@ -61,6 +94,10 @@
    So, maybe, to cancel, the manager could just propagates the
    cancellation request.  For this to work, we need to be able to
    differentiate between normal pending workers and such sub-managers.
+** Neal points out that the placement of the cap-class argument in
+   hurd_cap_class_init and hurd_cap_class_create is very much
+   divergent.
+
 
 * L4 (for lack of a better place)
 ** Check that L4 does not schedule the client when the server makes a
@@ -78,6 +115,14 @@
     Alternatively: Have another set of xfer timeouts for that use.
 ** Bugs:
 *** See patches in README
+
+
+* Servers
+** The task server can hang if it needs to create a thread and is out
+   of memory, and physmem wants to create a worker thread.  Because
+   then task will contact physmem to allocate more memory, and physmem
+   contacts task to create a new worker thread, and the system will
+   dead-lock.  This needs some hackery to break out of it.
 
 Copyright 2003, 2004 Free Software Foundation, Inc.
 Written by Marcus Brinkmann <marcus@gnu.org>
