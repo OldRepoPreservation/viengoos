@@ -27,14 +27,13 @@ root = (hd0,0)
 kernel = /boot/laden
 module = /boot/ia32-kernel
 module = /boot/sigma0
-module = /boot/rootserver
-module = ...more servers...
+module = /boot/wortel
+module = /boot/physmem
+module = /boot/task
+module = /boot/deva
+module = /boot/deva-drivers
+module = /boot/rootfs
 \end{verbatim}
-
-\begin{comment}
-  The name of the rootserver and the further modules are not specified
-  yet.
-\end{comment}
 
 GNU GRUB loads the binary image files into memory and jumps to the
 entry point of \texttt{laden}.
@@ -156,12 +155,14 @@ yet supported.
 The thread ID of $\sigma_1$ is (\verb/UserBase/ + 1, 1).
 
 
-\section{The rootserver}
+\section{The rootserver wortel}
 \label{rootserver}
+\label{wortel}
 
-The rootserver is the only task in the system which threads can
-perform privileged system calls.  So the rootserver must provide
-wrappers for the system calls to other unprivileged system tasks.
+The rootserver that L4 started is the only task in the system which
+threads can perform privileged system calls.  So the rootserver must
+provide wrappers for the system calls to other unprivileged system
+tasks.
 
 \begin{comment}
   For this, a simple authentication scheme is required.  The
@@ -174,6 +175,23 @@ wrappers for the system calls to other unprivileged system tasks.
   
   The rootserver should have one thread per CPU, and run at a high
   priority.
+\end{comment}
+
+Our rootserver is called wortel, and also bootstraps the operating
+system.  Wortel thus acts as a simple manager OS and as a bootloader
+program.
+
+\begin{comment}
+  Ideally, there would be a real manager OS on top of L4 in which you
+  can run different sand-boxed operating systems.  Wortel implements
+  only some rudimentary features such a system would provide: Access
+  to the system memory and execution of privileged L4 system calls.
+
+  If you had such a real manager OS, then this manager OS would start
+  a bootloader to boot up a sand-boxed operating system.  For
+  simplicity, wortel currently implements such a bootloader for the
+  Hurd system.  Eventually, the code should be split to allow both
+  components to develop independently.
 \end{comment}
 
 The rootserver has the following initial state:
@@ -218,54 +236,125 @@ initial task in a generalized manner.
 \end{comment}
 
 
-\section{The physical memory server}
+\section{The physical memory server physmem}
 
-To be written.
+The physical memory server is the first component of the actual Hurd
+system that is started (wortel serves as a manager OS in the
+background, and its presence is of no relevance to Hurd programs other
+than the fundamental core servers described in this chapter).  It
+provides memory management routines that allow tasks in the Hurd
+system to be self-paged.
+
+The rootserver moves the physical memory server executable image to
+its ELF load address (and initializes the BSS section to zero),
+creates a new address space and several threads in this address space,
+starts the first thread and then maps all the fpages covering the
+executable image 1:1 into the address space at the first pagefault
+(the fpage on which the thread faulted is mapped last - this makes the
+thread fault repeatedly until the whole image is mapped).
 
 \begin{comment}
-  In fact, I already have some ideas.  Here they are:
-  
-  The rootserver copies (or moves) the physical memory server
-  executable image to the right location in memory, according to its
-  respective ELF header.  It also initializes the BSS section to zero.
-  
-  Then it follows the \texttt{exec()} protocol to startup the new
-  task.  This should be done as transparently as possible.  All pages
-  the rootserver provides because of page faults should be granted.
-  The rootserver waits for the physical memory server to contact the
-  rootserver thread.  Then the following startup protocol is walked
-  through:
+  Wortel should follow the \texttt{exec()} protocol to startup the new
+  task as closely as possible.  However, there is little that wortel
+  can provide to physmem in this terms.
+\end{comment}
 
-  \begin{enumerate}
-  \item The physical memory server requests all system memory from the
-    rootserver.  The rootserver maps the memory from $\sigma_0$ and
-    grants it to the physical memory server.  Alternatively, the
-    physical memory server might get the memory directly from
-    $\sigma_0$, but it should ask the rootserver for the amount and
-    location of memory to get.
-    
-  \item For each module that has not been used yet, the rootserver
-    requests a capability in the physical memory server that can be
-    used to map in pages from the range of memory that the module
-    occupies.  These capabilities should implement the same pager
-    interface that mappable files implement.
-    
+So, the physical memory server runs on mapped memory in its own
+address space, but the virtual addresses of its executable image
+coincede with the physical addresses.
+
+Then, in a private protocol between wortel and physmem, the following
+happens:
+
+\begin{enumerate}
+\item Physmem requests all system memory from wortel.  Wortel maps the
+  memory from $\sigma_0$ and maps it to physmem.
+
+  \begin{comment}
+    The memory is mapped, not granted, to allow wortel (of which we
+    think as a manager OS here) to unmap and recover the memory in
+    case of a (possibly forced) system shutdown.
+  \end{comment}
+
+\item For each module that has not been used yet, wortel requests a
+  capability in physmem that can be used to map in pages from the
+  range of memory that the module occupies.  These capabilities should
+  implement the same pager interface that mappable files implement.
+  
+  \begin{comment}
     The idea is that these capabilities can be used in the
     \texttt{exec()} protocol to start up the tasks for these modules.
     If a module is not a task, the capability can be used to access
     the module data by mapping it into the address space like a file.
-    The physical memory server can even swap out pages that back these
-    objects on memory pressure.
-    
+    Physmem can even swap out pages that back these objects on memory
+    pressure.
+
     So, the physical memory server is in fact a simple filesystem for
     these initial tasks, usable only for mapping operations.
-    
-  \item The rootserver can then start up the other tasks in the module
-    list using the normal \texttt{exec()} protocol.
-  \end{enumerate}
-  
-  The result is that all tasks except for the rootserver can be
-  started like normal Hurd tasks, and can also be swapped out.
+
+    Wortel can then start up the other tasks in the module list
+    using the normal \texttt{exec()} protocol.
+  \end{comment}
+\end{enumerate}
+
+The result is that all tasks except for the rootserver can be started
+and manage their memory through physmem like normal Hurd tasks.
+
+Later on, wortel will provide physmem with further information
+retrieved from the task and deva servers.
+
+
+\section{The task server}
+
+The task server is the second Hurd server started by wortel.  Its
+responsibility is to keep track of allocation of task and thread IDs
+in the system, and manage related resources (recording and restricting
+CPU usage).
+
+FIXME More has to be said here.
+
+
+\section{The device access server deva}
+
+The device access server deva is the third Hurd server started by
+wortel.  It implements access to a low-level device driver framework
+in a way that transparently fits into the overall Hurd system.  This
+means that access to device drivers is managed via capabilities, and
+that physmem containers are used for data exchange between a
+user-level application and a low-level device driver.
+
+It also provides system integration services to the underlying
+low-level device driver framework.  In particular, it intermediates
+access to privileged resources and provides device drivers and related
+data from the systems filesystem.
+
+FIXME More has to be said here.
+
+
+\section{The device access server archive}
+
+The device access server needs to load device drivers before a root
+filesystem service is available.  In particular, it needs to be able
+to provide device drivers for the root filesystem to the device driver
+framework.
+
+The device access server archive is an archive of device drivers that
+is loaded by the bootloader and contains drivers necessary to run the
+root filesystem.
+
+
+\section{The root filesystem}
+
+The root filesystem is the fourth and last Hurd server started by
+wortel.  After the root filesystem starts up and has exchanged the
+necessary bootstrap information with deva, it starts up the rest of
+the operating system services from its filesystem.
+
+The root filesystem is the first program to actually run in a proper
+environment, given that it can access device drivers, task and physmem
+services.
+
+\begin{comment}
+  From the time the root filesystem starts up, the bootstrap continues
+  roughly as it is implemented in the Hurd running on GNU Mach.
 \end{comment}
-
-

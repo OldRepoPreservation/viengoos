@@ -1,3 +1,8 @@
+2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* booting.tex (The device access server archive): Update this
+	section.
+
 2004-10-07  Marcus Brinkmann  <marcus@gnu.org>
 
 	* booting.tex: Fix layout of thread IDs and some grammar error.
