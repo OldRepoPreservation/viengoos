@@ -96,13 +96,11 @@ struct block
 };
 
 
-#define L4_MIN_PAGE_SHIFT 10
-
 /* Given a zone, return its size.  */
-#define ZONE_SIZE(x) (1 << ((x) + L4_MIN_PAGE_SHIFT))
+#define ZONE_SIZE(x) (1 << ((x) + L4_MIN_PAGE_SIZE_LOG2))
 
 /* Number of zones in the system.  */
-#define ZONES (sizeof (L4_Word_t) * 8 - L4_MIN_PAGE_SHIFT)
+#define ZONES (sizeof (L4_Word_t) * 8 - L4_MIN_PAGE_SIZE_LOG2)
 
 /* The zones.  */
 static struct block *zone[ZONES] = { 0, };
@@ -183,7 +181,7 @@ add_block (struct block *block, unsigned int zone_nr)
 void
 zfree (l4_word_t block, l4_word_t size)
 {
-  l4_word_t min_page_size = getpagesize ();
+  l4_word_t min_page_size = l4_min_page_size ();
   
   debug ("%s: freeing block 0x%x - 0x%x\n", __func__,
 	 block, block + size);
@@ -203,7 +201,7 @@ zfree (l4_word_t block, l4_word_t size)
       unsigned int size_align = l4_msb (size) - 1;
       unsigned int zone_nr = (block_align < size_align
 			      ? block_align : size_align)
-	- L4_MIN_PAGE_SHIFT;
+	- L4_MIN_PAGE_SIZE_LOG2;
 
       add_block ((struct block *) block, zone_nr);
 
@@ -220,7 +218,7 @@ zfree (l4_word_t block, l4_word_t size)
 l4_word_t
 zalloc (l4_word_t size)
 {
-  l4_word_t min_page_size = getpagesize ();
+  l4_word_t min_page_size = l4_min_page_size ();
   unsigned int zone_nr;
   struct block *block;
 
@@ -237,7 +235,7 @@ zalloc (l4_word_t size)
      case where only one bit is set.  To adjust for this border case,
      we subtract one from the argument to the MSB function).  Calculate
      the zone number by subtracting page shift.  */
-  zone_nr = l4_msb (size - 1) - L4_MIN_PAGE_SHIFT;
+  zone_nr = l4_msb (size - 1) - L4_MIN_PAGE_SIZE_LOG2;
 
   /* Find the smallest zone which fits the request and has memory
      available.  */
@@ -271,7 +269,7 @@ zalloc (l4_word_t size)
 void
 zalloc_dump_zones (const char *prefix)
 {
-  l4_word_t min_page_size = getpagesize ();
+  l4_word_t min_page_size = l4_min_page_size ();
   int i;
   struct block *block;
   l4_word_t available = 0;

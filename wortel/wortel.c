@@ -114,11 +114,11 @@ loader_get_memory_desc (l4_word_t nr)
 /* The maximum number of fpages required to cover a page aligned range
    of memory.  This is k if the maximum memory range size to cover is
    2^(k + min_page_size_log2), which can be easily proved by
-   induction.  The minimum page size in L4 is at least 2^10.  We also
-   need to have each fpage aligned to a multiple of its own size.
-   This makes the proof by induction a bit more convoluted, but does
-   not change the result.  */
-#define MAX_FPAGES (sizeof (l4_word_t) * 8 - 10)
+   induction.  The minimum page size in L4 is at least
+   L4_MIN_PAGE_SIZE.  We also need to have each fpage aligned to a
+   multiple of its own size.  This makes the proof by induction a bit
+   more convoluted, but does not change the result.  */
+#define MAX_FPAGES (sizeof (l4_word_t) * 8 - L4_MIN_PAGE_SIZE_LOG2)
 
 
 /* Determine the fpages required to cover the bytes from START to END
@@ -131,7 +131,7 @@ loader_get_memory_desc (l4_word_t nr)
 static unsigned int
 make_fpages (l4_word_t start, l4_word_t end, l4_fpage_t *fpages)
 {
-  l4_word_t min_page_size = getpagesize ();
+  l4_word_t min_page_size = l4_min_page_size ();
   unsigned int nr_fpages = 0;
 
   if (start >= end)
@@ -170,7 +170,7 @@ load_components (void)
 {
   l4_fpage_t fpages[MAX_FPAGES];
   unsigned int nr_fpages;
-  l4_word_t min_page_size = getpagesize ();
+  l4_word_t min_page_size = l4_min_page_size ();
   unsigned int i;
   l4_word_t addr;
   l4_word_t end_addr;
@@ -383,13 +383,13 @@ static void
 serve_bootstrap_requests (void)
 {
   /* The size of the region that we are currently trying to allocate
-     for GET_MEM requests.  If this is smaller than 2^10, no more
-     memory is available.  */
+     for GET_MEM requests.  If this is smaller than L4_MIN_PAGE_SIZE,
+     no more memory is available.  */
   unsigned int get_mem_size = sizeof (l4_word_t) * 8 - 1;
 
   /* Allocate a single page at address 0, because we don't want to
      bother anybody with that silly page.  */
-  sigma0_get_fpage (l4_fpage (0, getpagesize ()));
+  sigma0_get_fpage (l4_fpage (0, l4_min_page_size ()));
 
   do
     {
@@ -431,7 +431,7 @@ serve_bootstrap_requests (void)
 	      || l4_typed_words (msg_tag) != 0)
 	    panic ("Invalid format of get_mem msg");
 
-	  if (get_mem_size < 10)
+	  if (get_mem_size < L4_MIN_PAGE_SIZE_LOG2)
 	    panic ("physmem server does not stop requesting memory");
 
 	  /* Give out the memory.  First our unused fpages, then the
@@ -445,7 +445,8 @@ serve_bootstrap_requests (void)
 		if (fpage.raw == l4_nilpage.raw)
 		  get_mem_size--;
 	      }
-	    while (fpage.raw == l4_nilpage.raw && get_mem_size >= 10);
+	    while (fpage.raw == l4_nilpage.raw
+		   && get_mem_size >= L4_MIN_PAGE_SIZE_LOG2);
 
 	  grant_item = l4_grant_item (fpage, l4_address (fpage));
 	  l4_msg_clear (&msg);
