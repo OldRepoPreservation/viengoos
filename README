@@ -75,7 +75,13 @@ module /boot/task
 Pistachio Patch
 ---------------
 
-The following patch fixes a problem with IPC propagation.
+The following patch fixes a problem with IPC propagation and with
+receiving from any local thread.
+
+2004-10-28  Marcus Brinkmann  <marcus@gnu.org>
+
+	* src/api/v4/ipc.cc (SYS_IPC): If receiving from any local
+	thread, look up the first sending local thread.
 
 2004-10-23  Marcus Brinkmann  <marcus@gnu.org>
 
@@ -111,3 +117,32 @@ diff -u -r1.57.4.6 ipc.cc
  	      !to_tcb->get_partner().is_anythread() &&
  	      !( to_tcb->get_partner().is_anylocalthread() && 
  		 to_tcb->get_space() == current->get_space() ) ) ))
+@@ -517,9 +520,24 @@ SYS_IPC (threadid_t to_tid, threadid_t f
+ 	    }
+ 	}
+ 	else
+-	{	/* anylocal */
+-#warning wait_local incorrect
+-	    from_tcb = current->send_head;
++	{
++	    /* anylocal */
++
++	    tcb_t *head = current->send_head;
++	    from_tcb = NULL;
++
++	    if (head)
++	    {
++	        tcb_t *tcb = head;
++	  
++	        do
++		{
++		    if (tcb->get_space () == current->get_space ())
++		        from_tcb = tcb;
++		    tcb = tcb->send_list.next;
++		}
++	        while (!from_tcb && tcb != head);
++	    }
+ 	}
+ 
+ 	TRACE_IPC("receive phase curr=%t, from=%t\n", current, from_tcb);
+
