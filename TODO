@@ -1,3 +1,17 @@
+* laden
+** Link base should be configurable.
+** Overlaps between modules and destination regions should be resolved
+   intelligently.
+** Support for sigma1 needs to be added when sigma1 exists.
+** Shutdown should sleep a couple of seconds before reboot.
+** When L4 supports it, the UTCB area of the rootserver should be set
+   in the KIP.
+** Conventional memory overriding non-conventional memory in the
+   descriptor list is not supported.
+** Add loaded modules as bootloader specific types to memory
+   descriptor list.
+
+
 * libhurd-slab
 ** This is only a dummy implementation.
 ** Ideally this would be a feature in glibc.
