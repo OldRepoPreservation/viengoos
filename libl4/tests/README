@@ -12,11 +12,13 @@ back again.
 Status
 ------
 
-* Chapter 1: Basic Kernel Interfaces
-  l4/kip.h: Almost complete.  Only testing the memory descriptors is missing.
-            Testing the processor descriptors and kernel features must be
-            improved though to not require the internal interface.
-  l4/message.h: Complete.
+There are a total of 711 individual tests.
+
+100/100  Chapter 1: Basic Kernel Interfaces
+100/100    l4/kip.h: Complete.
+           Testing the processor/memory descriptors and kernel features
+           must be improved though to not require the internal interface.
+100/100    l4/message.h: Complete.
 
 All other interfaces are not tested.
 

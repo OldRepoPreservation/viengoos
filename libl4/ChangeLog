@@ -1,3 +1,10 @@
+2005-02-21  Marcus Brinkmann  <marcus@gnu.org>
+
+	* tests/t-l4-kip.c (test_page_info): Add checks for minimum page
+	size and the trunc/round/ptoa/atop functions.
+	(test_memory_info): New function.
+	(test): Invoke test_memory_info.
+
 2005-02-18  Marcus Brinkmann  <marcus@gnu.org>
 
 	Everywhere: Add support for disabling/enabling testing individual

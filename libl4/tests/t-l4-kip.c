@@ -19,8 +19,13 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <string.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* This must be included before any libl4 header.  */
 #include "environment.h"
@@ -611,7 +616,7 @@ test_processor_info (_L4_kip_t kip)
 	    (1 << kip->processor_info.log2_size), proc_desc_size_ok);
 #endif
 
-  for (num = 0; num < _L4_num_processors (kip); num++)
+  for (num = 0; num < processors_ok; num++)
     {
       _L4_proc_desc_t proc_desc;
 
@@ -695,14 +700,207 @@ test_processor_info (_L4_kip_t kip)
 }
 
 
+/* Test the memory info field.  */
+void
+test_memory_info (_L4_kip_t kip)
+{
+  word_t num_mem_desc_ok = 7;
+  struct
+  {
+    uintptr_t low;
+    uintptr_t high;
+    int virtual;
+    int type;
+  } mem_desc_ok[] =
+    {
+      { 0x00000000, 0xffffffff, 0, 4 },
+      { 0x00000000, 0x0009fbff, 0, 1 },
+      { 0x00100000, 0x07ffffff, 0, 1 },
+      { 0x000a0000, 0x000effff, 0, 4 },
+      { 0x07000000, 0x080003ff, 0, 2 },
+      { 0x00000000, 0xbfffffff, 1, 1 },
+      { 0x00100000, 0x0014efff, 0, 2 },
+    };
+  word_t num;
+
+#ifdef _L4_INTERFACE_INTERN
+  check_nr ("[intern]", "_L4_num_memory_desc",
+	    _L4_num_memory_desc (kip), num_mem_desc_ok);
+  check_nr ("[intern]", "_L4_MEMDESC_UNDEFINED",
+	    _L4_MEMDESC_UNDEFINED, 0x0);
+  check_nr ("[intern]", "_L4_MEMDESC_CONVENTIONAL",
+	    _L4_MEMDESC_CONVENTIONAL, 0x1);
+  check_nr ("[intern]", "_L4_MEMDESC_RESERVED",
+	    _L4_MEMDESC_RESERVED, 0x2);
+  check_nr ("[intern]", "_L4_MEMDESC_DEDICATED",
+	    _L4_MEMDESC_DEDICATED, 0x3);
+  check_nr ("[intern]", "_L4_MEMDESC_SHARED",
+	    _L4_MEMDESC_SHARED, 0x4);
+  check_nr ("[intern]", "_L4_MEMDESC_BOOTLOADER",
+	    _L4_MEMDESC_BOOTLOADER, 0xe);
+  check_nr ("[intern]", "_L4_MEMDESC_ARCH",
+	    _L4_MEMDESC_ARCH, 0xf);
+#endif
+
+#ifdef _L4_INTERFACE_GNU
+  check_nr ("[GNU]", "l4_num_memory_desc_from",
+	    l4_num_memory_desc_from (kip), num_mem_desc_ok);
+  check_nr ("[GNU]", "l4_num_memory_desc",
+	    l4_num_memory_desc (), num_mem_desc_ok);
+
+  check_nr ("[GNU]", "L4_MEMDESC_UNDEFINED",
+	    L4_MEMDESC_UNDEFINED, _L4_MEMDESC_UNDEFINED);
+  check_nr ("[GNU]", "L4_MEMDESC_CONVENTIONAL",
+	    L4_MEMDESC_CONVENTIONAL, _L4_MEMDESC_CONVENTIONAL);
+  check_nr ("[GNU]", "L4_MEMDESC_RESERVED",
+	    L4_MEMDESC_RESERVED, _L4_MEMDESC_RESERVED);
+  check_nr ("[GNU]", "L4_MEMDESC_DEDICATED",
+	    L4_MEMDESC_DEDICATED, _L4_MEMDESC_DEDICATED);
+  check_nr ("[GNU]", "L4_MEMDESC_SHARED",
+	    L4_MEMDESC_SHARED, _L4_MEMDESC_SHARED);
+  check_nr ("[GNU]", "L4_MEMDESC_BOOTLOADER",
+	    L4_MEMDESC_BOOTLOADER, _L4_MEMDESC_BOOTLOADER);
+  check_nr ("[GNU]", "L4_MEMDESC_ARCH",
+	    L4_MEMDESC_ARCH, _L4_MEMDESC_ARCH);
+#endif
+
+#ifdef _L4_INTERFACE_L4
+  {
+    volatile L4_MemoryDesc_t mem_desc;
+    volatile L4_Word_t raw;
+
+    raw = mem_desc.raw[0];
+    raw = mem_desc.raw[1];
+  }
+
+  check_nr ("[L4]", "L4_NumMemoryDescriptors",
+	    L4_NumMemoryDescriptors (kip), num_mem_desc_ok);
+#endif
+
+  for (num = 0; num < num_mem_desc_ok; num++)
+    {
+      _L4_memory_desc_t mem_desc;
+
+      /* FIXME: Support [!_L4_INTERFACE_INTERN] (by code duplication?).  */
+      mem_desc = _L4_memory_desc (kip, num);
+      check ("[intern]", "_L4_memory_desc (once per mem desc)",
+	     (mem_desc != NULL),
+	     "_L4_memory_desc (kip, %i) == NULL != not null", num);
+
+      check ("[intern]", "_L4_memory_desc_low",
+	     (_L4_memory_desc_low (mem_desc) == mem_desc_ok[num].low),
+	     "_L4_memory_desc_low (%i) == 0x%x != 0x%x",
+	     num, _L4_memory_desc_low (mem_desc), mem_desc_ok[num].low);
+      check ("[intern]", "_L4_memory_desc_high",
+	     (_L4_memory_desc_high (mem_desc) == mem_desc_ok[num].high),
+	     "_L4_memory_desc_high (%i) == 0x%x != 0x%x",
+	     num, _L4_memory_desc_high (mem_desc), mem_desc_ok[num].high);
+      check ("[intern]", "_L4_memory_desc_virtual",
+	     (_L4_is_memory_desc_virtual (mem_desc)
+	      == mem_desc_ok[num].virtual),
+	     "_L4_is_memory_desc_virtual (%i) == %i != %i",
+	     num, _L4_is_memory_desc_virtual (mem_desc),
+	     mem_desc_ok[num].virtual);
+      check ("[intern]", "_L4_memory_desc_type",
+	     (_L4_memory_desc_type (mem_desc) == mem_desc_ok[num].type),
+	     "_L4_memory_desc_type (%i) == %i != %i",
+	     num, _L4_memory_desc_type (mem_desc), mem_desc_ok[num].type);
+
+#ifdef _L4_INTERFACE_GNU
+      {
+	l4_memory_desc_t *mem_desc_gnu = l4_memory_desc_from (kip, num);
+	
+	check ("[GNU]", "l4_memory_desc_from",
+	       (mem_desc_gnu == mem_desc),
+	       "l4_memory_desc_from (kip, %i) == %p != %p",
+	       num, mem_desc_gnu, mem_desc);
+	check ("[GNU]", "l4_memory_desc",
+	       (l4_memory_desc (num) == mem_desc),
+	       "l4_memory_desc (%i) == %p != %p",
+	       num, l4_memory_desc (num), mem_desc);
+	
+	check ("[GNU]", "l4_memory_desc_low",
+	       (l4_memory_desc_low (mem_desc_gnu)
+		== mem_desc_ok[num].low),
+	       "l4_memory_desc_low (%i) == 0x%x != 0x%x",
+	       num, l4_memory_desc_low (mem_desc_gnu),
+	       mem_desc_ok[num].low);
+	check ("[GNU]", "l4_memory_desc_high",
+	       (l4_memory_desc_high (mem_desc_gnu)
+		== mem_desc_ok[num].high),
+	       "l4_memory_desc_high (%i) == 0x%x != 0x%x",
+	       num, l4_memory_desc_high (mem_desc_gnu),
+	       mem_desc_ok[num].high);
+	check ("[GNU]", "l4_memory_desc_virtual",
+	       (l4_is_memory_desc_virtual (mem_desc_gnu)
+		== mem_desc_ok[num].virtual),
+	       "l4_memory_desc_virtual (%i) == %i != %i",
+	       num, l4_is_memory_desc_virtual (mem_desc_gnu),
+	       mem_desc_ok[num].virtual);
+	check ("[GNU]", "l4_memory_desc_type",
+	       (l4_memory_desc_type (mem_desc_gnu)
+		== mem_desc_ok[num].type),
+	       "l4_memory_desc_type (%i) == %i != %i",
+	       num, l4_memory_desc_type (mem_desc_gnu),
+	       mem_desc_ok[num].type);
+      }
+#endif
+
+
+#ifdef _L4_INTERFACE_L4
+      {
+	L4_MemoryDesc_t *mem_desc_l4 = L4_MemoryDesc (kip, num);
+
+	check ("[L4]", "L4_MemoryDesc",
+	       ((void *) mem_desc_l4 == (void *) mem_desc),
+	       "L4_MemoryDesc (kip, %i) == %p != %p",
+	       num, mem_desc_l4, mem_desc);
+
+	check ("[L4]", "L4_MemoryDescLow",
+	       (L4_MemoryDescLow (mem_desc_l4)
+		== mem_desc_ok[num].low),
+	       "L4_MemoryDescLow (kip, %i) == 0x%x != 0x%x",
+	       num, L4_MemoryDescLow (mem_desc_l4),
+	       mem_desc_ok[num].low);
+	check ("[L4]", "L4_MemoryDescHigh",
+	       (L4_MemoryDescHigh (mem_desc_l4)
+		== mem_desc_ok[num].high),
+	       "L4_MemoryDescHigh (kip, %i) == 0x%x != 0x%x",
+	       num, L4_MemoryDescHigh (mem_desc_l4),
+	       mem_desc_ok[num].high);
+	check ("[L4]", "L4_MemoryDescVirtual",
+	       (L4_IsMemoryDescVirtual (mem_desc_l4)
+		== mem_desc_ok[num].virtual),
+	       "L4_IsMemoryDescVirtual (kip, %i) == %i != %i",
+	       num, L4_IsMemoryDescVirtual (mem_desc_l4),
+	       mem_desc_ok[num].virtual);
+	check ("[L4]", "L4_MemoryDescType",
+	       (L4_MemoryDescType (mem_desc_l4)
+		== mem_desc_ok[num].type),
+	       "L4_MemoryDescType (kip, %i) == %i != %i",
+	       num, L4_MemoryDescType (mem_desc_l4),
+	       mem_desc_ok[num].type);
+      }
+#endif
+    }
+}
+
+
 /* Test the page info field.  */
 void
 test_page_info (_L4_kip_t kip)
 {
   word_t page_size_mask_ok = 0x00401000;
+  /* LSB of page_size_mask_ok.  */
+  word_t min_page_size_log2_ok = 12;
   word_t page_rights_ok = 0x6;
 
 #ifdef _L4_INTERFACE_INTERN
+  check_nr ("[intern]", "_L4_MIN_PAGE_SIZE_LOG2",
+	    _L4_MIN_PAGE_SIZE_LOG2, 10);
+  check_nr ("[intern]", "_L4_MIN_PAGE_SIZE",
+	    _L4_MIN_PAGE_SIZE, 1 << 10);
+
   check_nr ("[intern]", "_L4_page_size_mask",
 	    _L4_page_size_mask (kip), page_size_mask_ok);
   check_nr ("[intern]", "_L4_page_rights",
@@ -710,6 +908,15 @@ test_page_info (_L4_kip_t kip)
 #endif
 
 #ifdef _L4_INTERFACE_GNU
+  check_nr ("[GNU]", "L4_MIN_PAGE_SIZE_LOG2",
+	    L4_MIN_PAGE_SIZE_LOG2, _L4_MIN_PAGE_SIZE_LOG2);
+  check_nr ("[GNU]", "L4_MIN_PAGE_SIZE",
+	    L4_MIN_PAGE_SIZE, _L4_MIN_PAGE_SIZE);
+  check_nr ("[GNU]", "l4_min_page_size_log2",
+	    l4_min_page_size_log2 (), min_page_size_log2_ok);
+  check_nr ("[GNU]", "l4_min_page_size",
+	    l4_min_page_size (), 1 << min_page_size_log2_ok);
+
   check_nr ("[GNU]", "l4_page_size_mask_from",
 	 l4_page_size_mask_from (kip), page_size_mask_ok);
   check_nr ("[GNU]", "l4_page_size_mask",
@@ -717,6 +924,39 @@ test_page_info (_L4_kip_t kip)
   check_nr ("[GNU]", "l4_page_rights_from",
 	    l4_page_rights_from (kip), page_rights_ok);
   check_nr ("[GNU]", "l4_page_rights", l4_page_rights (), page_rights_ok);
+
+  {
+    l4_word_t addr[] = { 0x00000000, 0x00000001, 0x00000010, 0x00000011,
+			 0x00000100, 0x00001000, 0x00010000, 0x00100000,
+			 0x01000000, 0x10000000, 0x2badb002, 0xffffffff };
+    /* The min page size mask.  */
+    l4_word_t psm = l4_min_page_size () - 1;
+    int i;
+
+    for (i = 0; i < sizeof (addr) / sizeof (addr[0]); i++)
+      {
+	char *msg;
+	l4_word_t addr_trunc = addr[i] & ~psm;
+	l4_word_t addr_round = (addr[i] + psm) & ~psm;
+	l4_word_t addr_atop = addr[i] >> l4_min_page_size_log2 ();
+
+	asprintf (&msg, "l4_page_trunc (0x%x)", addr[i]);
+	check_nr ("[GNU]", msg,
+		  l4_page_trunc (addr[i]), addr_trunc);
+
+	asprintf (&msg, "l4_page_round (0x%x)", addr[i]);
+	check_nr ("[GNU]", msg,
+		  l4_page_round (addr[i]), addr_round);
+	
+	asprintf (&msg, "l4_atop (0x%x)", addr[i]);
+	check_nr ("[GNU]", msg,
+		  l4_atop (addr[i]), addr_atop);
+
+	asprintf (&msg, "l4_ptoa (0x%x)", addr_atop);
+	check_nr ("[GNU]", msg,
+		  l4_ptoa (addr_atop), addr_trunc);
+      }
+  }
 #endif
 
 #ifdef _L4_INTERFACE_L4
@@ -965,6 +1205,7 @@ test (void)
   test_kernel_feature (kip);
 
   test_processor_info (kip);
+  test_memory_info (kip);
   test_page_info (kip);
   test_thread_info (kip);
   test_clock_info (kip);
