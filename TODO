@@ -112,13 +112,70 @@
    blocking call.
 ** What happens with map and grant items if IPC is aborted due to
    xfer timeout?
+   Answer: Current implementation: They are processed up to the string
+   item in which the page fault occured.
 ** Wishlist for ABI changes:
 *** [ia32] Use %fs or %gs:4 for the TCB pointer instead %gs:0, to free
     that one for the ia32 TLS ABI.
+    Answer: Current patch uses %gs:4 for UTCB and %gs:0 for TLS.
+    Problem: As the gs segment is not 4GB in size (to allow small
+    space protection), %gs:OFFSET access to TLS is not allowed.
 *** Use Xfer timeout of the other side for pagefault timeouts, instead
     of the minimum (so pageouts on your side don't abort IPC operations
-    if you need to restrict the xfer timeout to zero).
-    Alternatively: Have another set of xfer timeouts for that use.
+    if you need to restrict the xfer timeout to zero).  Alternatively:
+    Have another set of xfer timeouts for that use.  Solution: Patches
+    for both have been developed.  Problem of the first approach is its
+    limited generality (but it should be ok for us).  Problem of the
+    alternative approach is that if multiple page faults occur on both
+    sides, the semantics are unclear and sometimes undesirable.
+*** Deferred cancellation: If you want to safely cancel an IPC
+    operation in another thread, you need heavy high-level support
+    (sigstate) to avoid race conditions.  It would be very useful to
+    have support for this at a rather low level of L4-only (without
+    massive libc support), for example in hardware drivers (IRQ
+    handler).
+    Proposal: Extend ExchangeRegisters to allow atomically aborting
+    pending IPC operations or set a deferred cancellation flag.  On
+    the next IPC, the destination thread will then abort the IPC
+    operation before even starting it if the cancel flag is set
+    (and clear it).
+    Response: The L4 people suggest to use preemption delay, but this
+    has trust issues, is not well defined (cpu time vs instruction
+    count) and only works if the interacting threads run on the same
+    CPU.  Could be done for IRQ handlers, for example, but not for user
+    threads.
+*** IPC to stopped threads should succeed: If a thread is stopped
+    while in an IPC receive operation, any attempt to send a message to
+    it (with a short timeout) will fail because the dest thread is not
+    ready.  But this means that you can not safely stop threads if the
+    IPC operating can not be retried (which is usually the case if the
+    timeout is short, for example in the case of server reply messages
+    in an RPC context).  Stopping threads is necessary for debugging,
+    cancellation etc.
+    Same problem occured when implementing debugging support in Sawmill
+    (paper found on the net).
+    Again, this could be worked around with heavy wrappers around IPC
+    operations, and according information in sigstate etc.  But this is
+    undesirable.
+    Suggestion: Allow an IPC operation to a stopped thread to succeed.
+    This is possible because only MRs and string items need to be
+    transferred, and usually no cooperation by the destination thread
+    is necessary.
+    Problem: There is one potentially troublesome boundary condition:
+    If string items are transferred, and a page fault occurs in the
+    receivers address space, what should happen?  Should the receiver's
+    thread state be modified to fake a page fault message to its pager?
+    IMO, this would be OK.  In this case, the pager could immediately
+    process the page fault (in case it is running), and send its reply
+    - which would be received even if the thread is still stopped, and
+    transfering string items could be resumed.
+    Alternatively, the actual page fault message could be delayed until
+    the thread is resumed, in which case the likelyhood is increased
+    that a xfer timeout will occur.
+    Our own needs are more modest: As we will always send reply
+    messages with timeout 0, all page faults in the receiver will abort
+    the IPC anyway.
+
 ** Bugs:
 *** See patches in README
 
