@@ -22,8 +22,8 @@ configuring this source tree):
 
 $ mkdir hurd-l4-build
 $ cd hurd-l4-build
-$ configure ../hurd-l4/configure --prefix=/l4 --enable-maintainer-mode \
-		--build=i686-linux --host=i686-gnu
+$ ../hurd-l4/configure --prefix=/l4 --enable-libc \
+	--enable-maintainer-mode --build=i686-linux --host=i686-gnu
 $ make -C libc libc-cvs
 
 This will check out the right glibc version via CVS.  It is
@@ -35,9 +35,9 @@ $ cp -a libc ~/libc-for-hurd-l4
 
 (next time around:)
 
-$ configure ../hurd-l4/configure --prefix=/l4 --enable-maintainer-mode \
-		--build=i686-linux --host=i686-gnu
 $ cp -a ~/libc-for-hurd-l4 libc/libc
+$ ../hurd-l4/configure --prefix=/l4 --enable-libc \
+	--enable-maintainer-mode --build=i686-linux --host=i686-gnu
 
 The Makefile will always download a tested, working version of the C
 library.  But you can copy any version to the libc directory and try
