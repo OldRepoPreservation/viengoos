@@ -274,6 +274,57 @@ initial task in a generalized manner.
 \end{comment}
 
 
+\subsection{The physical memory server}
+
+To be written.
+
+\begin{comment}
+  In fact, I already have some ideas.  Here they are:
+  
+  The rootserver copies (or moves) the physical memory server
+  executable image to the right location in memory, according to its
+  respective ELF header.  It also initializes the BSS section to zero.
+  
+  Then it follows the \texttt{exec()} protocol to startup the new
+  task.  This should be done as transparently as possible.  All pages
+  the rootserver provides because of page faults should be granted.
+  The rootserver waits for the physical memory server to contact the
+  rootserver thread.  Then the following startup protocol is walked
+  through:
+
+  \begin{enumerate}
+  \item The physical memory server requests all system memory from the
+    rootserver.  The rootserver maps the memory from $\sigma_0$ and
+    grants it to the physical memory server.  Alternatively, the
+    physical memory server might get the memory directly from
+    $\sigma_0$, but it should ask the rootserver for the amount and
+    location of memory to get.
+    
+  \item For each module that has not been used yet, the rootserver
+    requests a capability in the physical memory server that can be
+    used to map in pages from the range of memory that the module
+    occupies.  These capabilities should implement the same pager
+    interface that mappable files implement.
+    
+    The idea is that these capabilities can be used in the
+    \texttt{exec()} protocol to start up the tasks for these modules.
+    If a module is not a task, the capability can be used to access
+    the module data by mapping it into the address space like a file.
+    The physical memory server can even swap out pages that back these
+    objects on memory pressure.
+    
+    So, the physical memory server is in fact a simple filesystem for
+    these initial tasks, usable only for mapping operations.
+    
+  \item The rootserver can then start up the other tasks in the module
+    list using the normal \texttt{exec()} protocol.
+  \end{enumerate}
+  
+  The result is that all tasks except for the rootserver can be
+  started like normal Hurd tasks, and can also be swapped out.
+\end{comment}
+
+
 \section{Inter-process communication (IPC)}
 \label{ipc}
 
