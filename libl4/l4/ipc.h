@@ -764,11 +764,19 @@ l4_msg_put_string_item (l4_msg_t *msg, l4_word_t nr,
 }
 
 
+_L4_EXTERN_INLINE l4_word_t
+l4_msg_word (l4_msg_t *msg, l4_word_t nr)
+{
+  return msg->mr[1 + nr];
+}
+
+
 _L4_EXTERN_INLINE void
 l4_msg_get_word (l4_msg_t *msg, l4_word_t nr, l4_word_t *data)
 {
-  *data = msg->mr[1 + nr];
+  *data = l4_msg_word (msg, nr);
 }
+
 
 _L4_EXTERN_INLINE void
 l4_msg_get_map_item (l4_msg_t *msg, l4_word_t nr, l4_map_item_t *map_item)
