@@ -1,6 +1,7 @@
 2003-09-08  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/space.h (l4_is_nil_fpage): New function.
+	(l4_complete_address_space): Fix initializer.
 
 	* l4/types.h: Fix size of error field.
 

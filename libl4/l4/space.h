@@ -17,7 +17,7 @@
 #define l4_nilpage ((l4_fpage_t) { .raw = 0 })
 /* FIXME: When gcc supports unnamed fields in initializer.  */
 #define l4_complete_address_space \
-  ((l4_fpage_t) { page.rights = 0, page.log2_size = 1, page.base = 0 })
+  ((l4_fpage_t) { .page.rights = 0, .page.log2_size = 1, .page.base = 0 })
 
 
 #ifndef _L4_EXTERN_INLINE
