@@ -1,6 +1,6 @@
-/* assert.h - Dummy assert declaration for libc-pars.
-   Copyright (C) 2003 Free Software Foundation, Inc.
-   Written by Johan Rydberg.
+/* assert.h - Assert declaration for libc-parts.
+   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
+   Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
 
@@ -22,10 +22,21 @@
 #ifndef _ASSERT_H
 #define _ASSERT_H 1
 
-/* Asserts aren't supported at the moment.  */
-#ifndef assert
-#define assert(expr)	do { } while (0)
+int printf (const char *fmt, ...);
+
+#ifndef NDEBUG
+#define assert(expr)					\
+	do {						\
+	  if (! (expr))					\
+	    {						\
+	      printf ("%s:%s:%d: Assert failed!\n",	\
+		      __FILE__, __func__, __LINE__);	\
+	      for (;;);					\
+	    }						\
+	} while (0)
+#else
+#define assert(expr) do { } while (0)
 #endif
 #define assert_perror(err) assert(err == 0)
 
-#endif /* assert.h */
+#endif /* _ASSERT_H */

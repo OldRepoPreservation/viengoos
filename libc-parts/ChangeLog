@@ -1,3 +1,8 @@
+2005-01-12  Neal H. Walfield  <neal@gnu.org>
+
+	* assert.h: Include prototype for printf.
+	(assert) [!NDEBUG]: Rewrite to do something useful.
+
 2004-10-20  Marcus Brinkmann  <marcus@gnu.org>
 
 	* assert.h (assert): Only define if not defined.

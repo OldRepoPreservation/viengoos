@@ -1,5 +1,5 @@
 /* bucket-manage-mt.c - Manage RPCs on a bucket.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
    This file is part of the GNU Hurd.
@@ -471,8 +471,8 @@ manage_mt_worker (void *arg, bool async)
 	     pthread_mutex_lock is can mangle the message buffer.  */
 	  l4_msg_store (msg_tag, ctx.msg);
 
-	  assert (l4_ipc_propagated ());
-	  assert (l4_thread_is_equal (l4_actual_sender (), manager));
+	  assert (l4_ipc_propagated (msg_tag));
+	  assert (l4_is_thread_equal (l4_actual_sender (), manager));
 
 	  pthread_mutex_lock (&bucket->lock);
 	  /* We process cancellation messages regardless of the

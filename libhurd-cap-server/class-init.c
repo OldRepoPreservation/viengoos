@@ -99,7 +99,8 @@ hurd_cap_class_init_untyped (hurd_cap_class_t cap_class,
 
   /* The alignment requirements must be a power of 2.  */
   assert ((alignment & (alignment - 1)) == 0
-	  || ! __func__ ": requested alignment not a power of 2");
+	  || ! "hurd_cap_class_init_untyped: "
+	  "requested alignment not a power of 2");
 
   /* Find the smallest alignment requirement common to the user object
      and a struct hurd_cap_obj.  Since both are required to be a power
