@@ -1,3 +1,15 @@
+2003-10-11  Marcus Brinkmann  <marcus@gnu.org>
+
+	* slab.h (hurd_slab_constructor_t): Add new HOOK argument.
+	(hurd_slab_destructor_t): Likewise.
+	(hurd_slab_create): Likewise.
+	* slab.c (struct hurd_slab_space): New member HOOK.  Move member
+	LOCK to beginning of struct.
+	(grow): Call constructor with hook value.
+	(reap): Call destructor with hook value.
+	(hurd_slab_create): Add argument HOOK, initialize (*SPACE)->hook.
+
+
 2003-09-17  Johan Rydberg  <jrydberg@night.trouble.net>
 
 	* slab.h: Add alignment argument.

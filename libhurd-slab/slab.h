@@ -29,17 +29,27 @@
 struct hurd_slab_space;
 typedef struct hurd_slab_space *hurd_slab_space_t;
 
+/* Initialize the slab object pointed to by BUFFER.  HOOK is as
+   provided to hurd_slab_create.  */
+typedef error_t (*hurd_slab_constructor_t) (void *hook, void *buffer);
+
+/* Destroy the slab object pointed to by BUFFER.  HOOK is as provided
+   to hurd_slab_create.  */
+typedef void (*hurd_slab_destructor_t) (void *hook, void *buffer);
 /* Initialize the slab object pointed to by BUFFER.  */
 typedef error_t (*hurd_slab_constructor_t) (void *buffer);
 
 /* Destroy the slab object pointed to by BUFFER.  */
 typedef void (*hurd_slab_destructor_t) (void *buffer);
 
-/* Create a new slab space with the given object size, alignment, 
-   constructor and destructor.  ALIGNMENT can be zero.  */
+
+/* Create a new slab space with the given object size, alignment,
+   constructor and destructor.  ALIGNMENT can be zero.  HOOK is passed
+   as the first argument to the constructor and destructor.  */
 error_t hurd_slab_create (size_t size, size_t alignment,
 			  hurd_slab_constructor_t constructor,
 			  hurd_slab_destructor_t destructor,
+			  void *hook,
 			  hurd_slab_space_t *space);
 
 /* Allocate a new object from the slab space SPACE.  */

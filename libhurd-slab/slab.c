@@ -74,6 +74,9 @@ struct hurd_slab
 /* The type of a slab space.  */
 struct hurd_slab_space
 {
+  /* Protects this structure, along with all the slabs.  */
+  pthread_mutex_t lock;
+
   struct hurd_slab *slab_first;
   struct hurd_slab *slab_last;
 
@@ -97,11 +100,11 @@ struct hurd_slab_space
   /* The constructor.  */
   hurd_slab_constructor_t constructor;
 
-  /* Protects this structure, along with all the slabs.  */
-  pthread_mutex_t lock;
-
   /* The destructor.  */
   hurd_slab_destructor_t destructor;
+
+  /* The user's private data.  */
+  void *hook;
 };
 
 
@@ -175,7 +178,7 @@ reap (struct hurd_slab_space *space)
 		{
 		  void *buffer = (((void *) bufctl) 
 				  - (space->size - sizeof *bufctl));
-		  (*space->destructor) (buffer);
+		  (*space->destructor) (space->hook, buffer);
 		}
 	    }
 	  /* The slab is located at the end of the page (with the buffers
@@ -252,7 +255,7 @@ grow (struct hurd_slab_space *space)
       /* Invoke constructor at object creation time, not when it is
 	 really allocated (for faster allocation).  */
       if (space->constructor)
-	(*space->constructor) (p);
+	(*space->constructor) (space->hook, p);
 
       /* The most activity is in front of the object, so it is most
 	 likely to be overwritten if a freed buffer gets accessed.
@@ -293,6 +296,7 @@ error_t
 hurd_slab_create (size_t size, size_t alignment,
 		  hurd_slab_constructor_t constructor,
 		  hurd_slab_destructor_t destructor,
+		  void *hook,
 		  hurd_slab_space_t *space)
 {
   error_t err;
@@ -326,6 +330,7 @@ hurd_slab_create (size_t size, size_t alignment,
 
   (*space)->constructor = constructor;
   (*space)->destructor = destructor;
+  (*space)->hook = hook;
 
   /* Calculate the number of objects that fit in a slab.  */
   (*space)->full_refcount 
