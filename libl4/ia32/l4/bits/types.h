@@ -25,7 +25,7 @@
 
 
 /* ia32 has 32 bits per word.  */
-#define _L4_WORDSIZE	_L4_WORDSIZE_32
+#define _L4_WORDSIZE	32
 
 /* ia32 is little-endian.  */
 #define _L4_BYTE_ORDER	_L4_LITTLE_ENDIAN

@@ -43,7 +43,7 @@ typedef _L4_RAW
  })) __L4_thread_id_t;
 
 
-#if _L4_WORDSIZE == _L4_WORDSIZE_32
+#if _L4_WORDSIZE == 32
 #define _L4_THREAD_NO_BITS	(32 - 6)
 #else
 #define _L4_THREAD_NO_BITS	(64 - 6)

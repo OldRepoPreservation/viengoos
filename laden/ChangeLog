@@ -1,3 +1,8 @@
+2004-03-30  Marcus Brinkmann  <marcus@gnu.org>
+
+	* loader.c (loader_elf_dest, loader_elf_load): Use 32 and 64
+	instead of _L4_WORDSIZE_32 and _L4_WORDSIZE_64.
+
 2004-03-15  Marcus Brinkmann  <marcus@gnu.org>
 
 	* loader.h (loader_get_memory_desc): Change return type to

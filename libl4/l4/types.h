@@ -31,9 +31,6 @@
 #define _L4_LITTLE_ENDIAN	0
 #define _L4_BIG_ENDIAN		1
 
-#define _L4_WORDSIZE_32		0
-#define _L4_WORDSIZE_64		1
-
 # define __L4_intN_t(N, MODE) \
   typedef int _L4_int##N##_t __attribute__ ((__mode__ (MODE)))
 # define __L4_uintN_t(N, MODE) \
@@ -48,16 +45,16 @@ __L4_uintN_t (8, __QI__);
 __L4_uintN_t (16, __HI__);
 __L4_uintN_t (32, __SI__);
 __L4_uintN_t (64, __DI__);
-#if _L4_WORDSIZE == _L4_WORDSIZE_64
+#if _L4_WORDSIZE == 64
 __L4_uintN_t (128, __TI__);
 #endif
 
-#if _L4_WORDSIZE == _L4_WORDSIZE_32
+#if _L4_WORDSIZE == 32
 typedef _L4_uint32_t _L4_word_t;
 #define _L4_WORD_C(c)	c ## U
 typedef _L4_uint64_t _L4_dword_t;
 #else
-#if _L4_WORDSIZE == _L4_WORDSIZE_64
+#if _L4_WORDSIZE == 64
 typedef _L4_uint64_t _L4_word_t;
 #define _L4_WORD_C(c)	c ## UL
 typedef _L4_uint128_t _L4_dword_t;
@@ -76,11 +73,11 @@ typedef _L4_uint128_t _L4_dword_t;
 /* Sometimes the bit-field has different sizes depending on the word
    size, and sometimes it only exists on systems with a specific word
    size.  */
-#if _L4_WORDSIZE == _L4_WORDSIZE_32
+#if _L4_WORDSIZE == 32
 #define _L4_BITFIELD_64(name, nr) : 0
 #define _L4_BITFIELD_32_64(name, nr32, nr64) name : nr32
 #else
-#if _L4_WORDSIZE == _L4_WORDSIZE_64
+#if _L4_WORDSIZE == 64
 #define _L4_BITFIELD_64(name, nr) name : nr
 #define _L4_BITFIELD_32_64(name, nr32, nr64) name : nr64
 #endif

@@ -1,3 +1,15 @@
+2004-03-30  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/types.h (_L4_WORDSIZE_32, _L4_WORDSIZE_64): Removed.
+	All users changed to use numeric constants 32 and 64 instead.
+	* l4/gnu/types.h (L4_WORDSIZE_32, L4_WORDSIZE_64): Removed.
+	* l4/math.h: All users of _L4_WORDSIZE_32 or _L4_WORDSIZE_64
+	changed to use numeric constants 32 and 64 instead.
+	* l4/thread.h: Likewise.
+	* l4/kip.h: Likewise.  Use _L4_WORDSIZE instead of L4_WORDSIZE.
+	* ia32/l4/bits/types.h (_L4_WORDSIZE): Define to 32.
+	* powerpc/l4/bits/types.h (_L4_WORDSIZE): Likewise.
+
 2004-03-29  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/compat/space.h (L4_Unmap) [_cplusplus]: Remove spurious comma.

@@ -51,7 +51,7 @@ _L4_msb (_L4_word_t data)
       __L4_MSB_TRY(21); __L4_MSB_TRY(22); __L4_MSB_TRY(23); __L4_MSB_TRY(24);
       __L4_MSB_TRY(25); __L4_MSB_TRY(26); __L4_MSB_TRY(27); __L4_MSB_TRY(28);
       __L4_MSB_TRY(29); __L4_MSB_TRY(30); __L4_MSB_TRY(31);
-#if _L4_WORDSIZE == _L4_WORDSIZE_32
+#if _L4_WORDSIZE == 32
       __L4_MSB_IS(32);
 #else
       __L4_MSB_TRY(32); __L4_MSB_TRY(33); __L4_MSB_TRY(34); __L4_MSB_TRY(35);
@@ -87,7 +87,7 @@ _L4_lsb (_L4_word_t data)
 
       if (!data)
 	return 0;
-#if _L4_WORDSIZE == _L4_WORDSIZE_64
+#if _L4_WORDSIZE == 64
       __L4_LSB_TRY(64); __L4_LSB_TRY(63); __L4_LSB_TRY(62); __L4_LSB_TRY(61);
       __L4_LSB_TRY(60); __L4_LSB_TRY(59); __L4_LSB_TRY(58); __L4_LSB_TRY(57);
       __L4_LSB_TRY(56); __L4_LSB_TRY(55); __L4_LSB_TRY(54); __L4_LSB_TRY(53);

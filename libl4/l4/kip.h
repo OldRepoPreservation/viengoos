@@ -117,7 +117,7 @@ typedef struct
 struct _L4_kip
 {
   char magic[4];
-#if L4_WORDSIZE == L4_WORDSIZE_64
+#if _L4_WORDSIZE == 64
   char __pad1[4];
 #endif
 

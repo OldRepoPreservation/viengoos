@@ -30,10 +30,6 @@
 #define L4_LITTLE_ENDIAN	_L4_LITTLE_ENDIAN
 #define L4_BIG_ENDIAN		_L4_BIG_ENDIAN
 
-#define L4_WORDSIZE_32		_L4_WORDSIZE_32
-#define L4_WORDSIZE_64		_L4_WORDSIZE_64
-
-
 typedef _L4_int8_t l4_int8_t;
 typedef _L4_int16_t l4_int16_t;
 typedef _L4_int32_t l4_int32_t;
@@ -48,7 +44,7 @@ typedef _L4_uint64_t l4_uint64_t;
 typedef _L4_word_t l4_word_t;
 #define L4_WORD_C(x)	_L4_WORD_C(x)
 
-#if _L4_WORDSIZE == _L4_WORDSIZE_32
+#if _L4_WORDSIZE == 32
 #define __L4_PRI_PREFIX
 #else
 #define __L4_PRI_PREFIX	"l"

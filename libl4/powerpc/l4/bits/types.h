@@ -25,7 +25,7 @@
 
 
 /* PowerPC has 32 bits per word.  */
-#define _L4_WORDSIZE	_L4_WORDSIZE_32
+#define _L4_WORDSIZE	32
 
 /* PowerPC is big-endian.  */
 #define _L4_BYTE_ORDER	_L4_BIG_ENDIAN
