@@ -1,3 +1,9 @@
+2004-04-15  Marcus Brinkmann  <marcus@gnu.org>
+
+	* task: New directory.
+	* configure.ac (AC_CONFIG_FILES): Add task/Makefile.
+	* Makefile.am (SUBDIRS): Add task.
+
 2004-03-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* acinclude.m4: Quote the macro name.

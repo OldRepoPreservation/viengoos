@@ -128,5 +128,6 @@ AC_CONFIG_FILES([Makefile
                  laden/Makefile
                  wortel/Makefile
                  physmem/Makefile
+                 task/Makefile
 		 doc/Makefile])
 AC_OUTPUT
