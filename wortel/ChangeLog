@@ -1,5 +1,23 @@
 2004-10-27  Marcus Brinkmann  <marcus@gnu.org>
 
+	* wortel.h (WORTEL_MSG_GET_FIRST_FREE_THREAD_NO,
+	WORTEL_MSG_GET_TASK_CAP_REQUEST, WORTEL_MSG_GET_TASK_CAP_REPLY):
+	Define new macro.
+	(wortel_get_first_free_thread_no, wortel_get_task_cap_request,
+	wortel_get_task_cap_reply): New functions.
+	* wortel.c (task_master, task_wortel, first_free_thread_no): New
+	global variables.
+	(setup_components): Initialize first_free_thread_no.
+	(serve_bootstrap_requests): Handle
+	WORTEL_MSG_GET_FIRST_FREE_THREAD_NO.
+	(start_task): Initialize PHYS_STARTUP->utcb_area.  Correctly
+	calculate filesz and memsz, and clean out the BSS section.  Access
+	cap_handle members of the startup data instead cap_id.
+	(serve_bootstrap_requests): Store the message before checking for
+	a page fault message.  Handle the messages
+	WORTEL_MSG_GET_FIRST_FREE_THREAD_NO,
+	WORTEL_MSG_GET_TASK_CAP_REQUEST, WORTEL_MSG_GET_TASK_CAP_REPLY.
+	
 	* startup.c (physmem_map): Change type of argument CONT to
 	hurd_cap_handle_t.
 	(cmain): In the startup data, access cap_handle members, not

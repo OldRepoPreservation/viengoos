@@ -70,9 +70,16 @@ struct wortel_module mods[MOD_NUMBER];
    MOD_NUMBER.  */
 unsigned int mods_count;
 
-/* The physical memory server master control capability for the root
-   filesystem.  */
+/* The physical memory and task server master control capabilities for
+   the root filesystem.  */
 hurd_cap_handle_t physmem_master;
+hurd_cap_handle_t task_master;
+
+/* The wortel task capability object handle.  */
+hurd_cap_handle_t task_wortel;
+
+/* The first free thread number.  */
+l4_word_t first_free_thread_no;
 
 
 /* The maximum number of tasks allowed to use the rootserver.  */
@@ -267,6 +274,9 @@ setup_components (void)
 
       mods[i].task_id = task_id;
     }
+
+  /* Initialize the first free thread number.  */
+  first_free_thread_no = thread_no;
 }
 
 
@@ -619,14 +629,17 @@ start_task (void)
 			     + i * elf->e_phentsize);
 	if (ph->p_type == PT_LOAD)
 	  {
+	    l4_word_t page_offset = l4_page_trunc (ph->p_offset);
+	    l4_word_t byte_offset = ph->p_offset - page_offset;
+
 	    /* We add first the extra allocated memory map item
 	       because the array is built up in the reversed
 	       order.  */
 	    if (ph->p_memsz > ph->p_filesz)
 	      {
 		/* The file may need some extra memory allocated.  */
-		l4_word_t memsz = l4_page_round (ph->p_memsz);
-		l4_word_t filesz = l4_page_round (ph->p_filesz);
+		l4_word_t memsz = l4_page_round (byte_offset + ph->p_memsz);
+		l4_word_t filesz = l4_page_round (byte_offset + ph->p_filesz);
 
 		if (memsz > filesz)
 		  {
@@ -635,10 +648,20 @@ start_task (void)
 		    phys_mapv = (struct hurd_startup_map *)
 		      STARTUP_TO_PHYS (mapv);
 
+		    /* We need to clear out the BSS section that is on
+		       the rest of the page where the filesz ends.
+		       Normally, we would have to do this via COW, but
+		       in this case we know its safe to just clear out
+		       the actual module page.  The only thing we
+		       delete this way is the ELF section headers.  */
+		    memset ((void *) (mods[MOD_TASK].start
+				      + ph->p_offset + ph->p_filesz), 0,
+			    filesz - (byte_offset + ph->p_filesz));
+
 		    /* FIXME When we have physical mem containers for
 		       allocation, use them.  */
 		    phys_mapv->cont.server = mods[MOD_PHYSMEM].server_thread;
-		    phys_mapv->cont.cap_id = mods[MOD_TASK].mem_cont;
+		    phys_mapv->cont.cap_handle = mods[MOD_TASK].mem_cont;
 		    phys_mapv->size = memsz - filesz;
 		    /* The dirty hack here causes physmem to allocate
 		       anonymous memory.  */
@@ -661,7 +684,7 @@ start_task (void)
 		/* FIXME When we have physical mem containers for
 		   allocation, use them.  */
 		phys_mapv->cont.server = mods[MOD_PHYSMEM].server_thread;
-		phys_mapv->cont.cap_id = mods[MOD_TASK].mem_cont;
+		phys_mapv->cont.cap_handle = mods[MOD_TASK].mem_cont;
 		phys_mapv->size = l4_page_round (ph->p_filesz);;
 		phys_mapv->offset = l4_page_trunc (ph->p_offset)
 		  | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
@@ -679,12 +702,17 @@ start_task (void)
   /* Fill the startup structure.  */
   phys_startup->version_major = HURD_STARTUP_VERSION_MAJOR;
   phys_startup->version_minor = HURD_STARTUP_VERSION_MINOR;
+  /* See below.  */
+  phys_startup->utcb_area = l4_fpage_log2 (((l4_word_t) HURD_STARTUP_ADDR)
+					   + HURD_STARTUP_SIZE
+					   + l4_kip_area_size (),
+					   l4_utcb_area_size_log2 ());
   phys_startup->argz = argz_len ? STARTUP_TO_VIRT (argz) : NULL;
   phys_startup->argz_len = argz_len;
   phys_startup->wortel.server = l4_my_global_id ();
-  phys_startup->wortel.cap_id = wortel_add_user (mods[MOD_TASK].task_id);
+  phys_startup->wortel.cap_handle = wortel_add_user (mods[MOD_TASK].task_id);
   phys_startup->image.server = mods[MOD_PHYSMEM].server_thread;
-  phys_startup->image.cap_id = mods[MOD_TASK].mem_cont;
+  phys_startup->image.cap_handle = mods[MOD_TASK].mem_cont;
   phys_startup->mapc = mapc;
   phys_startup->mapv = (struct hurd_startup_map *) STARTUP_TO_VIRT (mapv);
   /* The program header is already a virtual address for the task.  */
@@ -692,7 +720,7 @@ start_task (void)
   phys_startup->phdr_len = mods[MOD_TASK].header_size;
   phys_startup->entry_point = (void *) task_entry_point;
   phys_startup->startup.server = mods[MOD_PHYSMEM].server_thread;
-  phys_startup->startup.cap_id = mods[MOD_TASK].startup_cont;
+  phys_startup->startup.cap_handle = mods[MOD_TASK].startup_cont;
    
   /* The stack layout is in accordance to the following startup prototype:
      void start (struct hurd_startup_data *startup_data).  */
@@ -731,16 +759,11 @@ start_task (void)
      below code makes assumptions about page alignedness that are
      architecture specific.  And it does not assert that we do not
      accidently exceed the wortel end address.  */
-  /* FIXME: In any case, we have to pass the UTCB area size (and
-     location) to task.  */
   ret = l4_space_control (task, 0,
 			  l4_fpage_log2 (((l4_word_t) HURD_STARTUP_ADDR)
 					 + HURD_STARTUP_SIZE,
 					 l4_kip_area_size_log2 ()),
-			  l4_fpage_log2 (((l4_word_t) HURD_STARTUP_ADDR)
-					 + HURD_STARTUP_SIZE
-					 + l4_kip_area_size (),
-					 l4_utcb_area_size_log2 ()),
+			  phys_startup->utcb_area,
 			  l4_anythread, &control);
   if (!ret)
     panic ("could not create task address space: %s",
@@ -830,6 +853,9 @@ serve_bootstrap_requests (void)
   /* This is the physmem thread that sent us the GET_TASK_CAP RPC.  */
   l4_thread_id_t physmem;
 
+  /* This is to keep information about created task caps.  */
+  unsigned int cur_task = (unsigned int) -1;
+
   /* Make a list of all the containers we want.  */
   for (i = 0; i < mods_count; i++)
     {
@@ -856,10 +882,10 @@ serve_bootstrap_requests (void)
       container[nr_cont].cont = &mods[i].mem_cont;
 
       {
-	/* We zero out the unused bytes on the last page, because they
-	   may be part of a .bss section.  This could be somewhere
-	   else, of course, but this place is just as good as any
-	   other.  */
+	/* We zero out the unused bytes on the last page, for security
+	   reasons, and because they may be part of a .bss section.
+	   This should probably be in physmem, but this place is just
+	   as good as any other.  */
 	l4_word_t start = container[nr_cont].end;
 	l4_word_t end = start | (l4_min_page_size () - 1);
 
@@ -869,7 +895,6 @@ serve_bootstrap_requests (void)
       nr_cont++;
 
     }
-
 
   /* If a conventinal page with address 0 exists in the memory
      descriptors, allocate it because we don't want to bother anybody
@@ -897,11 +922,14 @@ serve_bootstrap_requests (void)
       if (l4_ipc_failed (tag))
 	panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
 
+      l4_msg_store (tag, msg);
+
       /* FIXME: Remove when not debugging.  */
       if ((l4_label (tag) >> 4) == 0xffe)
 	{
 	  if (l4_untyped_words (tag) != 2 || l4_typed_words (tag) != 0)
 	    panic ("Invalid format of page fault message");
+
 	  panic ("Unexpected page fault from 0x%x at address 0x%x (IP 0x%x)",
 		 from, l4_msg_word (msg, 0), l4_msg_word (msg, 1));
 	}
@@ -915,8 +943,6 @@ serve_bootstrap_requests (void)
 	panic ("Unprivileged user 0x%x attemps to access wortel rootserver 0x%x",
 	       from, cap_id);
 #endif
-
-      l4_msg_store (tag, msg);
 
       if (label == WORTEL_MSG_PUTCHAR)
 	{
@@ -977,7 +1003,7 @@ serve_bootstrap_requests (void)
       else if (label == WORTEL_MSG_GET_CAP_REQUEST)
 	{
 	  if (cur_cont > nr_cont)
-	    panic ("physmem does not stop requesting capabilities");
+	    panic ("physmem does not stop requesting capability requests");
 	  else if (cur_cont == nr_cont)
 	    {
 	      /* Request the global control capability now.  */
@@ -999,9 +1025,9 @@ serve_bootstrap_requests (void)
 
 	      /* We can not pass more than 31 map items in our
 		 message, because there are only 64 message registers,
-		 we need 1 for the task ID, and each map item takes up
-		 two message registers.  */
-	      if (nr_fpages > 31)
+		 we need 2 for the tag and the task ID, and each map
+		 item takes up two message registers.  */
+	      if (nr_fpages > (L4_NUM_MRS - 2) / 2)
 		panic ("%s: Module %s is too large and has an "
 		       "unfortunate alignment", __func__,
 		       mods[container[cur_cont].module].name);
@@ -1055,6 +1081,110 @@ serve_bootstrap_requests (void)
 
 	  /* Start up the task server and continue serving RPCs.  */
 	  start_task ();
+	}
+      else if (label == WORTEL_MSG_GET_FIRST_FREE_THREAD_NO)
+	{
+	  /* This RPC is used by wortel to determine the first free
+	     thread ID for thread allocation.  */
+	  l4_msg_clear (msg);
+	  l4_msg_append_word (msg, first_free_thread_no);
+	  l4_msg_load (msg);
+	  l4_reply (from);
+	}
+      else if (label == WORTEL_MSG_THREAD_CONTROL)
+	{
+	  if (l4_untyped_words (tag) != 5 || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of thread control msg");
+
+	  l4_thread_id_t dest = l4_msg_word (msg, 0);
+	  l4_thread_id_t space = l4_msg_word (msg, 1);
+	  l4_thread_id_t scheduler = l4_msg_word (msg, 2);
+	  l4_thread_id_t pager = l4_msg_word (msg, 3);
+	  void *utcb = (void *) l4_msg_word (msg, 4);
+	  l4_word_t ret;
+
+	  ret = l4_thread_control (dest, space, scheduler, pager, utcb);
+
+	  l4_msg_clear (msg);
+	  l4_msg_append_word (msg, ret ? 0 : l4_error_code ());
+	  l4_msg_load (msg);
+	  l4_reply (from);
+	}
+      else if (label == WORTEL_MSG_GET_TASK_CAP_REQUEST)
+	{
+	  if (cur_task == (unsigned int) -1)
+	    {
+	      hurd_task_id_t wortel_task_id = l4_version (l4_my_global_id ());
+	      l4_word_t thread_no = l4_thread_no (l4_my_global_id ());
+
+	      /* Give out the wortel task information.  */
+	      l4_msg_clear (msg);
+	      l4_set_msg_label (msg, 0);
+	      l4_msg_append_word (msg, wortel_task_id);
+	      l4_msg_append_word (msg, l4_my_global_id ());
+	      for (i = 1; i < WORTEL_THREADS; i++)
+		l4_msg_append_word
+		  (msg, l4_global_id (thread_no + i, wortel_task_id));
+	      l4_msg_load (msg);
+	      l4_reply (from);
+	    }
+	  else if (cur_task > mods_count)
+	    panic ("task does not stop requesting capability requests");
+	  else if (cur_task == mods_count)
+	    {
+	      /* Request the global control capability now.  */
+	      l4_msg_clear (msg);
+	      l4_msg_append_word
+		(msg, l4_version (mods[MOD_ROOT_FS].server_thread));
+	      l4_msg_load (msg);
+	      l4_reply (from);
+	    }
+	  else
+	    {
+	      /* We are allowed to make a capability request now.  */
+
+	      l4_word_t thread_no
+		= l4_thread_no (mods[cur_task].server_thread);
+
+	      /* We have one MR for the tag, one for the task ID, and
+		 one for the main thread.  */
+	      if (mods[cur_task].nr_extra_threads > L4_NUM_MRS - 3)
+		panic ("%s: Module %s has too many threads", __func__,
+		       mods[container[cur_cont].module].name);
+
+	      l4_msg_clear (msg);
+	      l4_set_msg_label (msg, 0);
+	      l4_msg_append_word (msg, mods[cur_task].task_id);
+	      l4_msg_append_word (msg, mods[cur_task].server_thread);
+	      for (i = 1; i <= mods[cur_task].nr_extra_threads; i++)
+		l4_msg_append_word
+		  (msg, l4_global_id (thread_no + i,
+				      mods[cur_task].task_id));
+	      l4_msg_load (msg);
+	      l4_reply (from);
+	    }
+	}
+      else if (label == WORTEL_MSG_GET_TASK_CAP_REPLY)
+	{
+	  if (l4_untyped_words (tag) != 1 || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of get task cap reply msg");
+
+	  if (cur_task == (unsigned int) -1)
+	    task_wortel = l4_msg_word (msg, 0);
+	  else if (cur_task > mods_count)
+	    panic ("Invalid get task cap reply message");
+	  else if (cur_task == mods_count)
+	    task_master = l4_msg_word (msg, 0);
+	  else
+	    mods[cur_task].task_ctrl = l4_msg_word (msg, 0);
+
+	  do
+	    cur_task++;
+	  while (cur_task < mods_count && !MOD_IS_TASK (cur_task));
+
+	  l4_msg_clear (msg);
+	  l4_msg_load (msg);
+	  l4_reply (from);
 	}
       else
 	panic ("Invalid message with tag 0x%x", tag);

@@ -55,6 +55,9 @@ extern wortel_cap_id_t wortel_cap_id;
 #define WORTEL_MSG_GET_CAP_REPLY	66
 #define WORTEL_MSG_GET_THREADS		67
 #define WORTEL_MSG_GET_TASK_CAP		68
+#define WORTEL_MSG_GET_FIRST_FREE_THREAD_NO 69
+#define WORTEL_MSG_GET_TASK_CAP_REQUEST	70
+#define WORTEL_MSG_GET_TASK_CAP_REPLY	71
 
 #define _WORTEL_LABEL(id)					\
   (((id) << WORTEL_MSG_CAP_ID_BITS)				\
@@ -340,5 +343,74 @@ wortel_get_task_cap (void)
   l4_store_mr (1, &task);
   return task;
 }
+
+
+/* Get the first free thread number for task.  */
+static inline l4_word_t
+__attribute__((always_inline))
+wortel_get_first_free_thread_no (void)
+{
+  l4_msg_tag_t tag;
+  l4_word_t first_free_thread_no;
+  
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag,
+			_WORTEL_LABEL (WORTEL_MSG_GET_FIRST_FREE_THREAD_NO));
+  l4_set_msg_tag (tag);
+  tag = l4_call (wortel_thread_id);
+
+  l4_store_mr (1, &first_free_thread_no);
+  return first_free_thread_no;
+}
+
+
+/* Get the next task capability request.  */
+static inline hurd_task_id_t
+__attribute__((always_inline))
+wortel_get_task_cap_request (unsigned int *nr_threads, l4_thread_id_t *threads)
+{
+  l4_msg_tag_t tag;
+  hurd_task_id_t task_id;
+  unsigned int nr_items;
+  unsigned int mr;
+
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_TASK_CAP_REQUEST));
+  l4_set_msg_tag (tag);
+  tag = l4_call (wortel_thread_id);
+
+  *nr_threads = 0;
+  mr = 1;
+  l4_store_mr (mr++, &task_id);
+  nr_items = l4_untyped_words (tag) - 1;
+  while (nr_items--)
+    l4_store_mr (mr++, &threads[(*nr_threads)++]);
+
+  return task_id;
+}
+
+
+/* Reply to a task capability request.  */
+static inline void
+__attribute__((always_inline))
+wortel_get_task_cap_reply (hurd_cap_handle_t handle)
+{
+  l4_msg_tag_t tag;
+  l4_word_t nr_threads;
+  
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_TASK_CAP_REPLY));
+  l4_msg_tag_set_untyped_words (&tag, 1);
+  l4_set_msg_tag (tag);
+  l4_load_mr (1, handle);
+  tag = l4_call (wortel_thread_id);
+}
+
 
 #endif	/* _WORTEL_USER_H */
