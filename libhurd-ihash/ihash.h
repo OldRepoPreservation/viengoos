@@ -79,6 +79,9 @@ typedef struct hurd_ihash *hurd_ihash_t;
 
 /* Construction and destruction of hash tables.  */
 
+#define HURD_IHASH_INITIALIZER \
+  { .size = 0, .cleanup = (hurd_ihash_cleanup_t) 0 }
+
 /* Initialize the hash table at address HT.  */
 void hurd_ihash_init (hurd_ihash_t ht);
 

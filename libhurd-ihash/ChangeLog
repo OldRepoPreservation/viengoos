@@ -1,5 +1,7 @@
 2003-08-17  Marcus Brinkmann  <marcus@gnu.org>
 
+	* ihash.h (HURD_IHASH_INITIALIZER): New macro.
+
 	* Initial check-in.
 
 
