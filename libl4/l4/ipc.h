@@ -152,6 +152,9 @@ typedef union
 {
   _L4_map_item_t raw;
 
+  /* We need the following member to avoid breaking the aliasing rules.  */
+  l4_word_t mr[2];
+
   struct
   {
     _L4_BITFIELD4
@@ -219,8 +222,10 @@ typedef _L4_dword_t _L4_grant_item_t;
 
 typedef union
 {
-
   _L4_grant_item_t raw;
+
+  /* We need the following member to avoid breaking the aliasing rules.  */
+  _L4_word_t mr[2];
 
   struct
   {
@@ -289,6 +294,9 @@ typedef _L4_dword_t _L4_string_item_t;
 typedef union
 {
   _L4_string_item_t raw;
+
+  /* We need the following member to avoid breaking the aliasing rules.  */
+  l4_word_t mr[2];
 
   struct
   {
@@ -846,7 +854,7 @@ _L4_msg_append_map_item (_L4_msg_t msg, _L4_map_item_t map_item)
   /* The "not last" bit is ignored for sending.  */
   int pos = 1 + _msg->tag.untyped + _msg->tag.typed;
 
-  *((_L4_map_item_t *) &msg[pos]) = map_item;
+  ((__L4_map_item_t *) &msg[pos])->raw = map_item;
   _msg->tag.typed += 2;
 }
 
@@ -859,7 +867,7 @@ _L4_msg_append_grant_item (_L4_msg_t msg, _L4_grant_item_t grant_item)
   /* The "not last" bit is ignored for sending.  */
   int pos = 1 + _msg->tag.untyped + _msg->tag.typed;
 
-  *((_L4_grant_item_t *) &msg[pos]) = grant_item;
+  ((__L4_grant_item_t *) &msg[pos])->raw = grant_item;
   _msg->tag.typed += 2;
 }
     
@@ -878,7 +886,7 @@ _L4_msg_append_simple_string_item (_L4_msg_t msg,
   _string_item.cont = 0;
   _string_item.nr_substrings = 0;
 
-  *((_L4_string_item_t *) &msg[pos]) = string_item;
+  ((__L4_string_item_t *) &msg[pos])->raw = string_item;
   _msg->tag.typed += 2;
 }
     
@@ -899,8 +907,8 @@ _L4_msg_append_string_item (_L4_msg_t msg, _L4_string_item_t *string_item)
       _L4_word_t *substrings = &_string_item->string[1];
 
       cont = _string_item->cont;
-      *((__L4_string_item_t *) &msg[pos]) = *_string_item;
-      pos += 2;
+      msg[pos++] = _string_item->mr[0];
+      msg[pos++] = _string_item->mr[1];
 
       while (nr-- > 0)
 	msg[pos++] = *(substrings++);
@@ -927,7 +935,7 @@ _L4_msg_put_map_item (_L4_msg_t msg, _L4_word_t nr, _L4_map_item_t map_item)
   __L4_msg_t *_msg = (__L4_msg_t *) msg;
   _L4_word_t pos = 1 + _msg->tag.untyped + nr;
 
-  *((_L4_map_item_t *) &msg[pos]) = map_item;
+  ((__L4_map_item_t *) &msg[pos])->raw = map_item;
 }
 
 
@@ -939,7 +947,7 @@ _L4_msg_put_grant_item (_L4_msg_t msg, _L4_word_t nr,
   __L4_msg_t *_msg = (__L4_msg_t *) msg;
   _L4_word_t pos = 1 + _msg->tag.untyped + nr;
 
-  *((_L4_grant_item_t *) &msg[pos]) = grant_item;
+  ((__L4_grant_item_t *) &msg[pos])->raw = grant_item;
 }
 
 
@@ -956,7 +964,7 @@ _L4_msg_put_simple_string_item (_L4_msg_t msg, _L4_word_t nr,
   _string_item.cont = 0;
   _string_item.nr_substrings = 0;
 
-  *((__L4_string_item_t *) &msg[pos]) = _string_item;
+  ((__L4_string_item_t *) &msg[pos])->raw = string_item;
 }
 
 
@@ -976,8 +984,8 @@ _L4_msg_put_string_item (_L4_msg_t msg, _L4_word_t nr,
       _L4_word_t *substrings = &_string_item->string[1];
 
       cont = _string_item->cont;
-      *((__L4_string_item_t *) &msg[pos]) = *_string_item;
-      pos += 2;
+      msg[pos++] = _string_item->mr[0];
+      msg[pos++] = _string_item->mr[1];
 
       while (nr-- > 0)
 	msg[pos++] = *(substrings++);
@@ -1009,7 +1017,8 @@ _L4_msg_get_map_item (_L4_msg_t msg, _L4_word_t nr, _L4_map_item_t *map_item)
 {
   __L4_msg_t *_msg = (__L4_msg_t *) msg;
   _L4_word_t pos = 1 + _msg->tag.untyped + nr;
-  *map_item = *((_L4_map_item_t *) &msg[pos]);
+
+  *map_item = ((__L4_map_item_t *) &msg[pos])->raw;
   return sizeof (_L4_map_item_t) / sizeof (_L4_word_t);
 }
 
@@ -1021,7 +1030,8 @@ _L4_msg_get_grant_item (_L4_msg_t msg, _L4_word_t nr,
 {
   __L4_msg_t *_msg = (__L4_msg_t *) msg;
   _L4_word_t pos = 1 + _msg->tag.untyped + nr;
-  *grant_item = *((_L4_grant_item_t *) &msg[pos]);
+
+  *grant_item = ((__L4_grant_item_t *) &msg[pos])->raw;
   return sizeof (_L4_grant_item_t) / sizeof (_L4_word_t);
 }
 
@@ -1042,7 +1052,6 @@ _L4_msg_get_string_item (_L4_msg_t msg, _L4_word_t nr,
       _L4_word_t *substrings = &_string_item->string[1];
 
       cont = _string_item->cont;
-      
       *((__L4_string_item_t *) &msg[pos]) = *_string_item;
       pos += 2;
 

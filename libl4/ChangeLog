@@ -1,3 +1,18 @@
+2004-04-26  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/ipc.h (__L4_map_item_t, __L4_grant_item_t,
+	__L4_string_item_t): New member MR.
+	(_L4_msg_append_map_item): Fix use of map_item.
+	(_L4_msg_put_map_item): Likewise.
+	(_L4_msg_get_map_item): Likewise.
+	(_L4_msg_append_grant_item): Fix use of grant_item.
+	(_L4_msg_put_grant_item): Likewise.
+	(_L4_msg_get_grant_item): Likewise.
+	(_L4_msg_append_simple_string_item): Fix use of string item.
+	(_L4_msg_append_string_item): Likewise.
+	(_L4_msg_put_string_item): Likewise.
+	(_L4_msg_get_string_item): Likewise.
+
 2004-04-23  Marco Gerards  <metgerards@student.han.nl>
 
 	* l4/thread.h (__L4_STOP): Don't use _L4_XCHG_REGS_SET_SP and

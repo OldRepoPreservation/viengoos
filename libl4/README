@@ -140,3 +140,4 @@ TODO
 * Sanitize the error handling.  The GNU interface should return proper errno
   values for all failures.  ExchangeRegister can fail, so all functions using
   it must also return an error value (l4_start_sp_ip etc).
+* Fix _L4_msg_get_string_item.
