@@ -1,26 +1,38 @@
+* libl4
+  The TODO list for libl4 is in the file libl4/TODO.
+
 * configure.ac
 ** Allow user to specify location of libc.a.
 
 
 * laden
+** Implement the Generic Booting Protocol (Appendix J
+   l4-x2-20040823.pdf and newer).
 ** Overlaps between modules and destination regions should be resolved
    intelligently.
 ** Support for sigma1 needs to be added when sigma1 exists.
-** Shutdown should sleep a couple of seconds before reboot.
+** Shutdown should sleep a couple of seconds before reboot.  How can
+   this be done without any operating system (maybe use the BIOS?).
 ** When L4 supports it, the UTCB area of the rootserver should be set
    in the KIP.
-** Conventional memory overriding non-conventional memory in the
-   descriptor list is not supported.
+** Memory descriptors need to be constructed and handled carefully,
+   verify that everything is all-right.  In particular: conventional
+   memory overriding non-conventional memory in the descriptor list is
+   not supported, but should be.
 ** Add loaded modules as bootloader specific types to memory
-   descriptor list (for sigma0 and wortel).
+   descriptor list (for sigma0 and wortel).  But check with the
+   Generic Booting Protocol specification first!
 ** Fix the memory descriptors: Consistently set the high value right.
-   Mark all bootloader stuff has bootloader specific, to prevent that
+   Mark all bootloader stuff as bootloader specific, to prevent that
    L4 scribbles over it accidently.  This includes the GRUB info as
    well as all modules beyond the rootserver module.
 
+
 * wortel
+** Use the Generic Booting Protocol (Appendix J l4-x2-20040823.pdf and
+   newer).  Needs corresponding support in laden.
 ** Conventional memory overriding non-conventional memory in the
-   descriptor list is not supported.
+   descriptor list is not supported, but should be.
 
 
 * libhurd-slab
@@ -32,9 +44,7 @@
 
 * libhurd-ihash
 ** Can be merged back into the Hurd if the callers are changed.
-** Need to decide on the hurd_ihash_key_t type: unsigned int vs. uint32_t.
-   The latter seems to be sufficient.  Might even be uint64_t, though.
-   Johan Rydberg suggested uintptr_t.
+
 
 * L4 (for lack of a better place)
 ** Check that L4 does not schedule the client when the server makes a
@@ -42,7 +52,8 @@
 ** Check that L4 does schedule the server when the client makes a
    blocking call.
 
-Copyright 2003 Free Software Foundation, Inc.
+
+Copyright 2003, 2004 Free Software Foundation, Inc.
 Written by Marcus Brinkmann <marcus@gnu.org>
 
 This file is free software; as a special exception the author gives
