@@ -24,7 +24,7 @@ libc_parts_a_SOURCES =
 
 routines := memcpy memmove memset bcopy bzero memchr rawmemchr \
 	strstr strtok strchr strchrnul strcpy stpcpy strcat \
-	strcmp strncmp \
+	strcmp strncmp strlen strnlen \
 	htonl htons ntohl ntohs ffs
 
 # We have to find all modules in the archive which contain the above
