@@ -1,0 +1,101 @@
+Self-Paging
+===========
+
+Tasks in the Hurd are self-paged.  This means that it is their
+responsibility to manage their allocation of physical memory, their
+virtual address space and handle any page faults.
+
+libhurd-mm provides a default memory manager designed for the general
+application while providing hooks for applications to influence its
+operation.  Applications requiring extra special treatment such as
+garbage collectors, multimedia applications, databases and data
+analysis tools may be better off using a different memory manager or
+writing their.
+
+Memory Management
+=================
+
+libhurd-mm not only manages the virtual address space and physical
+memory but also abstract containers.
+
+Virtual Memory
+--------------
+
+When an application wishes to associate a region of virtual memory
+with backing store (either disk, anonymous or otherwise), it will call
+the memory manager to create the association between the a region in
+the virtual address space and the store.  When the application faults
+on the region, the memory manager retrieves the data from the backing
+store and places it into physical memory (paging some memory out if
+requried), installs a mapping from the physical memory server and
+restarts the faulting thread.
+
+Physical Memory Management
+--------------------------
+
+The memory manager must multiplex the physical memory when the
+application's memory requirements exceed the number of available
+guaranteed pages.  libhurd-mm is optimized for general applications
+and primary uses LRU to determine which frames to evict.  Applications
+may provide hints about actual usage use (e.g. by marking a region as
+read-once), however, it is not designed for applications where LRU is
+inadequate on average.  These applications would be better off using a
+different memory manager.
+
+Container Abstraction
+---------------------
+
+It is highly desirable to provide limited access to the physical
+memory to other applications such as fileservers.  In fact, this is
+the only way, for instance, to read data from and write data to
+Hurdish fileservers.  Using the low level interface (container_copy,
+container_gather, etc.) in addition to the standard API is difficult
+as it requires knowledge of the associations between virtual memory
+and physical memory and also requires locking pinning memory
+necessitates some type of abstraction by the memory manager.
+
+The details of this interface are currently pending.
+
+Implementation Details
+======================
+
+Data Structures
+---------------
+
+The address space is represented by a `struct as' which inclues a
+btree of mappings keyed by their location in the virtual address space
+and their size.
+
+A mapping is of type `struct map' and maps a region of virtual address
+space to backing store.  Each map points to a `struct store' and
+includes an offset into that store identifying the start of the run.
+
+A `struct store' encapsulates a backing store, e.g. a file handle or
+swap.  It includes a btree of frames in the default container keyed by
+offsets in the backing store.
+
+Faulting
+--------
+
+When a thread faults, a message is sent to the pager.  The pager looks
+up the virtual address in the address space mappings (the struct AS).
+If it finds a mapping, it looks in the store structure to see if the
+data is in a frame.  If it is, the pager requests a mapping from
+physmem (as the faulting using propagation) and installs it.  If the
+data is not in a frame, then the pager must page it in.  First, it
+finds a unused frame (freeing one if necessary).  Then, it must
+retrieve the data.  Since this could take some time, the pager thread
+borrows the faulting thread and has it request the data from the
+backing store.  When the data has been read in, the faulting thread
+requests a mapping of the data from physmem, installs it and then
+fixes itself up and resumes execution.
+
+Eviction
+--------
+
+A task has a limited amount of physical memory available to it.  Thus,
+it must multiplex the available physical memory.  When there is memory
+pressure, the pager must choose frames to evict.  Upon eviction, it
+must remove the frame from the store (if any) that is referencing it
+and it must unmap the memory so that should the application reference
+the virtual address, a page fault will be triggered.

@@ -1,5 +1,5 @@
 /* Main function for physical memory server.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -82,7 +82,7 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 {
   error_t err;
   hurd_cap_handle_t cap;
-  container_t container;
+  struct container *container;
   hurd_cap_obj_t obj;
 
   l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
@@ -120,11 +120,10 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	  else
 	    {
 	      err = container_alloc (nr_fpages, fpages, &container);
-
 	      if (err)
 		panic ("container_alloc: %i\n", err);
 
-	      obj = hurd_cap_obj_from_user (container_t, container); 
+	      obj = hurd_cap_obj_from_user (struct container *, container); 
 	      hurd_cap_obj_unlock (obj);
 
 	      err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);

@@ -1,3 +1,13 @@
+2005-01-11  Neal H. Walfield  <neal@gnu.org>
+
+	* startup.c (physmem_map): Rename . . .
+	(allocate): . . . to this.  Rewrite it.
+	(map): New function.
+	(cmain): Call map, not physmem_map.
+	* wortel.c (setup_components): Allocate an extra thread for the
+	task server.
+	(start_elf): Update assert.
+
 2005-01-10  Bas Wijnen  <shevek@fmf.nl>
 
 	* wortel.h (wortel_get_mem): Change grant_items to map_items to

@@ -1,3 +1,10 @@
+2005-01-11  Neal H. Walfield  <neal@gnu.org>
+
+	* libhurd-mm: New directory.
+	* Makefile.am (SUBDIRS): Add libhurd-mm.
+	* configure.ac: Add include for libhurd-mm/headers.m4.
+	 (AC_CONFIG_FILES): Add libhurd-mm/Makefile.
+
 2004-12-25  Neal H. Walfield  <neal@gnu.org>
 
 	* libhurd-btree: New directory.

@@ -1,3 +1,15 @@
+2005-01-11  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (physmem_SOURCES): Add frame-entry.c and frame.c
+	(physmem_LDADD): Add ../libhurd-btree/libhurd-btree.a.
+	* frame-entry.c: New file.
+	* frame.c: New file.
+	* README: Rewrite.
+	* container.c: Likewise.
+	* physmem.h: Likewise.
+	* physmem.c (create_bootstrap_caps): Change container_t to struct
+	container *.
+
 2005-01-07  Neal H. Walfield  <neal@gnu.org>
 
 	* output.h (debug): Preface __VA_ARGS__ with ## thereby making it

@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for the task server.
-# Copyright (C) 2004 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2005 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -30,7 +30,7 @@ task_CPPFLAGS = -I$(top_builddir)/include			\
 
 task_SOURCES = $(ARCH_SOURCES)					\
 	output.h output.c					\
-	physmem-user.h physmem-user.c mmap.c malloc-wrap.c	\
+	mmap.c malloc-wrap.c					\
 	task.h task.c task-class.c task-id.c thread.c
 
 # Doug Lea's malloc is included by malloc-wrap.c.
@@ -39,7 +39,9 @@ EXTRA_task_SOURCES = malloc.c
 task_LDFLAGS = -u_start -e_start -nostdlib
 
 task_LDADD = ../libhurd-cap-server/libhurd-cap-server.a		\
+	../libhurd-mm/libhurd-mm.a				\
 	../libhurd-slab/libhurd-slab.a				\
 	../libpthread/libpthread.a				\
 	../libhurd-ihash/libhurd-ihash.a			\
+	../libhurd-btree/libhurd-btree.a			\
 	../libc-parts/libc-parts.a -lgcc

@@ -26,19 +26,10 @@
 
 #include <assert.h>
 #include <string.h>
-#
+
 #include "output.h"
 
 #include "zalloc.h"
-
-
-#ifndef NDEBUG
-#define DODEBUG(level, func) \
-  do { if ((level) <= output_debug) { func; } } while (0)
-#else
-#define DODEBUG(level, func) ((void) (0))
-#endif
-
 
 /* Zalloc: A fast zone allocator.  This is not a general purpose
    allocator.  If you attempt to use it as such, you will find that it
@@ -186,8 +177,7 @@ zfree (l4_word_t block, l4_word_t size)
 {
   l4_word_t min_page_size = l4_min_page_size ();
   
-  debug ("%s: freeing block 0x%x - 0x%x\n", __func__,
-	 block, block + size);
+  //  debug ("freeing block 0x%x - 0x%x\n", block, block + size);
 
   if (size & (min_page_size - 1))
     panic ("%s: size 0x%x of freed block 0x%x is not a multiple of "
@@ -225,7 +215,7 @@ zalloc (l4_word_t size)
   unsigned int zone_nr;
   struct block *block;
 
-  debug ("%s: request for 0x%x bytes\n", __func__, size);
+  //  debug ("request for 0x%x bytes\n", size);
 
   if (size & (min_page_size - 1))
     panic ("%s: requested size 0x%x is not a multiple of "

@@ -1,5 +1,5 @@
 /* ia32-cmain.c - Startup code for the ia32.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -34,6 +34,7 @@
 
 #include <hurd/wortel.h>
 #include <hurd/startup.h>
+#include <hurd/mm.h>
 
 
 /* Initialized by the machine-specific startup-code.  */
@@ -44,12 +45,15 @@ extern struct hurd_startup_data *__hurd_startup_data;
 l4_thread_id_t wortel_thread_id;
 wortel_cap_id_t wortel_cap_id;
 
+l4_thread_id_t pager_tid;
+
 
 /* Initialize libl4, setup the argument vector, and pass control over
    to the main function.  */
 void
 cmain (void)
 {
+  error_t err;
   int argc = 0;
   char **argv = 0;
 
@@ -58,6 +62,26 @@ cmain (void)
 
   wortel_thread_id = __hurd_startup_data->wortel.server;
   wortel_cap_id = __hurd_startup_data->wortel.cap_handle;
+
+  pager_tid = l4_global_id (l4_thread_no (l4_my_global_id ()) + 1,
+			    l4_version (l4_my_global_id ()));
+
+  err = wortel_thread_control (pager_tid, l4_my_global_id (),
+			       l4_myself (), pager_tid,
+			       (void *)
+			       (l4_address (__hurd_startup_data->utcb_area)
+				+ l4_utcb_size ()));
+  if (err)
+    {
+      printf ("Unable to allocate a thread for the pager thread.\n");
+      for (;;)
+	;
+    }
+
+
+  hurd_mm_init (pager_tid);
+
+  l4_set_pager (pager_tid);
 
   argc = 1;
   argv = alloca (sizeof (char *) * 2);

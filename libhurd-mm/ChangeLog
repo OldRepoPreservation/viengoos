@@ -1,0 +1,15 @@
+2005-01-11  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am: Initial check in.
+	* README: Likewise.
+	* frame.c: Likewise.
+	* headers.m4: Likewise.
+	* map.c: Likewise.
+	* mm-init.c: Likewise.
+	* mm.h: Likewise.
+	* pager.c: Likewise.
+	* physmem-user.c: Likewise.
+	* physmem-user.h: Likewise.
+	* priv.h: Likewise.
+	* vm.c: Likewise.
+	* vm.h: Likewise.

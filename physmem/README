@@ -1,6 +1,89 @@
-physmem
-=======
+Introduction
+============
 
-For now, this is only a small dummy program, not the real physical
-memory server.
+physmem is the physical memory manager.  It has nothing to do with
+virtual memory management; that is the domain of the applications
+themselves.
 
+The physical memory server provides three different resources: memory
+control capabilities, containers and frames.
+
+Memory Control Ports
+--------------------
+
+Memory control capabilities hold the right to guarantee a number of
+frames.  A memory control capability may be split.  If a memory
+control capability, A, holds the right to 100 frames and a new memory
+control capability, B, is split from it to hold 10 frames, after the
+operation, A guarantees 90 frames and B 10.
+
+In this scenario, the B is considered the child of the A.  If B is
+destroyed it (as well as any memory control ports which have been
+split from it) are absorbed back into A and any containers and frames
+allocated using it are implicit deallocated.
+
+When a task is started, the starter may split its memory control
+capability and give a copy of the new capability to the new task.
+Alternatively, two tasks may share a memory control capability.
+
+In the former scenario, when the starter wants to terminate the child,
+it may reclaim the frames by destroying the memory control capability.
+
+Containers
+----------
+
+physmem will allocate a container given a memory control capability.
+When a frame is allocated into the container, the memory control
+capability from which it was created it charged.
+
+A container represents a name space.  Valid container names (integers)
+refer to bytes in a frame.  The contents of container are not directly
+accessible to tasks.  A task must first map the contents of a
+container into its virtual address space.
+
+Containers are used to share memory with other processes.  For
+instance, in the case of a client of a filesystem.  The client creates
+a container with a number of pages and sends it to the filesystem
+which reads the data from backing store into the memory.  Since the
+client may not be able to trust the server to not steal the physical
+frames, the client must not give the capability to it.  Hence, a
+weaker capability is provided which allows a server limited access to
+a container.
+
+Frames
+------
+
+Frames are allocated in containers at particular addresses.  A client
+may allocate any number of base page size frames at once (assuming
+that there is enough credit in the memory control capability).
+Internally, this range will immediately be converted to power of 2
+frames.
+
+Once allocated, a task may request a map of a frame from the physical
+memory server.  Maps are not guaranteed to be persistent: physmem may
+rearrange physical memory to defragment it or to clear space in a
+special zone (for instance, for DMA).  Frames, may, however, be pinned
+in place for a limited amount of time.
+
+Frames are multiplexed as well as shared across multiple tasks, it is
+useful to reallocate frames in place.  In this way, data structures
+are not torn down just to be immediately recreated and gratuitous COWs
+are not performed.  container_release disassociates frames in a region
+with any shared frames.
+
+When a frame is deallocated, physmem may not immediately unmap it from
+the client where it is safe to do so (i.e. without leaking information
+or giving a task access which it should not have).  This is useful in
+the case of highly shared read-only memory, e.g. shared libraries.
+
+Data Structures
+===============
+
+Given a container capability, a `struct container' can be derived from
+it.  A container contains a btree of frame entries keyed by their
+start index and size.
+
+A frame entry points to a `struct frame'.  Exactly one frame entry
+exists for each mapping of a frame.  Hence, the frame entry is
+per-mapping state and a frame is per-frame state.  Frames are
+reference counted.

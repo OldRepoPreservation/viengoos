@@ -1,5 +1,5 @@
 /* startup.c - Startup glue code.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -33,24 +33,65 @@
 #include <hurd/startup.h>
 
 
-void
-physmem_map (l4_thread_id_t physmem, hurd_cap_handle_t cont,
-	     l4_word_t offset, l4_word_t size, void *vaddr)
+/* Allocate SIZE bytes according to FLAGS into container CONTAINER
+   starting with index START.  *AMOUNT contains the number of bytes
+   successfully allocated.  */
+static error_t
+allocate (l4_thread_id_t server, hurd_cap_handle_t container,
+	  l4_fpage_t start, l4_word_t size,
+	  l4_word_t flags, l4_word_t *amount)
 {
   l4_msg_t msg;
   l4_msg_tag_t tag;
 
   l4_msg_clear (msg);
-  l4_set_msg_label (msg, 128 /* PHYSMEM_MAP */);
-  l4_msg_append_word (msg, cont);
-  l4_msg_append_word (msg, offset);
+  l4_set_msg_label (msg, 132 /* Magic number for container_allocate_id.  */);
+  l4_msg_append_word (msg, container);
+  l4_msg_append_word (msg, flags);
+  l4_msg_append_word (msg, start);
+  l4_msg_append_word (msg, size);
+
+  l4_msg_load (msg);
+
+  tag = l4_call (server);
+  l4_msg_store (tag, msg);
+
+  *amount = l4_msg_word (msg, 0);
+
+  return l4_msg_label (msg);
+}
+
+/* Map the memory at offset OFFSET with size SIZE at address VADDR
+   from the container CONT in the physical memory server PHYSMEM.  */
+static error_t
+map (l4_thread_id_t server, hurd_cap_handle_t container,
+     l4_word_t offset, size_t size,
+     void *vaddr, l4_word_t rights)
+{
+  l4_msg_t msg;
+  l4_msg_tag_t tag;
+
+  /* Magic!  If the offset is above 0x8000000 then we need to allocate
+     anonymous memory.  */
+  if (offset >= 0x8000000)
+    {
+      l4_word_t amount;
+      allocate (server, container, offset, size, 0, &amount);
+    }
+
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, 134 /* XXX: Magic number for container_map_id.  */);
+  l4_msg_append_word (msg, container);
+  l4_msg_append_word (msg, offset | rights);
   l4_msg_append_word (msg, size);
   l4_msg_append_word (msg, (l4_word_t) vaddr);
   l4_msg_load (msg);
-  tag = l4_call (physmem);
-  /* Check return.  */
-}
 
+  tag = l4_call (server);
+  l4_msg_store (tag, msg);
+
+  return l4_msg_label (msg);
+}
 
 /* Initialize libl4, setup the task, and pass control over to the main
    function.  */
@@ -69,16 +110,17 @@ cmain (struct hurd_startup_data *startup)
   /* First map in the startup code from physmem, instead of having it
      mapped via the starter task.  FIXME: Consider using physmem as
      our pager via a specially marked container (see TODO).  */
-  physmem_map (startup->startup.server, startup->startup.cap_handle,
-	       L4_FPAGE_FULLY_ACCESSIBLE, HURD_STARTUP_SIZE,
-	       HURD_STARTUP_ADDR);
+  map (startup->startup.server, startup->startup.cap_handle,
+       0, HURD_STARTUP_SIZE, HURD_STARTUP_ADDR,
+       L4_FPAGE_FULLY_ACCESSIBLE);
 
   for (i = 0; i < startup->mapc; i++)
     {
       struct hurd_startup_map *mapv = &startup->mapv[i];
 
-      physmem_map (mapv->cont.server, mapv->cont.cap_handle,
-		   mapv->offset, mapv->size, mapv->vaddr);
+      map (mapv->cont.server, mapv->cont.cap_handle,
+	   mapv->offset & ~0x7, mapv->size, mapv->vaddr,
+	   mapv->offset & 0x7);
     }
 
   (*(void (*) (struct hurd_startup_data *)) startup->entry_point) (startup);

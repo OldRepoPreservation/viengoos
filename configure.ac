@@ -1,5 +1,5 @@
 # configure.ac - Configure script for the GNU Hurd.
-# Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -134,6 +134,7 @@ m4_include([libhurd-btree/headers.m4])
 m4_include([libhurd-slab/headers.m4])
 m4_include([libhurd-cap/headers.m4])
 m4_include([libhurd-cap-server/headers.m4])
+m4_include([libhurd-mm/headers.m4])
 m4_include([libpthread/headers.m4])
 m4_include([wortel/headers.m4])
 
@@ -155,6 +156,7 @@ AC_CONFIG_FILES([Makefile
 		 libhurd-slab/Makefile
 		 libhurd-cap/Makefile
 		 libhurd-cap-server/Makefile
+		 libhurd-mm/Makefile
 		 libpthread/Makefile
                  laden/Makefile
                  wortel/Makefile

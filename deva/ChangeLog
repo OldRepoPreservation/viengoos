@@ -1,3 +1,18 @@
+2005-01-11  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (deva_SOURCES): Remove physmem-user.h and
+	physmem-user.c.
+	(deva_LDADD): Add ../libhurd-btree/libhurd-btree.a and
+	../libhurd-mm/libhurd-mm.a.
+	* ia32-cmain.c: Include <hurd/mm.h>.
+	(pager_tid): New global variable.
+	(cmain): Allocate a thread that the memory management subsystem
+	can use as the pager thread.  Call hurd_mm_init.  Set the
+	PAGER_TID as the current thread's pager.
+	* mmap.c: Rewrite to use new interfaces.
+	* physmem-user.h: Remove obsolete file.
+	* physmem-user.c: Likewise.
+
 2005-01-07  Neal H. Walfield  <neal@gnu.org>
 
 	* output.h (debug): Preface __VA_ARGS__ with ## thereby making it

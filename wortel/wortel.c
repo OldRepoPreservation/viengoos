@@ -1,5 +1,5 @@
 /* Main function for root server.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
@@ -255,7 +255,18 @@ setup_components (void)
 	     is not the server thread and two alternating worker
 	     threads), because it is started before the task server is
 	     running, while the others need none.  */
-	  mods[i].nr_extra_threads = (i == MOD_PHYSMEM ? 3 : 0);
+	  switch (i)
+	    {
+	    case MOD_PHYSMEM:
+	      mods[i].nr_extra_threads = 3;
+	      break;
+	    case MOD_TASK:
+	      mods[i].nr_extra_threads = 1;
+	      break;
+	    default:
+	      mods[i].nr_extra_threads = 0;
+	      break;
+	    }
 	  thread_no += mods[i].nr_extra_threads;
 
 	  /* Allocate some memory for the startup page.  We allocate
@@ -790,7 +801,7 @@ start_elf (unsigned int mod)
     panic ("Sending startup message to task thread failed: %u",
 	   l4_error_code ());
 
-  assert (!mods[mod].nr_extra_threads);
+  assert (mod == MOD_TASK || !mods[mod].nr_extra_threads);
 
   /* Now serve the first page request.  */
   {
@@ -827,6 +838,7 @@ start_elf (unsigned int mod)
 static void
 start_task (void)
 {
+  debug ("%s", "Starting task server.\n");
   start_elf (MOD_TASK);
 }
 
@@ -834,6 +846,7 @@ start_task (void)
 static void
 start_deva (void)
 {
+  debug ("%s", "Starting deva server.\n");
   start_elf (MOD_DEVA);
 }
 
@@ -841,6 +854,8 @@ start_deva (void)
 static void
 start_root_fs (void)
 {
+  debug ("%s", "Starting root fs server.\n");
+  start_elf (MOD_ROOT_FS);
 }
 
 
@@ -1151,6 +1166,7 @@ serve_bootstrap_requests (void)
 	      l4_msg_load (msg);
 	      l4_reply (from);
 
+	      debug ("%s", "Starting root fs\n");
 	      start_root_fs ();
 	    }
 	}
@@ -1454,7 +1470,7 @@ main (int argc, char *argv[])
 {
   parse_args (argc, argv);
 
-  debug ("%s " PACKAGE_VERSION "\n", program_name);
+  debug ("%s " PACKAGE_VERSION " (%x)\n", program_name, l4_my_global_id ());
 
   find_components ();
 
