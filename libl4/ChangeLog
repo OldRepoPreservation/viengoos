@@ -1,5 +1,14 @@
 2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
 
+	* powerpc/l4/bits/syscall.h (_L4_EXTERN_STUBS): Define macro and
+	include <l4/bits/stubs.h>.  Then undefine it.
+	* powerpc/l4/bits/stubs.h: Only error if _L4_EXTERN_STUBS is not
+	defined.
+	(_L4_EXTERN): New macro.
+	(__l4_syscall_stub_t): Define as macro and only add typedef if it
+	is not defined yet.
+	Use _L4_EXTERN to prefix all system stubs declarations.
+
 	* powerpc/l4/bits/syscall.h (l4_kernel_interface): Remove clobber
 	list.
 

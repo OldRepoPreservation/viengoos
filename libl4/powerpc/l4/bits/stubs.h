@@ -19,20 +19,34 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-#ifndef _L4_STUBS_H
+/* This file can be used externally to define the system call stubs,
+   or internally to declare them (by defining _L4_EXTERN_STUBS).  */
+
+#if !defined(_L4_STUBS_H) && !defined(_L4_EXTERN_STUBS)
 # error "Never use <l4/bits/stubs.h> directly; include <l4/stubs.h> instead."
 #endif
 
-typedef void (*__l4_syscall_stub_t) (void);
+#ifdef _L4_EXTERN_STUBS
+# define _L4_EXTERN extern
+#else
+# define _L4_EXTERN
+#endif
 
-__l4_syscall_stub_t __l4_exchange_registers;
-__l4_syscall_stub_t __l4_thread_control;
-__l4_syscall_stub_t __l4_system_clock;
-__l4_syscall_stub_t __l4_thread_switch;
-__l4_syscall_stub_t __l4_schedule;
-__l4_syscall_stub_t __l4_ipc;
-__l4_syscall_stub_t __l4_lipc;
-__l4_syscall_stub_t __l4_unmap;
-__l4_syscall_stub_t __l4_space_control;
-__l4_syscall_stub_t __l4_processor_control;
-__l4_syscall_stub_t __l4_memory_control;
+#ifndef __l4_syscall_stub_t
+typedef void (*__l4_syscall_stub_t) (void);
+# define __l4_syscall_stub_t __l4_syscall_stub_t
+#endif
+
+_L4_EXTERN __l4_syscall_stub_t __l4_exchange_registers;
+_L4_EXTERN __l4_syscall_stub_t __l4_thread_control;
+_L4_EXTERN __l4_syscall_stub_t __l4_system_clock;
+_L4_EXTERN __l4_syscall_stub_t __l4_thread_switch;
+_L4_EXTERN __l4_syscall_stub_t __l4_schedule;
+_L4_EXTERN __l4_syscall_stub_t __l4_ipc;
+_L4_EXTERN __l4_syscall_stub_t __l4_lipc;
+_L4_EXTERN __l4_syscall_stub_t __l4_unmap;
+_L4_EXTERN __l4_syscall_stub_t __l4_space_control;
+_L4_EXTERN __l4_syscall_stub_t __l4_processor_control;
+_L4_EXTERN __l4_syscall_stub_t __l4_memory_control;
+
+#undef _L4_EXTERN

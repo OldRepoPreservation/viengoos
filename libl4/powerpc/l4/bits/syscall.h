@@ -23,6 +23,11 @@
 # error "Never use <l4/bits/syscall.h> directly; include <l4/syscall.h> instead."
 #endif
 
+/* Declare the system call stubs.  */
+#define _L4_EXTERN_STUBS	1
+#include <l4/bits/stubs.h>
+#undef _L4_EXTERN_STUBS
+
 
 /* These are the clobber registers.  R1, R2, R30, R31, and all
    floating point registers are preserved.  R3 to R10 are used in
