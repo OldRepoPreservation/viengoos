@@ -1,5 +1,7 @@
 2003-09-18  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/types.h (L4_WORD_C): Fix macro.
+
 	* l4.h (l4_init): Move to ...
 	* l4/init.h (l4_init): ... here.  New file.
 
