@@ -457,7 +457,7 @@ serve_bootstrap_requests (void)
 	{
 	  if (l4_untyped_words (msg_tag) != 2 || l4_typed_words (msg_tag) != 0)
 	    panic ("Invalid format of page fault message");
-	  panic ("Unexpected page fault from 0x%xat address 0x%x (IP 0x%x)",
+	  panic ("Unexpected page fault from 0x%x at address 0x%x (IP 0x%x)",
 		 from.raw, l4_msg_word (&msg, 0), l4_msg_word (&msg, 1));
 	}
       else

@@ -23,21 +23,36 @@ $ cp wortel/wortel /l4/boot
 $ cp physmem/physmem /l4/boot
 
 
-Installation
-------------
+Installation on ia32
+--------------------
 
 Prerequisites: Pistachio-0.2 with the patch you can find at the end of
-this file.
+this file.  You can find information about how to download the
+Pistachio source distribution (which includes the kernel and sigma0)
+at the following URL:
 
-Furthermore, sigma0 must be built with a different link base than the
-default value 0x20000, because that conflicts with GRUB (on ia32).  I
-have successfully used a link base of 0x40000.
+http://www.l4ka.org/projects/pistachio/download.php
+
+sigma0 must be built with a different link base than the default value
+0x20000, because that conflicts with GRUB (on ia32).  I have
+successfully used a link base of 0x40000.
 
 Then set up GRUB to boot laden as the kernel, and the L4 kernel,
-sigma0, wortel (the rootserver) and physmem as its modules.
+sigma0, wortel (the rootserver) and physmem as its modules (in that
+order).
 
 Try the debug option (-D) to laden and wortel to see some output from
 them.  They are silent by default.
+
+Here is an example menu.lst file for GNU GRUB:
+
+title The GNU Hurd on L4
+root (hd0,0)
+kernel /boot/laden -D
+module /boot/ia32-kernel
+module /boot/sigma0
+module /boot/wortel -D
+module /boot/physmem
 
 
 sigma0 Patch

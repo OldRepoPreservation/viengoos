@@ -1,1 +1,9 @@
+The bunch of it was written by:
 Marcus Brinkmann <marcus@gnu.org>
+
+The libhurd-slab allocator implementation (libhurd-slab/slab.c):
+Johan Rydberg  <jrydberg@night.trouble.net>
+
+The zone allocator physmem/zalloc.h, physmem/zalloc.c was originally
+written by:
+Neal H Walfield <neal@walfield.org>
