@@ -1,3 +1,7 @@
+2004-03-30  Wolfgang Jährling  <wolfgang@pro-linux.de>
+
+	* README: Doc fixes.
+
 2003-03-30  Wolfgang Jährling  <wolfgang@pro-linux.de>
 
 	* l4/types.h (_L4_WORDSIZE_32, _L4_WORDSIZE_64): Removed.

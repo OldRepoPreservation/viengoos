@@ -71,11 +71,11 @@ provide its own versions of the global variables (from <l4/globals.h>).
 What if I am not using the dynamic linker?
 ------------------------------------------
 
-If you are not using the dynamic linker, you can either link to libl4,
-or include <l4/globals.h> and <l4/stubs.h> somewhere (but only once
-each!)  in your program.  You also have to run l4_init() (defined in
-<l4/init.h>) and l4_init_stubs() (defined in <l4/stubs-init.h>) to
-initialize the global variables and fixup the system call stubs.
+If you are not using the dynamic linker, include <l4/globals.h> and
+<l4/stubs.h> somewhere (but only once each!) in your program.  You
+also have to run l4_init() (defined in <l4/init.h>) and
+l4_init_stubs() (defined in <l4/stubs-init.h>) to initialize the
+global variables and fixup the system call stubs.
 
 
 What compiler do I need?
@@ -101,8 +101,8 @@ What is the status of the library?
 
 The following interfaces are provided
 
-compat	Enabled by default or if _L4_INTERFACE_COMPAT is defined, can
-	be disabled by defining _L4_NON_COMPAT.
+compat	Enabled by default or if _L4_INTERFACE_L4 is defined, can
+	be disabled by defining _L4_NOT_COMPAT.
 
 The compat interface is supposed to (eventually) be a drop-in
 replacement for the official libl4 library.  Currently, this is not
