@@ -1,3 +1,7 @@
+2004-04-05  Marcus Brinkmann  <marcus@gnu.org>
+
+	* assert.h (assert): Fix last change.
+
 2004-03-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* assert.h (assert): Provide a dummy statement.

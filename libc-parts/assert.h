@@ -23,7 +23,7 @@
 #define _ASSERT_H 1
 
 /* Asserts aren't supported at the moment.  */
-#define assert(expr)	while (0);
+#define assert(expr)	do { } while (0)
 #define assert_perror(err) assert(err == 0)
 
 #endif /* assert.h */
