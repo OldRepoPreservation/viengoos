@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #include <l4/globals.h>
+#include <l4/init.h>
 #include <l4/stubs.h>
 #include <l4/stubs-init.h>
 
