@@ -189,9 +189,9 @@ loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
 
   /* FIXME: Some architectures support both word sizes.  */
   if (!((elf->e_ident[EI_CLASS] == ELFCLASS32
-	 && L4_WORD_SIZE == 32)
+	 && L4_WORDSIZE == 32)
 	|| (elf->e_ident[EI_CLASS] == ELFCLASS64
-	    && L4_WORD_SIZE == 64)))
+	    && L4_WORDSIZE == 64)))
     panic ("%s has invalid word size", name);
   if (!((elf->e_ident[EI_DATA] == ELFDATA2LSB
 	 && L4_BYTE_ORDER == L4_LITTLE_ENDIAN)
