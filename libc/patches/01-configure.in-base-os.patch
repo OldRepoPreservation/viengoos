@@ -1,0 +1,38 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+This patch is needed because the GNU system ID string does not differ
+between Mach or L4.
+
+The second part of the patch applies to configure script (but instead
+configure should be regenerated).
+
+2004-11-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* configure.in (base_os): Set to l4/hurd for GNU.
+
+--- libc/configure.in	2004-11-03 21:57:29.000000000 +0100
++++ libc/configure.in	2004-10-27 15:50:54.000000000 +0200
+@@ -500,7 +500,7 @@
+ 
+ case "$os" in
+ gnu*)
+-  base_os=mach/hurd ;;
++  base_os=l4/hurd ;;
+ netbsd* | 386bsd* | freebsd* | bsdi*)
+   base_os=unix/bsd/bsd4.4 ;;
+ osf* | sunos* | ultrix* | newsos* | dynix* | *bsd*)
+
+
+--- libc/configure	2004-10-27 15:50:54.000000000 +0200
++++ libc/configure	2004-11-19 02:05:52.000000000 +0100
+@@ -2002,7 +2002,7 @@ os="`echo $os | sed 's/\([0-9A-Z]\)[v_]\
+ 
+ case "$os" in
+ gnu*)
+-  base_os=mach/hurd ;;
++  base_os=l4/hurd ;;
+ netbsd* | 386bsd* | freebsd* | bsdi*)
+   base_os=unix/bsd/bsd4.4 ;;
+ osf* | sunos* | ultrix* | newsos* | dynix* | *bsd*)

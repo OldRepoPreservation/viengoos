@@ -1,0 +1,51 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+This patch adds the ${add-on}/sysdeps/generic directory for all
+configured add-ons.
+
+The second part of the patch applies to configure script (but instead
+configure should be regenerated).
+
+2004-11-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* configure.in (sysnames): Add sysdeps/generic in all
+	add-ons.
+
+--- libc/configure.in	2004-11-03 21:57:29.000000000 +0100
++++ libc/configure.in	2004-10-27 15:50:54.000000000 +0200
+@@ -593,6 +593,14 @@
+       done
+     done
+   done
++  if test -n "$d"; then
++    try="${d}sysdeps/generic"
++    test -n "$enable_debug_configure" &&
++    echo "$0 DEBUG: try $try" >&2
++    if test -d $srcdir/$try; then
++      sysnames="$sysnames $try"
++    fi
++  fi
+ done
+ IFS="$ac_save_ifs"
+ 
+
+
+--- libc/configure	2004-10-27 15:50:54.000000000 +0200
++++ libc/configure	2004-11-19 02:05:52.000000000 +0100
+@@ -2093,6 +2093,14 @@ for d in $add_ons_pfx ''; do
+       done
+     done
+   done
++  if test -n "$d"; then
++    try="${d}sysdeps/generic"
++    test -n "$enable_debug_configure" &&
++    echo "$0 DEBUG: try $try" >&2
++    if test -d $srcdir/$try; then
++      sysnames="$sysnames $try"
++    fi
++  fi
+ done
+ IFS="$ac_save_ifs"
+ 

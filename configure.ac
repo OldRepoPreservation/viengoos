@@ -72,13 +72,15 @@ AC_CANONICAL_HOST
 
 AC_MSG_CHECKING([for static GNU C library])
 static_libc=libc.a
-echo $host_os
 case $host_os in
   gnu*)
-    echo HALLO
     # On the GNU/Hurd, libc.a is a linker script, the real C library
-    # can be found in libcrt.a instead.
-    static_libc=libcrt.a
+    # can be found in libcrt.a instead.  But fall back on libc.a for
+    # cheap cross-compilation.
+    libcrta=`$CC -print-file-name=libcrt.a`
+    if test "x$libcrta" != "xlibcrt.a"; then
+      static_libc=libcrt.a
+    fi
     ;;
 esac
 STATIC_GLIBC=`$CC -print-file-name=$static_libc`
@@ -153,6 +155,13 @@ m4_include([libhurd-mm/headers.m4])
 m4_include([libpthread/headers.m4])
 m4_include([wortel/headers.m4])
 
+# Check for libc and components using it.
+
+AC_ARG_WITH([libc],
+[  --with-libc             compile with the GNU C library (see libc/README)])
+AM_CONDITIONAL(WITH_LIBC, test x"${with_libc-no}" != xno)
+
+
 if test "x$missing_progs" != "x"; then
   AC_MSG_ERROR([The following programs were not found:$missing_progs])
 fi
@@ -178,6 +187,7 @@ AC_CONFIG_FILES([Makefile
                  physmem/Makefile
                  task/Makefile
                  deva/Makefile
+		 libc/Makefile
                  ruth/Makefile
 		 doc/Makefile])
 AC_OUTPUT

@@ -1,0 +1,23 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+This change makes sysdeps/generic/profil-counter.h compile on a
+generic target.  Other parts of glibc depend on sc_pc nowadays.
+
+2004-11-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* sysdeps/generic/bits/sigcontext.h (struct sigcontext):
+	New member sc_pc.
+
+
+--- ../cvs/libc/sysdeps/generic/bits/sigcontext.h	2001-07-06 06:55:50.000000000 +0200
++++ libc/sysdeps/generic/bits/sigcontext.h	2004-11-19 03:51:05.000000000 +0100
+@@ -28,6 +28,7 @@ struct sigcontext
+     __sigset_t sc_mask;
+ 
+     /* Registers and such.  */
++    void *sc_pc;
+   };
+ 
+ /* Signal subcodes should be defined here.  */

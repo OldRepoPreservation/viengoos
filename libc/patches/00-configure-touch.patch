@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# We need to touch some generated files so they are not regenerated
+# accidentially.
+
+touch sysdeps/i386/configure
+touch sysdeps/i386/elf/configure
+touch nptl/sysdeps/pthread/configure
+
+exit $?

@@ -1,0 +1,30 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+2004-11-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* sysdeps/generic/getpeername.c (getpeername): Rename and make
+	it a weak alias to ...
+	(__getpeername): ... this.
+
+--- libc/sysdeps/generic/getpeername.c	2001-07-06 06:55:49.000000000 +0200
++++ libc/sysdeps/generic/getpeername.c	2004-11-22 06:24:30.000000000 +0100
+@@ -22,7 +22,7 @@
+ /* Put the address of the peer connected to socket FD into *ADDR
+    (which is *LEN bytes long), and its actual length into *LEN.  */
+ int
+-getpeername (fd, addr, len)
++__getpeername (fd, addr, len)
+      int fd;
+      __SOCKADDR_ARG addr;
+      socklen_t *len;
+@@ -30,7 +30,7 @@ getpeername (fd, addr, len)
+   __set_errno (ENOSYS);
+   return -1;
+ }
+-
++weak_alias (__getpeername, getpeername)
+ 
+ stub_warning (getpeername)
+ #include <stub-tag.h>

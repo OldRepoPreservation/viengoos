@@ -1,0 +1,55 @@
+The GNU C library
+=================
+
+This will be a port of the GNU C library to the Hurd system running on
+L4.
+
+Configuring and Building
+------------------------
+
+This directory is only built if you specify "--enable-libc" at
+configure time.
+
+Because the GNU C library is huge, it is not shipped with this source
+package.  You have to retrieve it manually.  This can be done
+semi-automatically by entering in the BUILD directory (after
+configuring this source tree):
+
+$ mkdir hurd-l4-build
+$ cd hurd-l4-build
+$ configure ../hurd-l4/configure --prefix=/l4 --enable-maintainer-mode \
+		--build=i686-linux --host=i686-gnu
+$ make -C libc libc-cvs
+
+This will check out the right glibc version via CVS.  It is
+recommended that you save a copy of this version and copy it to the
+libc directory instead downloading it the next time around, to save
+bandwidth and reduced the stress on the CVS server.
+
+$ cp -a libc ~/libc-for-hurd-l4
+
+(next time around:)
+
+$ configure ../hurd-l4/configure --prefix=/l4 --enable-maintainer-mode \
+		--build=i686-linux --host=i686-gnu
+$ cp -a ~/libc-for-hurd-l4 libc/libc
+
+The Makefile will always download a tested, working version of the C
+library.  But you can copy any version to the libc directory and try
+your luck.
+
+The downloaded or installed version of the GNU C library source _will_
+be modified when you build the package!  So, please, make a copy
+before running "make".  The Makefile rules are a bit simple and
+reverting the modifications is not fully supported.  So, if the
+patches or add-ons are modified, you will probably need to rebuild
+from scratch.  The clean rules are not tested.
+
+
+Hacking
+-------
+
+If you want to hack this, have fun!  Without fun, it is a daunting task.
+
+
+- Marcus

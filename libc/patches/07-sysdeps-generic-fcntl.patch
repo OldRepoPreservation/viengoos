@@ -1,0 +1,36 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+2004-11-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* sysdeps/generic/fcntl.c (__fcntl): Rename to ...
+	(__libc_fcntl): ... this.
+	(__fcntl): Make it weak hidden alias to __libc_fcntl.
+	(fcntl): Make it a weak alias to __libc_fcntl.
+
+--- libc/sysdeps/generic/fcntl.c	2002-08-03 08:35:52.000000000 +0200
++++ libc/sysdeps/generic/fcntl.c	2004-11-22 21:08:42.000000000 +0100
+@@ -21,7 +21,7 @@
+ 
+ /* Perform file control operations on FD.  */
+ int
+-__fcntl (fd, cmd)
++__libc_fcntl (fd, cmd)
+      int fd;
+      int cmd;
+ {
+@@ -34,8 +34,11 @@ __fcntl (fd, cmd)
+   __set_errno (ENOSYS);
+   return -1;
+ }
+-libc_hidden_def (__fcntl)
++libc_hidden_def (__libc_fcntl)
+ stub_warning (fcntl)
+ 
+-weak_alias (__fcntl, fcntl)
++weak_alias (__libc_fcntl, __fcntl)
++libc_hidden_weak (__fcntl)
++weak_alias (__libc_fcntl, fcntl)
++
+ #include <stub-tag.h>

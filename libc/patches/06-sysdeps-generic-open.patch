@@ -1,0 +1,36 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+2004-11-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* sysdeps/generic/open.c (__open): Rename to ...
+	(__libc_open): ... this.
+	(__open): Make it weak hidden alias to __libc_open.
+	(open): Make it a weak alias to __libc_open.
+
+--- libc/sysdeps/generic/open.c	2002-08-03 08:37:37.000000000 +0200
++++ libc/sysdeps/generic/open.c	2004-11-22 20:50:41.000000000 +0100
+@@ -24,7 +24,7 @@
+ /* Open FILE with access OFLAG.  If OFLAG includes O_CREAT,
+    a third argument is the file protection.  */
+ int
+-__open (file, oflag)
++__libc_open (file, oflag)
+      const char *file;
+      int oflag;
+ {
+@@ -47,8 +47,11 @@ __open (file, oflag)
+   __set_errno (ENOSYS);
+   return -1;
+ }
+-libc_hidden_def (__open)
++libc_hidden_def (__libc_open)
+ stub_warning (open)
+ 
+-weak_alias (__open, open)
++weak_alias (__libc_open, __open)
++libc_hidden_weak (__open)
++weak_alias (__libc_open, open)
++
+ #include <stub-tag.h>
