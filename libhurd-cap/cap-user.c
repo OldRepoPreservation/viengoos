@@ -20,6 +20,9 @@
 
 #include <stdlib.h>
 #include <pthread.h>
+#include <assert.h>
+#include <errno.h>
+#include <error.h>
 
 #include <hurd/cap.h>
 
@@ -162,11 +165,9 @@ _hurd_cap_sconn_enter (l4_thread_id_t server_thread, uint32_t scid,
 	  return err;
 	}
 
-      cap->srefs = 0;
       cap->sconn = sconn;
       cap->scid = scid;
       cap->dead_cb = NULL;
-      cap->orefs = 0;
 
       err = hurd_ihash_enter (sconn->id_to_cap, scid, cap);
       if (err)

@@ -19,6 +19,9 @@
    02111-1307 USA.  */
 
 #include <stdlib.h>
+#include <errno.h>
+#include <error.h>
+
 #include <hurd/slab.h>
 
 

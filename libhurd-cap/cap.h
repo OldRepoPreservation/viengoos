@@ -19,6 +19,7 @@
    02111-1307 USA.  */
 
 #include <pthread.h>
+#include <error.h>
 
 #include <hurd/ihash.h>
 #include <hurd/slab.h>

@@ -19,6 +19,9 @@
    02111-1307 USA.  */
 
 #include <stdlib.h>
+#include <assert.h>
+#include <error.h>
+
 #include <pthread.h>
 
 #include <hurd/cap.h>
@@ -26,6 +29,7 @@
 #include "cap-intern.h"
 
 
+/* The slab space for capability objects.  */
 hurd_slab_space_t cap_space;
 
 
@@ -66,12 +70,8 @@ cap_destructor (void *buffer)
 error_t
 hurd_cap_init (void)
 {
-  error_t err;
-
-  err = hurd_slab_space_create (&cap_space, cap_constructor,
-				cap_deconstructor);
-  if (err)
-    return err;
+  return hurd_slab_create (sizeof (struct hurd_cap),
+			   cap_constructor, cap_deconstructor, &cap_space);
 }
 
 
@@ -143,7 +143,7 @@ hurd_cap_mod_refs (hurd_cap_t cap, int delta)
     {
       /* Return the capability to the pool.  */
       pthread_mutex_unlock (&cap->lock);
-      hurd_slab_dealloc (cap_space, cap);
+      hurd_slab_dealloc (cap_space, (void *) cap);
     }
   else
     pthread_mutex_unlock (&cap->lock);
@@ -220,7 +220,7 @@ hurd_cap_obj_mod_refs (hurd_cap_t cap, int delta)
     {
       /* Return the capability to the pool.  */
       pthread_mutex_unlock (&cap->lock);
-      hurd_slab_dealloc (cap_space, cap);
+      hurd_slab_dealloc (cap_space, (void *) cap);
     }
   else
     pthread_mutex_unlock (&cap->lock);
