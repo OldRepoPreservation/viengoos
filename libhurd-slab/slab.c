@@ -18,9 +18,6 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-/* Known limitation: No memory is returned to the system.  As a
-   side-effect, the destructor will never be called.  */
-
 #if HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -32,19 +29,19 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <stdint.h>
 
 #include "slab.h"
 
 
-/* We do just want to initialize the allocator once.  */
-static pthread_once_t __hurd_slab_init = PTHREAD_ONCE_INIT;
-
 /* Number of pages the slab allocator has allocated.  */
 static int __hurd_slab_nr_pages;
 
-/* Internal slab used to allocate hurd_slab_space structures.  */
-static hurd_slab_space_t __hurd_slab_space;
+/* List of created slab spaces.  */
+static hurd_slab_space_t space_list;
 
+/* Protect __hurd_space_list.  */
+static pthread_mutex_t list_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Buffer control structure.  Lives at the end of an object.  If the
    buffer is allocated, SLAB points to the slab to which it belongs.
@@ -79,6 +76,9 @@ struct hurd_slab_space
 {
   struct hurd_slab *slab_first;
   struct hurd_slab *slab_last;
+
+  /* Link in the list of created slab spaces.  */
+  struct hurd_slab_space *space_next;
 
   /* In the double linked list of slabs, empty slabs come first,
      after that there is the slabs that have some buffers allocated,
@@ -121,6 +121,107 @@ insert_slab (struct hurd_slab_space *space, struct hurd_slab *slab)
     }
 }
 
+/* Remove SLAB from list of slabs in SPACE.  */
+static void
+remove_slab (struct hurd_slab_space *space, struct hurd_slab *slab)
+{
+  if (slab != space->slab_first
+      && slab != space->slab_last)
+    {
+      slab->next->prev = slab->prev;
+      slab->prev->next = slab->next;
+      return;
+    }
+  if (slab == space->slab_first)
+    {
+      space->slab_first = slab->next;
+      if (space->slab_first)
+	space->slab_first->prev = NULL;
+    }
+  if (slab == space->slab_last)
+    {
+      if (slab->prev)
+	slab->prev->next = NULL;
+      space->slab_last = slab->prev;
+    }
+}
+
+/* Iterate through slabs in SPACE and release memory for slabs that
+   are complete (no allocated buffers).  */
+error_t
+reap (struct hurd_slab_space *space)
+{
+  struct hurd_slab *s, *next, *new_first;
+  error_t err = 0;
+
+  pthread_mutex_lock (&space->lock);
+
+  for (s = space->slab_first; s; s = next)
+    {
+      next = s->next;
+
+      /* If the reference counter is zero there is no allocated
+	 buffers, so it can be freed.  */
+      if (!s->refcount)
+	{
+	  remove_slab (space, s);
+	  
+	  /* If there is a destructor it must be invoked for every 
+	     buffer in the slab.  */
+	  if (space->destructor)
+	    {
+	      union hurd_bufctl *bufctl;
+	      for (bufctl = s->free_list; bufctl; bufctl = bufctl->next)
+		{
+		  void *buffer = (((void *) bufctl) 
+				  - (space->size - sizeof *bufctl));
+		  (*space->destructor) (buffer);
+		}
+	    }
+	  /* The slab is located at the end of the page (with the buffers
+	     in front of it), get address by masking with page size.  
+	     This frees the slab and all its buffers, since they live on
+	     the same page.  */
+	  err = munmap 
+	    ((void *) (((uintptr_t) s) & ~(getpagesize () - 1)),
+	     getpagesize ());
+	  if (err)
+	    break;
+	  __hurd_slab_nr_pages--;
+	}
+    }
+
+  /* Even in the case of an error, first_free must be updated since
+     that slab may have been deallocated.  */
+  new_first = space->slab_first;
+  while (new_first)
+    {
+      if (new_first->refcount != space->full_refcount)
+	break;
+      new_first = new_first->next;
+    }
+  space->first_free = new_first;
+
+  pthread_mutex_unlock (&space->lock);
+  return err;
+}
+
+/* Release unused memory.  */
+error_t
+hurd_slab_reap (void)
+{
+  struct hurd_slab_space *space;
+  error_t err = 0;
+
+  pthread_mutex_lock (&list_lock);
+  for (space = space_list; space; space = space->space_next)
+    {
+      if ((err = reap (space)))
+	break;
+    }
+  pthread_mutex_unlock (&list_lock);
+  return err;
+}
 
 /* SPACE has no more memory.  Allocate new slab and insert it into the
    list, repoint free_list and return possible error.  */
@@ -170,19 +271,19 @@ grow (struct hurd_slab_space *space)
   return 0;
 }
 
-
-/* Initialize the internal slab space used for allocating other slab
-   spaces.  The usual chicken and the egg problem.  */
+/* Insert SPACE into list of created slab spaces.  */
 static void
-init_allocator (void)
+insert_space (struct hurd_slab_space *space)
 {
-  __hurd_slab_space = malloc (sizeof (struct hurd_slab_space));
-  __hurd_slab_space->size = (sizeof (struct hurd_slab_space)
-			     + sizeof (union hurd_bufctl));
-  __hurd_slab_space->full_refcount = ((getpagesize () 
-				       - sizeof (struct hurd_slab))
-				      / __hurd_slab_space->size);
-  pthread_mutex_init (&__hurd_slab_space->lock, NULL);
+  pthread_mutex_lock (&list_lock);
+  if (!space_list)
+    space_list = space;
+  else
+    {
+      space->space_next = space_list;
+      space_list = space;
+    }
+  pthread_mutex_unlock (&list_lock);
 }
 
 
@@ -202,16 +303,15 @@ hurd_slab_create (size_t size, size_t alignment,
 	      - sizeof (union hurd_bufctl)))
     return EINVAL;
 
-  pthread_once (&__hurd_slab_init, init_allocator);
-
-  if ((err = hurd_slab_alloc (__hurd_slab_space, (void **) space)))
-    return err;
+  *space = malloc (sizeof (struct hurd_slab_space));
+  if (!*space)
+    return ENOMEM;
   memset (*space, 0, sizeof (struct hurd_slab_space));
 
   err = pthread_mutex_init (&(*space)->lock, NULL);
   if (err)
     {
-      hurd_slab_dealloc (__hurd_slab_space, *space);
+      free (*space);
       return err;
     }
 
@@ -230,6 +330,8 @@ hurd_slab_create (size_t size, size_t alignment,
   /* Calculate the number of objects that fit in a slab.  */
   (*space)->full_refcount 
     = ((getpagesize () - sizeof (struct hurd_slab)) / (*space)->size);
+
+  insert_space (*space);
   return 0;
 }
 

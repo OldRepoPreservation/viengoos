@@ -47,4 +47,7 @@ error_t hurd_slab_alloc (hurd_slab_space_t space, void **buffer);
 /* Deallocate the object BUFFER from the slab space SPACE.  */
 void hurd_slab_dealloc (hurd_slab_space_t space, void *buffer);
 
+/* Release unused memory.  */
+error_t hurd_slab_reap (void);
+
 #endif	/* _HURD_SLAB_H */
