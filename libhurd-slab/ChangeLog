@@ -1,3 +1,8 @@
+2003-09-17  Johan Rydberg  <jrydberg@night.trouble.net>
+
+	* slab.h: Add alignment argument.
+	* slab.c: Rewrittten.
+
 2003-08-17  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Initial check-in.

@@ -27,8 +27,7 @@
 
 
 * libhurd-slab
-** This is only a dummy implementation (Johan Rydberg is working on a
-   real one).
+** Provide a way to release resources.
 ** Ideally this would be a feature in glibc.
 
 

@@ -34,9 +34,9 @@ struct hurd_slab_space;
 typedef struct hurd_slab_space *hurd_slab_space_t;
 
 
-/* Create a new slab space with the given object size, constructor and
-   destructor.  */
-error_t hurd_slab_create (size_t size,
+/* Create a new slab space with the given object size, alignment, 
+   constructor and destructor.  ALIGNMENT can be zero.  */
+error_t hurd_slab_create (size_t size, size_t alignment,
 			  hurd_slab_constructor_t constructor,
 			  hurd_slab_destructor_t destructor,
 			  hurd_slab_space_t *space);

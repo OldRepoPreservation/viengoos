@@ -18,9 +18,8 @@ allocators:
 
 http://citeseer.nj.nec.com/bonwick94slab.html
 
-The current implementation in libhurd-slab is only a dummy
-implementation using malloc and free, though.
-
+The current implementation in libhurd-slab was written by Johan
+Rydberg, <jrydberg@night.trouble.net>.
 
 
 Copyright 2003 Free Software Foundation, Inc.

@@ -75,7 +75,7 @@ cap_destructor (void *buffer)
 error_t
 hurd_cap_init (void)
 {
-  return hurd_slab_create (sizeof (struct hurd_cap),
+  return hurd_slab_create (sizeof (struct hurd_cap), 0,
 			   cap_constructor, cap_destructor, &cap_space);
 }
 
