@@ -1,3 +1,11 @@
+2003-09-22  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (AM_CPPFLAGS, physmem_CFLAGS): Removed.
+	(physmem_CPPFLAGS): New variable.
+	(physmem_SOURCES): Add malloc-wrap.c.
+	(EXTRA_physmem_SOURCES): New variable.
+	* malloc.c, malloc-wrap.c: New files.
+
 2003-09-21  Marco Gerards  <metgerards@student.han.nl>
 
 	* Makefile.am (AM_CPPFLAGS): New variable.
