@@ -52,7 +52,7 @@ typedef l4_word_t hurd_cap_handle_t;
    know that even on 64 bit architectures, both fit into a 32 bit
    integer value.  */
 #define HURD_CAP_CLIENT_ID_BITS	HURD_TASK_ID_BITS
-#define HURD_CAP_ID_BITS	((sizeof (hurd_cap_t) * 8) - HURD_TASK_ID_BITS)
+#define HURD_CAP_ID_BITS ((sizeof (hurd_cap_handle_t) * 8) - HURD_TASK_ID_BITS)
 
 #define _HURD_CAP_CLIENT_ID_MASK \
   ((L4_WORD_C(1) << HURD_CAP_CLIENT_ID_BITS) - 1)
@@ -81,7 +81,7 @@ hurd_cap_id (hurd_cap_handle_t cap)
 
 
 /* Create a new capability handle from the client and cap ID.  */
-static inline hurd_cap_t
+static inline hurd_cap_handle_t
 hurd_cap_handle_make (hurd_cap_client_id_t client_id, hurd_cap_id_t cap_id)
 {
   return ((client_id & _HURD_CAP_CLIENT_ID_MASK) << HURD_CAP_ID_BITS)
