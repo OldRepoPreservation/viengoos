@@ -110,6 +110,7 @@ m4_include([libhurd-slab/headers.m4])
 m4_include([libhurd-cap/headers.m4])
 m4_include([libhurd-cap-server/headers.m4])
 m4_include([libpthread/headers.m4])
+m4_include([wortel/headers.m4])
 
 if test "x$missing_progs" != "x"; then
   AC_MSG_ERROR([The following programs were not found:$missing_progs])
