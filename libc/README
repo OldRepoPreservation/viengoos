@@ -10,6 +10,11 @@ Configuring and Building
 This directory is only built if you specify "--enable-libc" at
 configure time.
 
+Before you do this, you should first compile and install the software
+with "--disable-libc" (which is the default), to make sure that the
+Hurd and libl4 header files are installed and available to the
+compiler.
+
 Because the GNU C library is huge, it is not shipped with this source
 package.  You have to retrieve it manually.  This can be done
 semi-automatically by entering in the BUILD directory (after
@@ -50,6 +55,186 @@ Hacking
 -------
 
 If you want to hack this, have fun!  Without fun, it is a daunting task.
+
+
+Startup
+-------
+
+When a new task is executed, the startup code for ELF
+(wortel/startup.c) will set up the following initial configuration
+before passing control to the entry point of the ELF executable:
+
+1. The ELF sections marked as LOAD are mapped into the virtual memory
+   of the program.
+
+   FIXME: This is wrong.  The physmem server may drop those mappings
+   at any time.  Instead:
+
+   The pager should be set to the physical memory server, and
+   the physical memory server should act as a fallback pager that maps
+   in the ELF sections on demand.  For this, the client must be
+   associated with a special memory object in physmem.  The memory object
+   for this must then be set up in advance.  This memory object will
+   have something like the following layout:
+
+   ELF memory object:
+   START        END        ALLOC                          MAX ACCESS
+   0x00100000 - 0x00108000 anon, init'd with startup code rw-
+   0x08000000 - 0x08015fff shared (from the exec'd file), r-x
+   0x08016000 - 0x08016fff c-o-w  (from the exec'd file), rw-
+   0x08017000 - 0x08017fff anon (but see below),          rw-
+                           bytes 0x00017000 - 0x00017C30 would be initialized
+                           with content from the exec'd file
+
+   This example corresponds with the following ELF header:
+
+   LOAD off    0x00000000 vaddr 0x00000000 paddr 0x00000000 align 2**12
+        filesz 0x00015474 memsz 0x00015474 flags r-x
+   LOAD off    0x00015480 vaddr 0x00016480 paddr 0x00016480 align 2**12
+        filesz 0x000017b0 memsz 0x000019b8 flags rw-
+
+2. The entry point will be invoked as if it were a function which gets
+   a pointer to the Hurd startup data as its first argument.
+
+   You can find the Hurd startup data layout in wortel/startup.h.
+
+FIXME: The stack layout described in Process Initialization, p. 3-26
+in System V Application Binary Interface - Intel386 Architecture
+Processor Supplement, Fourth Edition
+http://www.caldera.com/developers/devspecs/abi386-4.pdf
+is like this:
+
+High:	unspecified
+	info block (arg strings, env strings, aux info, etc)
+	unspecified
+	null aux vector
+	aux vectors (2-word entries)
+	0 word
+	env pointers
+	0 word
+	arg pointers
+4(%esp)	0 word
+0(%esp)	arg count
+Low:	undefined
+
+Also specified:
+
+%ebp:	unspecified, should be set to 0 by user.
+%esp:	see above
+%edx:	used for shared linking
+%cs,%ds,%es,%ss: set up by kernel
+
+Aux vector: We can use it, at least to specify a pointer to the hurd
+startup data in the info block.  (Although it may be misleading to
+support an aux vector at all).
+
+
+Initialization
+--------------
+
+(Also see http://ldp.paradoxical.co.uk/LDP/LGNET/issue84/hawk.html)
+
+All the following only applies to statically linked programs.
+Dynamically linked programs work differently.
+
+We produce an empty executable like this:
+
+$ cd libc-build
+$ echo 'main(){}' > main.c
+$ gcc  -g -static -nodefaultlibs -nostartfiles -o main csu/crt0.o csu/crti.o `gcc -print-file-name=crtbeginT.o` main.c  -Wl,--start-group -lgcc -lgcc_eh ./libc.a -Wl,--end-group `gcc -print-file-name=crtend.o` csu/crtn.o
+./libc.a(exit.o)(.text+0x9b): In function `exit':
+/space/home/marcus/gnu/hurd/work/hurd-l4-build/libc/libc/stdlib/exit.c:82: warning: warning: _exit is not implemented and will always fail
+./libc.a(libc-start.o)(.text+0x101): In function `__libc_start_main':
+../sysdeps/generic/libc-start.c:249: warning: warning: __exit_thread is not implemented and will always fail
+
+Now we can analyze the resulting empty main program with objdump and gdb.
+
+To make gdb find the source, use:
+
+(gdb) directory ../libc/elf
+(gdb) set print symbol-filename on
+
+
+I.1. Entry point.
+
+Generic Code:
+
+The entry point of a program is usually defined by the location of the
+symbol _start:
+
+$ objdump --syms main | grep ' _start'
+08048120 g     F .text  00000000 _start
+
+(gdb) print _start
+$2 = {
+    <text variable, no debug info>} 0x8048120 <_start at ../sysdeps/i386/elf/start.S:47>
+
+(gdb) l _start
+42         %edx         Contains a function pointer [...]
+[...]
+
+_start is defined in crt1.o for ELF programs.
+
+In Hurd/L4:
+
+_start is renamed to _start1, and the actual entry point _start is is
+in libc/hurd-l4/sysdeps/l4/hurd/i386/static-start.S (for static
+programs), which is linked into crt0.c (see
+libc/hurd-l4/sysdeps/l4/hurd/Makeconfig and Makefile).
+
+_start first calls _hurd_pre_start, which initializes the components
+glibc itself depends upon (libl4, libhurd-mm, ...).
+
+
+_start is defined in crt0.o for statically linked programs, and in
+crt1.o for dynamically linked programs.
+
+
+From here, observe the program flow by reading the source code,
+looking at the disassembled code (objdump -x) and find symbols and
+source files with gdb.
+
+I.2. _start
+
+
+sysdeps/i386/elf/start.S::_start()
+
+(gdb) print _start
+$4 = {
+    <text variable, no debug info>} 0x8048120 <_start at ../sysdeps/i386/elf/start.S:47>
+
+
+FIXME: Expects argc, argv (and envp) on top of stack.
+
+See: Process Initialization, p. 3-26 in System V Application Binary
+Interface - Intel386 Architecture Processor Supplement, Fourth Edition
+http://www.caldera.com/developers/devspecs/abi386-4.pdf
+
+
+I.3. __libc_start_main
+
+
+sysdeps/generic/libc-start.c::__libc_start_main()
+
+(gdb) print __libc_start_main
+$3 = {int (int (*)(int, char **, char **), int, char **, void (*)(void),
+    void (*)(void), void (*)(void),
+    void *)} 0x8048250 <__libc_start_main at ../sysdeps/generic/libc-start.c:100>
+
+
+
+II TLS
+
+TLS, TSD, DTV.  See Drepper's paper on TLS support.  Initialization is
+done in sysdeps/generic/libc-tls.c, which requires that _dl_phdr and
+_dl_phnum are initialized, which happens in init-first.c on the Hurd
+(in _dl_aux_init from the aux vector on Linux).  This is because the
+PT_TLS program header must be found to determine the tdata and tbss
+initializer location and sizes.
+
+Support is in nptl/sysdeps/l4/hurd/i386/tls.h.  We do not allow
+%gs:OFFSET where OFFSET is not 0.
+
 
 
 - Marcus
