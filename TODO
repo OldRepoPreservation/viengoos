@@ -22,7 +22,9 @@
 
 * libhurd-slab
 ** Ideally this would be a feature in glibc.
-
+** Should support alignment requirements properly.
+** Should check return value from constructor.
+** Implement hurd_slab_destroy ().
 
 * libhurd-ihash
 ** Can be merged back into the Hurd if the callers are changed.
