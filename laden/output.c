@@ -54,7 +54,10 @@ output_init (char *name)
       while (*out)
 	{
 	  if (!strcmp (name, (*out)->name))
-	    output = *out;
+	    {
+	      output = *out;
+	      break;
+	    }
 	  out++;
 	}
       if (!output)
