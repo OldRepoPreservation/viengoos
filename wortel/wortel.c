@@ -404,10 +404,6 @@ serve_bootstrap_requests (void)
      bother anybody with that silly page.  */
   sigma0_get_fpage (l4_fpage (0, getpagesize ()));
 
-  while (get_mem_size >= 10
-	 && ! ((1 << get_mem_size) & l4_page_size_mask ()))
-    get_mem_size--;
-  
   do
     {
       l4_thread_id_t from;
@@ -460,12 +456,7 @@ serve_bootstrap_requests (void)
 	      {
 		fpage = sigma0_get_any (get_mem_size);
 		if (fpage.raw == l4_nilpage.raw)
-		  {
-		    get_mem_size--;
-		    while (get_mem_size >= 10
-			   && ! ((1 << get_mem_size) & l4_page_size_mask ()))
-		      get_mem_size--;
-		  }
+		  get_mem_size--;
 	      }
 	    while (fpage.raw == l4_nilpage.raw && get_mem_size >= 10);
 
