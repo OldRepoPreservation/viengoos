@@ -1,4 +1,4 @@
-/* class-alloc.c - Allocate a capability object.
+/* bucket-create.c - Create a capability bucket.
    Copyright (C) 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
@@ -24,39 +24,25 @@
 #endif
 
 #include <errno.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <pthread.h>
 
-#include <hurd/slab.h>
-#include <hurd/cap-server.h>
+#include "cap-server-intern.h"
 
 
-/* Allocate a new capability object in the class CAP_CLASS.  The new
-   capability object is locked and has one reference.  It will be
-   returned in R_OBJ.  If the allocation fails, an error value will be
-   returned.  */
-error_t
-hurd_cap_class_alloc (hurd_cap_class_t cap_class, hurd_cap_obj_t *r_obj)
+/* Free the bucket BUCKET, which must not be used.  */
+void
+hurd_cap_bucket_free (hurd_cap_bucket_t bucket)
 {
-  error_t err;
-  hurd_cap_obj_t obj;
-
-  err = hurd_slab_alloc (&cap_class->obj_space, (void **) &obj);
-  if (err)
-    return err;
-
-  /* Let the user do their extra initialization.  */
-  if (cap_class->obj_alloc)
-    {
-      err = (*cap_class->obj_alloc) (cap_class, obj);
-      if (err)
-	{
-	  hurd_slab_dealloc (&cap_class->obj_space, obj);
-	  return err;
-	}
-    }
-
-  /* Now take the lock.  */
-  hurd_cap_obj_lock (obj);
-
-  *r_obj = obj;
-  return 0;
+  /* FIXME: Add some assertions to ensure it is not used.
+     Reintroduce _hurd_cap_client_try_destroy.  */
+  hurd_table_destroy (&bucket->clients);
+  pthread_cond_destroy (&bucket->cond);
+  hurd_table_destroy (&bucket->classes);
+  pthread_mutex_destroy (&bucket->lock);
+  pthread_mutex_destroy (&bucket->client_cond_lock);
+  pthread_cond_destroy (&bucket->client_cond);
+  free (bucket);
 }
+

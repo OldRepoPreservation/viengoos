@@ -1,4 +1,4 @@
-/* class-destroy.c - Destroy a capability class.
+/* class-free.c - Free a capability class.
    Copyright (C) 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
@@ -24,7 +24,7 @@
 #endif
 
 #include <errno.h>
-#include <pthread.h>
+#include <stdlib.h>
 
 #include <hurd/cap-server.h>
 
@@ -32,27 +32,17 @@
 /* Destroy the capability class CAP_CLASS and release all associated
    resources.  Note that this is only allowed if there are no
    capability objects in use, and if the capability class is not used
-   by a capability server.  This function assumes that the class has
-   been initialized with hurd_cap_class_init.  */
+   by a capability server.  This function assumes that the class was
+   created with hurd_cap_class_create.  */
 error_t
-hurd_cap_class_destroy (hurd_cap_class_t cap_class)
+hurd_cap_class_free (hurd_cap_class_t cap_class)
 {
-  error_t err = 0;
+  error_t err;
 
-  /* FIXME: This function needs to be revised.  We need to take the
-     locks, and if only for memory synchronization.  */
-
-  /* This will fail if there are still allocated capability
-     objects.  */
-  err = hurd_slab_destroy (&cap_class->obj_space);
+  err = hurd_cap_class_destroy (cap_class);
   if (err)
     return err;
 
-  /* At this point, destruction will succeed.  */
-  pthread_cond_destroy (&cap_class->cond);
-  pthread_mutex_destroy (&cap_class->lock);
-  pthread_mutex_destroy (&cap_class->obj_cond_lock);
-  pthread_cond_destroy (&cap_class->obj_cond);
-
+  free (cap_class);
   return 0;
 }

@@ -27,7 +27,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include <hurd/cap-server.h>
+#include "cap-server-intern.h"
 
 
 /* Return true if there are still outstanding RPCs in this class, and

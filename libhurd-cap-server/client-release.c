@@ -27,45 +27,12 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include <hurd/cap-server.h>
-
-
-/* class-destroy.c - Destroy a capability class.
-   Copyright (C) 2004 Free Software Foundation, Inc.
-   Written by Marcus Brinkmann <marcus@gnu.org>
-
-   This file is part of the GNU Hurd.
-
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
-
-   You should have received a copy of the GNU Lesser General Public
-   License along with this program; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
-
-#if HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#include <errno.h>
-#include <pthread.h>
-#include <stdlib.h>
-
-#include <hurd/cap-server.h>
+#include "cap-server-intern.h"
 
 
 /* Deallocate the connection client CLIENT.  */
 void
-__attribute__((visibility("hidden")))
-_hurd_cap_client_dealloc (hurd_cap_class_t cap_class, hurd_cap_client_t client)
+_hurd_cap_client_dealloc (_hurd_cap_client_t client)
 {
   unsigned int done;
   unsigned int current_idx;
@@ -105,9 +72,10 @@ _hurd_cap_client_dealloc (hurd_cap_class_t cap_class, hurd_cap_client_t client)
      have to honor the locking order, this takes a while.  */
   HURD_TABLE_ITERATE (&client->caps, idx)
     {
-      _hurd_cap_entry_t entry;
+      _hurd_cap_obj_entry_t entry;
 
-      entry = (_hurd_cap_entry_t) HURD_TABLE_LOOKUP (&client->caps, idx);
+      entry = *((_hurd_cap_obj_entry_t *)
+		HURD_TABLE_LOOKUP (&client->caps, idx));
 
       /* If there were no external references, the last internal
 	 reference would have been released before we get here.  */
@@ -133,7 +101,7 @@ _hurd_cap_client_dealloc (hurd_cap_class_t cap_class, hurd_cap_client_t client)
 
 	  pthread_mutex_lock (&cap_obj->lock);
 	  /* Check if we should revoke it, or if somebody else did already.  */
-	  if (hurd_ihash_remove (&cap_obj->clients, (hurd_ihash_key_t) client))
+	  if (!entry->dead)
 	    {
 	      int found;
 
@@ -142,23 +110,17 @@ _hurd_cap_client_dealloc (hurd_cap_class_t cap_class, hurd_cap_client_t client)
 	      found = hurd_ihash_remove (&client->caps_reverse,
 					 (hurd_ihash_key_t) cap_obj);
 	      assert (found);
-
-	      /* Reaquire the table entry.  */
-	      entry = (_hurd_cap_entry_t) HURD_TABLE_LOOKUP (&client->caps,
-							     idx);
-	      assert (!entry->dead);
 	      entry->dead = 1;
 
 	      assert (entry->internal_refs == 2);
 	      entry->internal_refs--;
 	      pthread_mutex_unlock (&client->lock);
+
+	      /* FIXME: Remove it from the capabilities client list.  */
 	    }
 	  pthread_mutex_unlock (&cap_obj->lock);
 
 	  pthread_mutex_lock (&client->lock);
-	  /* Reaquire the table entry.  It still exists because there
-	     were external references.  */
-	  entry = (_hurd_cap_entry_t) HURD_TABLE_LOOKUP (&client->caps, idx);
 	  /* Now we can drop the capability object below.  */
 	  assert (entry->dead);
 	  assert (entry->internal_refs == 1);
@@ -166,12 +128,17 @@ _hurd_cap_client_dealloc (hurd_cap_class_t cap_class, hurd_cap_client_t client)
 	}
       else
 	{
-	  /* If the capability is dead, we can simply drop the
-	     external references below.  */
+	  /* If the capability is dead, we can simply drop it below.  */
 	  assert (entry->internal_refs == 0);
+	  entry->internal_refs = 1;
 	}
 
-      /* Drop the external references, and remove the table entry.  */
+      entry->dead = 0;
+      /* ENTRY->internal_refs is 1.  */
+      entry->external_refs = 1;
+
+      /* Remove the entry.  */
+      hurd_slab_dealloc (&_hurd_cap_obj_entry_space, entry);
       hurd_table_remove (&client->caps, idx);
     }
 
@@ -188,36 +155,35 @@ _hurd_cap_client_dealloc (hurd_cap_class_t cap_class, hurd_cap_client_t client)
      enforce a per-client quota.  */
   pthread_mutex_unlock (&client->lock);
 
-  hurd_slab_dealloc (cap_class->client_slab, client);
+  hurd_slab_dealloc (&_hurd_cap_client_space, client);
 }
 
 
 /* Release a reference for the client with the ID IDX in class
    CLASS.  */
 void
-__attribute__((visibility("hidden")))
-_hurd_cap_client_release (hurd_cap_class_t cap_class, hurd_cap_client_id_t idx)
+_hurd_cap_client_release (hurd_cap_bucket_t bucket, hurd_cap_client_id_t idx)
 {
   _hurd_cap_client_entry_t entry;
 
-  pthread_mutex_lock (&cap_class->lock);
-  entry = (_hurd_cap_client_entry_t) HURD_TABLE_LOOKUP (&cap_class->clients,
+  pthread_mutex_lock (&bucket->lock);
+  entry = (_hurd_cap_client_entry_t) HURD_TABLE_LOOKUP (&bucket->clients,
 							idx);
 
   if (__builtin_expect (entry->refs > 1, 1))
     {
       entry->refs--;
-      pthread_mutex_unlock (&cap_class->lock);
+      pthread_mutex_unlock (&bucket->lock);
     }
   else
     {
       int found;
-      hurd_cap_client_t client = entry->client;
+      _hurd_cap_client_t client = entry->client;
 
-      hurd_table_remove (&cap_class->clients, idx);
-      hurd_ihash_locp_remove (&cap_class->clients_reverse, client->locp);
+      hurd_table_remove (&bucket->clients, idx);
+      hurd_ihash_locp_remove (&bucket->clients_reverse, client->locp);
 
-      pthread_mutex_unlock (&cap_class->lock);
-      _hurd_cap_client_dealloc (cap_class, client);
+      pthread_mutex_unlock (&bucket->lock);
+      _hurd_cap_client_dealloc (client);
     }
 }

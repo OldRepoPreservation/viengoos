@@ -22,14 +22,19 @@
 lib_LIBRARIES = libhurd-cap-server.a
 
 includehurddir = $(includedir)/hurd
-includehurd_HEADERS = table.h task-death.h cap-server.h
+includehurd_HEADERS = cap-server.h
 
 # FIXME: Build a special libhurd-ihash.a using libc-parts for the rootservers,
 # and a normal for everybody else.
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts
 AM_CFLAGS = -std=gnu99
-libhurd_cap_server_a_SOURCES = table.c task-death.c			\
-	cap-server.h class-create.c class-destroy.c			\
-	class-alloc.c class-dealloc.c class-inhibit.c			\
+libhurd_cap_server_a_SOURCES = table.h table.c				\
+	task-death.h task-death.c					\
+	cap-server-intern.h class-init.c class-create.c			\
+	class-destroy.c class-free.c					\
+	class-alloc.c class-inhibit.c					\
+	obj-dealloc.c obj-drop.c obj-inhibit.c				\
+	obj-entry-space.c						\
 	client-create.c client-release.c client-inhibit.c		\
-	obj-inhibit.c
+	bucket-create.c bucket-free.c bucket-add.c bucket-remove.c	\
+	bucket-inhibit.c bucket-manage-mt.c

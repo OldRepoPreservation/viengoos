@@ -27,7 +27,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include <hurd/cap-server.h>
+#include "cap-server-intern.h"
 
 
 /* Return true if there are still outstanding RPCs in this capability
@@ -38,7 +38,7 @@
    value and then has to change the state to RED and broadcast the
    condition.  */
 static inline int
-_hurd_cap_client_cond_busy (hurd_cap_client_t client)
+_hurd_cap_client_cond_busy (_hurd_cap_client_t client)
 {
   /* We have to remain in the state yellow until there are no pending
      RPC threads except maybe the waiter.  */
@@ -49,17 +49,17 @@ _hurd_cap_client_cond_busy (hurd_cap_client_t client)
 
 
 /* Inhibit all RPCs on the capability client CLIENT (which must not be
-   locked) in the capability class CAP_CLASS.  You _must_ follow up
+   locked) in the capability bucket BUCKET.  You _must_ follow up
    with a hurd_cap_client_resume operation, and hold at least one
    reference to the object continuously until you did so.  */
 error_t
-hurd_cap_client_inhibit (hurd_cap_class_t cap_class, hurd_cap_client_t client)
+_hurd_cap_client_inhibit (hurd_cap_bucket_t bucket, _hurd_cap_client_t client)
 {
   error_t err;
 
-  /* First take the class-wide lock for conditions on capability
+  /* First take the bucket-wide lock for conditions on capability
      client states.  */
-  pthread_mutex_lock (&cap_class->client_cond_lock);
+  pthread_mutex_lock (&bucket->client_cond_lock);
 
   /* Then lock the client to check its state.  */
   pthread_mutex_lock (&client->lock);
@@ -70,12 +70,12 @@ hurd_cap_client_inhibit (hurd_cap_class_t cap_class, hurd_cap_client_t client)
   while (client->state != _HURD_CAP_STATE_GREEN)
     {
       pthread_mutex_unlock (&client->lock);
-      err = hurd_cond_wait (&cap_class->client_cond,
-			    &cap_class->client_cond_lock);
+      err = hurd_cond_wait (&bucket->client_cond,
+			    &bucket->client_cond_lock);
       if (err)
 	{
 	  /* We have been canceled.  */
-	  pthread_mutex_unlock (&cap_class->client_cond_lock);
+	  pthread_mutex_unlock (&bucket->client_cond_lock);
 	  return err;
 	}
       pthread_mutex_lock (&client->lock);
@@ -103,13 +103,13 @@ hurd_cap_client_inhibit (hurd_cap_class_t cap_class, hurd_cap_client_t client)
       do
 	{
 	  pthread_mutex_unlock (&client->lock);
-	  err = hurd_cond_wait (&cap_class->client_cond,
-				&cap_class->client_cond_lock);
+	  err = hurd_cond_wait (&bucket->client_cond,
+				&bucket->client_cond_lock);
 	  if (err)
 	    {
 	      /* We have been canceled ourselves.  Give up.  */
 	      client->state = _HURD_CAP_STATE_GREEN;
-	      pthread_mutex_unlock (&cap_class->client_cond_lock);
+	      pthread_mutex_unlock (&bucket->client_cond_lock);
 	      return err;
 	    }
 	  pthread_mutex_lock (&client->lock);
@@ -122,38 +122,37 @@ hurd_cap_client_inhibit (hurd_cap_class_t cap_class, hurd_cap_client_t client)
   /* Now all pending RPCs have been canceled and are completed (except
      us), and all incoming RPCs are inhibited.  */
   pthread_mutex_unlock (&client->lock);
-  pthread_mutex_unlock (&cap_class->client_cond_lock);
+  pthread_mutex_unlock (&bucket->client_cond_lock);
 
   return 0;
 }
 
 
-/* Resume RPCs on the capability client CLIENT in the class CAP_CLASS
+/* Resume RPCs on the capability client CLIENT in the bucket BUCKET
    and wake-up all waiters.  */
 void
-hurd_cap_client_resume (hurd_cap_class_t cap_class, hurd_cap_client_t client)
+_hurd_cap_client_resume (hurd_cap_bucket_t bucket, _hurd_cap_client_t client)
 {
-  pthread_mutex_lock (&cap_class->client_cond_lock);
-  pthread_mutex_lock (&cap_class->lock);
+  pthread_mutex_lock (&bucket->client_cond_lock);
+  pthread_mutex_lock (&bucket->lock);
 
   client->state = _HURD_CAP_STATE_GREEN;
 
   /* Broadcast the change to all potential waiters.  */
-  pthread_cond_broadcast (&cap_class->client_cond);
+  pthread_cond_broadcast (&bucket->client_cond);
 
-  pthread_mutex_unlock (&cap_class->lock);
-  pthread_mutex_unlock (&cap_class->client_cond_lock);
+  pthread_mutex_unlock (&bucket->lock);
+  pthread_mutex_unlock (&bucket->client_cond_lock);
 }
 
 
-/* End RPCs on the capability client CLIENT in the class CAP_CLASS and
+/* End RPCs on the capability client CLIENT in the bucket BUCKET and
    wake-up all waiters.  */
 void
-__attribute__((visibility("hidden")))
-_hurd_cap_client_end (hurd_cap_class_t cap_class, hurd_cap_client_t client)
+_hurd_cap_client_end (hurd_cap_bucket_t bucket, _hurd_cap_client_t client)
 {
-  pthread_mutex_lock (&cap_class->client_cond_lock);
-  pthread_mutex_lock (&cap_class->lock);
+  pthread_mutex_lock (&bucket->client_cond_lock);
+  pthread_mutex_lock (&bucket->lock);
 
   client->state = _HURD_CAP_STATE_BLACK;
 
@@ -165,12 +164,12 @@ _hurd_cap_client_end (hurd_cap_class_t cap_class, hurd_cap_client_t client)
 
      Note that this does not work reliably for still living clients:
      They may bombard us with RPCs and thus keep the reference count
-     of the client in the class table above 0 all the time, even in
+     of the client in the bucket table above 0 all the time, even in
      the _HURD_CAP_STATE_BLACK state.  This is the reason that this
      interface is only for internal use (by
      _hurd_cap_client_death).  */
-  pthread_cond_broadcast (&cap_class->client_cond);
+  pthread_cond_broadcast (&bucket->client_cond);
 
-  pthread_mutex_unlock (&cap_class->lock);
-  pthread_mutex_unlock (&cap_class->client_cond_lock);
+  pthread_mutex_unlock (&bucket->lock);
+  pthread_mutex_unlock (&bucket->client_cond_lock);
 }

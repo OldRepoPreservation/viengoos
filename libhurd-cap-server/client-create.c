@@ -1,4 +1,4 @@
-/* class-destroy.c - Destroy a capability class.
+/* client-create.c - Create a capability client.
    Copyright (C) 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
@@ -28,18 +28,77 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include <hurd/cap-server.h>
+#include "cap-server-intern.h"
+
+
+/* Client management code.  */
+
+/* Allocate a new capability client structure for the slab cache.  */
+static error_t
+_hurd_cap_client_constructor (void *hook, void *buffer)
+{
+  _hurd_cap_client_t client = (_hurd_cap_client_t) buffer;
+  error_t err;
+
+  err = pthread_mutex_init (&client->lock, NULL);
+  if (err)
+    return err;
+
+  client->state = _HURD_CAP_STATE_GREEN;
+  client->pending_rpcs = NULL;
+
+  err = hurd_table_init (&client->caps, sizeof (struct _hurd_cap_obj_entry));
+  if (err)
+    goto err_cap_client_caps;
+
+  /* Capabilities are mapped to clients many to many, so we can not
+     use a location pointer.  However, this is not critical as
+     removing an entry only blocks out RPCs for the same client, and
+     not others.  */
+  hurd_ihash_init (&client->caps_reverse, HURD_IHASH_NO_LOCP);
+
+  return 0;
+
+  /* This is provided here in case you add more initialization to the
+     end of the above code.  */
+#if 0
+  hurd_table_destroy (&client->caps);
+#endif
+
+ err_cap_client_caps:
+  pthread_mutex_destroy (&client->lock);
+
+  return err;
+}
+
+
+/* Allocate a new capability client structure for the slab cache.  */
+static void
+_hurd_cap_client_destructor (void *hook, void *buffer)
+{
+  _hurd_cap_client_t client = (_hurd_cap_client_t) buffer;
+
+  hurd_ihash_destroy (&client->caps_reverse);
+  hurd_table_destroy (&client->caps);
+  pthread_mutex_destroy (&client->lock);
+}
+
+
+/* The global slab for all capability clients.  */
+struct hurd_slab_space _hurd_cap_client_space
+  = HURD_SLAB_SPACE_INITIALIZER (struct _hurd_cap_client,
+				 _hurd_cap_client_constructor,
+				 _hurd_cap_client_destructor, NULL);
 
 
 static error_t
-_hurd_cap_client_alloc (hurd_cap_class_t cap_class,
-			hurd_task_id_t task_id,
-			hurd_cap_client_t *r_client)
+_hurd_cap_client_alloc (hurd_task_id_t task_id,
+			_hurd_cap_client_t *r_client)
 {
   error_t err;
-  hurd_cap_client_t client;
+  _hurd_cap_client_t client;
 
-  err = hurd_slab_alloc (cap_class->client_slab, (void **) &client);
+  err = hurd_slab_alloc (&_hurd_cap_client_space, (void **) &client);
   if (!client)
     return errno;
 
@@ -56,14 +115,13 @@ _hurd_cap_client_alloc (hurd_cap_class_t cap_class,
   client->state = _HURD_CAP_STATE_GREEN;
   client->pending_rpcs = NULL;
 
-  err = hurd_table_init (&client->caps, sizeof (struct _hurd_cap_entry));
+  err = hurd_table_init (&client->caps, sizeof (_hurd_cap_obj_entry_t));
   if (err)
     {
       pthread_mutex_destroy (&client->lock);
       free (client);
       return err;
     }
-  hurd_ihash_init (&client->caps_reverse, 0);
 
   *r_client = client;
   return 0;
@@ -75,23 +133,23 @@ _hurd_cap_client_alloc (hurd_cap_class_t cap_class,
    found, create it.  */
 error_t
 __attribute__((visibility("hidden")))
-_hurd_cap_client_create (hurd_cap_class_t cap_class,
+_hurd_cap_client_create (hurd_cap_bucket_t bucket,
 			 hurd_task_id_t task_id,
 			 hurd_cap_id_t *r_idx,
-			 hurd_cap_client_t *r_client)
+			 _hurd_cap_client_t *r_client)
 {
   error_t err = 0;
-  hurd_cap_client_t client;
+  _hurd_cap_client_t client;
   _hurd_cap_client_entry_t entry;
   struct _hurd_cap_client_entry new_entry;
 
-  pthread_mutex_lock (&cap_class->lock);
-  client = (hurd_cap_client_t) hurd_ihash_find (&cap_class->clients_reverse,
-						task_id);
+  pthread_mutex_lock (&bucket->lock);
+  client = (_hurd_cap_client_t) hurd_ihash_find (&bucket->clients_reverse,
+						 task_id);
   if (client)
     {
       entry = (_hurd_cap_client_entry_t)
-	HURD_TABLE_LOOKUP (&cap_class->clients, client->id);
+	HURD_TABLE_LOOKUP (&bucket->clients, client->id);
       if (entry->dead)
 	err = EINVAL;	/* FIXME: A more appropriate code?  */
       else
@@ -100,31 +158,31 @@ _hurd_cap_client_create (hurd_cap_class_t cap_class,
 	  *r_idx = client->id;
 	  *r_client = entry->client;
 	}
-      pthread_mutex_unlock (&cap_class->lock);
+      pthread_mutex_unlock (&bucket->lock);
       return err;
     }
-  pthread_mutex_unlock (&cap_class->lock);
+  pthread_mutex_unlock (&bucket->lock);
 
   /* The client is not yet registered.  Block out processing task
      death notifications, create a new client structure, and then
      enter it into the table before resuming task death
      notifications.  */
   hurd_task_death_notify_suspend ();
-  err = _hurd_cap_client_alloc (cap_class, task_id, r_client);
+  err = _hurd_cap_client_alloc (task_id, r_client);
   if (err)
     {
       hurd_task_death_notify_resume ();
       return err;
     }
 
-  pthread_mutex_lock (&cap_class->lock);
+  pthread_mutex_lock (&bucket->lock);
   /* Somebody else might have been faster.  */
-  client = (hurd_cap_client_t) hurd_ihash_find (&cap_class->clients_reverse,
-						task_id);
+  client = (_hurd_cap_client_t) hurd_ihash_find (&bucket->clients_reverse,
+						 task_id);
   if (client)
     {
       entry = (_hurd_cap_client_entry_t)
-	HURD_TABLE_LOOKUP (&cap_class->clients, client->id);
+	HURD_TABLE_LOOKUP (&bucket->clients, client->id);
       if (entry->dead)
 	err = EINVAL;	/* FIXME: A more appropriate code?  */
       else
@@ -134,8 +192,8 @@ _hurd_cap_client_create (hurd_cap_class_t cap_class,
 	  *r_idx = client->id;
 	  *r_client = entry->client;
 	}
-      pthread_mutex_unlock (&cap_class->lock);
-      _hurd_cap_client_dealloc (cap_class, *r_client);
+      pthread_mutex_unlock (&bucket->lock);
+      _hurd_cap_client_dealloc (*r_client);
       return err;
     }
 
@@ -147,22 +205,22 @@ _hurd_cap_client_create (hurd_cap_class_t cap_class,
      the caller. */
   new_entry.refs = 2;
 
-  err = hurd_table_enter (&cap_class->clients, &new_entry, &client->id);
+  err = hurd_table_enter (&bucket->clients, &new_entry, &client->id);
   if (!err)
     {
-      err = hurd_ihash_add (&cap_class->clients_reverse, task_id, client);
+      err = hurd_ihash_add (&bucket->clients_reverse, task_id, client);
       if (err)
-	hurd_table_remove (&cap_class->clients, client->id);
+	hurd_table_remove (&bucket->clients, client->id);
     }
   if (err)
     {
-      pthread_mutex_unlock (&cap_class->lock);
+      pthread_mutex_unlock (&bucket->lock);
       hurd_task_death_notify_resume ();
       
-      _hurd_cap_client_dealloc (cap_class, client);
+      _hurd_cap_client_dealloc (client);
       return err;
     }
-  pthread_mutex_unlock (&cap_class->lock);
+  pthread_mutex_unlock (&bucket->lock);
   hurd_task_death_notify_resume ();
 
   *r_idx = client->id;

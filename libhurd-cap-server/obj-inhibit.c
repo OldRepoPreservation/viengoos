@@ -1,4 +1,4 @@
-/* cap-obj-inhibit.c - Inhibit RPCs on a capability object.
+/* obj-inhibit.c - Inhibit RPCs on a capability object.
    Copyright (C) 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
@@ -27,7 +27,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include <hurd/cap-server.h>
+#include "cap-server-intern.h"
 
 
 /* Return true if there are still outstanding RPCs in this capability
@@ -38,23 +38,24 @@
    value and then has to change the state to RED and broadcast the
    condition.  */
 static inline int
-_hurd_cap_obj_cond_busy (hurd_cap_obj_t cap_obj)
+_hurd_cap_obj_cond_busy (hurd_cap_obj_t obj)
 {
   /* We have to remain in the state yellow until there are no pending
      RPC threads except maybe the waiter.  */
-  return cap_obj->pending_rpcs
-    && (cap_obj->pending_rpcs->thread != cap_obj->cond_waiter
-	|| cap_obj->pending_rpcs->next);
+  return obj->pending_rpcs
+    && (obj->pending_rpcs->thread != obj->cond_waiter
+	|| obj->pending_rpcs->next);
 }
 
 
 /* Inhibit all RPCs on the capability object CAP_OBJ (which must not
-   be locked) in the capability class CAP_CLASS.  You _must_ follow up
-   with a hurd_cap_obj_resume operation, and hold at least one
-   reference to the object continuously until you did so.  */
+   be locked).  You _must_ follow up with a hurd_cap_obj_resume
+   operation, and hold at least one reference to the object
+   continuously until you did so.  */
 error_t
-hurd_cap_obj_inhibit (hurd_cap_class_t cap_class, hurd_cap_obj_t cap_obj)
+hurd_cap_obj_inhibit (hurd_cap_obj_t obj)
 {
+  hurd_cap_class_t cap_class = obj->cap_class;
   error_t err;
 
   /* First take the class-wide lock for conditions on capability
@@ -62,14 +63,14 @@ hurd_cap_obj_inhibit (hurd_cap_class_t cap_class, hurd_cap_obj_t cap_obj)
   pthread_mutex_lock (&cap_class->obj_cond_lock);
 
   /* Then lock the object to check its state.  */
-  pthread_mutex_lock (&cap_obj->lock);
+  pthread_mutex_lock (&obj->lock);
 
   /* First wait until any other inhibitor has resumed the capability
      object.  This ensures that capability object inhibitions are
      fully serialized (per capability object).  */
-  while (cap_obj->state != _HURD_CAP_STATE_GREEN)
+  while (obj->state != _HURD_CAP_STATE_GREEN)
     {
-      pthread_mutex_unlock (&cap_obj->lock);
+      pthread_mutex_unlock (&obj->lock);
       err = hurd_cond_wait (&cap_class->obj_cond,
 			    &cap_class->obj_cond_lock);
       if (err)
@@ -78,65 +79,67 @@ hurd_cap_obj_inhibit (hurd_cap_class_t cap_class, hurd_cap_obj_t cap_obj)
 	  pthread_mutex_unlock (&cap_class->obj_cond_lock);
 	  return err;
 	}
-      pthread_mutex_lock (&cap_obj->lock);
+      pthread_mutex_lock (&obj->lock);
     }
 
   /* Now it is our turn to inhibit the capability object.  */
-  cap_obj->cond_waiter = pthread_self ();
+  obj->cond_waiter = pthread_self ();
 
-  if (_hurd_cap_obj_cond_busy (cap_obj))
+  if (_hurd_cap_obj_cond_busy (obj))
     {
-      _hurd_cap_list_item_t pending_rpc = cap_obj->pending_rpcs;
+      _hurd_cap_list_item_t pending_rpc = obj->pending_rpcs;
 
       /* There are still pending RPCs (beside us).  Cancel them.  */
       while (pending_rpc)
 	{
-	  if (pending_rpc->thread != cap_obj->cond_waiter)
+	  if (pending_rpc->thread != obj->cond_waiter)
 	    pthread_cancel (pending_rpc->thread);
 	  pending_rpc = pending_rpc->next;
 	}
 
       /* Indicate that we would like to know when they have gone.  */
-      cap_obj->state = _HURD_CAP_STATE_YELLOW;
+      obj->state = _HURD_CAP_STATE_YELLOW;
 
       /* The last one will shut the door.  */
       do
 	{
-	  pthread_mutex_unlock (&cap_obj->lock);
+	  pthread_mutex_unlock (&obj->lock);
 	  err = hurd_cond_wait (&cap_class->obj_cond,
 				&cap_class->obj_cond_lock);
 	  if (err)
 	    {
 	      /* We have been canceled ourselves.  Give up.  */
-	      cap_obj->state = _HURD_CAP_STATE_GREEN;
+	      obj->state = _HURD_CAP_STATE_GREEN;
 	      pthread_mutex_unlock (&cap_class->obj_cond_lock);
 	      return err;
 	    }
-	  pthread_mutex_lock (&cap_obj->lock);
+	  pthread_mutex_lock (&obj->lock);
 	}
-      while (cap_obj->state != _HURD_CAP_STATE_RED);
+      while (obj->state != _HURD_CAP_STATE_RED);
     }
   else
-    cap_obj->state = _HURD_CAP_STATE_RED;
+    obj->state = _HURD_CAP_STATE_RED;
 
   /* Now all pending RPCs have been canceled and are completed (except
      us), and all incoming RPCs are inhibited.  */
-  pthread_mutex_unlock (&cap_obj->lock);
+  pthread_mutex_unlock (&obj->lock);
   pthread_mutex_unlock (&cap_class->obj_cond_lock);
 
   return 0;
 }
 
 
-/* Resume RPCs on the capability object CAP_OBJ in the class CAP_CLASS
-   and wake-up all waiters.  */
+/* Resume RPCs on the capability object OBJ and wake-up all
+   waiters.  */
 void
-hurd_cap_obj_resume (hurd_cap_class_t cap_class, hurd_cap_obj_t cap_obj)
+hurd_cap_obj_resume (hurd_cap_obj_t obj)
 {
+  hurd_cap_class_t cap_class = obj->cap_class;
+
   pthread_mutex_lock (&cap_class->obj_cond_lock);
   pthread_mutex_lock (&cap_class->lock);
 
-  cap_obj->state = _HURD_CAP_STATE_GREEN;
+  obj->state = _HURD_CAP_STATE_GREEN;
 
   /* Broadcast the change to all potential waiters.  */
   pthread_cond_broadcast (&cap_class->obj_cond);

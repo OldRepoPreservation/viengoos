@@ -1,14 +1,13 @@
 TODO:
 
-* Do not use a hash for hurd_cap_obj.clients, but a doubly linked list
-  with elements in the hurd_cap_entry.  This makes lookup O(n), but it
-  should be much better for capabilities used by only one or two tasks
-  (which means most capabilities). !!!
+* Implement bucket-inhibit correctly. !!!
+* Verify all the bucket/client stuff after rewrite.
+* Rename obj_slab to obj_space.
 
 * Do we need to support soft references?
 * Extend table and hash interface to reclaim resources without
   reinitialization. !!
-* Move all the internal stuff to a private header file. !!
+* table.h/table.c should take alignment.
 
 An introduction to the capability system, server side.
 ------------------------------------------------------

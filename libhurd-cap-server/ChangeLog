@@ -1,3 +1,58 @@
+2004-03-26  Marcus Brinkmann  <marcus@gnu.org>
+
+	* bucket-add.c, bucket-create.c, bucket-free.c, bucket-inhibit.c,
+	bucket-manage-mt.c, bucket-remove.c, cap-server-intern.h,
+	class-free.c, class-init.c, obj-dealloc.c, obj-drop.c,
+	obj-entry-space.c: New files.
+	* Makefile.am (includehurd_HEADERS): Move table.h and task-death.h
+	to ...
+	(libhurd_cap_server_a_SOURCES): ... here.  Add
+	cap-server-intern.h, class-init.c, class-free.c, obj-dealloc.c,
+	obj-drop.c, obj-entry-space.c, bucket-create.c, bucket-free.c,
+	bucket-add.c, bucket-remove.c, bucket-inhibit.c,
+	bucket-manage-mt.c.  Remove class-dealloc.c.
+	* headers.m4: Remove table.h and task-death.h.
+	* cap-server.h: Include <stdbool.h>, do not include <assert.h>,
+	<limits.h>, <hurd/types.h>, <hurd/slab.h>, <hurd/table.h>,
+	<hurd/ihash.h> and <hurd/task-death.h>.
+	(hurd_cond_wait, struct _hurd_cap_list_item,
+	_hurd_cap_list_item_t, _hurd_cap_list_item_add,
+	_hurd_cap_list_item_remove, struct _hurd_cap_entry,
+	_hurd_cap_entry_t, struct hurd_cap_client, hurd_cap_client_t,
+	struct _hurd_cap_client_entry, _hurd_cap_client_entry_t,
+	_hurd_cap_class_dealloc, _hurd_cap_client_create,
+	hurd_cap_client_lookup, _hurd_cap_client_dealloc,
+	hurd_cap_client_inhibit, hurd_cap_client_resume,
+	_hurd_cap_client_end): Removed.
+	(hurd_cap_rpc_context): New declaration.
+	(hurd_cap_class_demux_t): New dummy type (for now).
+	(struct hurd_cap_class): Remove members OBJ_SIZE, CLIENT_SLAB,
+	CLIENT_COND, CLIENT_COND_LOCK, CLIENTS, CLIENTS_REVERSE,
+	CLIENT_THREADS and CLIENT_DEATH_NOTIFY.  Change type of OBJ_SLAB
+	to struct hurd_slab_space and rename it to OBJ_SPACE.  Add member
+	DEMUXER.  Change type of member STATE to _hurd_cap_state_t.
+	(struct hurd_cap_obj): Add member CAP_CLASS.  Change type of
+	member STATE to _hurd_cap_state_t.
+	(hurd_cap_class_create): Add arguments alignment and demuxer to
+	prototype.
+	(hurd_cap_class_init): Likewise.
+	(hurd_cap_class_free): New prototype.
+	(_hurd_cap_class_destroy): Rename to ...
+	(hurd_cap_class_destroy): ... this.
+	(hurd_cap_obj_lock, hurd_cap_obj_unlock, hurd_cap_obj_ref,
+	hurd_cap_obj_rele, hurd_cap_obj_drop): Remove CAP_CLASS argument.
+	(hurd_cap_obj_drop): Only declare prototype here.
+	(struct _hurd_cap_bucket): New forward declaration.
+	(hurd_cap_bucket_t): New typedef.
+	(hurd_cap_bucket_create, hurd_cap_bucket_free,
+	hurd_cap_bucket_add, hurd_cap_bucket_remove,
+	hurd_cap_bucket_manage_mt, hurd_cap_bucket_inhibit,
+	hurd_cap_bucket_resume, hurd_cap_bucket_end): New prototypes.
+	* class-alloc.c, class-create.c, class-destroy.c, class-inhibit.c,
+	client-create.c, client-inhibit.c, client-release.c,
+	obj-inhibit.c: Change the callers to take into account the above
+	changes.
+
 2004-03-25  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (libhurd_cap_server_a_SOURCES): Add class-inhibit.c,

@@ -10,6 +10,4 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-AC_CONFIG_LINKS([include/hurd/cap-server.h:libhurd-cap-server/cap-server.h
-		 include/hurd/table.h:libhurd-cap-server/table.h
-		 include/hurd/task-death.h:libhurd-cap-server/task-death.h])
+AC_CONFIG_LINKS([include/hurd/cap-server.h:libhurd-cap-server/cap-server.h])

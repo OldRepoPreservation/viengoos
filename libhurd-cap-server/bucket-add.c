@@ -1,4 +1,4 @@
-/* class-dealloc.c - Deallocate a capability object.
+/* bucket-add.c - Add a capability class to a bucket.
    Copyright (C) 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>
 
@@ -24,31 +24,29 @@
 #endif
 
 #include <errno.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
 
-#include <hurd/cap-server.h>
+#include "cap-server-intern.h"
 
 
-/* Deallocate the capability object OBJ in the class CAP_CLASS.  OBJ
-   must be locked and have no more references.  */
-void
-__attribute__((visibility("hidden")))
-_hurd_cap_class_dealloc (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
+/* Add the capability class CAP_CLASS to the bucket BUCKET.  If
+   PRECIOUS is true, then this class is inspected for active users
+   whenever a timeout of un-forced "go away" request occurs.  */
+error_t
+hurd_cap_bucket_add (hurd_cap_bucket_t bucket,
+		     hurd_cap_class_t cap_class,
+		     bool precious)
 {
   error_t err;
+  struct _hurd_cap_class_entry entry;
+  unsigned int id;
 
-  /* First let the user do their reinitialization.  */
-  (*cap_class->obj_reinit) (cap_class, obj);
+  entry.cap_class = cap_class;
+  entry.precious = precious;
 
-  /* Now do our part of the reinitialization.  */
-  assert (obj->refs == 1);
-  assert (obj->state == _HURD_CAP_STATE_GREEN);
-  assert (obj->pending_rpcs == NULL);
-
-  /* FIXME: It would be a good idea to shrink the empty hash table
-     OBJ->clients, so that the storage is reclaimed.  */
-  hurd_cap_obj_unlock (cap_class, obj);
-
-  hurd_slab_dealloc (cap_class->obj_slab, obj);
+  pthread_mutex_lock (&bucket->lock);
+  hurd_table_enter (&bucket->classes, &entry, &id);
+  pthread_mutex_unlock (&bucket->lock);
 }
