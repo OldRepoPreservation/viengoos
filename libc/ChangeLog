@@ -1,5 +1,16 @@
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
+	* hurd-l4/sysdeps/l4/hurd/i386: New directory.
+	* hurd-l4/sysdeps/l4/hurd/i386/static-start.S: New file.
+	* hurd-l4/sysdeps/l4/hurd/i386/init-first.c: New file.
+	* hurd-l4/sysdeps/l4/hurd/init-first.c: Removed.
+	* hurd-l4/sysdeps/l4/hurd/enbl-secure.c: New file.
+	* hurd-l4/sysdeps/l4/hurd/brk.c: New file.
+	* hurd-l4/sysdeps/l4/hurd/Makeconf: New file.
+	* hurd-l4/sysdeps/l4/hurd/Makefile [$(subdir) eq csu]:
+	(crt0): New target.
+	(extra-objs): Add static-start.o.
+
 	* patches/51-nptl-hurd-l4-tls.patch: New file.
 	
 	* patches/08-sysdeps-generic-dl-sysdep.patch: New file.
