@@ -1,3 +1,10 @@
+2004-03-20  Marcus Brinkmann  <marcus@gnu.org>
+
+	* configure.ac: Add include for libhurd-cap-server/headers.m4.
+	(AC_CONFIG_FILES): Add libhurd-cap-server/Makefile.
+	* Makefile.am (SUBDIRS): Add libhurd-cap-server.
+	* libhurd-cap-server: New directory.
+
 2004-03-17  Marcus Brinkmann  <marcus@gnu.org>
 
 	* configure.ac: Add include for libpthread/headers.m4.
