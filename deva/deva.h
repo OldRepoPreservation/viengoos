@@ -42,11 +42,17 @@ int main (int argc, char *argv[]);
 void switch_thread (l4_thread_id_t from, l4_thread_id_t to);
 
 
-/* Deva objects.  */
+/* Device objects.  */
 
-/* Initialize the task class subsystem.  */
-error_t deva_class_init ();
+/* Initialize the device class subsystem.  */
+error_t device_class_init ();
 
-/* Allocate a new deva object.  The object returned is locked and has
-   one reference.  */
-error_t deva_alloc (hurd_cap_obj_t *r_obj);
+enum device_type
+  {
+    DEVICE_CONSOLE = 0,
+    DEVICE_SERIAL = 1
+  };
+
+/* Allocate a new device object.  The object returned is locked and
+   has one reference.  */
+error_t device_alloc (hurd_cap_obj_t *r_obj, enum device_type type);

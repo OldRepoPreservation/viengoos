@@ -1,3 +1,17 @@
+2005-02-01  Marcus Brinkmann  <marcus@gnu.org>
+
+	* deva.h (deva_alloc): Renamed to device_alloc.
+	(deva_class_init): Renamed to device_class_init and add new device
+	type argument.
+	(enum device_type): New enum.
+	* deva.c (create_bootstrap_caps): Call device_alloc, not
+	deva_alloc, and pass device type argument.
+	(main): Call device_class_init, not deva_class_init.
+	* deva-class.c: Removed file.
+	* device.h, device.c, device-console.c: New files.
+	* Makefile.am (deva_SOURCES): Remove deva-class.c and add
+	device.h, device.c, device-console.c.
+
 2005-01-11  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (deva_SOURCES): Remove physmem-user.h and

@@ -77,9 +77,9 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
   /* FIXME: Allocate a system console driver.  */
-  err = deva_alloc (&obj);
+  err = device_alloc (&obj, DEVICE_CONSOLE);
   if (err)
-    panic ("deva_alloc: %i\n", err);
+    panic ("device_alloc: %i\n", err);
   hurd_cap_obj_unlock (obj);
 
   while (1)
@@ -101,7 +101,7 @@ create_bootstrap_caps (hurd_cap_bucket_t bucket)
 	}
       else
 	{
-	  debug ("Creating deva cap for 0x%x:", task_id);
+	  debug ("Creating console device cap for 0x%x:", task_id);
 
 	  err = hurd_cap_bucket_inject (bucket, obj, task_id, &cap);
 	  if (err)
@@ -232,9 +232,9 @@ main (int argc, char *argv[])
 
   server_thread = setup_threads ();
 
-  err = deva_class_init ();
+  err = device_class_init ();
   if (err)
-    panic ("deva_class_init: %i\n", err);
+    panic ("device_class_init: %i\n", err);
 
   err = hurd_cap_bucket_create (&bucket);
   if (err)
