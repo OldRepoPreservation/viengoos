@@ -1,3 +1,9 @@
+2005-04-06  Neal H. Walfield  <neal@gnu.org>
+
+	* startup.c: Include <hurd/physmem.h>.
+	(allocate): Use hurd_pm_container_allocate_id, not a magic number.
+	(map): Likewise for hurd_pm_container_map_id.
+
 2005-03-09  Neal H. Walfield  <neal@gnu.org>
 
 	* startup.c (map): Update argument marshalling of the

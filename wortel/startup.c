@@ -31,6 +31,7 @@
 
 #include <hurd/types.h>
 #include <hurd/startup.h>
+#include <hurd/physmem.h>
 
 
 /* Allocate SIZE bytes according to FLAGS into container CONTAINER
@@ -45,7 +46,7 @@ allocate (l4_thread_id_t server, hurd_cap_handle_t container,
   l4_msg_tag_t tag;
 
   l4_msg_clear (msg);
-  l4_set_msg_label (msg, 132 /* Magic number for container_allocate_id.  */);
+  l4_set_msg_label (msg, hurd_pm_container_allocate_id);
   l4_msg_append_word (msg, container);
   l4_msg_append_word (msg, flags);
   l4_msg_append_word (msg, start);
@@ -85,7 +86,7 @@ map (l4_thread_id_t server, hurd_cap_handle_t container,
       int i;
 
       l4_msg_clear (msg);
-      l4_set_msg_label (msg, 134 /* XXX: Magic for container_map_id.  */);
+      l4_set_msg_label (msg, hurd_pm_container_map_id);
       l4_msg_append_word (msg, container);
       l4_msg_append_word (msg, rights);
       l4_msg_append_word (msg, (l4_word_t) vaddr);
