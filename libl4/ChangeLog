@@ -1,3 +1,10 @@
+2005-01-22  Matthieu Lemerre  <racin@free.fr>
+
+	* powerpc/l4/bits/vregs.h (_L4_load_br, _L4_store_br,
+	_L4_load_brs, _L4_store_brs): Fix buffer register addressing.
+	* ia32/l4/bits/vregs.h (_L4_load_br, _L4_store_br,
+	_L4_load_brs, _L4_store_brs): Likewise.
+	
 2005-01-22  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32/Makefile.am (nobase_include_HEADERS): Add l4/bits/arch.h,

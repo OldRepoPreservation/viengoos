@@ -387,7 +387,7 @@ _L4_store_br (int nr, _L4_word_t *data)
 {
   _L4_word_t *br = _L4_utcb () + _L4_UTCB_BR0;
 
-  *data = br[nr];
+  *data = br[-nr];
 }
 
 
@@ -399,7 +399,7 @@ _L4_store_brs (int start, int count, _L4_word_t *data)
   _L4_word_t *br = _L4_utcb () + _L4_UTCB_BR0 - start;
 
   while (count--)
-    *(data--) = *(br--);
+    *(data++) = *(br--);
 }
 
 /* Set message register NR to DATA.  */
@@ -409,7 +409,7 @@ _L4_load_br (int nr, _L4_word_t data)
 {
   _L4_word_t *br = _L4_utcb () + _L4_UTCB_BR0;
 
-  br[nr] = data;
+  br[-nr] = data;
 }
 
 
@@ -422,5 +422,5 @@ _L4_load_brs (int start, int count, _L4_word_t *data)
   _L4_word_t *br = _L4_utcb () + _L4_UTCB_BR0 - start;
 
   while (count--)
-    *(br--) = *(data--);
+    *(br--) = *(data++);
 }
