@@ -48,10 +48,17 @@ typedef _L4_RAW
       _L4_BITFIELD (_one, 1));
  } point)) __L4_time_t;
 
+#define _L4_TIME_M_BITS		(10)
+#define _L4_TIME_PERIOD_E_BITS	(5)
+#define _L4_TIME_PERIOD_E_MAX	((1 << _L4_TIME_PERIOD_E_BITS) - 1)
+
+/* The maximum time period that can be specified has all mantisse and
+   all exponent bits set.  */
+#define _L4_TIME_PERIOD_MAX ((_L4_time_t) ((1 << 15) - 1))
 
 #define _L4_never	((_L4_time_t) 0)
 /* _L4_zero_time is a time period with mantisse 0 and exponent 1.  */
-#define _L4_zero_time	((_L4_time_t) (1 << 10))
+#define _L4_zero_time	((_L4_time_t) (1 << _L4_TIME_M_BITS))
 
 
 static inline _L4_time_t
@@ -136,9 +143,9 @@ _L4_time_period (_L4_uint64_t usec)
      from Karlsruhe.  */
   __L4_time_t time = { .raw = 0 };
 
-  while (usec & ~((1 << 10) - 1))
+  while (usec & ~((1 << _L4_TIME_M_BITS) - 1))
     {
-      if (time.period.e == 31)
+      if (time.period.e == _L4_TIME_PERIOD_E_MAX)
 	return _L4_never;
 
       time.period.e++;

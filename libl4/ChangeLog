@@ -1,5 +1,12 @@
 2004-03-17  Marcus Brinkmann  <marcus@gnu.org>
 
+	* l4/schedule.h (_L4_TIME_M_BITS, _L4_TIME_PERIOD_E_BITS,
+	_L4_TIME_PERIOD_E_MAX): New macros.
+	(_L4_time_period): Use them.
+	(_L4_zero_time): Use them.
+	* l4/gnu/schedule.h (L4_TIME_PERIOD_MAX): Define macro.
+	(l4_time_mul2): New function.
+
 	* l4/thread.h (_L4_start, _L4_start_sp_ip, _L4_start_sp_ip_flags):
 	Add _L4_XCHG_REGS_CANCEL_IPC to control flags, to match L4 CVS.
 	* l4/compat/space.h (L4_UnmapFpage): Change the return type to

@@ -40,11 +40,27 @@ typedef _L4_time_t l4_time_t;
 #define L4_NEVER	_L4_never
 #define L4_ZERO_TIME	_L4_zero_time
 
+#define L4_TIME_PERIOD_MAX	_L4_TIME_PERIOD_MAX
+
 static inline l4_time_t
 _L4_attribute_always_inline
 l4_time_period (l4_uint64_t usec)
 {
   return _L4_time_period (usec);
+}
+
+
+static inline l4_time_t
+_L4_attribute_always_inline
+l4_time_mul2 (l4_time_t t)
+{
+  __L4_time_t _t;
+
+  _t.raw = t;
+  if (_t.period.e == _L4_TIME_PERIOD_E_MAX)
+    return L4_NEVER;
+  _t.period.e++;
+  return _t.raw;
 }
 
 
