@@ -1,4 +1,3 @@
-typedef int error_t;
 /* ihash.h - Integer keyed hash table interface.
    Copyright (C) 1995, 2003 Free Software Foundation, Inc.
    Written by Miles Bader <miles@gnu.org>.
