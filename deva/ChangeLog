@@ -1,5 +1,8 @@
 2005-02-03  Marcus Brinkmann  <marcus@gnu.org>
 
+	* device-console.c (console_init): Create the kbd irq handler with
+	a higher priority than normal threads.
+
 	* Makefile.am (deva_SOURCES): Add device-serial.c
 	* device-serial.c: New file.
 	* device.h (struct device): Add new members serial.input_wait and

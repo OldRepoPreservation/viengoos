@@ -114,16 +114,27 @@ console_init (device_t *dev)
   error_t err;
   l4_thread_id_t irq_handler_tid;
   pthread_t irq_handler;
+  l4_word_t result;
 
   irq_handler_tid = pthread_pool_get_np ();
   if (irq_handler_tid == l4_nilthread)
-    panic ("Can not create the irq handler thread");
-  
+    panic ("Can not create the kbd irq handler thread");
+
+  /* FIXME: We just tweak the scheduler so we can set the priority
+     ourselves.  */
+  result =  wortel_thread_control (irq_handler_tid, irq_handler_tid,
+				   l4_myself (), l4_nilthread, (void *) -1);
+  if (result)
+    panic ("Can not set scheduler for kbd irq handler thread: %i", result);
+  result = l4_set_priority (irq_handler_tid, /* FIXME */ 150);
+  if (!result)
+    panic ("Can not set priority for kbd irq handler thread: %i", result);
+
   err = pthread_create_from_l4_tid_np (&irq_handler, NULL,
 				       irq_handler_tid, console_irq_handler,
 				       dev);
   if (err)
-    panic ("Can not create the irq handler thread: %i", err);
+    panic ("Can not create the kbd irq handler thread: %i", err);
 
   pthread_detach (irq_handler);
 }
