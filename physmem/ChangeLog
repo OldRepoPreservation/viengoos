@@ -1,3 +1,8 @@
+2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
+
+	* container.c (container_reinit): New function.
+	(container_class_init): Pass container_reinit as reinit function.
+
 2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
 
 	* container.c: Revert last change.

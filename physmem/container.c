@@ -60,6 +60,22 @@ struct container
 };
 typedef struct container *container_t;
 
+
+static void
+container_reinit (hurd_cap_class_t cap_class, hurd_cap_obj_t obj)
+{
+  container_t container = (container_t) obj;
+  l4_word_t nr_fpages;
+
+  nr_fpages = container->nr_fpages;
+
+  while (nr_fpages > 0)
+    {
+      l4_fpage_t fpage = obj->fpages[--nr_fpages];
+      zfree (l4_address (fpage), l4_size (fpage));
+    }
+}
+
 
 error_t
 container_demuxer (hurd_cap_rpc_context_t ctx)
@@ -77,7 +93,8 @@ container_class_init ()
 {
   return hurd_cap_class_init (&container_class, sizeof (struct container),
 			      __alignof__ (struct container),
-			      NULL, NULL, NULL, NULL, container_demuxer);
+			      NULL, NULL, container_reinit, NULL,
+			      container_demuxer);
 }
 
 
