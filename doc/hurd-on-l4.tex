@@ -224,7 +224,7 @@ wrappers for the system calls to other unprivileged system tasks.
   could provide the index in the table for fast O(1) lookup instead
   linear search.  Threads with access could be allowed to add other
   threads or change existing table entries.  The same scheme can be
-  used int the device driver framework.
+  used in the device driver framework.
   
   The rootserver should have one thread per CPU, and run at a high
   priority.
@@ -1899,50 +1899,71 @@ To be written.
 \subsubsection{The \texttt{exec()} function}
 \label{exec}
 
-The exec() operation will be done locally in a task.  Traditionally,
-exec() overlays the same task with a new process image, because
-creating a new task and transferring the associated state is
-expensive.  In L4, only the threads and virtual memory mappings are
-actually kernel state associated with a task, and exactly those have
-to be destroyed by exec() anyway.  There is a lot of Hurd specific
-state associated with a task (capabilities, for example), but it is
-difficult to preserve that.  There are security concerns, because
-POSIX programs do not know about Hurd features like capabilities, so
-inheriting all capabilities across exec() seems dangerous.  There are
-also implementation obstacles, because only local threads can
-manipulate the virtual memory mappings, and there is a lot of local
-state that has to be kept somewhere between the time the old program
-becomes defunct and the new binary image is installed and used (not to
-speak of the actual program snippet that runs during the transition).
+The \texttt{exec()} operation will be done locally in a task.
+Traditionally, \texttt{exec()} overlays the same task with a new
+process image, because creating a new task and transferring the
+associated state is expensive.  In L4, only the threads and virtual
+memory mappings are actually kernel state associated with a task, and
+exactly those have to be destroyed by \texttt{exec()} anyway.  There
+is a lot of Hurd specific state associated with a task (capabilities,
+for example), but it is difficult to preserve that.  There are
+security concerns, because POSIX programs do not know about Hurd
+features like capabilities, so inheriting all capabilities across
+\texttt{exec()} unconditionally seems dangerous.
 
-So a decision was made to always create a new task with exec(), and
-move the desired state over from the current task to the new task.
-This is a clean solution, because a new task will always start out
-without any capabilities in servers, etc, and thus there is no need
-for the old task to try to destroy all unneeded capabilities and other
-local state before exec().  Also, in case the exec fails, the old
-program can continue to run, even if the exec fails at a very late
-point (there is no ``point of no return'' until the new task is
-actually up and running).
+\begin{comment}
+  One could think that if a program is not Hurd-aware, then it will
+  not make any use of capabilities except through the normal POSIX
+  API, and thus there are no capabilities except those that the GNU C
+  library uses itself, which \texttt{exec()} can take care of.
+  However, this is only true if code that is not Hurd-aware is never
+  mixed with Hurd specific code, even libraries (unless the library
+  intimately cooperates with the GNU C library).  This would be a high
+  barrier to enable Hurd features in otherwise portable programs and
+  libraries.
+  
+  It is better to make all POSIX functions safe by default and allow
+  for extensions to let the user specify which capabilities besides
+  those used for file descriptors etc to be inherited by the new
+  executable.
+  
+  For \texttt{posix_spawn}, this is straight-forward.  For
+  \texttt{exec()}, it is not. either specific capabilities could be
+  markes as ``do not close on \texttt{exec()}'', or variants of the
+  \texttt{exec()} function could be provided which take further
+  arguments.
+\end{comment}
 
-For suid/sgid applications, the actual exec has to be done by the
-filesystem.  However, the filesystem can not be bothered to also
-transfer all the user state into the new task.  It can not even do
-that, because it can not accept capabilities implemented by untrusted
-servers from the user.  Also, the filesystem does not want to rely on
-the new task to be cooperative, because it does not necessarily trust
-the code.  (This actually depends on if users are allowed to set the
-suid/sgid flag on their own programs.  If not, then it might be ok for
-the filesystem to trust the program, but it is assumed that the Hurd
-will not be so restrictive).  Here is how it can be done.  Only the
-suid/sgid case is provided, the other one is naturally easier but
-comparable.
+There are also implementation obstacles hindering the reuse of the
+existing task.  Only local threads can manipulate the virtual memory
+mappings, and there is a lot of local state that has to be kept
+somewhere between the time the old program becomes defunct and the new
+binary image is installed and used (not to speak of the actual program
+snippet that runs during the transition).
+
+So the decision was made to always create a new task with
+\texttt{exec()}, and copy the desired state from the current task to
+the new task.  This is a clean solution, because a new task will
+always start out without any capabilities in servers, etc, and thus
+there is no need for the old task to try to destroy all unneeded
+capabilities and other local state before \texttt{exec()}.  Also, in
+case the exec fails, the old program can continue to run, even if the
+exec fails at a very late point (there is no ``point of no return''
+until the new task is actually up and running).
+
+For suid and sgid applications, the actual \texttt{exec()} has to be
+done by the filesystem.  However, the filesystem can not be bothered
+to also transfer all the user state into the new task.  It can not
+even do that, because it can not accept capabilities implemented by
+untrusted servers from the user.  Also, the filesystem does not want
+to rely on the new task to be cooperative, because it does not
+necessarily trust the code, if is is owned by an untrusted user.
 
 \begin{enumerate}
 \item The user creates a new task and a container with a single
-  physical page, and makes the exec() call to the file capability,
-  providing the task control capability.  Before that, it creates a
-  task info capability from it for its own use.
+  physical page, and makes the \texttt{exec()} call to the file
+  capability, providing the task control capability.  Before that, it
+  creates a task info capability from it for its own use.
 \item The filesystem checks permission and then revokes all other
   users on the task control capability.  This will revoke the users
   access to the task, and will fail if the user did not provide a
