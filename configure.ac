@@ -107,6 +107,7 @@ m4_include([libl4/headers.m4])
 m4_include([libhurd-ihash/headers.m4])
 m4_include([libhurd-slab/headers.m4])
 m4_include([libhurd-cap/headers.m4])
+m4_include([libpthread/headers.m4])
 
 if test "x$missing_progs" != "x"; then
   AC_MSG_ERROR([The following programs were not found:$missing_progs])
@@ -119,6 +120,7 @@ AC_CONFIG_FILES([Makefile
 		 libhurd-ihash/Makefile
 		 libhurd-slab/Makefile
 		 libhurd-cap/Makefile
+		 libpthread/Makefile
                  laden/Makefile
                  wortel/Makefile
                  physmem/Makefile

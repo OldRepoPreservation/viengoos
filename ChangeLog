@@ -1,5 +1,9 @@
 2004-03-17  Marcus Brinkmann  <marcus@gnu.org>
 
+	* configure.ac: Add include for libpthread/headers.m4.
+	(AC_CONFIG_FILES): Add libpthread/Makefile.
+	* Makefile.am (SUBDIRS): Add libpthread.
+
 	* libpthread: New directory, populated with Neal H. Walfields
 	pthread implementation.
 
