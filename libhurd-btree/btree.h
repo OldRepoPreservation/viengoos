@@ -322,13 +322,15 @@ BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
    function need not be called on each node individually: this is only
    a waste of time.  Instead, one can do:
 
-     btree_node_t node;
-     for (node = btree_first (btree); node; node = btree_next (node))
-       free (node);
+     btree_node_t node, next;
+     for (node = btree_first (btree); node; node = next)
+       {
+         next = btree_next (node);
+         free (node);
+       }
 
    Since btree_next (node) is guaranteed to never touch a node which
-   is lexically less than NODE.
- */
+   is lexically less than NODE.  */
 extern void BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *node);
 
 /* Return the node with the smallest key in tree BTREE or NULL if the
@@ -432,8 +434,8 @@ extern BTREE_(node_t) *BTREE_(prev) (BTREE_(node_t) *node);
        btree_node_t node;
      };
      
-     BTREE_NODE_CLASS (int, struct my_int_node, int, key, node,
-                       my_int_node_compare)
+     BTREE_CLASS (int, struct my_int_node, int, key, node,
+                  my_int_node_compare)
      
      int
      int_node_compare (const int *a, const int *b)
@@ -443,8 +445,8 @@ extern BTREE_(node_t) *BTREE_(prev) (BTREE_(node_t) *node);
 
    Would make btree_int_node_find, btree_int_node_insert, etc.
    available.  */
-#define BTREE_NODE_CLASS(name, node_type, key_type, key_field,		\
-			 btree_node_field, cmp_function)		\
+#define BTREE_CLASS(name, node_type, key_type, key_field,		\
+		    btree_node_field, cmp_function)			\
 									\
 typedef struct								\
 {									\
@@ -461,13 +463,13 @@ static inline node_type *						\
 BTREE_(name##_find) (BTREE_(name##_t) *btree, const key_type *key)	\
 {									\
   int (*cmp) (const key_type *, const key_type *) = (cmp_function);	\
+  void *n = BTREE_(find) (&btree->btree,				\
+			  (int (*) (const void *, const void *)) cmp,	\
+			  offsetof (node_type, key_field)		\
+			  - offsetof (node_type, btree_node_field),	\
+			  (const void *) key);				\
 									\
-  return (void *) BTREE_(find) (&btree->btree,				\
-				(int (*) (const void *, const void *)) cmp,\
-				offsetof (node_type, key_field)		\
-				- offsetof (node_type, btree_node_field),\
-				(const void *) key)			\
- 	 - offsetof (node_type, btree_node_field);			\
+  return n ? n - offsetof (node_type, btree_node_field) : NULL;		\
 }									\
 									\
 static inline error_t							\
@@ -491,22 +493,22 @@ BTREE_(name##_detach) (BTREE_(name##_t) *btree, node_type *node)	\
 static inline node_type *						\
 BTREE_(name##_first) (BTREE_(name##_t) *btree)				\
 {									\
-  return (void *) BTREE_(first) (&btree->btree)				\
-	 - offsetof (node_type, btree_node_field);			\
+  void *n = BTREE_(first) (&btree->btree);				\
+  return n ? n - offsetof (node_type, btree_node_field) : NULL;		\
 }									\
 									\
 static inline node_type *						\
 BTREE_(name##_next) (node_type *node)					\
 {									\
-  return (void *) BTREE_(next) (&node->btree_node_field)		\
-	 - offsetof (node_type, btree_node_field);			\
+  void *n = BTREE_(next) (&node->btree_node_field);			\
+  return n ? n - offsetof (node_type, btree_node_field) : NULL;		\
 }									\
 									\
 static inline node_type *						\
 BTREE_(name##_prev) (node_type *node)					\
 {									\
-  return (void *) BTREE_(prev) (&node->btree_node_field)		\
-	 - offsetof (node_type, btree_node_field);			\
+  void *n = BTREE_(prev) (&node->btree_node_field);			\
+  return n ? n - offsetof (node_type, btree_node_field) : NULL;		\
 }
 
 #endif /* BTREE_H */

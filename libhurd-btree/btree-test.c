@@ -21,7 +21,7 @@ struct int_node
   int key;
 };
 
-BTREE_NODE_CLASS(int_node, struct int_node, int, key, node, int_node_compare)
+BTREE_CLASS(int_node, struct int_node, int, key, node, int_node_compare)
 
 static int
 int_node_compare (const int *a, const int *b)

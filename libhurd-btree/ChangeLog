@@ -1,5 +1,13 @@
 2004-12-25  Neal H. Walfield  <neal@gnu.org>
 
+	* btree.h (BTREE_CLASS): Rename from BTREE_NODE_CLASS.
+	If the function returns a returns a NODE_TYPE and it fails, simply
+	return NULL.
+	(btree_detach): Fix comment.
+	* btree-test.c: Use BTREE_CLASS, BTREE_NODE_CLASS.
+
+2004-12-25  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am: New file.
 	* headers.m4: Likewise.
 	* btree.c: Likewise.
