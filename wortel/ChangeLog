@@ -1,5 +1,12 @@
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
+	* wortel.c (start_elf): Initialize PHYS_STARTUP->flags.  New
+	variables PHDR and PHDR_LEN.  Calculate the virtual address of the
+	program header if it is loaded and use them for PHYS_STARTUP->phdr
+	and PHYS_STARTUP->phdr_len.
+	* wortel-intern.h (struct wortel_module): Remove members
+	HEADER_LOC and HEADER_SIZE.
+
 	* startup.c (map): Loop over map requests until we mapped the
 	whole range in case not all map items fit into a single reply
 	message.	

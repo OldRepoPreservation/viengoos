@@ -473,6 +473,11 @@ start_elf (unsigned int mod)
   struct hurd_startup_data *phys_startup;
   l4_word_t task_entry_point;
 
+  /* The virtual address of the program header.  */
+  l4_word_t phdr = 0;
+  /* The size of the program header.  */
+  l4_word_t phdr_len;
+
   /* First clear everything.  This ensures that the .bss section is
      initialized to zero.  */
   memset ((void *) start, 0, size);
@@ -705,6 +710,19 @@ start_elf (unsigned int mod)
 		phys_mapv->vaddr = (void *) l4_page_trunc (ph->p_vaddr);
 		mapc++;
 	      }
+
+
+	    /* Check if this is the segment that contains the phdr
+	       image.  */
+	    if (!phdr
+		&& (ph->p_offset & -ph->p_align) == 0 /* Sanity check.  */
+		&& ph->p_offset <= elf->e_phoff
+		&& elf->e_phoff + elf->e_phnum * elf->e_phentsize
+		- ph->p_offset <= ph->p_filesz)
+	      {
+		phdr = ph->p_vaddr + elf->e_phoff - ph->p_offset;
+		phdr_len = elf->e_phnum * elf->e_phentsize;
+	      }
 	  }
       }
     while (i > 0);
@@ -714,6 +732,7 @@ start_elf (unsigned int mod)
   /* Fill the startup structure.  */
   phys_startup->version_major = HURD_STARTUP_VERSION_MAJOR;
   phys_startup->version_minor = HURD_STARTUP_VERSION_MINOR;
+  phys_startup->flags = 0;
   /* See below.  */
   phys_startup->utcb_area = l4_fpage_log2 (((l4_word_t) HURD_STARTUP_ADDR)
 					   + HURD_STARTUP_SIZE
@@ -732,8 +751,8 @@ start_elf (unsigned int mod)
   phys_startup->mapc = mapc;
   phys_startup->mapv = (struct hurd_startup_map *) STARTUP_TO_VIRT (mapv);
   /* The program header is already a virtual address for the task.  */
-  phys_startup->phdr = (void *) mods[mod].header_loc;
-  phys_startup->phdr_len = mods[mod].header_size;
+  phys_startup->phdr = (void *) phdr;
+  phys_startup->phdr_len = phdr_len;
   phys_startup->entry_point = (void *) task_entry_point;
   phys_startup->startup.server = mods[MOD_PHYSMEM].server_thread;
   phys_startup->startup.cap_handle = mods[mod].startup_cont;

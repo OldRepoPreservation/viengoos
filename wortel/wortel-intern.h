@@ -100,11 +100,6 @@ struct wortel_module
      task is started.  */
   l4_word_t ip;
 
-  /* The program header location and size.  Initialized just before
-     the task is started.  */
-  l4_word_t header_loc;
-  l4_word_t header_size;
-
   /* The task control capability for this module.  Initialized after
      the task server starts up.  */
   hurd_cap_handle_t task_ctrl;
