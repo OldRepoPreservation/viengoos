@@ -1,5 +1,8 @@
 2005-01-27  Marcus Brinkmann  <marcus@gnu.org>
 
+	* hurd-l4/sysdeps/l4/hurd/getpagesize.c: Removed.
+	* hurd-l4/sysdeps/l4/getpagesize.c: New file.
+
 	* hurd-l4/sysdeps/l4/hurd/sigaction.c: New dummy file to prevent
 	including recursive dependencies from the BSD implementation.
 	* hurd-l4/sysdeps/l4/hurd/sigprocmask.c: Likewise.
