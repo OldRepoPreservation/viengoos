@@ -28,7 +28,9 @@
 #include <l4/thread-start.h>
 #include <l4/pagefault.h>
 
-#include "wortel.h"
+#include <hurd/wortel.h>
+
+#include "wortel-intern.h"
 #include "sigma0.h"
 
 
@@ -276,7 +278,7 @@ start_physmem (void)
   l4_word_t ret;
   l4_word_t control;
   l4_thread_id_t physmem;
-  unsigned int cap_id;
+  wortel_cap_id_t cap_id;
   l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
   unsigned int nr_fpages;
 
@@ -881,6 +883,7 @@ serve_bootstrap_requests (void)
     {
       l4_thread_id_t from = l4_anythread;
       l4_word_t label;
+      wortel_cap_id_t cap_id;
       l4_msg_t msg;
       l4_msg_tag_t tag;
 
@@ -888,39 +891,37 @@ serve_bootstrap_requests (void)
       if (l4_ipc_failed (tag))
 	panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
 
-      label = l4_label (tag);
-      /* FIXME: Shouldn't store the whole msg before checking access
-	 rights.  */
-      l4_msg_store (tag, msg);
+      /* FIXME: Remove when not debugging.  */
+      if ((l4_label (tag) >> 4) == 0xffe)
+	{
+	  if (l4_untyped_words (tag) != 2 || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of page fault message");
+	  panic ("Unexpected page fault from 0x%x at address 0x%x (IP 0x%x)",
+		 from, l4_msg_word (msg, 0), l4_msg_word (msg, 1));
+	}
+
+      label = l4_label (tag) >> WORTEL_MSG_CAP_ID_BITS;
+      cap_id = l4_label (tag) & ((1 << WORTEL_MSG_CAP_ID_BITS) - 1);
+
 #if 0
-      /* FIXME: CHeck for pagefaults before checking the cap id.  */
-      if (!WORTEL_CAP_VALID (l4_msg_word (msg, 0), l4_version (from)))
+      if (!WORTEL_CAP_VALID (cap_id, l4_version (from)))
 	/* FIXME: Shouldn't be a panic of course.  */
-	panic ("Unprivileged user 0x%x attemps to access wortel rootserver",
-	       from);
+	panic ("Unprivileged user 0x%x attemps to access wortel rootserver 0x%x",
+	       from, cap_id);
 #endif
 
-#define WORTEL_MSG_PUTCHAR		1
-#define WORTEL_MSG_SHUTDOWN		2
-#define WORTEL_MSG_GET_MEM		3
-#define WORTEL_MSG_GET_CAP_REQUEST	4
-#define WORTEL_MSG_GET_CAP_REPLY	5
-#define WORTEL_MSG_GET_THREADS		6
-#define WORTEL_MSG_GET_TASK_CAP		7
+      l4_msg_store (tag, msg);
 
       if (label == WORTEL_MSG_PUTCHAR)
 	{
 	  int chr;
 
-	  /* This is a putchar() message.  */
-	  if (l4_untyped_words (tag) != 2
-	      || l4_typed_words (tag) != 0)
-	    panic ("Invalid format of putchar msg");
-
-	  chr = (int) l4_msg_word (msg, 1);
+	  chr = (int) l4_msg_word (msg, 0);
 	  putchar (chr);
-	  /* No reply needed.  */
-	  continue;
+
+	  l4_msg_clear (msg);
+	  l4_msg_load (msg);
+	  l4_reply (from);
 	}
       else if (label == WORTEL_MSG_SHUTDOWN)
 	panic ("Bootstrap failed");
@@ -928,10 +929,6 @@ serve_bootstrap_requests (void)
 	{
 	  l4_fpage_t fpage;
 	  l4_map_item_t map_item;
-
-	  if (l4_untyped_words (tag) != 1
-	      || l4_typed_words (tag) != 0)
-	    panic ("Invalid format of get_mem msg");
 
 	  if (get_mem_size < L4_MIN_PAGE_SIZE_LOG2)
 	    panic ("physmem server does not stop requesting memory");
@@ -956,6 +953,7 @@ serve_bootstrap_requests (void)
 	     output driver is using (for example VGA mapped
 	     memory).  */
 	  map_item = l4_map_item (fpage, l4_address (fpage));
+
 	  l4_msg_clear (msg);
 	  l4_msg_append_map_item (msg, map_item);
 	  l4_msg_load (msg);
@@ -963,13 +961,8 @@ serve_bootstrap_requests (void)
 	}
       else if (label == WORTEL_MSG_GET_THREADS)
 	{
-	  if (l4_untyped_words (tag) != 1
-	      || l4_typed_words (tag) != 0)
-	    panic ("Invalid format of get_mem msg");
-
-	  /* FIXME: Use the wortel cap ID to find out which server
-	     wants this info.  */
-
+	  /* FIXME: Use the task ID to find out which server wants
+	     this info?  */
 	  l4_msg_clear (msg);
 	  l4_msg_append_word (msg, mods[MOD_PHYSMEM].nr_extra_threads);
 	  l4_msg_load (msg);
@@ -977,23 +970,17 @@ serve_bootstrap_requests (void)
 	}
       else if (label == WORTEL_MSG_GET_CAP_REQUEST)
 	{
-	  if (l4_untyped_words (tag) != 1
-	      || l4_typed_words (tag) != 0)
-	    panic ("Invalid format of get cap request msg");
-
-	  if (cur_cont == nr_cont)
+	  if (cur_cont > nr_cont)
+	    panic ("physmem does not stop requesting capabilities");
+	  else if (cur_cont == nr_cont)
 	    {
 	      /* Request the global control capability now.  */
 	      l4_msg_clear (msg);
-	      l4_set_msg_label (msg, 0);
-
 	      l4_msg_append_word
 		(msg, l4_version (mods[MOD_ROOT_FS].server_thread));
 	      l4_msg_load (msg);
 	      l4_reply (from);
 	    }
-	  else if (cur_cont > nr_cont)
-	    panic ("physmem does not stop requesting capabilities");
 	  else
 	    {
 	      /* We are allowed to make a capability request now.  */
@@ -1031,19 +1018,21 @@ serve_bootstrap_requests (void)
 	}
       else if (label == WORTEL_MSG_GET_CAP_REPLY)
 	{
-	  if (l4_untyped_words (tag) != 2
-	      || l4_typed_words (tag) != 0)
+	  if (l4_untyped_words (tag) != 1 || l4_typed_words (tag) != 0)
 	    panic ("Invalid format of get cap reply msg");
 
 	  if (cur_cont > nr_cont)
 	    panic ("Invalid get cap reply message");
 	  else if (cur_cont == nr_cont)
-	    physmem_master = l4_msg_word (msg, 1);
+	    physmem_master = l4_msg_word (msg, 0);
 	  else
-	    *container[cur_cont].cont = l4_msg_word (msg, 1);
+	    *container[cur_cont].cont = l4_msg_word (msg, 0);
 
-	  /* Does not require a reply.  */
 	  cur_cont++;
+
+	  l4_msg_clear (msg);
+	  l4_msg_load (msg);
+	  l4_reply (from);
 	}
       else if (label == WORTEL_MSG_GET_TASK_CAP)
 	{
@@ -1051,12 +1040,8 @@ serve_bootstrap_requests (void)
 	     caps have been successfully created to request the task
 	     server cap of the physmem task.  */
 
-	  if (l4_untyped_words (tag) != 1
-	      || l4_typed_words (tag) != 0)
-	    panic ("Invalid format of get task cap msg");
-
-	  /* FIXME: Use the wortel cap ID to find out which server
-	     wants this info.  */
+	  /* FIXME: Use the task ID to find out which server wants
+	     this info.  */
 
 	  /* We have to reply later, when we started up the task
 	     server and received the physmem task cap.  */
@@ -1064,13 +1049,6 @@ serve_bootstrap_requests (void)
 
 	  /* Start up the task server and continue serving RPCs.  */
 	  start_task ();
-	}
-      else if ((label >> 4) == 0xffe)
-	{
-	  if (l4_untyped_words (tag) != 2 || l4_typed_words (tag) != 0)
-	    panic ("Invalid format of page fault message");
-	  panic ("Unexpected page fault from 0x%x at address 0x%x (IP 0x%x)",
-		 from, l4_msg_word (msg, 0), l4_msg_word (msg, 1));
 	}
       else
 	panic ("Invalid message with tag 0x%x", tag);

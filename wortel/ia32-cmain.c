@@ -30,7 +30,7 @@
 #include <l4/stubs.h>
 #include <l4/stubs-init.h>
 
-#include "wortel.h"
+#include "wortel-intern.h"
 #include "multiboot.h"
 #include "sigma0.h"
 

@@ -1,3 +1,16 @@
+2004-04-26  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.c: Include wortel-intern.h, not wortel.h.  Include
+	<hurd/wortel.h>.
+	(start_physmem): Change type of cap_id to wortel_cap_id_t.
+	(serve_bootstrap_requests): Rewritten for new RPC interface.
+	* wortel.h: Rename to ...
+	* wortel-intern.h: ... this.
+	* ia32-cmain.c: Include wortel-intern.h, not wortel.h.
+	* startup.c: Likewise.
+	* wortel.h: New file.
+	* headers.m4: New file.
+
 2004-04-15  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (startup-bin.o): Add dependency on startup.

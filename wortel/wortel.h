@@ -1,153 +1,344 @@
-/* wortel.h - Generic definitions.
-   Copyright (C) 2003 Free Software Foundation, Inc.
-   Written by Marcus Brinkmann.
-
+/* wortel.h - RPC client stubs for wortel users.
+   Copyright (C) 2004 Free Software Foundation, Inc.
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
-   your option) any later version.
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
+   The GNU Hurd is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+   02111-1307 USA.  */
 
-#if HAVE_CONFIG_H
-#include <config.h>
-#endif
+#ifndef _WORTEL_USER_H
+#define _WORTEL_USER_H	1
 
-#include <string.h>
+#include <l4/types.h>
+#include <l4/space.h>
+#include <l4/ipc.h>
 
 #include <hurd/types.h>
 
-#include <l4.h>
+
+/* The wortel capability ID is used to authenticate a message.  */
+typedef l4_word_t wortel_cap_id_t;
 
-#include "output.h"
-#include "shutdown.h"
-#include "loader.h"
+/* The user must define these variables.  */
+extern l4_thread_id_t wortel_thread_id;
+extern wortel_cap_id_t wortel_cap_id;
 
 
-#define BUG_ADDRESS	"<bug-hurd@gnu.org>"
+/* Message labels.  */
 
-/* The program name.  */
-extern const char program_name[];
+/* A wortel message label consists of 16 bits.  The lower 8 bits
+   specify the cap ID.  The next 7 bits specify the message ID.  The
+   highest bit is always 0.  */
+#define WORTEL_MSG_CAP_ID_BITS		8
 
-/* The region of wortel itself.  */
-extern l4_word_t wortel_start;
-extern l4_word_t wortel_end;
+#define WORTEL_MSG_THREAD_CONTROL	1
+#define WORTEL_MSG_SPACE_CONTROL	2
+#define WORTEL_MSG_PROCESSOR_CONTROL	3
+#define WORTEL_MSG_MEMORY_CONTROL	4
+
+#define WORTEL_MSG_PUTCHAR		32
+#define WORTEL_MSG_SHUTDOWN		33
+
+#define WORTEL_MSG_GET_MEM		64
+#define WORTEL_MSG_GET_CAP_REQUEST	65
+#define WORTEL_MSG_GET_CAP_REPLY	66
+#define WORTEL_MSG_GET_THREADS		67
+#define WORTEL_MSG_GET_TASK_CAP		68
+
+#define _WORTEL_LABEL(id)					\
+  (((id) << WORTEL_MSG_CAP_ID_BITS)				\
+   | (wortel_cap_id & ((1 << WORTEL_MSG_CAP_ID_BITS) - 1)))
 
 
-/* Unused memory.  These fpages mark memory which we needed at some
-   time, but don't need anymore.  It can be granted to the physical
-   memory server at startup.  This includes architecture dependent
-   boot data as well as the physical memory server module.  */
-#define MAX_UNUSED_FPAGES 32
-extern l4_fpage_t wortel_unused_fpages[MAX_UNUSED_FPAGES];
-extern unsigned int wortel_unused_fpages_count;
+/* Privileged system calls.  */
 
-
-/* Room for the arguments.  1 KB is a cramped half-screen full, which
-   should be more than enough.  Arguments need to be copied here by
-   the architecture dependent find_components, so all precious data is
-   gathered in the wortel binary region.  */
-extern char mods_args[1024];
-
-/* The number of bytes in mods_args already consumed.  */
-extern unsigned mods_args_len;
-
-struct wortel_module
+/* Like l4_thread_control.  */
+static inline l4_word_t
+__attribute__((always_inline))
+wortel_thread_control (l4_thread_id_t dest, l4_thread_id_t space,
+		       l4_thread_id_t scheduler, l4_thread_id_t pager,
+		       void *utcb)
 {
-  const char *name;
+  l4_msg_tag_t tag;
+  l4_word_t result;
 
-  /* Low and high address of the module.  Initialized by
-     find_components.  END is the address of the byte following the
-     last byte in the image.  */
-  l4_word_t start;
-  l4_word_t end;
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
-  /* The command line, in raw, uninterpreted form.  This points into
-     mods_args.  Initialized by find_components.  */
-  char *args;
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_THREAD_CONTROL));
+  l4_msg_tag_set_untyped_words (&tag, 5);
+  l4_set_msg_tag (tag);
+  l4_load_mr (1, dest);
+  l4_load_mr (2, space);
+  l4_load_mr (3, scheduler);
+  l4_load_mr (4, pager);
+  l4_load_mr (5, (l4_word_t) utcb);
+  tag = l4_call (wortel_thread_id);
 
-  /* The task ID to which this module belongs.  */
+  l4_store_mr (1, &result);
+
+  return result;
+}
+
+
+/* Like l4_space_control.  */
+static inline l4_word_t
+__attribute__((always_inline))
+wortel_space_control (l4_thread_id_t space, l4_word_t control,
+		      l4_fpage_t kip, l4_fpage_t utcb,
+		      l4_thread_id_t redirector, l4_word_t *old_control)
+{
+  l4_msg_tag_t tag;
+  l4_word_t result;
+
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_SPACE_CONTROL));
+  l4_msg_tag_set_untyped_words (&tag, 5);
+  l4_set_msg_tag (tag);
+  l4_load_mr (1, space);
+  l4_load_mr (2, control);
+  l4_load_mr (3, kip);
+  l4_load_mr (4, utcb);
+  l4_load_mr (5, redirector);
+  tag = l4_call (wortel_thread_id);
+
+  l4_store_mr (1, &result);
+  l4_store_mr (2, old_control);
+
+  return result;
+}
+
+
+/* Like l4_processor_control.  */
+static inline l4_word_t
+__attribute__((always_inline))
+wortel_processor_control (l4_word_t proc, l4_word_t control,
+			  l4_word_t internal_freq, l4_word_t external_freq,
+			  l4_word_t voltage)
+{
+  l4_msg_tag_t tag;
+  l4_word_t result;
+
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_PROCESSOR_CONTROL));
+  l4_msg_tag_set_untyped_words (&tag, 5);
+  l4_set_msg_tag (tag);
+  l4_load_mr (1, proc);
+  l4_load_mr (2, control);
+  l4_load_mr (3, internal_freq);
+  l4_load_mr (4, external_freq);
+  l4_load_mr (5, voltage);
+  tag = l4_call (wortel_thread_id);
+
+  l4_store_mr (1, &result);
+
+  return result;
+}
+
+
+/* Like l4_set_pages_attributes, except that only up to 59 fpages can
+   be provided.  */
+static inline l4_word_t
+__attribute__((always_inline))
+wortel_memory_control (l4_word_t nr, l4_fpage_t *fpages, l4_word_t *attributes)
+{
+  l4_msg_tag_t tag;
+  unsigned int i;
+  l4_word_t result;
+
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_MEMORY_CONTROL));
+  l4_msg_tag_set_untyped_words (&tag, nr + 4);
+  l4_set_msg_tag (tag);
+  for (i = 1; i <= nr; i++)
+    l4_load_mr (i, fpages[i - 1]);
+  l4_load_mr (i++, attributes[0]);
+  l4_load_mr (i++, attributes[1]);
+  l4_load_mr (i++, attributes[2]);
+  l4_load_mr (i++, attributes[3]);
+  tag = l4_call (wortel_thread_id);
+
+  l4_store_mr (1, &result);
+
+  return result;
+}
+
+
+/* Manager interface.  */
+
+/* Echo the character CHR on the manager console.  */
+static inline void
+__attribute__((always_inline))
+wortel_putchar (int chr)
+{
+  l4_msg_tag_t tag;
+
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_PUTCHAR));
+  l4_msg_tag_set_untyped_words (&tag, 1);
+  l4_set_msg_tag (tag);
+  l4_load_mr (1, (l4_word_t) chr);
+  tag = l4_call (wortel_thread_id);
+}
+
+
+/* Shutdown the system.  */
+static inline void
+__attribute__((always_inline))
+wortel_shutdown (void)
+{
+  l4_msg_tag_t tag;
+
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_SHUTDOWN));
+  l4_set_msg_tag (tag);
+  tag = l4_call (wortel_thread_id);
+
+  /* Never reached.  */
+}
+
+
+/* Boot interface.  */
+
+/* Get some physical memory.  */
+static inline l4_fpage_t
+__attribute__((always_inline))
+wortel_get_mem (void)
+{
+  l4_msg_tag_t tag;
+  l4_word_t mrs[2];
+  l4_grant_item_t grant_item;
+  
+  l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_MEM));
+  l4_set_msg_tag (tag);
+  tag = l4_call (wortel_thread_id);
+
+  l4_store_mr (1, &mrs[0]);
+  l4_store_mr (2, &mrs[1]);
+  grant_item = *((l4_grant_item_t *) mrs);
+
+  return l4_grant_item_snd_fpage (grant_item);
+}
+
+
+/* Get the number of extra threads for physmem.  */
+static inline l4_word_t
+__attribute__((always_inline))
+wortel_get_threads (void)
+{
+  l4_msg_tag_t tag;
+  l4_word_t nr_threads;
+  
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_THREADS));
+  l4_set_msg_tag (tag);
+  tag = l4_call (wortel_thread_id);
+
+  l4_store_mr (1, &nr_threads);
+  return nr_threads;
+}
+
+
+/* Get the next physmem capability request.  */
+static inline hurd_task_id_t
+__attribute__((always_inline))
+wortel_get_cap_request (unsigned int *nr_fpages, l4_fpage_t *fpages)
+{
+  l4_msg_tag_t tag;
   hurd_task_id_t task_id;
+  unsigned int nr_items;
+  unsigned int mr;
+  l4_word_t mrs[2];
 
-  /* The container capability in the physical memory server for this
-     module.  Not valid for the physical memory server.  Initialized
-     after physmem starts up.  */
-  hurd_cap_handle_t mem_cont;
+  l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
 
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_CAP_REQUEST));
+  l4_set_msg_tag (tag);
+  tag = l4_call (wortel_thread_id);
 
-  /* The following information is only valid if a task will be created
-     from the module.  */
+  *nr_fpages = 0;
+  mr = 1;
+  l4_store_mr (mr++, &task_id);
+  nr_items = l4_typed_words (tag) / 2;
+  while (nr_items--)
+    {
+      /* FIX this code.  Do not break alias rule.  */
+      l4_map_item_t *map_itemp = (l4_map_item_t *) mrs;
 
-  /* The FPAGE that contains the startup code.  Not valid for the
-     physical memory server.  */
-  l4_fpage_t startup;
+      l4_store_mrs (mr, 2, &mrs[0]);
 
-  /* The container capability that contains the startup code.  Only
-     valid if startup is valid.  Initialized after physmem starts
-     up.  */
-  l4_fpage_t startup_cont;
+      fpages[*nr_fpages] = l4_map_item_snd_fpage (*map_itemp);
+      mr += 2;
+      (*nr_fpages)++;
+    }
 
-  /* The entry point of the executable.  Initialized just before the
-     task is started.  */
-  l4_word_t ip;
-
-  /* The program header location and size.  Initialized just before
-     the task is started.  */
-  l4_word_t header_loc;
-  l4_word_t header_size;
-
-  /* The task control capability for this module.  Not used for the
-     task server task.  Initialized after the task server starts
-     up.  */
-  hurd_cap_handle_t task_ctrl;
-
-  /* Server thread and the initial main thread of the task made from
-     this module.  */
-  l4_thread_id_t server_thread;
-
-  /* Number of helper threads in the task made from this module.  They
-     all follow the SERVER_THREAD numerically in their thread number,
-     while they have the same version ID (which is equal to task_id).
-     Initialized just before the task is started.  */
-  unsigned int nr_extra_threads;
-};
+  return task_id;
+}
 
 
-enum wortel_module_type
-  {
-    MOD_PHYSMEM = 0,
-    MOD_TASK,
-    MOD_DEVA,
-    MOD_DEVA_STORE,
-    MOD_ROOT_FS,
-    MOD_NUMBER
-  };
+/* Reply to a capability request.  */
+static inline void
+__attribute__((always_inline))
+wortel_get_cap_reply (hurd_cap_handle_t handle)
+{
+  l4_msg_tag_t tag;
+  l4_word_t nr_threads;
+  
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
+
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_CAP_REPLY));
+  l4_msg_tag_set_untyped_words (&tag, 1);
+  l4_set_msg_tag (tag);
+  l4_load_mr (1, handle);
+  tag = l4_call (wortel_thread_id);
+}
 
 
-/* Return true if module is associated with its own task.  */
-#define MOD_IS_TASK(i) (i != MOD_DEVA_STORE)
+/* Get the task cap handle.  */
+static inline hurd_cap_handle_t
+__attribute__((always_inline))
+wortel_get_task_cap (void)
+{
+  l4_msg_tag_t tag;
+  hurd_cap_handle_t task;
+  
+  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
 
-/* Printable names of the boot modules.  */
-extern const char *mod_names[MOD_NUMBER];
+  tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, _WORTEL_LABEL (WORTEL_MSG_GET_TASK_CAP));
+  l4_set_msg_tag (tag);
+  tag = l4_call (wortel_thread_id);
 
-/* The boot modules.  */
-extern struct wortel_module mods[MOD_NUMBER];
+  l4_store_mr (1, &task);
+  return task;
+}
 
-/* The number of modules present.  Currently, this is enforced to be
-   MOD_NUMBER.  */
-extern unsigned int mods_count;
-
-/* Initialize up to MOD_NUMBER modules in MODS.  Set MODS_COUNT to the
-   number of modules initialized.  */
-void find_components (void);
-
-int main (int argc, char *argv[]);
+#endif	/* _WORTEL_USER_H */
