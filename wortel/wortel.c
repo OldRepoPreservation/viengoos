@@ -697,8 +697,8 @@ start_elf (unsigned int mod)
 		   allocation, use them.  */
 		phys_mapv->cont.server = mods[MOD_PHYSMEM].server_thread;
 		phys_mapv->cont.cap_handle = mods[mod].mem_cont;
-		phys_mapv->size = l4_page_round (ph->p_filesz);;
-		phys_mapv->offset = l4_page_trunc (ph->p_offset)
+		phys_mapv->size = l4_page_round (byte_offset + ph->p_filesz);
+		phys_mapv->offset = page_offset
 		  | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
 		  | ((ph->p_flags & PF_W) ? L4_FPAGE_WRITABLE : 0)
 		  | ((ph->p_flags & PF_R) ? L4_FPAGE_READABLE : 0);
