@@ -44,7 +44,7 @@
 /* Return the pointer to the kernel interface page, the API version,
    the API flags, and the kernel ID.  */
 
-static inline l4_kip_t
+static inline _L4_kip_t
 _L4_attribute_always_inline _L4_attribute_const
 _L4_kernel_interface (_L4_api_version_t *api_version,
 		      _L4_api_flags_t *api_flags,
@@ -334,11 +334,11 @@ _L4_processor_control (_L4_word_t proc, _L4_word_t int_freq,
 }
 
 
-static inline void
+static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_memory_control (_L4_word_t control, _L4_word_t *attributes)
 {
-  register _L4_word_t ctrl asm ("r3") = control;
+  register _L4_word_t ctrl_result asm ("r3") = control;
   register _L4_word_t attr0 asm ("r4") = attributes[0];
   register _L4_word_t attr1 asm ("r5") = attributes[1];
   register _L4_word_t attr2 asm ("r6") = attributes[2];
@@ -346,9 +346,11 @@ _L4_memory_control (_L4_word_t control, _L4_word_t *attributes)
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
-			:
-			: "r" (ctrl), "r" (attr0), "r" (attr1),
+			: "+r" (ctrl_result)
+			: "r" (ctrl_result), "r" (attr0), "r" (attr1),
 			"r" (attr2), "r" (attr3),
 			[addr] "r" (__l4_memory_control)
 			: "r8", "r9", "r10", __L4_PPC_CLOB);
+
+  return ctrl_result;
 }

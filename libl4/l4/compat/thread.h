@@ -287,7 +287,7 @@ static inline void
 _L4_attribute_always_inline
 L4_Set_XferTimeouts (L4_Word_t NewValue)
 {
-  return _L4_set_xfer_timeouts (NewValue);
+  _L4_set_xfer_timeouts (NewValue);
 }
 
 

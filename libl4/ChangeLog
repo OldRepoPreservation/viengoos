@@ -1,5 +1,30 @@
 2004-08-02  Peter Bruin  <pjbruin@dds.nl>
 
+	* powerpc/l4/bits/vregs.h (_L4_my_local_id): Remove variable
+	ID, and return the desired value directly.
+	(_L4_my_global_id): Likewise.
+	(_L4_pager): Remove variable THREAD, and return the desired value
+	directly.
+	(_L4_exception_handler): Likewise.
+	(_L4_intended_receiver): Likewise.
+	(_L4_actual_sender): Likewise.
+	(_L4_set_pager): Use `thread' instead of `thread.raw'.
+	(_L4_set_exception_handler): Likewise.
+	(_L4_set_virtual_sender): Likewise.
+	(_L4_xfer_timeout): Rename function to _L4_xfer_timeouts.
+	(_L4_set_xfer_timeout): Rename function to _L4_set_xfer_timeouts.
+
+	* powerpc/l4/bits/syscall.h (_L4_kernel_interface): Change return
+	type to _L4_kip_t.
+	(_L4_memory_control): Change return type to _L4_word_t.  Rename
+	variable CTRL to CTRL_RESULT and use it to hold the return value
+	of the system call.
+
+	* l4/compat/thread.h (L4_Set_XferTimeouts): Do not return a value.
+	* l4/gnu/thread.h (l4_set_xfer_timeouts): Likewise.
+
+2004-08-02  Peter Bruin  <pjbruin@dds.nl>
+
 	* powerpc/l4/bits/math.h (__L4_msb): Count leading zeros of
 	`data' instead of `data & -data'.
 	(__L4_lsb): Call __L4_msb instead of __l4_msb.  Remove unused

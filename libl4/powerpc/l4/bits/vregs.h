@@ -60,12 +60,8 @@ static inline _L4_thread_id_t
 _L4_attribute_always_inline
 _L4_my_local_id (void)
 {
-  _L4_thread_id_t id;
-
   /* Local thread ID is equal to the UTCB address.  */
-  id.raw = (_L4_word_t) _L4_utcb ();
-
-  return id;
+  return (_L4_word_t) _L4_utcb ();
 }
 
 
@@ -74,11 +70,9 @@ static inline _L4_thread_id_t
 _L4_attribute_always_inline
 _L4_my_global_id (void)
 {
-  _L4_thread_id_t id;
   _L4_word_t *utcb = _L4_utcb ();
 
-  id.raw = utcb[_L4_UTCB_MY_GLOBAL_ID];
-  return id;
+  return utcb[_L4_UTCB_MY_GLOBAL_ID];
 }
 
 
@@ -116,11 +110,9 @@ static inline _L4_thread_id_t
 _L4_attribute_always_inline
 _L4_pager (void)
 {
-  _L4_thread_id_t thread;
   _L4_word_t *utcb = _L4_utcb ();
 
-  thread.raw = utcb[_L4_UTCB_PAGER];
-  return thread;
+  return utcb[_L4_UTCB_PAGER];
 }
 
 
@@ -130,7 +122,7 @@ _L4_set_pager (_L4_thread_id_t thread)
 {
   _L4_word_t *utcb = _L4_utcb ();
 
-  utcb[_L4_UTCB_PAGER] = thread.raw;
+  utcb[_L4_UTCB_PAGER] = thread;
 }
 
 
@@ -138,11 +130,9 @@ static inline _L4_thread_id_t
 _L4_attribute_always_inline
 _L4_exception_handler (void)
 {
-  _L4_thread_id_t thread;
   _L4_word_t *utcb = _L4_utcb ();
 
-  thread.raw = utcb[_L4_UTCB_EXC_HANDLER];
-  return thread;
+  return utcb[_L4_UTCB_EXC_HANDLER];
 }
 
 
@@ -152,7 +142,7 @@ _L4_set_exception_handler (_L4_thread_id_t thread)
 {
   _L4_word_t *utcb = _L4_utcb ();
 
-  utcb[_L4_UTCB_EXC_HANDLER] = thread.raw;
+  utcb[_L4_UTCB_EXC_HANDLER] = thread;
 }
 
 
@@ -270,7 +260,7 @@ _L4_error_code (void)
 
 static inline _L4_word_t
 _L4_attribute_always_inline
-_L4_xfer_timeout (void)
+_L4_xfer_timeouts (void)
 {
   _L4_word_t *utcb = _L4_utcb ();
 
@@ -280,7 +270,7 @@ _L4_xfer_timeout (void)
 
 static inline void
 _L4_attribute_always_inline
-_L4_set_xfer_timeout (_L4_word_t time)
+_L4_set_xfer_timeouts (_L4_word_t time)
 {
   _L4_word_t *utcb = _L4_utcb ();
 
@@ -292,11 +282,9 @@ static inline _L4_thread_id_t
 _L4_attribute_always_inline
 _L4_intended_receiver (void)
 {
-  _L4_thread_id_t thread;
   _L4_word_t *utcb = _L4_utcb ();
 
-  thread.raw = utcb[_L4_UTCB_RECEIVER];
-  return thread;
+  return utcb[_L4_UTCB_RECEIVER];
 }
 
 
@@ -304,11 +292,9 @@ static inline _L4_thread_id_t
 _L4_attribute_always_inline
 _L4_actual_sender (void)
 {
-  _L4_thread_id_t thread;
   _L4_word_t *utcb = _L4_utcb ();
 
-  thread.raw = utcb[_L4_UTCB_SENDER];
-  return thread;
+  return utcb[_L4_UTCB_SENDER];
 }
 
 
@@ -318,7 +304,7 @@ _L4_set_virtual_sender (_L4_thread_id_t thread)
 {
   _L4_word_t *utcb = _L4_utcb ();
 
-  utcb[_L4_UTCB_SENDER] = thread.raw;
+  utcb[_L4_UTCB_SENDER] = thread;
 }
 
 
