@@ -182,7 +182,7 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_set_priority (_L4_thread_id_t dest, _L4_word_t priority)
 {
-  _L4_word_t prio = priority & ((1 << 16) - 1);
+  _L4_word_t prio = priority & ((1 << 8) - 1);
   _L4_word_t dummy;
   return _L4_schedule (dest, -1, -1, prio, -1, &dummy);
 }
@@ -192,7 +192,7 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_set_processor_no (_L4_thread_id_t dest, _L4_word_t proc_num)
 {
-  _L4_word_t proc = proc_num & ((1 << 8) - 1);
+  _L4_word_t proc = proc_num & ((1 << 16) - 1);
   _L4_word_t dummy;
   return _L4_schedule (dest, -1, proc, -1, -1, &dummy);
 }

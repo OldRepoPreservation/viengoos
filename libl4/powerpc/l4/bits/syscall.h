@@ -31,14 +31,14 @@
 
 /* These are the clobber registers.  R1, R2, R30, R31, and all
    floating point registers are preserved.  R3 to R10 are used in
-   system calls and thus are not in this list.  Up to R17 is used in
-   the IPC system calls.  */
-#define __L4_PPC_XCLOB "r18", "r19",					\
+   system calls and thus are not in this list.  Up to R19 is used in
+   the memory_control system call.  */
+#define __L4_PPC_XCLOB							\
   "r20", "r21", "r22", "r23", "r24", "r25", "r26", "r27", "r28", "r29",	\
   "cr0", "cr1", "cr2", "cr3", "cr4", "cr5", "cr6", "cr7", "xer",        \
   "ctr", "lr", "memory"
 #define __L4_PPC_CLOB "r0", "r11", "r12", "r13", "r14", "r15", "r16",	\
-  "r17", __L4_PPC_XCLOB
+  "r17", "r18", "r19", __L4_PPC_XCLOB
 
 
 /* Return the pointer to the kernel interface page, the API version,
@@ -127,12 +127,12 @@ static inline _L4_clock_t
 _L4_attribute_always_inline
 _L4_system_clock (void)
 {
-  register _L4_word_t time_low asm ("r3");
-  register _L4_word_t time_high asm ("r4");
+  register _L4_word_t time_high asm ("r3");
+  register _L4_word_t time_low asm ("r4");
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
-			: "=r" (time_low), "=r" (time_high)
+			: "=r" (time_high), "=r" (time_low)
 			: [addr] "r" (__l4_system_clock)
 			: "r5", "r6", "r7", "r8", "r9", "r10",
 			__L4_PPC_CLOB);
@@ -151,7 +151,8 @@ _L4_thread_switch (_L4_thread_id_t dest)
 			"bctrl\n"
 			:
 			: "r" (dest_raw), [addr] "r" (__l4_thread_switch)
-			: __L4_PPC_CLOB);
+			: "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+			__L4_PPC_CLOB);
 }
 
 
@@ -183,14 +184,38 @@ static inline void
 _L4_attribute_always_inline
 _L4_unmap (_L4_word_t control)
 {
-  register _L4_word_t ctrl asm ("r3") = control;
+  _L4_word_t *mr = _L4_utcb () + _L4_UTCB_MR0;
+  register _L4_word_t mr9 asm ("r0") = mr[9];
+  register _L4_word_t mr1 asm ("r3") = mr[1];
+  register _L4_word_t mr2 asm ("r4") = mr[2];
+  register _L4_word_t mr3 asm ("r5") = mr[3];
+  register _L4_word_t mr4 asm ("r6") = mr[4];
+  register _L4_word_t mr5 asm ("r7") = mr[5];
+  register _L4_word_t mr6 asm ("r8") = mr[6];
+  register _L4_word_t mr7 asm ("r9") = mr[7];
+  register _L4_word_t mr8 asm ("r10") = mr[8];
+  register _L4_word_t mr0 asm ("r14") = mr[0];
+  register _L4_word_t ctrl asm ("r15") = control;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
-			:
+			: "+r" (mr9), "+r" (mr1), "+r" (mr2), "+r" (mr3),
+			"+r" (mr4), "+r" (mr5), "+r" (mr6), "+r" (mr7),
+			"+r" (mr8), "+r" (mr0)
 			: "r" (ctrl), [addr] "r" (__l4_unmap)
-			: "r4", "r5", "r6", "r7", "r8", "r9", "r10",
-			__L4_PPC_CLOB);
+			: "r11", "r12", "r13", "r16", "r17", "r18", "r19",
+			__L4_PPC_XCLOB);
+
+  mr[0] = mr0;
+  mr[1] = mr1;
+  mr[2] = mr2;
+  mr[3] = mr3;
+  mr[4] = mr4;
+  mr[5] = mr5;
+  mr[6] = mr6;
+  mr[7] = mr7;
+  mr[8] = mr8;
+  mr[9] = mr9;
 }
 
 
@@ -245,7 +270,8 @@ _L4_ipc (_L4_thread_id_t to, _L4_thread_id_t from_spec,
 			"+r" (mr8), "+r" (mr0), "+r" (from_spec_raw)
 			: "r" (to_raw), "r" (time_outs),
 			[addr] "r" (__l4_ipc)
-			: "r11", "r12", "r13", __L4_PPC_XCLOB);
+			: "r11", "r12", "r13", "r18", "r19",
+			__L4_PPC_XCLOB);
 
   /* FIXME: Make it so that we can use l4_is_nilthread?  */
   if (from_spec_raw)
@@ -292,7 +318,8 @@ _L4_lipc (_L4_thread_id_t to, _L4_thread_id_t from_spec,
 			"+r" (mr8), "+r" (mr0), "+r" (from_spec_raw)
 			: "r" (to_raw), "r" (time_outs),
 			[addr] "r" (__l4_lipc)
-			: "r11", "r12", "r13", __L4_PPC_XCLOB);
+			: "r11", "r12", "r13", "r18", "r19",
+			__L4_PPC_XCLOB);
 
   /* FIXME: Make it so that we can use l4_is_nilthread?  */
   if (from_spec_raw)
@@ -338,19 +365,32 @@ static inline _L4_word_t
 _L4_attribute_always_inline
 _L4_memory_control (_L4_word_t control, _L4_word_t *attributes)
 {
-  register _L4_word_t ctrl_result asm ("r3") = control;
-  register _L4_word_t attr0 asm ("r4") = attributes[0];
-  register _L4_word_t attr1 asm ("r5") = attributes[1];
-  register _L4_word_t attr2 asm ("r6") = attributes[2];
-  register _L4_word_t attr3 asm ("r7") = attributes[3];
+  _L4_word_t *mr = _L4_utcb () + _L4_UTCB_MR0;
+  register _L4_word_t mr9 asm ("r0")  = mr[9];
+  register _L4_word_t mr1_result asm ("r3") = mr[1];
+  register _L4_word_t mr2 asm ("r4") = mr[2];
+  register _L4_word_t mr3 asm ("r5") = mr[3];
+  register _L4_word_t mr4 asm ("r6") = mr[4];
+  register _L4_word_t mr5 asm ("r7") = mr[5];
+  register _L4_word_t mr6 asm ("r8") = mr[6];
+  register _L4_word_t mr7 asm ("r9") = mr[7];
+  register _L4_word_t mr8 asm ("r10") = mr[8];
+  register _L4_word_t mr0 asm ("r14") = mr[0];
+  register _L4_word_t ctrl asm ("r15") = control;
+  register _L4_word_t attr0 asm ("r16") = attributes[0];
+  register _L4_word_t attr1 asm ("r17") = attributes[1];
+  register _L4_word_t attr2 asm ("r18") = attributes[2];
+  register _L4_word_t attr3 asm ("r19") = attributes[3];
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
-			: "+r" (ctrl_result)
-			: "r" (ctrl_result), "r" (attr0), "r" (attr1),
+			: "+r" (mr1_result)
+			: "r" (mr9), "r" (mr2), "r" (mr3), "r" (mr4),
+			"r" (mr5), "r" (mr6), "r" (mr7), "r" (mr8),
+			"r" (mr0), "r" (ctrl), "r" (attr0), "r" (attr1),
 			"r" (attr2), "r" (attr3),
 			[addr] "r" (__l4_memory_control)
-			: "r8", "r9", "r10", __L4_PPC_CLOB);
+			: __L4_PPC_XCLOB);
 
-  return ctrl_result;
+  return mr1_result;
 }

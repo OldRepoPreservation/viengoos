@@ -29,11 +29,10 @@
 /* Generic Programming Interface.  */
 static inline L4_Word_t
 _L4_attribute_always_inline
-L4_ProcessorControl (L4_Word_t ProcessorNo, L4_Word_t control,
-		     L4_Word_t InternalFrequency,
+L4_ProcessorControl (L4_Word_t ProcessorNo, L4_Word_t InternalFrequency,
 		     L4_Word_t ExternalFrequency, L4_Word_t voltage)
 {
-  return _L4_processor_control (ProcessorNo, control, InternalFrequency,
+  return _L4_processor_control (ProcessorNo, InternalFrequency,
 				ExternalFrequency, voltage);
 }
 

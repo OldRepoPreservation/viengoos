@@ -1,3 +1,26 @@
+2004-08-04  Peter Bruin  <pjbruin@dds.nl>
+
+	* l4/schedule.h (_L4_set_priority): Use mask consisting of
+	lower 8 bits instead of lower 16.
+	(_L4_set_processor_no): Use mask consisting of lower 16 bits
+	instead of lower 8.
+
+	* powerpc/l4/bits/syscall.h (__L4_PPC_XCLOB): Move r18 and r19
+	to ...
+	(__L4_PPC_CLOB): ... here.
+	(_L4_system_clock): Interchange registers used for TIME_LOW and
+	TIME_HIGH.
+	(_L4_unmap): Pass the first 10 message registers in physical
+	registers to comply with L4 ABI change.
+	(_L4_memory_control): Likewise.
+	(_L4_ipc): Add r18 and r19 to list of clobbered registers.
+	(_L4_lipc): Likewise.
+
+	* ia32/l4/bits/syscall.h (_L4_processor_control): Remove parameter
+	CONTROL to comply with L4 API change.
+	* l4/compat/misc.h (L4_ProcessorControl): Likewise.
+	* l4/gnu/misc.h: Likewise.
+
 2004-10-06  Marcus Brinkmann  <marcus@gnu.org>
 	
 	* l4/compat/schedule.h (_L4_CLOCK_OP): Make CLOCK argument a

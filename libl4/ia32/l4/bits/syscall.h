@@ -276,9 +276,8 @@ _L4_lipc (_L4_thread_id_t to, _L4_thread_id_t from_spec,
 
 static inline _L4_word_t
 _L4_attribute_always_inline
-_L4_processor_control (_L4_word_t proc, _L4_word_t control,
-		       _L4_word_t int_freq, _L4_word_t ext_freq,
-		       _L4_word_t voltage)
+_L4_processor_control (_L4_word_t proc, _L4_word_t int_freq,
+		       _L4_word_t ext_freq, _L4_word_t voltage)
 {
   _L4_word_t result;
   _L4_word_t dummy;
@@ -287,10 +286,10 @@ _L4_processor_control (_L4_word_t proc, _L4_word_t control,
 			"call *__l4_processor_control\n"
 			"pop %%ebp\n"
 			: "=a" (result), "=c" (dummy),
-			"=d" (dummy), "=S" (dummy), "=D" (dummy)
-			: "a" (proc), "c" (control), "d" (int_freq),
-			"S" (ext_freq), "D" (voltage)
-			: "ebx");
+			"=d" (dummy), "=S" (dummy)
+			: "a" (proc), "c" (int_freq), "d" (ext_freq),
+			"S" (voltage)
+			: "edi", "ebx");
   return result;
 }
 
