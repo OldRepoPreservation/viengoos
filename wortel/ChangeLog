@@ -1,3 +1,23 @@
+2004-10-26  Marcus Brinkmann  <marcus@gnu.org>
+
+	* startup.c: Rewritten to match new startup data format.
+	* wortel.c: Include <hurd/startup.h>.
+	(start_task): Large chunks rewritten to match new
+	startup data format.
+	
+2004-10-20  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.c: Include "startup.h".
+	(STARTUP_CODE_SIZE_LOG2, STARTUP_CODE_SIZE): Do not
+	define.
+	(setup_components): Use HURD_STARTUP_SIZE_LOG2 instead
+	STARTUP_CODE_SIZE_LOG2.
+
+	* startup.c (cmain): Include "startup.h" and use the
+	HURD_STARTUP_FPAGE_SIZE and HURD_STARTUP_FPAGE_ADDR constants
+	instead of hard-coded numbers.
+	(struct map_item): Remove struct.
+
 2004-10-07  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32-cmain.c (find_components): Add one to size argument to

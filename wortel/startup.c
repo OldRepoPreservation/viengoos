@@ -30,25 +30,12 @@
 #include <l4.h>
 
 #include <hurd/types.h>
+#include <hurd/startup.h>
 
 
-struct map_item
-{
-  /* Container offset and access permission.  */
-  l4_word_t offset;
-
-  l4_word_t size;
-
-  l4_word_t vaddr;
-
-  l4_word_t cont;
-};
-
-
 void
 physmem_map (l4_thread_id_t physmem, hurd_cap_id_t cont,
-	     l4_word_t offset, l4_word_t size,
-	     l4_word_t vaddr)
+	     l4_word_t offset, l4_word_t size, void *vaddr)
 {
   l4_msg_t msg;
   l4_msg_tag_t tag;
@@ -58,7 +45,7 @@ physmem_map (l4_thread_id_t physmem, hurd_cap_id_t cont,
   l4_msg_append_word (msg, cont);
   l4_msg_append_word (msg, offset);
   l4_msg_append_word (msg, size);
-  l4_msg_append_word (msg, vaddr);
+  l4_msg_append_word (msg, (l4_word_t) vaddr);
   l4_msg_load (msg);
   tag = l4_call (physmem);
   /* Check return.  */
@@ -68,14 +55,9 @@ physmem_map (l4_thread_id_t physmem, hurd_cap_id_t cont,
 /* Initialize libl4, setup the task, and pass control over to the main
    function.  */
 void
-cmain (int argc, char *argv[],
-       l4_thread_id_t wortel_thread, l4_word_t wortel_id,
-       l4_thread_id_t physmem_server, 
-       hurd_cap_handle_t startup_cont, hurd_cap_handle_t mem_cont,
-       l4_word_t mapc, struct map_item mapv[],
-       l4_word_t entry_point, l4_word_t header_loc, l4_word_t header_size)
+cmain (struct hurd_startup_data *startup)
 {
-  int i;
+  unsigned int i;
 
   /* Initialize the system call stubs.  */
   l4_init ();
@@ -84,14 +66,22 @@ cmain (int argc, char *argv[],
   /* Let physmem take over the address space completely.  */
   l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));
 
-  physmem_map (physmem_server, startup_cont,
-	       L4_FPAGE_FULLY_ACCESSIBLE, 32*1024, 32*1024);
+  /* First map in the startup code from physmem, instead of having it
+     mapped via the starter task.  FIXME: Consider using physmem as
+     our pager via a specially marked container (see TODO).  */
+  physmem_map (startup->startup.server, startup->startup.cap_id,
+	       L4_FPAGE_FULLY_ACCESSIBLE, HURD_STARTUP_SIZE,
+	       HURD_STARTUP_ADDR);
 
-  for (i = 0; i < mapc; i++)
-    physmem_map (physmem_server, mapv[i].cont,
-		 mapv[i].offset, mapv[i].size, mapv[i].vaddr);
+  for (i = 0; i < startup->mapc; i++)
+    {
+      struct hurd_startup_map *mapv = &startup->mapv[i];
 
-  (*(void (*) (void)) entry_point) ();
+      physmem_map (mapv->cont.server, mapv->cont.cap_id,
+		   mapv->offset, mapv->size, mapv->vaddr);
+    }
+
+  (*(void (*) (struct hurd_startup_data *)) startup->entry_point) (startup);
 
   while (1)
     l4_sleep (L4_NEVER);

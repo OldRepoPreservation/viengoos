@@ -10,4 +10,5 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-AC_CONFIG_LINKS([include/hurd/types.h:hurd/types.h])
+AC_CONFIG_LINKS([include/hurd/types.h:hurd/types.h
+		 include/hurd/startup.h:hurd/startup.h])

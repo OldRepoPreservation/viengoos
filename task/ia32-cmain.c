@@ -1,5 +1,5 @@
 /* ia32-cmain.c - Startup code for the ia32.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -33,11 +33,16 @@
 #include "task.h"
 
 #include <hurd/wortel.h>
+#include <hurd/startup.h>
 
 
-/* Initialized in cmain.  FIXME.  */
-l4_thread_id_t wortel_thread_id = 0xc8001;
-wortel_cap_id_t wortel_cap_id = 1;
+/* Initialized by the machine-specific startup-code.  */
+extern struct hurd_startup_data *__hurd_startup_data;
+
+
+/* Initialized in cmain.  */
+l4_thread_id_t wortel_thread_id;
+wortel_cap_id_t wortel_cap_id;
 
 
 /* Initialize libl4, setup the argument vector, and pass control over
@@ -50,6 +55,9 @@ cmain (void)
 
   l4_init ();
   l4_init_stubs ();
+
+  wortel_thread_id = __hurd_startup_data->wortel.server;
+  wortel_cap_id = __hurd_startup_data->wortel.cap_id;
 
   argc = 1;
   argv = alloca (sizeof (char *) * 2);

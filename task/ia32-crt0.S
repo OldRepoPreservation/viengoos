@@ -26,6 +26,10 @@
 	.globl	start, _start
 start:
 _start:
+	/* The Hurd startup data is the first argument on the stack.  */
+	movl	4(%esp), %eax
+	movl	%eax, __hurd_startup_data
+
 	/* Initialize the stack pointer.  */
 	movl	$(stack + STACK_SIZE), %esp
 
@@ -42,3 +46,11 @@ loop:	hlt
 
 	/* Our stack area.  */
 	.comm	stack, STACK_SIZE
+
+
+	.data
+
+	/* This variable holds a pointer to the Hurd startup data.  */
+	.global __hurd_startup_data
+__hurd_startup_data:
+	.long	0

@@ -1,3 +1,8 @@
+2004-10-26  Marcus Brinkmann  <marcus@gnu.org>
+
+	* startup.h: New file.
+	* headers.m4: Add hurd/startup.h.
+
 2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
 
 	* types.h (hurd_cap_t): Rename to ...

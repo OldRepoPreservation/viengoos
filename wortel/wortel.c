@@ -1,5 +1,5 @@
 /* Main function for root server.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
@@ -29,6 +29,7 @@
 #include <l4/pagefault.h>
 
 #include <hurd/wortel.h>
+#include <hurd/startup.h>
 
 #include "wortel-intern.h"
 #include "sigma0.h"
@@ -255,11 +256,10 @@ setup_components (void)
 	     happen is that the task destroys the container while the
 	     memory is still mapped (and physmem can't revoke the
 	     mapping).  However, only trusted tasks are involved, so
-	     it is ok.  */
-/* FIXME: Should be defined elsewhere.  32KB should be plenty.  */
-#define STARTUP_CODE_SIZE_LOG2	(15)
-#define STARTUP_CODE_SIZE	(1 << STARTUP_CODE_SIZE_LOG2)
-	  mods[i].startup = sigma0_get_any (STARTUP_CODE_SIZE_LOG2);
+	     it is ok.  FIXME: Maybe use the idea of a designated
+	     container in physmem for use of a last-resort page fault
+	     service through physmem, see TODO.  */
+	  mods[i].startup = sigma0_get_any (HURD_STARTUP_SIZE_LOG2);
 	  if (mods[i].startup == L4_NILPAGE)
 	    panic ("can not allocate startup code fpage for %s",
 		   mod_names[i]);
@@ -429,8 +429,9 @@ static void
 start_task (void)
 {
   /* The virtual memory layout of the task server: startup code starts
-     at 32K, stack grows down from 64K.  64K: Kernel interface page,
-     followed by the UTCB area.  */
+     at HURD_STARTUP_START (32K), stack grows down from
+     HURD_STARTUP_START + HURD_STARTUP_SIZE (64K).  64K: Kernel
+     interface page, followed by the UTCB area.  */
   l4_word_t start = l4_address (mods[MOD_TASK].startup);
   l4_word_t size = l4_size (mods[MOD_TASK].startup);
   l4_word_t stack;
@@ -439,10 +440,13 @@ start_task (void)
   l4_thread_id_t task;
   l4_word_t ret;
   l4_word_t control;
-  l4_word_t argc;
-  l4_word_t argv;
-  l4_word_t mapc;
+  char *argz = NULL;
+  size_t argz_len = 0;
+  unsigned int mapc;
   l4_word_t mapv;
+  struct hurd_startup_map *phys_mapv;
+  struct hurd_startup_data *startup;
+  struct hurd_startup_data *phys_startup;
   l4_word_t task_entry_point;
 
   /* First clear everything.  This ensures that the .bss section is
@@ -452,10 +456,14 @@ start_task (void)
   /* FIXME: This assumes that the stack grows downwards.  */
 #define STACK_GROWS_DOWNWARDS	1
 
-#define STARTUP_TO_PHYS(addr) ((char *) (start + addr))
-#define STARTUP_TO_VIRT(addr) ((char *) (STARTUP_LOAD_ADDR + addr))
+#define STARTUP_TO_PHYS(addr) ((char *) (start + ((l4_word_t) addr)))
+#define STARTUP_TO_VIRT(addr) ((char *) (((l4_word_t) STARTUP_LOAD_ADDR) \
+					 + ((l4_word_t) addr)))
 
+  /* FIXME: ALLOCA could take an argument that specifies the
+     alignment.  */
 #if STACK_GROWS_DOWNWARDS
+  entry_point = 0;
   stack = size;
 #define PUSH(val)						\
   do								\
@@ -473,8 +481,8 @@ start_task (void)
       stack -= c;						\
     }								\
   while (0)
-  entry_point = 0;
 #else
+  entry_point = STARTUP_STACK_TOTAL;
   stack = 0;
 #define PUSH(val)						\
   do								\
@@ -492,84 +500,55 @@ start_task (void)
       stack += c;						\
     }								\
   while (0)
-  entry_point = STARTUP_STACK_TOTAL;
 #endif
 
-  /* The stack layout is in accordance to the following startup prototype:
-     void start (int argc, char *argv[], l4_thread_id_t wortel_thread,
-     l4_word_t wortel_cap_id, l4_thread_id_t physmem_server,
-     hurd_cap_handle_t startup_cont, hurd_cap_handle_t mem_cont,
-     l4_word_t mapc, struct map_item mapv[],
-     l4_word_t entry_point, l4_word_t header_loc, l4_word_t header_size).  */
+  ALLOCA (sizeof (struct hurd_startup_data));
+  startup = (struct hurd_startup_data *) stack;
+  phys_startup = (struct hurd_startup_data *) STARTUP_TO_PHYS (startup);
 
-    /* Prepare the argument vectors.  */
+  /* Prepare the argument vectors.  */
   if (mods[MOD_TASK].args)
     {
-      /* This variable holds the stack address of the argument line.  */
-      l4_word_t args;
+      char *dst;
+      char *src;
+      size_t len;
 
-      /* This variable holds the length of the argument line
-	 (excluding the trailing zero.  */
-      l4_word_t args_len;
-
-      /* These variables are used to access the argument line on the
-	 stack from wortel.  */
-      char *phys_args_start;
-      char *phys_args_end;
-
-      /* Copy the argument line to the stack.  */
-      args_len = strlen (mods[MOD_TASK].args);
-
-      ALLOCA (args_len + 1);
-      args = stack;
-      phys_args_start = ((char *) STARTUP_TO_PHYS (args));
-      phys_args_end = phys_args_start + args_len;
-
-      memcpy (phys_args_start, mods[MOD_TASK].args, args_len + 1);
+      /* Determine the argument line dimensions.  */
+      src = mods[MOD_TASK].args;
+      len = strlen (src) + 1;
+      ALLOCA (len);
+      argz = (char *) stack;
+      dst = ((char *) STARTUP_TO_PHYS (argz));
 
       /* Now walk the argument line backwards, separating arguments
-	 with binary zeroes and push the argument vector onto the
-	 stack.  */
-      PUSH (0);
-
-      while (phys_args_end > phys_args_start)
+	 with binary zeroes.  */
+      while (len)
 	{
-	  while (phys_args_end > phys_args_start
-		 && (phys_args_end[-1] == ' ' || phys_args_end[-1] == '\t'))
-	    *(--phys_args_end) = '\0';
-	  
-	  if (phys_args_end > phys_args_start)
+	  while (len && (*src == ' ' || *src == '\t'))
 	    {
-	      /* Found the end of an argument.  */
-	      argc++;
+	      src++;
+	      len--;
+	    }
 
-	      while (phys_args_end > phys_args_start
-		     && !(phys_args_end[-1] == ' '
-			  || phys_args_end[-1] == '\t'))
-		phys_args_end--;
+	  if (len)
+	    {
+	      do
+		{
+		  *(dst++) = *(src++);
+		  len--;
+		  argz_len++;
+		}
+	      while (len && !(*src == ' ' || *src == '\t'));
 
-	      /* Push the beginning of this string onto the stack.  */
-	      PUSH ((l4_word_t)
-		    STARTUP_TO_VIRT (args
-				     + (phys_args_end - phys_args_start)));
+	      *(dst++) = '\0';
+	      argz_len++;
 	    }
 	}
-      /* argv is a pointer to the argument vector.  */
-      argv = stack;
-    }
-  else
-    {
-      /* If no arguments exist, we just make sure that ARGV is valid.  */
-      argc = 0;
-      PUSH (0);
-      argv = stack;
     }
 
+
   {
-    /* Prepare the map items.  Map items have the following structure:
-       fpage (offset into the container as base address, size of the
-       mapping, access rights) to be mapped, fpage (corresponding
-       receive window to be used), word (container).  */
+    /* Prepare the map items.  */
 
     /* We have to arrange the map items so that the receive windows
        are proper fpages.  We don't know the physical memory layout of
@@ -622,6 +601,8 @@ start_task (void)
     if (elf->e_machine != elf_machine)
       panic ("%s is not for this architecture", name);
 
+    task_entry_point = elf->e_entry;
+
     if (!elf->e_phnum)
       panic ("%s does not have any program headers", name);
 
@@ -649,52 +630,73 @@ start_task (void)
 
 		if (memsz > filesz)
 		  {
-		    /* Now find the mappings for the mem part.  */
+		    ALLOCA (sizeof (struct hurd_startup_map));
+		    mapv = stack;
+		    phys_mapv = (struct hurd_startup_map *)
+		      STARTUP_TO_PHYS (mapv);
 
 		    /* FIXME When we have physical mem containers for
 		       allocation, use them.  */
-		    PUSH (mods[MOD_TASK].mem_cont);
-		    PUSH (l4_page_trunc (ph->p_vaddr) + filesz);
-		    PUSH (memsz - filesz);
-		    PUSH (l4_page_trunc (ph->p_vaddr) + filesz
-			  | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
-			  | ((ph->p_flags & PF_W) ? L4_FPAGE_WRITABLE : 0)
-			  | ((ph->p_flags & PF_R) ? L4_FPAGE_READABLE : 0));
+		    phys_mapv->cont.server = mods[MOD_PHYSMEM].server_thread;
+		    phys_mapv->cont.cap_id = mods[MOD_TASK].mem_cont;
+		    phys_mapv->size = memsz - filesz;
+		    /* The dirty hack here causes physmem to allocate
+		       anonymous memory.  */
+		    phys_mapv->offset = l4_page_trunc (ph->p_vaddr) + filesz
+		      | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
+		      | ((ph->p_flags & PF_W) ? L4_FPAGE_WRITABLE : 0)
+		      | ((ph->p_flags & PF_R) ? L4_FPAGE_READABLE : 0);
+		    phys_mapv->vaddr
+		      = (void *) (l4_page_trunc (ph->p_vaddr) + filesz);
 		    mapc++;
 		  }
 	      }
 	    if (ph->p_filesz)
 	      {
-		/* First find the mappings for the file part.  */
-		PUSH (mods[MOD_TASK].mem_cont);
-		PUSH (l4_page_trunc (ph->p_vaddr));
-		PUSH (l4_page_round (ph->p_filesz));
-		PUSH (l4_page_trunc (ph->p_offset)
-		      | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
-		      | ((ph->p_flags & PF_W) ? L4_FPAGE_WRITABLE : 0)
-		      | ((ph->p_flags & PF_R) ? L4_FPAGE_READABLE : 0));
+		ALLOCA (sizeof (struct hurd_startup_map));
+		mapv = stack;
+		phys_mapv = (struct hurd_startup_map *)
+		  STARTUP_TO_PHYS (mapv);
+
+		/* FIXME When we have physical mem containers for
+		   allocation, use them.  */
+		phys_mapv->cont.server = mods[MOD_PHYSMEM].server_thread;
+		phys_mapv->cont.cap_id = mods[MOD_TASK].mem_cont;
+		phys_mapv->size = l4_page_round (ph->p_filesz);;
+		phys_mapv->offset = l4_page_trunc (ph->p_offset)
+		  | ((ph->p_flags & PF_X) ? L4_FPAGE_EXECUTABLE : 0)
+		  | ((ph->p_flags & PF_W) ? L4_FPAGE_WRITABLE : 0)
+		  | ((ph->p_flags & PF_R) ? L4_FPAGE_READABLE : 0);
+		phys_mapv->vaddr = (void *) l4_page_trunc (ph->p_vaddr);
 		mapc++;
 	      }
 	  }
       }
     while (i > 0);
     mapv = stack;
-
-    PUSH (mods[MOD_TASK].header_size);
-    PUSH (mods[MOD_TASK].header_loc);
-    /* Set the main entry point.  */
-    PUSH (elf->e_entry);
-    PUSH ((l4_word_t) STARTUP_TO_VIRT (mapv));
-    PUSH (mapc);
   }
 
-  PUSH (mods[MOD_TASK].mem_cont);
-  PUSH (mods[MOD_TASK].startup_cont);
-  PUSH (mods[MOD_PHYSMEM].server_thread);
-  PUSH (wortel_add_user (mods[MOD_TASK].task_id));
-  PUSH (l4_my_global_id ());
-  PUSH ((l4_word_t) STARTUP_TO_VIRT (argv));
-  PUSH (argc);
+  /* Fill the startup structure.  */
+  phys_startup->version_major = HURD_STARTUP_VERSION_MAJOR;
+  phys_startup->version_minor = HURD_STARTUP_VERSION_MINOR;
+  phys_startup->argz = argz_len ? STARTUP_TO_VIRT (argz) : NULL;
+  phys_startup->argz_len = argz_len;
+  phys_startup->wortel.server = l4_my_global_id ();
+  phys_startup->wortel.cap_id = wortel_add_user (mods[MOD_TASK].task_id);
+  phys_startup->image.server = mods[MOD_PHYSMEM].server_thread;
+  phys_startup->image.cap_id = mods[MOD_TASK].mem_cont;
+  phys_startup->mapc = mapc;
+  phys_startup->mapv = (struct hurd_startup_map *) STARTUP_TO_VIRT (mapv);
+  /* The program header is already a virtual address for the task.  */
+  phys_startup->phdr = (void *) mods[MOD_TASK].header_loc;
+  phys_startup->phdr_len = mods[MOD_TASK].header_size;
+  phys_startup->entry_point = (void *) task_entry_point;
+  phys_startup->startup.server = mods[MOD_PHYSMEM].server_thread;
+  phys_startup->startup.cap_id = mods[MOD_TASK].startup_cont;
+   
+  /* The stack layout is in accordance to the following startup prototype:
+     void start (struct hurd_startup_data *startup_data).  */
+  PUSH ((l4_word_t) STARTUP_TO_VIRT (startup));
 
   /* FIXME: We can not check for .bss section overflow.  So we just
      reserve 2K for .bss which should be plenty.  Normally, .bss only
@@ -732,9 +734,12 @@ start_task (void)
   /* FIXME: In any case, we have to pass the UTCB area size (and
      location) to task.  */
   ret = l4_space_control (task, 0,
-			  l4_fpage_log2 (64 * 1024,
+			  l4_fpage_log2 (((l4_word_t) HURD_STARTUP_ADDR)
+					 + HURD_STARTUP_SIZE,
 					 l4_kip_area_size_log2 ()),
-			  l4_fpage_log2 (64 * 1024 + l4_kip_area_size (),
+			  l4_fpage_log2 (((l4_word_t) HURD_STARTUP_ADDR)
+					 + HURD_STARTUP_SIZE
+					 + l4_kip_area_size (),
 					 l4_utcb_area_size_log2 ()),
 			  l4_anythread, &control);
   if (!ret)
@@ -744,7 +749,8 @@ start_task (void)
   /* Activate the task thread.  We will be the pager.  We are using
      the first UTCB entry.  */
   ret = l4_thread_control (task, task, l4_nilthread, l4_myself (),
-			   (void *) (64 * 1024 + l4_kip_area_size ()));
+			   (void *) (HURD_STARTUP_ADDR + HURD_STARTUP_SIZE
+				     + l4_kip_area_size ()));
   if (!ret)
     panic ("activation of task main thread failed: %s",
 	   l4_strerror (l4_error_code ()));
