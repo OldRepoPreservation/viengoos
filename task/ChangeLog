@@ -1,3 +1,12 @@
+2004-04-26  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ia32-cmain.c: Include <hurd/wortel.h>.
+	(wortel_thread_id, wortel_cap_id): New variables.
+	* output.c (shutdown): Include <hurd/wortel.h>.
+	(shutdown): Rewritten using wortel interface.
+	(putchar): Rewritten using wortel interface.
+	* task.c: Remove WORTEL_* macros.
+
 2004-04-15  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Initial check-in.

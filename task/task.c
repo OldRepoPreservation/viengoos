@@ -50,15 +50,6 @@ abort (void)
 }
 
 
-#define WORTEL_MSG_PUTCHAR		1
-#define WORTEL_MSG_PANIC		2
-#define WORTEL_MSG_GET_MEM		3
-#define WORTEL_MSG_GET_CAP_REQUEST	4
-#define WORTEL_MSG_GET_CAP_REPLY	5
-#define WORTEL_MSG_GET_THREADS		6
-#define WORTEL_MSG_GET_TASK_CAP		7
-
-
 /* FIXME:  Should be elsewhere.  Needed by libhurd-slab.  */
 int
 getpagesize()

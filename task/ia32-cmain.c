@@ -32,6 +32,13 @@
 
 #include "task.h"
 
+#include <hurd/wortel.h>
+
+
+/* Initialized in cmain.  FIXME.  */
+l4_thread_id_t wortel_thread_id = 0xc8001;
+wortel_cap_id_t wortel_cap_id = 1;
+
 
 /* Initialize libl4, setup the argument vector, and pass control over
    to the main function.  */
