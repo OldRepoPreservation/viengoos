@@ -1,3 +1,10 @@
+2005-02-22  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/gnu/syscall.h (l4_strerror): Drop superfluous const from the
+	pointer return value.
+	* l4/syscall.h (_L4_strerror): Likewise.
+	Submitted by Dawid Gajownik <gajownik@gmail.com>.
+	
 2005-02-21  Marcus Brinkmann  <marcus@gnu.org>
 
 	* tests/t-l4-kip.c (test_page_info): Add checks for minimum page

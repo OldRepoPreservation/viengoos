@@ -80,7 +80,7 @@
 #define L4_ERR_KIP_AREA			_L4_ERR_KIP_AREA
 #define L4_ERR_NO_MEM			_L4_ERR_NO_MEM
 
-static inline const char *const
+static inline const char *
 _L4_attribute_always_inline
 l4_strerror (l4_word_t err_code)
 {

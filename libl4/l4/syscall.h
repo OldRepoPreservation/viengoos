@@ -91,7 +91,7 @@
 #define _L4_ERR_NO_MEM			_L4_WORD_C(8)
 
 
-static inline const char *const
+static inline const char *
 _L4_attribute_always_inline
 _L4_strerror (_L4_word_t err_code)
 {
