@@ -1,5 +1,9 @@
 2005-01-07  Neal H. Walfield  <neal@gnu.org>
 
+	* laden.c (parse_args): Argument is `--reboot', not `--reset'.
+
+2005-01-07  Neal H. Walfield  <neal@gnu.org>
+
 	* output.h (debug): Preface __VA_ARGS__ with ## thereby making it
 	optional.
 

@@ -1,5 +1,5 @@
 /* laden.c - Main function for laden.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -171,7 +171,7 @@ parse_args (int argc, char *argv[])
 	  i++;
 	  shutdown_reset = 0;
 	}
-      else if (!strcmp (argv[i], "-r") || !strcmp (argv[i], "--reset"))
+      else if (!strcmp (argv[i], "-r") || !strcmp (argv[i], "--reboot"))
 	{
 	  i++;
 	  shutdown_reset = 1;
