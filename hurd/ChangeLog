@@ -1,3 +1,7 @@
+2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
+
+	* types.h (hurd_cap_make): Use bit-wise OR, not logical OR.
+
 2004-04-07  Marcus Brinkmann  <marcus@gnu.org>
 
 	* types.h (hurd_cap_make): New function.

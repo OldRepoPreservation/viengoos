@@ -85,7 +85,7 @@ static inline hurd_cap_t
 hurd_cap_make (hurd_cap_client_id_t client_id, hurd_cap_id_t cap_id)
 {
   return ((client_id & _HURD_CAP_CLIENT_ID_MASK) << HURD_CAP_ID_BITS)
-    || (cap_id & _HURD_CAP_ID_MASK);
+    | (cap_id & _HURD_CAP_ID_MASK);
 }
 
 
