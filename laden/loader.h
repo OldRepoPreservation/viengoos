@@ -32,7 +32,7 @@ l4_word_t loader_get_num_memory_desc (void);
 
 /* Return the NRth memory descriptor.  The first memory descriptor is
    indexed by 0.  */
-l4_memory_desc_t loader_get_memory_desc (l4_word_t nr);
+l4_memory_desc_t *loader_get_memory_desc (l4_word_t nr);
 
 
 /* Add the region with the name NAME from START to END to the table of

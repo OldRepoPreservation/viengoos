@@ -28,16 +28,16 @@
 /* The program name.  */
 char *program_name = "laden";
 
-rootserver_t kernel;
-rootserver_t sigma0;
-rootserver_t sigma1;
-rootserver_t rootserver;
+l4_rootserver_t kernel;
+l4_rootserver_t sigma0;
+l4_rootserver_t sigma1;
+l4_rootserver_t rootserver;
 
 /* The boot info to be inserted into the L4 KIP.  */
 l4_word_t boot_info;
 
 
-struct l4_memory_desc memory_map[MEMORY_MAP_MAX];
+l4_memory_desc_t memory_map[MEMORY_MAP_MAX];
 
 l4_word_t memory_map_size;
 
@@ -52,7 +52,7 @@ loader_get_num_memory_desc (void)
 
 /* Return the NRth memory descriptor.  The first memory descriptor is
    indexed by 0.  */
-l4_memory_desc_t
+l4_memory_desc_t *
 loader_get_memory_desc (l4_word_t nr)
 {
   return &memory_map[nr];

@@ -67,7 +67,7 @@ kip_fixup (void)
 
   memcpy ((char *) (((l4_word_t) kip) + kip->memory_info.mem_desc_ptr),
 	  (char *) memory_map,
-	  sizeof (struct l4_memory_desc) * memory_map_size);
+	  sizeof (l4_memory_desc_t) * memory_map_size);
 
   kip->memory_info.nr = memory_map_size;
   for (nr = 0; nr < memory_map_size; nr++)

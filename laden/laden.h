@@ -44,15 +44,14 @@ void find_components (void);
 /* Start kernel.  IP is the entry point.  */
 void start_kernel (l4_word_t ip);
 
-typedef __l4_rootserver_t rootserver_t;
 
 /* For the rootserver components, find_components() must fill in the
    start and end address of the ELF images in memory.  The end address
    is one more than the address of the last byte in the image.  */
-extern rootserver_t kernel;
-extern rootserver_t sigma0;
-extern rootserver_t sigma1;
-extern rootserver_t rootserver;
+extern l4_rootserver_t kernel;
+extern l4_rootserver_t sigma0;
+extern l4_rootserver_t sigma1;
+extern l4_rootserver_t rootserver;
 
 /* The boot info to be inserted into the L4 KIP.  find_components()
    must provide this information.  */
@@ -60,7 +59,7 @@ extern l4_word_t boot_info;
 
 /* The memory map to be provided to the kernel.  */
 #define MEMORY_MAP_MAX 200
-extern struct l4_memory_desc memory_map[MEMORY_MAP_MAX];
+extern l4_memory_desc_t memory_map[MEMORY_MAP_MAX];
 extern l4_word_t memory_map_size;
 
 #define add_memory_map(start, end, mtype, msubtype)			\

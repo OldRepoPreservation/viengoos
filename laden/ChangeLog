@@ -1,3 +1,17 @@
+2004-03-15  Marcus Brinkmann  <marcus@gnu.org>
+
+	* loader.h (loader_get_memory_desc): Change return type to
+	l4_memory_desc_t *.
+	* laden.h (rootserver_t): Remove typedef.
+	(kernel, sigma0, sigma1, rootserver): Change type to
+	l4_rootserver_t.
+	(memory_map): Change type to l4_memory_desc_t.
+	* laden.c (kernel, sigma0, sigma1, rootserver): Change type to
+	l4_rootserver_t.
+	(memory_map): Change type to l4_memory_desc_t.
+	(loader_get_memory_desc): Change return type to l4_memory_desc_t *.
+	* kip-fixup.c (kip_fixup): Use cast to l4_memory_desc_t.
+
 2003-10-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Makefile.am (AM_CPPFLAGS): Removed.
