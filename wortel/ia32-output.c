@@ -26,12 +26,14 @@
 
 
 extern struct output_driver vga_output;
+extern struct output_driver serial_output;
 extern struct output_driver no_output;
 
 /* A list of all output drivers, terminated with a null pointer.  */
 struct output_driver *output_drivers[] =
   {
     &vga_output,
+    &serial_output,
     &no_output,
     0
   };

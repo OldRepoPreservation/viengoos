@@ -205,8 +205,6 @@ zfree (l4_word_t block, l4_word_t size)
 			      ? block_align : size_align)
 	- L4_MIN_PAGE_SHIFT;
 
-      printf ("block align: %u  size_align: %u  zone_nr: %u\n",
-	      block_align, size_align, zone_nr);
       add_block ((struct block *) block, zone_nr);
 
       block += ZONE_SIZE (zone_nr);

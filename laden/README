@@ -35,6 +35,23 @@ The available output drivers are architecture specific (see below for
 details).  You can suppress all output by using the output driver
 "none", which is available on all architectures.
 
+Some drivers support options.  You list the options you want to use
+directly following the driver name, separated by commas.  For example,
+to specify COM2 and a baud rate of 9600, you would use the option "-o
+serial,uart2,speed=9600".  Note that spaces are not allowed (as spaces
+separate the arguments to laden).  Which options are recognized
+depends on the driver.
+
+Serial output
+-------------
+
+The serial output driver supports options to configure the serial
+port.  The following options are recognized:
+
+uart1       Select UART1 (aka COM1).
+uart2       Select UART2 (aka COM2).
+speed=BAUD  Set the baud rate to BAUD.  Possible values are 50 to 115200.
+
 
 Architecture Specific Notes
 ===========================
@@ -51,4 +68,4 @@ addresses so that the programs do not overlap.
 The boot info field in the KIP will be set to the multiboot
 information structure.
 
-On this architecture laden supports VGA output.
+On this architecture, laden supports VGA and serial output.

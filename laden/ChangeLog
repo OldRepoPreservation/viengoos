@@ -1,3 +1,17 @@
+2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (laden_CFLAGS): Add -I$(top_srcdir)/libc-parts.
+	* output.c: Include <stdlib.h> and <string.h>.
+	* output.h (struct output_driver): Add CFG argument to INIT
+	function.
+	(output_init): Make NAME argument const, rename it to DRIVER.
+	* output.c (output_init): Likewise.  Only check if the prefix of
+	DRIVER is a driver name.  Then skip a trailing comma and pass the
+	remainder via the new variable DRIVER_CFG to the init function of
+	the driver.
+	* output-vga.c (vga_init): Add CFG argument.
+	* output-serial.c: New file by Daniel Wagner <wagi@gmx.de>.
+
 2003-07-26  Marcus Brinkmann  <marcus@gnu.org>
 
 	* Initial check-in.

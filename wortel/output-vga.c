@@ -80,7 +80,7 @@ static char *video;
 
 
 static void
-vga_init (void)
+vga_init (const char *cfg)
 {
   unsigned int pos = vga_get_cursor_pos ();
   col = pos % VGA_COLUMNS;

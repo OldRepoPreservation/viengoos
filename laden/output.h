@@ -31,7 +31,7 @@ struct output_driver
   const char *name;
 
   /* Initialize the output device.  */
-  void (*init) (void);
+  void (*init) (const char *cfg);
 
   /* Deinitialize the output device.  */
   void (*deinit) (void);
@@ -47,15 +47,19 @@ struct output_driver
 extern struct output_driver *output_drivers[];
 
 
-/* Activate the output driver NAME or the default one if NAME is a
+/* Activate the output driver DRIVER or the default one if DRIVER is a
    null pointer.  Must be called once at startup, before calling
-   putchar or any other output routine.  Returns 0 if NAME is not a
-   valid output driver name, otherwise 1 on success.  */
-int output_init (char *name);
+   putchar or any other output routine.  DRIVER has the pattern
+   NAME[,CONFIG...], for example "serial,uart2,speed=9600".  Returns 0
+   if DRIVER is not a valid output driver specification, otherwise 1
+   on success.  */
+int output_init (const char *driver);
+
 
 /* Deactivate the output driver.  Must be called after the last time
    putchar or any other output routine is called.  */
 void output_deinit (void);
+
 
 /* Print the single character CHR on the output device.  */
 int putchar (int chr);
@@ -66,6 +70,7 @@ int printf (const char *fmt, ...);
 
 /* True if debug mode is enabled.  */
 extern int output_debug;
+
 
 /* Print a debug message.  */
 #define debug(...) do { if (output_debug) printf (__VA_ARGS__); } while (0)

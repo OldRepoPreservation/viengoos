@@ -20,12 +20,13 @@
 
 if ARCH_IA32
   ARCH_SOURCES = multiboot.h ia32-crt0.S ia32-cmain.c \
-    ia32-output.c output-vga.c ia32-shutdown.c
+    ia32-output.c output-vga.c output-serial.c ia32-shutdown.c
 endif
 
 noinst_PROGRAMS = laden
 
-laden_CFLAGS = -I$(srcdir) -I$(top_srcdir)/include $(AM_CFLAGS)
+laden_CFLAGS = -I$(srcdir) -I$(top_srcdir)/include \
+	-I$(top_srcdir)/libc-parts $(AM_CFLAGS)
 
 laden_SOURCES =  $(ARCH_SOURCES)				\
 	output.h output.c output-none.c				\

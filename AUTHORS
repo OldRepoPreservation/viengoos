@@ -7,3 +7,7 @@ Johan Rydberg  <jrydberg@night.trouble.net>
 The zone allocator physmem/zalloc.h, physmem/zalloc.c was originally
 written by:
 Neal H Walfield <neal@walfield.org>
+
+The serial output driver for laden and wortel (laden/output-serial.c,
+wortel/output-serial.c) was written by:
+Daniel Wagner <wagi@gmx.ch>

@@ -22,7 +22,9 @@
 #include <config.h>
 #endif
 
+#include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "output.h"
 
@@ -40,23 +42,32 @@ static struct output_driver *output;
    putchar or any other output routine.  Returns 0 if NAME is not a
    valid output driver name, otherwise 1 on success.  */
 int
-output_init (char *name)
+output_init (const char *driver)
 {
+  const char *driver_cfg = NULL;
+
   if (output)
     {
       output_deinit ();
       output = 0;
     }
 
-  if (name)
+  if (driver)
     {
       struct output_driver **out = &output_drivers[0];
       while (*out)
 	{
-	  if (!strcmp (name, (*out)->name))
+	  unsigned int name_len = strlen ((*out)->name);
+	  if (!strncmp (driver, (*out)->name, name_len))
 	    {
-	      output = *out;
-	      break;
+	      const char *cfg = driver + name_len;
+	      if (!*cfg || *cfg == ',') 
+		{
+		  if (*cfg)
+		    driver_cfg = cfg + 1;
+		  output = *out;
+		  break;
+		}
 	    }
 	  out++;
 	}
@@ -67,7 +78,7 @@ output_init (char *name)
     output = output_drivers[0];
 
   if (output->init)
-    (*output->init) ();
+    (*output->init) (driver_cfg);
 
   return 1;
 }
@@ -251,6 +262,8 @@ printf (const char *fmt, ...)
 	  break;
 
 	case 'p':
+	  putchar ('0');
+	  putchar ('x');
 	  print_nr ((unsigned int) va_arg (ap, void *), 16);
 	  p++;
 	  break;
