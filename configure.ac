@@ -104,6 +104,7 @@ m4_include([physmem/config.m4])
 
 # Create links for header file.
 m4_include([libl4/headers.m4])
+m4_include([hurd/headers.m4])
 m4_include([libhurd-ihash/headers.m4])
 m4_include([libhurd-slab/headers.m4])
 m4_include([libhurd-cap/headers.m4])
@@ -118,6 +119,7 @@ fi
 AC_CONFIG_FILES([Makefile
 		 libl4/ia32/Makefile libl4/powerpc/Makefile libl4/Makefile
 		 libc-parts/Makefile
+		 hurd/Makefile
 		 libhurd-ihash/Makefile
 		 libhurd-slab/Makefile
 		 libhurd-cap/Makefile

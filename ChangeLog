@@ -1,3 +1,10 @@
+2004-03-22  Marcus Brinkmann  <marcus@gnu.org>
+
+	* configure.ac: Add include for hurd/headers.m4.
+	(AC_CONFIG_FILES): Add hurd/Makefile.
+	* Makefile.am (SUBDIRS): Add hurd.
+	* hurd: New directory. 
+
 2004-03-20  Marcus Brinkmann  <marcus@gnu.org>
 
 	* configure.ac: Add include for libhurd-cap-server/headers.m4.

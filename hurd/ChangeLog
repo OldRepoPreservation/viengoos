@@ -1,0 +1,5 @@
+2004-03-22  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am: New file.
+	* headers.m4: New file.
+	* types.h: New file.	
