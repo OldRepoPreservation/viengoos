@@ -150,7 +150,7 @@ parse_args (int argc, char *argv[])
 		printf (".\n\n");
 	    }
 
-	  printf ("Report bugs to " BUG_ADDRESS ".\n", argv[0]);
+	  printf ("Report bugs to " BUG_ADDRESS ".\n");
 	  shutdown ();	  
 	}
       else if (!strcmp (argv[i], "--version"))

@@ -35,7 +35,7 @@ kip_fixup (void)
 
   if ((l4_word_t) kip >= kernel.high)
     panic ("No KIP found in the kernel.\n");
-  debug ("KIP found at address 0x%x.\n", kip);
+  debug ("KIP found at address %p.\n", kip);
 
   kip2 = kip + 0x1000;
   while ((l4_word_t) kip2 < kernel.high

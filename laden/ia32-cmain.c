@@ -140,7 +140,8 @@ debug_dump (void)
 
       for (nr = 0; nr < mbi->mods_count; nr++)
 	debug ("Module %i: Start 0x%x, End 0x%x, Cmd %s\n",
-	       nr + 1, mod[nr].mod_start, mod[nr].mod_end, mod[nr].string);
+	       nr + 1, mod[nr].mod_start, mod[nr].mod_end,
+	       (char *) mod[nr].string);
     }
 
   if (CHECK_FLAG (mbi->flags, 6))

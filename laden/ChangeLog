@@ -1,5 +1,11 @@
 2003-09-19  Marcus Brinkmann  <marcus@gnu.org>
 
+	* ia32-cmain.c (debug_dump): Cast mod[nr].string to char *.
+	* laden.c (parse_args): Remove superfluous arguments.
+	* loader.c: Include <string.h>.
+	* kip-fixup.c (kip_fixup): Use %p for pointer.
+	* output-serial.c: Include <stdlib.h>.
+	
 	* Makefile.am (laden_CFLAGS): Add -I$(top_srcdir)/libc-parts.
 	* output.c: Include <stdlib.h> and <string.h>.
 	* output.h (struct output_driver): Add CFG argument to INIT
