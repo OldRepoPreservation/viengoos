@@ -1,5 +1,12 @@
 2005-01-22  Matthieu Lemerre  <racin@free.fr>
 
+	* l4/gnu/ipc.h (_L4_add_substring_to): Change type of second
+	argument to l4_string_item_t *.
+	(_L4_add_substring_address_to): Change type of second argument to
+	void *.
+	(_L4_add_substring_address_to): Exchange name with ...
+	(_L4_add_substring_to): ... this function.  Fix off by one error.
+
 	* l4/gnu/ipc.h (l4_string_buffer): New function.
 
 	* powerpc/l4/bits/vregs.h (_L4_load_br, _L4_store_br,

@@ -377,7 +377,7 @@ _L4_substring (_L4_string_item_t *string_item, _L4_word_t nr)
    described by string item STRING_ITEM.  */
 static inline _L4_string_item_t *
 _L4_attribute_always_inline
-_L4_add_substring_address_to (_L4_string_item_t *string_item,
+_L4_add_substring_to (_L4_string_item_t *string_item,
 			      _L4_string_item_t *source)
 {
   __L4_string_item_t *target = (__L4_string_item_t *) string_item;
@@ -413,7 +413,7 @@ _L4_add_substring_address_to (_L4_string_item_t *string_item,
    (of the same length) to the string item STRING_ITEM.  */
 static inline _L4_string_item_t *
 _L4_attribute_always_inline
-_L4_add_substring_to (_L4_string_item_t *string_item, void *source)
+_L4_add_substring_address_to (_L4_string_item_t *string_item, void *source)
 {
   __L4_string_item_t *target = (__L4_string_item_t *) string_item;
 
@@ -424,7 +424,7 @@ _L4_add_substring_to (_L4_string_item_t *string_item, void *source)
 
   /* Now add the source substring.  */
   target->nr_substrings++;
-  target->string[target->nr_substrings + 1] = (_L4_word_t) source;
+  target->string[target->nr_substrings] = (_L4_word_t) source;
 
   return string_item;
 }

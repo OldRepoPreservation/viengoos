@@ -256,8 +256,7 @@ l4_substring (l4_string_item_t *string_item, l4_word_t nr)
 
 static inline l4_string_item_t *
 _L4_attribute_always_inline
-l4_add_substring_address_to (l4_string_item_t *string_item,
-			     l4_string_item_t *source)
+l4_add_substring_address_to (l4_string_item_t *string_item, void *source)
 {
   return _L4_add_substring_address_to (string_item, source);
 }
@@ -265,7 +264,8 @@ l4_add_substring_address_to (l4_string_item_t *string_item,
 
 static inline l4_string_item_t *
 _L4_attribute_always_inline
-l4_add_substring_to (l4_string_item_t *string_item, void *source)
+l4_add_substring_to (l4_string_item_t *string_item,
+		     l4_string_item_t *source)
 {
   return _L4_add_substring_to (string_item, source);
 }
