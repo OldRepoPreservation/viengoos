@@ -21,8 +21,12 @@
 #include <config.h>
 #endif
 
+#include <assert.h>
 #include <unistd.h>
 #include <alloca.h>
+
+#include <l4/thread-start.h>
+#include <l4/pagefault.h>
 
 #include "wortel.h"
 #include "sigma0.h"
@@ -37,7 +41,7 @@ l4_word_t wortel_end;
 
 
 /* Unused memory.  These fpages mark memory which we needed at some
-   time, but don't need anymore.  It can be granted to the physical
+   time, but don't need anymore.  It can be mapped to the physical
    memory server at startup.  This includes architecture dependent
    boot data as well as the physical memory server module.  */
 l4_fpage_t wortel_unused_fpages[MAX_UNUSED_FPAGES];
@@ -51,13 +55,16 @@ char mods_args[1024];
 /* The number of bytes in mods_args already consumed.  */
 unsigned mods_args_len;
 
-const char *mod_names[] = { "physmem-mod", "task-mod", "root-fs-mod" };
+/* Printable names of the boot modules.  */
+const char *mod_names[] = { "physmem-mod", "task-mod",
+			    "deva-mod", "deva-store-mod",
+			    "root-fs-mod" };
 
-/* For the boot components, find_components() must fill in the start
-   and end address of the ELF images in memory.  The end address is
-   one more than the last byte in the image.  */
+/* The boot modules.  */
 struct wortel_module mods[MOD_NUMBER];
 
+/* The number of modules present.  Currently, this is enforced to be
+   MOD_NUMBER.  */
 unsigned int mods_count;
 
 /* The physical memory server master control capability for the root
@@ -110,64 +117,13 @@ loader_get_memory_desc (l4_word_t nr)
 }
 
 
-/* The maximum number of fpages required to cover a page aligned range
-   of memory.  This is k if the maximum memory range size to cover is
-   2^(k + min_page_size_log2), which can be easily proved by
-   induction.  The minimum page size in L4 is at least
-   L4_MIN_PAGE_SIZE.  We also need to have each fpage aligned to a
-   multiple of its own size.  This makes the proof by induction a bit
-   more convoluted, but does not change the result.  */
-#define MAX_FPAGES (sizeof (l4_word_t) * 8 - L4_MIN_PAGE_SIZE_LOG2)
-
-
-/* Determine the fpages required to cover the bytes from START to END
-   (exclusive).  START must be aligned to the minimal page size
-   supported by the system.  Returns the number of fpages required to
-   cover the range, and returns that many fpages (with maximum
-   accessibility) in FPAGES.  At most MAX_FPAGES fpages will be
-   returned.  Each fpage will also be aligned to a multiple of its own
-   size.  */
-static unsigned int
-make_fpages (l4_word_t start, l4_word_t end, l4_fpage_t *fpages)
-{
-  l4_word_t min_page_size = l4_min_page_size ();
-  unsigned int nr_fpages = 0;
-
-  if (start >= end)
-    return 0;
-
-  if (start & (min_page_size - 1))
-    panic ("make_fpages: START is not aligned to minimum page size");
-
-  end = (end + min_page_size - 1) & ~(min_page_size - 1);
-  /* END is now at least one MIN_PAGE_SIZE larger than START.  */
-  nr_fpages = 0;
-  while (start < end)
-    {
-      unsigned int addr_align;
-      unsigned int size_align;
-
-      /* Each fpage must be self-aligned.  */
-      addr_align = l4_lsb (start) - 1;
-      size_align = l4_msb (end - start) - 1;
-      if (addr_align < size_align)
-	size_align = addr_align;
-
-      fpages[nr_fpages]
-	= l4_fpage_add_rights (l4_fpage_log2 (start, size_align),
-			       L4_FPAGE_FULLY_ACCESSIBLE);
-      start += l4_size (fpages[nr_fpages]);
-      nr_fpages++;
-    }
-  return nr_fpages;
-}
-
-
-
+/* Map in the memory used by the modules, and move the physmem module
+   to its load address.  This keeps track of the inseparable fpages
+   involved.  Also further initialize the module entries.  */
 static void
 load_components (void)
 {
-  l4_fpage_t fpages[MAX_FPAGES];
+  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
   unsigned int nr_fpages;
   l4_word_t min_page_size = l4_min_page_size ();
   unsigned int i;
@@ -211,7 +167,7 @@ load_components (void)
 	panic ("Module %s does not start on a page boundary", mods[i].name);
       loader_add_region (mods[i].name, mods[i].start, mods[i].end);
 
-      nr_fpages = make_fpages (mods[i].start, mods[i].end, fpages);
+      nr_fpages = l4_fpage_span (mods[i].start, mods[i].end - 1, fpages);
       if (i == MOD_PHYSMEM)
 	{
 	  /* The physical memory server module memory can be recycled
@@ -229,11 +185,11 @@ load_components (void)
 
   /* Because loading the physical memory server to its destination
      address will touch the destination memory, which we later want to
-     grant to the physical memory server using (inseparable) fpages,
-     we request the desired fpages up-front.  */
+     map to the physical memory server using (inseparable) fpages, we
+     request the desired destination fpages up-front.  */
   loader_elf_dest ("physmem-server", mods[MOD_PHYSMEM].start,
 		   mods[MOD_PHYSMEM].end, &addr, &end_addr);
-  nr_fpages = make_fpages (addr, end_addr, fpages);
+  nr_fpages = l4_fpage_span (addr, end_addr - 1, fpages);
   while (nr_fpages--)
     sigma0_get_fpage (fpages[nr_fpages]);
 
@@ -250,60 +206,110 @@ load_components (void)
 }
 
 
+/* Finish initialization of the module entries.  */
 static void
-start_components (void)
+setup_components (void)
 {
-  l4_msg_t msg;
-  l4_msg_tag_t tag;
-  l4_word_t ret;
-  l4_word_t control;
-  unsigned int cap_id;
   unsigned int i;
-  l4_word_t thread_no = l4_thread_no (l4_myself ()) + 1;
-  hurd_task_id_t task_id = 2;
-  l4_thread_id_t server;
+
+  /* The first thread number we assign is the one that follows our own
+     thread number numerically.  wortel only needs one thread.  */
+#define WORTEL_THREADS	1
+  l4_word_t thread_no = l4_thread_no (l4_myself ()) + WORTEL_THREADS;
+
+  /* The first task ID we assign is 2.  0 is not a valid task ID
+     (because it is not a valid version ID), and we reserve 1 for
+     wortel itself (incidentially, our thread version is already 1).
+     Because we associate all non-task modules with the preceding
+     task, we bump up the task_id number up whenever a new task is
+     encountered.  So start with one less than 2 to compensate that
+     the first time around.  */
+  hurd_task_id_t task_id = 2 - 1;
+
+  assert (MOD_IS_TASK (0));
 
   for (i = 0; i < mods_count; i++)
     {
-      /* FIXME: Should only be done for modules turned into tasks.  */
-      mods[i].server_thread = l4_global_id (thread_no++, task_id);
-      mods[i].nr_extra_threads = (i == MOD_PHYSMEM ? 3 : 1);
-      thread_no += mods[i].nr_extra_threads;
-      task_id++;
-    }
-  
-  if (mods[MOD_PHYSMEM].start > mods[MOD_PHYSMEM].end)
-    panic ("physmem has invalid memory range");
-  if (mods[MOD_PHYSMEM].ip < mods[MOD_PHYSMEM].start
-      || mods[MOD_PHYSMEM].ip > mods[MOD_PHYSMEM].end)
-    panic ("physmem has invalid IP");
+      if (MOD_IS_TASK (i))
+	{
+	  task_id++;
 
-  server = mods[MOD_PHYSMEM].server_thread;
+	  /* The main thread we create for any task is also the
+	     designated server thread for that task.  It is the thread
+	     that other tasks will use to invoke RPCs on capabilities
+	     provided by this task.  */
+	  mods[i].server_thread = l4_global_id (thread_no++, task_id);
+
+	  /* physmem needs three extra threads (one main thread that
+	     is not the server thread and two alternating worker
+	     threads), because it is started before the task server is
+	     running, while the others need none.  */
+	  mods[i].nr_extra_threads = (i == MOD_PHYSMEM ? 3 : 0);
+	  thread_no += mods[i].nr_extra_threads;
+
+	  /* Allocate some memory for the startup page.  We allocate
+	     it here, create a container from it, and then map it into
+	     the task's address space.  The only bad thing that can
+	     happen is that the task destroys the container while the
+	     memory is still mapped (and physmem can't revoke the
+	     mapping).  However, only trusted tasks are involved, so
+	     it is ok.  */
+/* FIXME: Should be defined elsewhere.  32KB should be plenty.  */
+#define STARTUP_CODE_SIZE_LOG2	(15)
+#define STARTUP_CODE_SIZE	(1 << STARTUP_CODE_SIZE_LOG2)
+	  mods[i].startup = sigma0_get_any (STARTUP_CODE_SIZE_LOG2);
+	  if (mods[i].startup == L4_NILPAGE)
+	    panic ("can not allocate startup code fpage for %s",
+		   mod_names[i]);
+	}
+
+      mods[i].task_id = task_id;
+    }
+}
+
+
+/* Start up the physical memory server.  */
+static void
+start_physmem (void)
+{
+  unsigned int i;
+  l4_word_t ret;
+  l4_word_t control;
+  l4_thread_id_t physmem;
+  unsigned int cap_id;
+  l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
+  unsigned int nr_fpages;
+
+  physmem = mods[MOD_PHYSMEM].server_thread;
+
   /* FIXME: Pass cap_id to physmem.  */
-  cap_id = wortel_add_user (l4_version (server));
-  /* The UTCB location below is only a hack.  We also need a way to
-     specify the maximum number of threads (ie the size of the UTCB
-     area), for example via ELF symbols, or via the command line.
-     This can also be used to actually create these threads up
-     front.  */
-  ret = l4_thread_control (server, server, l4_myself (), l4_nilthread,
-			   (void *) -1);
+  cap_id = wortel_add_user (mods[MOD_PHYSMEM].task_id);
+
+  /* Create the main thread (which is also the designated server
+     thread).  For now, we will be the scheduler.  FIXME: Set the
+     scheduler to the task server's scheduler eventually.  */
+  ret = l4_thread_control (physmem, physmem, l4_myself (),
+			   l4_nilthread, (void *) -1);
   if (!ret)
     panic ("could not create initial physmem thread: %s",
 	   l4_strerror (l4_error_code ()));
 
-  /* The UTCB area must be controllable in some way, see above.  Same
-     for KIP area.  */
-  debug ("XXX: utcb area size log2: 0x%x  utcb size: 0x%x  kip size log2: 0x%x\n",
-	 l4_utcb_area_size_log2 (), l4_utcb_size (), l4_kip_area_size_log2 ());
-
-  debug ("XXX: space kip fpage 0x%x  utcb fpage 0x%x\n",
-			  l4_fpage_log2 (wortel_start,
-					 l4_kip_area_size_log2 ()),
-			  l4_fpage_log2 (wortel_start + l4_kip_area_size (),
-					 l4_utcb_area_size_log2 ()));
-
-  ret = l4_space_control (server, 0,
+  /* FIXME: The KIP area and UTCB location for physmem should be more
+     configurable (for example via "boot script" parameters or ELF
+     symbols).  Below we choose the location of wortel's own memory,
+     because this is guaranteed not to be mapped into physmem's
+     virtual addresses space.  However, it severly restricts the
+     number of threads that can be created in physmem.  It is
+     preferable to use some high area between the end of RAM and the
+     start of the kernel area.  If there are 3GB RAM however, there is
+     no such high address that is not also the location of RAM.  */
+  /* FIXME: Irregardless of how we choose the UTCB and KIP area, the
+     below code makes assumptions about page alignedness that are
+     architecture specific.  And it does not assert that we do not
+     accidently exceed the wortel end address.  */
+  /* FIXME: In any case, we have to pass the UTCB area size (and
+     location) to physmem.  */
+  ret = l4_space_control (physmem, 0,
 			  l4_fpage_log2 (wortel_start,
 					 l4_kip_area_size_log2 ()),
 			  l4_fpage_log2 (wortel_start + l4_kip_area_size (),
@@ -313,32 +319,35 @@ start_components (void)
     panic ("could not create physmem address space: %s",
 	   l4_strerror (l4_error_code ()));
 
-  ret = l4_thread_control (server, server, l4_nilthread, l4_myself (),
+  /* Activate the physmem thread.  We will be the pager.  We are using
+     the first UTCB entry.  */
+  ret = l4_thread_control (physmem, physmem, l4_nilthread, l4_myself (),
 			   (void *) (wortel_start + l4_kip_area_size ()));
-  if (!ret) 
+  if (!ret)
     panic ("activation of physmem main thread failed: %s",
 	   l4_strerror (l4_error_code ()));
 
-
-  l4_msg_clear (msg);
-  l4_set_msg_label (msg, 0);
-  l4_msg_append_word (msg, mods[MOD_PHYSMEM].ip);
-  l4_msg_append_word (msg, 0);
-  l4_msg_load (msg);
-  tag = l4_send (server);
-  if (l4_ipc_failed (tag))
+  ret = l4_thread_start (physmem, 0, mods[MOD_PHYSMEM].ip);
+  if (!ret)
     panic ("Sending startup message to physmem thread failed: %u",
 	   l4_error_code ());
 
-  /* Set up the helper thread for physmem.  */
-  /* UTCB location is a hack, as above.  */
-  /* The whole thing is a hack, actually.  */
+  /* Set up the extra threads for physmem.  FIXME: UTCB location has
+     the same issues as described above.  */
   for (i = 1; i <= mods[MOD_PHYSMEM].nr_extra_threads; i++)
     {
-      l4_thread_id_t helper;
+      l4_thread_id_t extra_thread;
+      
+      extra_thread = l4_global_id (l4_thread_no (physmem) + i,
+				   mods[MOD_PHYSMEM].task_id);
 
-      helper = l4_global_id (l4_thread_no (server) + i, l4_version (server));
-      ret = l4_thread_control (helper, server, l4_myself (), helper,
+      /* We create the extra threads as active threads, because
+	 inactive threads can not be activated with an exchange
+	 register system call.  The scheduler is us.  FIXME:
+	 Eventually set the scheduler to the task server's
+	 scheduler.  */
+      ret = l4_thread_control (extra_thread, physmem, l4_myself (),
+			       extra_thread,
 			       (void *) (wortel_start + l4_kip_area_size ()
 					 + i * l4_utcb_size ()));
       if (!ret)
@@ -346,72 +355,62 @@ start_components (void)
 	       l4_strerror (l4_error_code ()));
     }
 
-  {
-    l4_fpage_t fpages[MAX_FPAGES];
-    unsigned int nr_fpages;
 
-    /* We want to grant all the memory for the physmem binary image
-       with the first page fault, but we might have to send several
-       fpages.  So we first create a list of all fpages we need, then
-       we serve one after another, providing the one containing the
-       fault address last.  */
-    nr_fpages = make_fpages (mods[MOD_PHYSMEM].start, mods[MOD_PHYSMEM].end,
+  /* We want to map all the memory for the physmem binary image with
+     the first page fault, but we might have to send several fpages.
+     So we first create a list of all fpages we need, then we serve
+     one after another, providing the one containing the fault address
+     last.  */
+  nr_fpages = l4_fpage_span (mods[MOD_PHYSMEM].start,
+			     mods[MOD_PHYSMEM].end - 1,
 			     fpages);
+  
+  /* Now serve page requests.  */
+  while (nr_fpages)
+    {
+      l4_msg_tag_t tag;
+      l4_map_item_t map_item;
+      l4_fpage_t fpage;
+      l4_word_t addr;
+      
+      tag = l4_receive (physmem);
+      if (l4_ipc_failed (tag))
+	panic ("Receiving messages from physmem thread failed: %u",
+	       (l4_error_code () >> 1) & 0x7);
+      if (!l4_is_pagefault (tag))
+	panic ("Message from physmem thread is not a page fault");
+      addr = l4_pagefault (tag, NULL, NULL);
+      if (addr != mods[MOD_PHYSMEM].ip)
+	panic ("Page fault at unexpected address 0x%x (expected 0x%x)",
+	       addr, mods[MOD_PHYSMEM].ip);
 
-    /* Now serve page requests.  */
-    while (nr_fpages)
-      {
-	l4_grant_item_t grant_item;
-	l4_fpage_t fpage;
-	l4_word_t addr;
-	unsigned int i;
-
-	tag = l4_receive (server);
-	if (l4_ipc_failed (tag))
-	  panic ("Receiving messages from physmem thread failed: %u",
-		 (l4_error_code () >> 1) & 0x7);
-	if ((l4_label (tag) >> 4) != 0xffe)
-	  panic ("Message from physmem thread is not a page fault");
-	l4_msg_store (tag, msg);
-	if (l4_untyped_words (tag) != 2 || l4_typed_words (tag) != 0)
-	  panic ("Invalid format of page fault message");
-	addr = l4_msg_word (msg, 0);
-	if (addr != mods[MOD_PHYSMEM].ip)
-	  panic ("Page fault at unexpected address 0x%x (expected 0x%x)",
-		 addr, mods[MOD_PHYSMEM].ip);
-
-	if (nr_fpages == 1)
-	  i = 0;
-	else
-	  for (i = 0; i < nr_fpages; i++)
-	    if (addr < l4_address (fpages[i])
-		|| addr >= l4_address (fpages[i]) + l4_size (fpages[i]))
-	      break;
-	if (i == nr_fpages)
-	  panic ("Could not find suitable fpage");
-
-	fpage = fpages[i];
-	if (i != 0)
-	  fpages[i] = fpages[nr_fpages - 1];
-	nr_fpages--;
-
-	/* The memory was already requested from sigma0 by
-	   load_components, so grant it right away.  */
-	debug ("Granting fpage: 0x%x/%u\n", l4_address (fpage),
-	       l4_size_log2 (fpage));
-	l4_msg_clear (msg);
-	l4_set_msg_label (msg, 0);
-	/* FIXME: Keep track of mappings already provided.  Possibly
-	   map text section rx and data rw.  */
-	grant_item = l4_grant_item (fpage, l4_address (fpage));
-	l4_msg_append_grant_item (msg, grant_item);
-	l4_msg_load (msg);
-	l4_reply (server);
-      }
-  }
-
-  /* Now we have kicked off the boot process.  The rest will be done
-     in the normal server loop.  */
+      if (nr_fpages == 1)
+	i = 0;
+      else
+	for (i = 0; i < nr_fpages; i++)
+	  if (addr < l4_address (fpages[i])
+	      || addr >= l4_address (fpages[i]) + l4_size (fpages[i]))
+	    break;
+      if (i == nr_fpages)
+	panic ("Could not find suitable fpage");
+      
+      fpage = fpages[i];
+      if (i != 0)
+	fpages[i] = fpages[nr_fpages - 1];
+      nr_fpages--;
+      
+      /* The memory was already requested from sigma0 by
+	 load_components, so map it right away.  */
+      debug ("Mapping fpage: 0x%x/%u\n", l4_address (fpage),
+	     l4_size_log2 (fpage));
+      /* FIXME: Keep track of mappings already provided.  Possibly
+	 map text section rx and data rw.  */
+      map_item = l4_map_item (fpage, l4_address (fpage));
+      ret = l4_pagefault_reply (physmem, (void *) &map_item);
+      if (!ret)
+	panic ("sending pagefault reply to physmem failed: %u\n",
+	       l4_error_code ());
+    }
 }
 
 
@@ -424,22 +423,54 @@ start_components (void)
 static void
 serve_bootstrap_requests (void)
 {
-  /* The size of the region that we are currently trying to allocate
-     for GET_MEM requests.  If this is smaller than L4_MIN_PAGE_SIZE,
-     no more memory is available.  */
-  unsigned int get_mem_size = sizeof (l4_word_t) * 8 - 1;
+  unsigned int i;
 
-  /* The current module for which we want to create the memory
-     container.  We skip the physical memory container itself.
-     SERVER_TASK must be the task ID of the owner of that module
-     data.  */
-  unsigned int mod_idx = 1;
-  hurd_task_id_t server_task = (mod_idx < mods_count)
-    ? l4_version (mods[mod_idx].server_thread) : 0;
+  /* The size of the region that we are currently trying to allocate
+     for GET_MEM requests.  When this drops below L4_MIN_PAGE_SIZE, no
+     more memory is available.  */
+  unsigned int get_mem_size = sizeof (l4_word_t) * 8 - 1;
 
   /* True if we need to remap the page at address 0.  */
   int get_page_zero = 0;
-  int i;
+
+  /* For each container we want to create, we have one item in this
+     array.  */
+  struct
+  {
+    unsigned int module;
+    l4_word_t start;
+    l4_word_t end;
+    hurd_cap_handle_t *cont;
+  } container[2 * mods_count + 1];
+  unsigned int nr_cont = 0;
+  unsigned int cur_cont = 0;
+
+
+  /* Make a list of all the containers we want.  */
+  for (i = 0; i < mods_count; i++)
+    {
+      /* We do not want to create containers for the physical memory
+	 server.  It already has its own memory.  */
+      if (i == MOD_PHYSMEM)
+	continue;
+
+      if (MOD_IS_TASK(i))
+	{
+	  container[nr_cont].module = i;
+	  container[nr_cont].start = l4_address (mods[i].startup);
+	  container[nr_cont].end = l4_address (mods[i].startup)
+	    + l4_size (mods[i].startup) - 1;
+	  container[nr_cont].cont = &mods[i].startup_cont;
+	  nr_cont++;
+	}
+
+      container[nr_cont].module = i;
+      container[nr_cont].start = mods[i].start;
+      container[nr_cont].end = mods[i].end - 1;
+      container[nr_cont].cont = &mods[i].mem_cont;
+      nr_cont++;
+    }
+
 
   /* If a conventinal page with address 0 exists in the memory
      descriptors, allocate it because we don't want to bother anybody
@@ -453,6 +484,7 @@ serve_bootstrap_requests (void)
     }
   if (get_page_zero)
     sigma0_get_fpage (l4_fpage (0, l4_min_page_size ()));
+
 
   do
     {
@@ -499,7 +531,7 @@ serve_bootstrap_requests (void)
       else if (label == WORTEL_MSG_GET_MEM)
 	{
 	  l4_fpage_t fpage;
-	  l4_grant_item_t grant_item;
+	  l4_map_item_t map_item;
 
 	  if (l4_untyped_words (tag) != 1
 	      || l4_typed_words (tag) != 0)
@@ -527,9 +559,9 @@ serve_bootstrap_requests (void)
 	     own our own memory we run on, and whatever memory the
 	     output driver is using (for example VGA mapped
 	     memory).  */
-	  grant_item = l4_grant_item (fpage, l4_address (fpage));
+	  map_item = l4_map_item (fpage, l4_address (fpage));
 	  l4_msg_clear (msg);
-	  l4_msg_append_grant_item (msg, grant_item);
+	  l4_msg_append_map_item (msg, map_item);
 	  l4_msg_load (msg);
 	  l4_reply (from);
 	}
@@ -553,7 +585,7 @@ serve_bootstrap_requests (void)
 	      || l4_typed_words (tag) != 0)
 	    panic ("Invalid format of get cap request msg");
 
-	  if (mod_idx == mods_count)
+	  if (cur_cont == nr_cont)
 	    {
 	      /* Request the global control capability now.  */
 	      l4_msg_clear (msg);
@@ -564,56 +596,37 @@ serve_bootstrap_requests (void)
 	      l4_msg_load (msg);
 	      l4_reply (from);
 	    }
-	  else if (mod_idx > mods_count)
+	  else if (cur_cont > nr_cont)
 	    panic ("physmem does not stop requesting capabilities");
 	  else
 	    {
 	      /* We are allowed to make a capability request now.  */
-	      l4_fpage_t fpages[MAX_FPAGES];
+	      l4_fpage_t fpages[L4_FPAGE_SPAN_MAX];
 	      unsigned int nr_fpages;
 
-	      nr_fpages = make_fpages (mods[mod_idx].start,
-				       mods[mod_idx].end, fpages);
+	      nr_fpages = l4_fpage_span (container[cur_cont].start,
+					 container[cur_cont].end, fpages);
 
-	      /* We can not pass more than 31 grant items in our
+	      /* We can not pass more than 31 map items in our
 		 message, because there are only 64 message registers,
-		 we need 2 for the task ID and the startup fpage, and
-		 each grant item takes up two message registers.  */
+		 we need 1 for the task ID, and each map item takes up
+		 two message registers.  */
 	      if (nr_fpages > 31)
 		panic ("%s: Module %s is too large and has an "
-		       "unfortunate alignment", __func__, mods[mod_idx].name);
-
-#if 0
-	      if (current_mod_idx_points_to_a_task)
-		{
-#endif
-		  /* FIXME: We need to find some (temporary) free
-		     virtual address space of size startup_code_size *
-		     number of modules.  For now, use something a bit
-		     below 3 GB.  */
-		  mods[mod_idx].startup = l4_fpage (3UL * 1024 * 1024 * 1024
-						    -2* 32 * 1024 * mods_count
-						    + 32 * 1024 * mod_idx,
-						    32 * 1024);
-#if 0
-		}
-	      else
-		{
-		  mods[mod_idx].startup = l4_nilpage;
-		}
-#endif
+		       "unfortunate alignment", __func__,
+		       mods[container[cur_cont].module].name);
 
 	      l4_msg_clear (msg);
 	      l4_set_msg_label (msg, 0);
-	      l4_msg_append_word (msg, server_task);
-	      l4_msg_append_word (msg, mods[mod_idx].startup);
+	      l4_msg_append_word (msg,
+				  mods[container[cur_cont].module].task_id);
 	      while (nr_fpages--)
 		{
-		  l4_grant_item_t grant_item;
+		  l4_map_item_t map_item;
 		  l4_fpage_t fpage = fpages[nr_fpages];
 
-		  grant_item = l4_grant_item (fpage, l4_address (fpage));
-		  l4_msg_append_grant_item (msg, grant_item);
+		  map_item = l4_map_item (fpage, l4_address (fpage));
+		  l4_msg_append_map_item (msg, map_item);
 		}
 	      l4_msg_load (msg);
 	      l4_reply (from);
@@ -621,34 +634,19 @@ serve_bootstrap_requests (void)
 	}
       else if (label == WORTEL_MSG_GET_CAP_REPLY)
 	{
-	  if (mod_idx > mods_count)
+	  if (l4_untyped_words (tag) != 2
+	      || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of get cap reply msg");
+
+	  if (cur_cont > nr_cont)
 	    panic ("Invalid get cap reply message");
-	  else if (mod_idx == mods_count)
-	    {
-	      if (l4_untyped_words (tag) != 2
-		  || l4_typed_words (tag) != 0)
-		panic ("Invalid format of get cap reply msg");
-
-	      physmem_master = l4_msg_word (msg, 1);
-	    }
+	  else if (cur_cont == nr_cont)
+	    physmem_master = l4_msg_word (msg, 1);
 	  else
-	    {
-	      if (l4_untyped_words (tag) != 3
-		  || l4_typed_words (tag) != 0)
-		panic ("Invalid format of get cap reply msg");
-
-	      mods[mod_idx].mem_cont = l4_msg_word (msg, 1);
-	      
-	      /* Only valid if current module is a task.  */
-	      mods[mod_idx].startup_cont = l4_msg_word (msg, 2);
-	    }
+	    *container[cur_cont].cont = l4_msg_word (msg, 1);
 
 	  /* Does not require a reply.  */
-	  mod_idx++;
-	  /* FIXME: Only do this if the next module in the list is
-	     a new task.  */
-	  if (mod_idx < mods_count)
-	    server_task = l4_version (mods[mod_idx].server_thread);
+	  cur_cont++;
 	}
       else if ((label >> 4) == 0xffe)
 	{
@@ -688,7 +686,6 @@ serve_requests (void)
 	panic ("Unprivileged user 0x%x attemps to access wortel rootserver",
 	       from);
 
-#define WORTEL_MSG_PUTCHAR 1
       if (label == WORTEL_MSG_PUTCHAR)
 	{
 	  int chr;
@@ -813,7 +810,9 @@ main (int argc, char *argv[])
 
   load_components ();
 
-  start_components ();
+  setup_components ();
+
+  start_physmem ();
 
   serve_bootstrap_requests ();
 

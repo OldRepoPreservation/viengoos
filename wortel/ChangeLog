@@ -1,3 +1,23 @@
+2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
+
+	* wortel.h (struct wortel_module): New member task_id.
+	(enum wortel_module_type): New modules MOD_DEVA and
+	MOD_DEVA_STORE.
+	(MOD_IS_TASK): New macro.
+	* wortel.c: Include <assert.h>, <l4/thread-start.h> and
+	<l4/pagefault.h> Throughout the whole file, use map items instead
+	of grant items, use L4_FPAGE_SPAN_MAX instead MAX_FPAGES, and use
+	l4_fpage_span instead make_fpages.
+	(mod_names): Add names for MOD_DEVA and MOD_DEVA_STORE.
+	(MAX_FPAGES): Removed.
+	(make_fpages): Removed.
+	(start_components): Split up into ...
+	(setup_components): ... this new function ...
+	(start_physmem): ... and this.
+	(serve_bootstrap_requests): Rewrite the container creation.
+	(main): Call setup_components and start_physmem instead
+	start_components.
+	
 2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
 
 	* wortel.c (serve_bootstrap_requests): Replace start and end in

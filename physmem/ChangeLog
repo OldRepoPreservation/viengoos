@@ -1,5 +1,12 @@
 2004-04-09  Marcus Brinkmann  <marcus@gnu.org>
 
+	* container.c: Revert last change.
+	* physmem.h: Revert last change.
+	* physmem.c (MAX_FPAGES): Removed macro.
+	(create_bootstrap_caps): Use L4_FPAGE_SPAN_MAX, not MAX_FPAGES.
+	Update bootstrap cap code to new wortel interface (essentially
+	reverting the last change).
+
 	* physmem.h: Include <stdbool.h>.
 	* container.c (struct container): Add member mapped.
 	(container_alloc): Add new argument mapped.  Initialize

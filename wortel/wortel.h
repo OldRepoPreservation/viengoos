@@ -66,7 +66,8 @@ struct wortel_module
   const char *name;
 
   /* Low and high address of the module.  Initialized by
-     find_components.  */
+     find_components.  END is the address of the byte following the
+     last byte in the image.  */
   l4_word_t start;
   l4_word_t end;
 
@@ -74,21 +75,25 @@ struct wortel_module
      mods_args.  Initialized by find_components.  */
   char *args;
 
+  /* The task ID to which this module belongs.  */
+  hurd_task_id_t task_id;
+
   /* The container capability in the physical memory server for this
-     module.  Valid for all modules except for the physical memory
-     server itself.  Initialized after the physical memory server
-     starts up.  */
+     module.  Not valid for the physical memory server.  Initialized
+     after physmem starts up.  */
   hurd_cap_handle_t mem_cont;
 
-  /* The following informartion is only valid if a task will be
-     created from the module.  */
 
-  /* The FPAGE that contains the startup code.  Initialized before
-     requesting MEM_CONT and STARTUP_CONT from physmem.  */
+  /* The following information is only valid if a task will be created
+     from the module.  */
+
+  /* The FPAGE that contains the startup code.  Not valid for the
+     physical memory server.  */
   l4_fpage_t startup;
 
-  /* The container capability that contains the startup code.
-     Provided by physmem.  */
+  /* The container capability that contains the startup code.  Only
+     valid if startup is valid.  Initialized after physmem starts
+     up.  */
   l4_fpage_t startup_cont;
 
   /* The entry point of the executable.  Initialized just before the
@@ -100,19 +105,19 @@ struct wortel_module
   l4_word_t header_loc;
   l4_word_t header_size;
 
-  /* The task control capability for this module.  Only valid if this
-     is not the task server task itself.  Initialized after the task
-     server starts up.  */
+  /* The task control capability for this module.  Not used for the
+     task server task.  Initialized after the task server starts
+     up.  */
   hurd_cap_handle_t task_ctrl;
 
   /* Server thread and the initial main thread of the task made from
-     this module.  Initialized just before the task is started.  */
+     this module.  */
   l4_thread_id_t server_thread;
 
   /* Number of helper threads in the task made from this module.  They
      all follow the SERVER_THREAD numerically in their thread number,
-     while they have the same version ID.  Initialized just before the
-     task is started.  */
+     while they have the same version ID (which is equal to task_id).
+     Initialized just before the task is started.  */
   unsigned int nr_extra_threads;
 };
 
@@ -121,23 +126,28 @@ enum wortel_module_type
   {
     MOD_PHYSMEM = 0,
     MOD_TASK,
+    MOD_DEVA,
+    MOD_DEVA_STORE,
     MOD_ROOT_FS,
     MOD_NUMBER
   };
 
 
+/* Return true if module is associated with its own task.  */
+#define MOD_IS_TASK(i) (i != MOD_DEVA_STORE)
+
+/* Printable names of the boot modules.  */
 extern const char *mod_names[MOD_NUMBER];
 
-/* For the boot components, find_components() must fill in the start
-   and end address of the ELF images in memory.  The end address is
-   one more than the last byte in the image.  */
+/* The boot modules.  */
 extern struct wortel_module mods[MOD_NUMBER];
 
-/* The number of modules present.  Only the first MODS_COUNT modules
-   in MODS are properly initialized.  */
+/* The number of modules present.  Currently, this is enforced to be
+   MOD_NUMBER.  */
 extern unsigned int mods_count;
 
-/* Find the module information required for booting.  */
+/* Initialize up to MOD_NUMBER modules in MODS.  Set MODS_COUNT to the
+   number of modules initialized.  */
 void find_components (void);
 
 int main (int argc, char *argv[]);
