@@ -54,10 +54,12 @@ esac
 
 # Create links for header file.
 m4_include([libhurd-slab/headers.m4])
+m4_include([libhurd-ihash/headers.m4])
 
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
                  laden/Makefile
 		 libl4/ia32/Makefile libl4/Makefile
-		 libhurd-slab/Makefile])
+		 libhurd-slab/Makefile
+		 libhurd-ihash/Makefile])
 AC_OUTPUT

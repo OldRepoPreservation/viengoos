@@ -1,1 +1,1 @@
-SUBDIRS = libl4 laden libhurd-slab
+SUBDIRS = libl4 laden libhurd-slab libhurd-ihash

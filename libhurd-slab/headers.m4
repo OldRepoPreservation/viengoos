@@ -1,2 +1,1 @@
-hurd_SYSDEPS([libhurd-slab],
-             [slab.h:hurd/slab.h])
+AC_CONFIG_LINKS([include/hurd/slab.h:libhurd-slab/slab.h])
