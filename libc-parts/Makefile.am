@@ -20,11 +20,17 @@
 
 noinst_LIBRARIES = libc-parts.a
 
-libc_parts_a_SOURCES = 
+libc_parts_a_SOURCES = ctype.h c-ctype.h c-ctype.c		\
+	errno.h errno.c						\
+	strtol.c strtoll.c strtoul.c strtoull.c			\
 
-routines := memcpy memmove memset bcopy bzero memchr rawmemchr \
-	strstr strtok strchr strchrnul strcpy stpcpy strcat \
-	strcmp strncmp strlen strnlen \
+# For the following routines we want to take the possibly optimized
+# versions from the target's GNU C library, rather than duplicating
+# the generic code here.
+routines := memcpy memmove memset bcopy bzero memchr rawmemchr	\
+	strstr strtok strchr strchrnul strcpy stpcpy strcat	\
+	strcmp strncmp strlen strnlen				\
+	atoi atoll strtoimax strtoumax				\
 	htonl htons ntohl ntohs ffs
 
 # We have to find all modules in the archive which contain the above
