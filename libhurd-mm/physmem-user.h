@@ -100,4 +100,29 @@ extern error_t hurd_pm_container_map (hurd_pm_container_t container,
 				      l4_word_t offset, size_t size,
 				      uintptr_t vaddr, l4_word_t rights);
 
+/* Logically copy COUNT bytes from container SRC_CONTAINER starting at
+   byte SRC_START to container DEST_CONTAINER starting at byte
+   DEST_START.  On return, *AMOUNT contains the number of bytes copied
+   when an error occurred (if any).
+
+   If copying would overwrite frames in DEST_CONTAINER and FLAGS
+   contains HURD_PM_CONT_ALLOC_SQUASH, the frames are implicitly
+   deallocated, otherwise EEXIST is returned.
+
+   If an address to copy has no memory associated with it, ESRCH is
+   returned.
+
+   SRC_START and DEST_START must correspond to the start of a base
+   page.  COUNT must be a multiple of the base page.  Failing this,
+   EINVAL is returned.
+
+   *AMOUNT will always contain a number of bytes which is a multiple
+   of the base page size.  */
+extern error_t hurd_pm_container_copy (hurd_pm_container_t src_container,
+				       uintptr_t src_start,
+				       hurd_pm_container_t dest_container,
+				       uintptr_t dest_start,
+				       size_t count,
+				       uintptr_t flags,
+				       size_t *amount);
 #endif	/* HURD_PHYSMEM_USER_H */

@@ -42,7 +42,8 @@ enum container_ops
     container_share_id,
     container_allocate_id,
     container_deallocate_id,
-    container_map_id
+    container_map_id,
+    container_copy_id
   };
 
 /* Create a container managed by the physical memory server.  On
@@ -176,6 +177,37 @@ hurd_pm_container_map (hurd_pm_container_t container,
 	      l4_map_item_snd_base (mi));
     }
   printf ("\n");
+
+  return l4_msg_label (msg);
+}
+
+error_t
+hurd_pm_container_copy (hurd_pm_container_t src_container,
+			uintptr_t src_start,
+			hurd_pm_container_t dest_container,
+			uintptr_t dest_start,
+			size_t count,
+			uintptr_t flags,
+			size_t *amount)
+{
+  l4_msg_t msg;
+  l4_msg_tag_t tag;
+
+  l4_msg_clear (msg);
+  l4_set_msg_label (msg, container_copy_id);
+  l4_msg_append_word (msg, src_container);
+  l4_msg_append_word (msg, src_start);
+  l4_msg_append_word (msg, dest_container);
+  l4_msg_append_word (msg, dest_start);
+  l4_msg_append_word (msg, count);
+  l4_msg_append_word (msg, flags);
+
+  l4_msg_load (msg);
+
+  tag = l4_call (physmem);
+  l4_msg_store (tag, msg);
+
+  *amount = l4_msg_word (msg, 0);
 
   return l4_msg_label (msg);
 }

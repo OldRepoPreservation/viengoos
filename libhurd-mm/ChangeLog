@@ -1,3 +1,9 @@
+2005-03-08  Neal H. Walfield  <neal@gnu.org>
+
+	* physmem-user.h (hurd_pm_container_copy): New declaration.
+	* physmem-user.c (enum container_ops): Add container_copy_id.
+	(hurd_pm_container_copy): New function.
+
 2005-01-11  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am: Initial check in.
