@@ -34,7 +34,7 @@ __l4_msb (l4_word_t data)
   /* Count the leading zeros.  */
   asm ("cntlzw %[msb], %[data]"
        : [msb] "=r" (msb)
-       : "r" (data & -data));
+       : [data] "r" (data & -data));
 
   return 32 - msb;
 }

@@ -1,5 +1,18 @@
 2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
 
+	* powerpc/l4/bits/syscall.h (l4_kernel_interface): Fix setting
+	return variables.
+	(l4_exchange_registers): Fix typo.
+	(l4_space_control): Fix cut and paste bug and use .raw member to
+	access fpages and thead ID objects.
+	(l4_ipc): Remove superfluous comma.
+	(l4_lipc): Likewise.
+	* powerpc/l4/bits/math.h (__l4_msb): Add missing name parameter
+	for input constraint.
+	Submitted by Maurizio Boriani <debauxit@yahoo.it>.
+
+2003-09-25  Marcus Brinkmann  <marcus@gnu.org>
+
 	* l4/types.h (_L4_BITFIELD5): Fix macro definition.
 
 2003-09-24  Maurizio Boriani  <debauxit@yahoo.it>

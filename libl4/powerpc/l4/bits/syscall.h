@@ -53,9 +53,9 @@ l4_kernel_interface (l4_api_version_t *api_version, l4_api_flags_t *api_flags,
 	   :
 	   : "r3", "r4", "r5", "r6");
 
-  *r_version = version;
-  *r_flags = flags;
-  *r_id = id;
+  api_version->raw = version;
+  api_flags->raw = flags;
+  kernel_id->raw = id;
 
   return kip;
 }
@@ -80,7 +80,7 @@ l4_exchange_registers (l4_thread_id_t *dest_p, l4_word_t *control_p,
 			: "+r" (dest_result), "+r" (control),
 			"+r" (sp), "+r" (ip), "+r" (flags),
 			"+r" (user_handle), "+r" (pager)
-			: [addr] "r" (__l4_exchange_register)
+			: [addr] "r" (__l4_exchange_registers)
 			: "r10", __L4_PPC_CLOB);
 
   dest_p->raw = dest_result;
@@ -194,11 +194,11 @@ l4_space_control (l4_thread_id_t space, l4_word_t control,
 		  l4_fpage_t kip_area, l4_fpage_t utcb_area,
 		  l4_thread_id_t redirector, l4_word_t *old_control)
 {
-  register l4_word_t space_result asm ("r3") = dest.raw;
+  register l4_word_t space_result asm ("r3") = space.raw;
   register l4_word_t ctrl asm ("r4") = control;
-  register l4_word_t kip asm ("r5") = kip_area;
-  register l4_word_t utcb asm ("r6") = utcb_area;
-  register l4_word_t redir asm ("r7") = redirector;
+  register l4_word_t kip asm ("r5") = kip_area.raw;
+  register l4_word_t utcb asm ("r6") = utcb_area.raw;
+  register l4_word_t redir asm ("r7") = redirector.raw;
 
   __asm__ __volatile__ ("mtctr %[addr]\n"
 			"bctrl\n"
@@ -236,7 +236,7 @@ l4_ipc (l4_thread_id_t to, l4_thread_id_t from_spec,
 			"bctrl\n"
 			: "+r" (mr9), "+r" (mr1), "+r" (mr2), "+r" (mr3),
 			"+r" (mr4), "+r" (mr5), "+r" (mr6), "+r" (mr7),
-			"+r" (mr8), "+r" (mr0), "+r" (from_spec_raw),
+			"+r" (mr8), "+r" (mr0), "+r" (from_spec_raw)
 			: "r" (to_raw), "r" (time_outs),
 			[addr] "r" (__l4_ipc)
 			: "r11", "r12", "r13", __L4_PPC_XCLOB);
@@ -283,7 +283,7 @@ l4_lipc (l4_thread_id_t to, l4_thread_id_t from_spec,
 			"bctrl\n"
 			: "+r" (mr9), "+r" (mr1), "+r" (mr2), "+r" (mr3),
 			"+r" (mr4), "+r" (mr5), "+r" (mr6), "+r" (mr7),
-			"+r" (mr8), "+r" (mr0), "+r" (from_spec_raw),
+			"+r" (mr8), "+r" (mr0), "+r" (from_spec_raw)
 			: "r" (to_raw), "r" (time_outs),
 			[addr] "r" (__l4_lipc)
 			: "r11", "r12", "r13", __L4_PPC_XCLOB);
