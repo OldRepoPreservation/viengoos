@@ -1,3 +1,9 @@
+2004-04-19  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/gnu/ipc.h (l4_msg_tag_set_label,
+	(l4_msg_tag_set_untyped_words, l4_msg_tag_set_typed_words): New
+	functions.
+
 2004-04-10  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/thread.h (_L4_THREAD_VERSION_BITS, _L4_THREAD_NO_BITS,

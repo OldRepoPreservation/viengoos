@@ -84,6 +84,38 @@ l4_msg_tag_add_label_to (l4_msg_tag_t *tag, l4_word_t label)
 }
 
 
+static inline void
+_L4_attribute_always_inline
+l4_msg_tag_set_label (l4_msg_tag_t *tag, l4_word_t label)
+{
+  return _L4_msg_tag_add_label_to (tag, label);
+}
+
+
+static inline void
+_L4_attribute_always_inline
+l4_msg_tag_set_untyped_words (l4_msg_tag_t *tag, l4_word_t untyped_words)
+{
+  __L4_msg_tag_t _tag;
+
+  _tag.raw = *tag;
+  _tag.untyped = untyped_words;
+  *tag = _tag.raw;
+}
+
+
+static inline void
+_L4_attribute_always_inline
+l4_msg_tag_set_typed_words (l4_msg_tag_t *tag, l4_word_t typed_words)
+{
+  __L4_msg_tag_t _tag;
+
+  _tag.raw = *tag;
+  _tag.typed = typed_words;
+  *tag = _tag.raw;
+}
+
+
 static inline l4_msg_tag_t
 _L4_attribute_always_inline
 l4_msg_tag (void)
