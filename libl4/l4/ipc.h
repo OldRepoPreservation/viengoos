@@ -989,8 +989,12 @@ _L4_msg_append_word (_L4_msg_t msg, _L4_word_t data)
   typed_nr = tag.typed;
 
   while (typed_nr)
-    __builtin_memcpy (&msg[untyped_nr + typed_nr + 1], &msg[untyped_nr + typed_nr],
-	    sizeof (_L4_word_t));
+    {
+      __builtin_memcpy (&msg[untyped_nr + typed_nr + 1],
+			&msg[untyped_nr + typed_nr],
+			sizeof (_L4_word_t));
+      typed_nr--;
+    }
 
   tag.untyped++;
   msg[tag.untyped] = data;

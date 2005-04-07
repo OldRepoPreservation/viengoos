@@ -1,6 +1,10 @@
+2005-04-07  Marcus Brinkmann  <marcus@gnu.org>
+
+	* l4/ipc.h (_L4_msg_append_word): Decrease loop variable.
+
 2005-02-24  Marcus Brinkmann  <marcus@gnu.org>
 
-	* l4/compat/space.h (L4_FullyAccessible): Fix type.
+	* l4/compat/space.h (L4_FullyAccessible): Fix typo.
 	Submitted by Glen Kaukola <gkaukola@charter.net>.
 
 2005-02-23  Marco Gerards  <metgerards@student.han.nl>
