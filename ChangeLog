@@ -1,3 +1,7 @@
+2005-04-08  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Add include for physmem/headers.m4.
+
 2005-02-09  Marcus Brinkmann  <marcus@gnu.org>
 
 	* configure.ac (AC_CONFIG_FILES): Add libl4/tests/Makefile.

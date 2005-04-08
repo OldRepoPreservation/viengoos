@@ -154,6 +154,7 @@ m4_include([libhurd-cap-server/headers.m4])
 m4_include([libhurd-mm/headers.m4])
 m4_include([libpthread/headers.m4])
 m4_include([wortel/headers.m4])
+m4_include([physmem/headers.m4])
 
 # Check for libc and components using it.
 
