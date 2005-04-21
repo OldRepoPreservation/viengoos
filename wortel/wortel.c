@@ -1231,6 +1231,27 @@ serve_bootstrap_requests (void)
 	  l4_msg_load (msg);
 	  l4_reply (from);
 	}
+      else if (label == WORTEL_MSG_SPACE_CONTROL)
+	{
+	  if (l4_untyped_words (tag) != 5 || l4_typed_words (tag) != 0)
+	    panic ("Invalid format of space control msg");
+
+	  l4_thread_id_t space = l4_msg_word (msg, 0);
+	  l4_word_t control = l4_msg_word (msg, 1);
+	  l4_fpage_t kip = l4_msg_word (msg, 2);
+	  l4_fpage_t utcb = l4_msg_word (msg, 3);
+	  l4_thread_id_t redirector = l4_msg_word (msg, 4);
+	  l4_word_t ret;
+	  l4_word_t old_control;
+
+	  ret = l4_space_control (space, control, kip, utcb,
+				  redirector, &old_control);
+	  l4_msg_clear (msg);
+	  l4_msg_append_word (msg, ret ? 0 : l4_error_code ());
+	  l4_msg_append_word (msg, old_control);
+	  l4_msg_load (msg);
+	  l4_reply (from);
+	}
       else if (label == WORTEL_MSG_GET_TASK_CAP_REQUEST)
 	{
 	  if (cur_task == (unsigned int) -1)

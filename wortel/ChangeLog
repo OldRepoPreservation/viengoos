@@ -1,3 +1,8 @@
+2005-04-17  Matthieu Lemerre <racin@free.fr>
+
+	* wortel.c (serve_bootstrap_requests): Implement
+	WORTEL_MSG_SPACE_CONTROL.
+
 2005-04-06  Neal H. Walfield  <neal@gnu.org>
 
 	* startup.c: Include <hurd/physmem.h>.
