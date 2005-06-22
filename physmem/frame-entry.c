@@ -36,21 +36,24 @@
 #include "zalloc.h"
 
 static error_t
-frame_entry_constructor (void *hook, void *buffer)
+frame_entry_constructor (void *hook, struct frame_entry *frame_entry)
 {
-  struct frame_entry *frame_entry = buffer;
-
   frame_entry->shared_next = frame_entry;
   frame_entry->shared_prevp = &frame_entry->shared_next;
 
   return 0;
 }
 
-static struct hurd_slab_space frame_entry_space
-  = HURD_SLAB_SPACE_INITIALIZER (struct frame_entry,
-				 NULL, NULL,
-				 frame_entry_constructor, NULL,
-				 NULL);
+SLAB_CLASS(frame_entry, struct frame_entry)
+
+static struct hurd_frame_entry_slab_space frame_entry_space;
+
+void
+frame_entry_init (void)
+{
+  hurd_frame_entry_slab_init (&frame_entry_space, NULL, NULL,
+			      frame_entry_constructor, NULL, NULL);
+}
 
 void
 frame_entry_dump (struct frame_entry *fe)
@@ -85,7 +88,7 @@ frame_entry_alloc (void)
   error_t err;
   struct frame_entry *frame_entry;
 
-  err = hurd_slab_alloc (&frame_entry_space, (void *) &frame_entry);
+  err = hurd_frame_entry_slab_alloc (&frame_entry_space, &frame_entry);
   if (err)
     return 0;
 
@@ -103,7 +106,7 @@ frame_entry_free (struct frame_entry *frame_entry)
   memset (frame_entry, 0xfe, sizeof (struct frame_entry));
   frame_entry_constructor (0, frame_entry);
 #endif
-  hurd_slab_dealloc (&frame_entry_space, frame_entry);
+  hurd_frame_entry_slab_dealloc (&frame_entry_space, frame_entry);
 }
 
 /* If SHARE is non-NULL, add FRAME_ENTRY (which is not attach to any

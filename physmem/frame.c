@@ -52,10 +52,8 @@ frame_dump (struct frame *frame)
 }
 
 static error_t
-frame_constructor (void *hook, void *buffer)
+frame_constructor (void *hook, struct frame *frame)
 {
-  struct frame *frame = buffer;
-
   frame->refs = 1;
   pthread_mutex_init (&frame->lock, 0);
   pthread_mutex_lock (&frame->lock);
@@ -65,11 +63,16 @@ frame_constructor (void *hook, void *buffer)
   return 0;
 }
 
-static struct hurd_slab_space frame_space
-  = HURD_SLAB_SPACE_INITIALIZER (struct frame,
-				 NULL, NULL,
-				 frame_constructor, NULL,
-				 NULL);
+SLAB_CLASS(frame, struct frame)
+
+static struct hurd_frame_slab_space frame_space;
+
+void
+frame_init (void)
+{
+  hurd_frame_slab_init (&frame_space, NULL, NULL,
+			frame_constructor, NULL, NULL);
+}
 
 struct frame *
 frame_alloc (size_t size)
@@ -80,7 +83,7 @@ frame_alloc (size_t size)
   /* The size must be a power of 2.  */
   assert ((size & (size - 1)) == 0);
 
-  err = hurd_slab_alloc (&frame_space, (void *) &frame);
+  err = hurd_frame_slab_alloc (&frame_space, &frame);
   if (err)
     /* XXX: Free some memory and try again.  */
     assert_perror (err);
@@ -147,7 +150,7 @@ frame_deref (struct frame *frame)
       frame->memory = l4_fpage (0xDEAD000, 0);
 #endif
 
-      hurd_slab_dealloc (&frame_space, frame);
+      hurd_frame_slab_dealloc (&frame_space, frame);
     }
   else
     {

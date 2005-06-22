@@ -262,6 +262,9 @@ main (int argc, char *argv[])
 
   create_bootstrap_caps (bucket);
 
+  frame_entry_init ();
+  frame_init ();
+
   /* Create the server thread and start serving RPC requests.  */
   err = pthread_create_from_l4_tid_np (&manager, NULL, server_thread,
 				       physmem_server, bucket);

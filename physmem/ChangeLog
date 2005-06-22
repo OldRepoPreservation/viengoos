@@ -1,6 +1,30 @@
+2005-06-22  Neal H. Walfield  <neal@gnu.org>
+
+	* priv.h (frame_entry_init): Declare.
+	(frame_init): Declare.
+	* physmem.c (main): Call frame_entry_init and frame_init.
+	* frame-entry.c: Create a frame_entry slab class.  Don't use
+	HURD_SLAB_SPACE_INITIALIZER to initialize frame_entry_space.  Do
+	it ...
+	(frame_entry_init): ... here with hurd_frame_entry_slab_init.
+	(frame_entry_constructor): Update argument type given stronger
+	type checking.
+	(frame_entry_alloc): Call hurd_frame_entry_slab_alloc, not
+	hurd_slab_alloc.
+	(frame_entry_free): Call hurd_frame_entry_slab_dealloc, not
+	hurd_slab_dealloc.
+	* frame.c: Create a frame slab class.  Don't use
+	HURD_SLAB_SPACE_INITIALIZER to initialize frame_space.  Do it ...
+	(frame_init): ... here with hurd_frame_slab_init.
+	(frame_constructor): Update argument type given stronger type
+	checking.
+	(frame_alloc): Call hurd_frame_slab_alloc, not hurd_slab_alloc.
+	(frame_free): Call hurd_frame_slab_dealloc, not hurd_slab_dealloc.
+
 2005-04-06  Neal H. Walfield  <neal@gnu.org>
 
-	* physmem.h: Move from here...  * priv.h: ...to here.  Improve
+	* physmem.h: Move from here...
+	* priv.h: ...to here.  Improve
 	comments.
 	(extract_access): New function.
 	(struct frame): Add lock field.  Change type of may_be_mapped

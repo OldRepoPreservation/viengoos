@@ -182,6 +182,9 @@ struct container
   hurd_btree_frame_entry_t frame_entries;
 };
 
+/* Initialize the frame subsystem.  */
+extern void frame_entry_init (void);
+
 /* Allocate an uninitialized frame entry structure.  Return NULL if
    there is insufficient memory.  */
 extern struct frame_entry *frame_entry_alloc (void);
@@ -284,6 +287,9 @@ extern error_t frame_entry_deallocate (struct container *cont,
 				       uintptr_t cont_start,
 				       size_t length);
 
+/* Initialize the frame subsystem.  */
+extern void frame_init (void);
+
 /* Allocate a frame structure holding SIZE bytes.  Physical memory
    must have already been reserved (by, e.g. a prior frame_entry_alloc
    call).  Allocation of the physical memory is deferred until
