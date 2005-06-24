@@ -260,10 +260,10 @@ main (int argc, char *argv[])
   if (err)
     panic ("bucket_create: %i\n", err);
 
-  create_bootstrap_caps (bucket);
-
   frame_entry_init ();
   frame_init ();
+
+  create_bootstrap_caps (bucket);
 
   /* Create the server thread and start serving RPC requests.  */
   err = pthread_create_from_l4_tid_np (&manager, NULL, server_thread,

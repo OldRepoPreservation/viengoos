@@ -1,3 +1,9 @@
+2005-06-24  Neal H. Walfield  <neal@gnu.org>
+
+	* physmem.c (main): Call frame_entry_init and frame_init before
+	calling create_bootstrap_caps.
+	Reported by Matthieu Lemerre <racin@free.fr>.
+
 2005-06-22  Neal H. Walfield  <neal@gnu.org>
 
 	* priv.h (frame_entry_init): Declare.
