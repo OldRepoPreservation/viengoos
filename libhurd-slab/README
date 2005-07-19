@@ -16,7 +16,7 @@ unused objects, instead of destroying them.
 The following article gives more information about such caching object
 allocators:
 
-http://citeseer.nj.nec.com/bonwick94slab.html
+http://citeseer.ist.psu.edu/bonwick94slab.html
 
 The current implementation in libhurd-slab was written by Johan
 Rydberg, <jrydberg@night.trouble.net>.
