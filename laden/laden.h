@@ -66,12 +66,12 @@ extern l4_word_t memory_map_size;
   ({									\
     if (memory_map_size == MEMORY_MAP_MAX)				\
       panic ("No more memory descriptor slots available.\n");		\
-      memory_map[memory_map_size].low = (start) >> 10;			\
-      memory_map[memory_map_size].high = (end) >> 10;			\
-      memory_map[memory_map_size].virtual = 0;				\
-      memory_map[memory_map_size].type = (mtype);			\
-      memory_map[memory_map_size].subtype = (msubtype);			\
-      memory_map_size++;						\
+    memory_map[memory_map_size].low = (start) >> 10;			\
+    memory_map[memory_map_size].high = (end) >> 10;			\
+    memory_map[memory_map_size].virtual = 0;				\
+    memory_map[memory_map_size].type = (mtype);				\
+    memory_map[memory_map_size].subtype = (msubtype);			\
+    memory_map_size++;							\
   })
 
 
