@@ -1,12 +1,12 @@
 /* loader.h - Load ELF binary images, interfaces.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
+   published by the Free Software Foundation; either version 3, or (at
    your option) any later version.
 
    The GNU Hurd is distributed in the hope that it will be useful, but
@@ -35,10 +35,22 @@ l4_word_t loader_get_num_memory_desc (void);
 l4_memory_desc_t *loader_get_memory_desc (l4_word_t nr);
 
 
+/* Callback passed to loader_add_region.  The region named NAME
+   starting at START and continuing until END (exclusive) has been
+   relocated to NEW_START.  Update any data structures
+   appropriately.  */
+typedef void (*relocate_region) (const char *name,
+				 l4_word_t start, l4_word_t end,
+				 l4_word_t new_start,
+				 void *cookie);
+
 /* Add the region with the name NAME from START to END to the table of
    regions to check against.  Before doing that, check for overlaps
-   with existing regions.  */
-void loader_add_region (const char *name, l4_word_t start, l4_word_t end);
+   with existing regions.  If at some time an overlap is detected and
+   RR is not NULL, the region may be relocated.  In this case RR is
+   invoked providing for the possibility to update any pointers.  */
+void loader_add_region (const char *name, l4_word_t start, l4_word_t end,
+			relocate_region rr, void *cookie);
 
 /* Remove the region with the name NAME from the table.  */
 void loader_remove_region (const char *name);

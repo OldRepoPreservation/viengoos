@@ -1,3 +1,36 @@
+2007-07-25  Neal H. Walfield  <neal@gnu.org>
+
+	* laden.h (add_memory_map): Fix indentation.
+
+2007-07-25  Neal H. Walfield  <neal@gnu.org>
+
+	* loader.h (relocate_region): New typedef.
+	(loader_add_region): Add two additional arguments, rr and cookie.
+	Update callers.
+	* loader.c: Include "laden.h".
+	(struct): Add fields rr, cookie and used.
+	(check_region): Remove function.
+	(loader_add_region): Allocate a region descriptor by checking
+	whether the used bit is unset.  Don't call check_region, check
+	here if a region is okay.  If there is overlap, move the other
+	regions out of the way if possible.
+	(loader_remove_region): Just set the used bit to zero.
+	(loader_elf_load): Don't call check_region.  Protect each segment
+	individually.
+	* ia32-cmain.c (cmain): Make a copy of the command line on the
+	stack and pass that to main.
+	(mbi_relocate): New function.
+	(mods_relocate): Likewise.
+	(cmdline_relocate): Likewise.
+	(module_relocate): Likewise.
+	(find_components): Protect the other modules.  Protect each
+	module's string individually.  Protect the first page.
+	* laden.c (rootserver_relocate): New function.
+
+	* ia32-cmain.c (start_kernel): Before jumping to IP, load Grub's
+	booloader magic into EAX and the address of the boot info
+	structure into EBX.
+
 2005-01-22  Marcus Brinkmann  <marcus@gnu.org>
 
 	* config.m4: Change to 0x190000 to make more room for a

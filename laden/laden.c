@@ -1,12 +1,12 @@
 /* laden.c - Main function for laden.
-   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
+   published by the Free Software Foundation; either version 3, or (at
    your option) any later version.
 
    The GNU Hurd is distributed in the hope that it will be useful, but
@@ -58,6 +58,15 @@ loader_get_memory_desc (l4_word_t nr)
   return &memory_map[nr];
 }
 
+static void
+rootserver_relocate (const char *name,
+		     l4_word_t start, l4_word_t end, l4_word_t new_start,
+		     void *cookie)
+{
+  l4_rootserver_t *s = cookie;
+  s->low = new_start;
+  s->high = new_start + (end - start);
+}
 
 /* Load the ELF images of the kernel and the initial servers into
    memory, checking for overlaps.  Update the start and end
@@ -66,21 +75,29 @@ loader_get_memory_desc (l4_word_t nr)
 static void
 load_components (void)
 {
+  /* Make sure that the required components are available and mark the
+     memory their packed images occupy as used.  */
   if (!kernel.low)
     panic ("No L4 kernel found");
-  loader_add_region ("kernel-mod", kernel.low, kernel.high);
+  loader_add_region ("kernel-mod", kernel.low, kernel.high,
+		     rootserver_relocate, &kernel);
 
   if (!sigma0.low)
     panic ("No sigma0 server found");
-  loader_add_region ("sigma0-mod", sigma0.low, sigma0.high);
+  loader_add_region ("sigma0-mod", sigma0.low, sigma0.high,
+		     rootserver_relocate, &sigma0);
 
-  if (sigma1.low)
-    loader_add_region ("sigma1-mod", sigma1.low, sigma1.high);
+ if (sigma1.low)
+    loader_add_region ("sigma1-mod", sigma1.low, sigma1.high,
+		       rootserver_relocate, &sigma1);
 
   if (!rootserver.low)
     panic ("No rootserver server found");
-  loader_add_region ("rootserver-mod", rootserver.low, rootserver.high);
+  loader_add_region ("rootserver-mod", rootserver.low, rootserver.high,
+		     rootserver_relocate, &rootserver);
 
+  /* Since we did not panic, there are no conflicts and we can now
+     unpack the images.  */
   loader_elf_load ("kernel", kernel.low, kernel.high,
 		   &kernel.low, &kernel.high, &kernel.ip);
   loader_remove_region ("kernel-mod");

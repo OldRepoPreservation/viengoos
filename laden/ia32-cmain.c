@@ -1,12 +1,12 @@
 /* ia32-cmain.c - Startup code for the ia32.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
+   published by the Free Software Foundation; either version 3, or (at
    your option) any later version.
 
    The GNU Hurd is distributed in the hope that it will be useful, but
@@ -47,10 +47,14 @@ start_kernel (l4_word_t ip)
      compatibility, but other architectures may not.  If you are
      porting this file, make sure that the instruction fetcher gets to
      see the loaded kernel code.  */
-  asm volatile ("wbinvd");
-
-  /* Jump to the entry point.  */
-  (*(void (*) (void)) ip) ();
+  __asm__ __volatile__ ("wbinvd\n");
+  /* Before jumping to IP, place the the address of the multiboot info
+     structure in ebx and the magic number in eax.  This is required
+     by Fiasco (but not, e.g., Pistachio).  */
+  __asm__ __volatile__ ("jmp *%2\n"
+			: /* No output.  */
+			: "a" (MULTIBOOT_BOOTLOADER_MAGIC),
+			"b" (boot_info), "r" (ip));
 }
 
 
@@ -73,10 +77,16 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
   if (!CHECK_FLAG (mbi->flags, 0) && !CHECK_FLAG (mbi->flags, 6))
     panic ("Bootloader did not provide a memory map");
 
-  if (CHECK_FLAG (mbi->flags, 2))
+  if (CHECK_FLAG (mbi->flags, 2) && * (char *) mbi->cmdline)
     {
       /* A command line was passed.  */
-      char *str = (char *) mbi->cmdline;
+
+      /* Make a copy on the local stack.  Grub chooses an arbitrary
+	 address which may conflict with the loaded executables.  It
+	 is difficult to relocate the command line as we may have
+	 pointers into it.  */
+      char *str = alloca (strlen ((char *) mbi->cmdline) + 1);
+      memcpy (str, (char *) mbi->cmdline, strlen ((char *) mbi->cmdline) + 1);
       int nr = 0;
 
       /* First time around we count the number of arguments.  */
@@ -180,6 +190,45 @@ debug_dump (void)
 extern char _start;
 extern char _end;
 
+static void
+mbi_relocate (const char *name,
+	      l4_word_t start, l4_word_t end, l4_word_t new_start,
+	      void *cookie)
+{
+  boot_info = new_start;
+}
+
+static void
+mods_relocate (const char *name,
+	       l4_word_t start, l4_word_t end, l4_word_t new_start,
+	       void *cookie)
+{
+  multiboot_info_t *mbi = (multiboot_info_t *) boot_info;
+  mbi->mods_addr = new_start;
+}
+
+static void
+cmdline_relocate (const char *name,
+		  l4_word_t start, l4_word_t end, l4_word_t new_start,
+		  void *cookie)
+{
+  multiboot_info_t *mbi = (multiboot_info_t *) boot_info;
+  module_t *mod = (module_t *) mbi->mods_addr;
+  l4_word_t i = (l4_word_t) cookie;
+  mod[i].string = new_start;
+}
+
+static void
+module_relocate (const char *name,
+		 l4_word_t start, l4_word_t end, l4_word_t new_start,
+		 void *cookie)
+{
+  multiboot_info_t *mbi = (multiboot_info_t *) boot_info;
+  module_t *mod = (module_t *) mbi->mods_addr;
+  l4_word_t i = (l4_word_t) cookie;
+  mod[i].mod_start = new_start;
+  mod[i].mod_end = new_start + (end - start);
+}
 
 /* Find the kernel, the initial servers and the other information
    required for booting.  */
@@ -221,6 +270,12 @@ find_components (void)
 	  rootserver.low = mod->mod_start;
 	  rootserver.high = mod->mod_end;
 	}
+
+      /* Add the rest of the modules.  */
+      int i;
+      for (i = 1; i < mbi->mods_count; i ++)
+	loader_add_region ("module", mod[i].mod_start, mod[i].mod_end,
+			   module_relocate, (void *) (l4_word_t) i);
     }
 
   /* Now create the memory map.  */
@@ -330,37 +385,31 @@ find_components (void)
 
   /* Now protect ourselves and the mulitboot info (at least the module
      configuration.  */
-  loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end);
+  loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end,
+		     NULL, NULL);
 
   start = (l4_word_t) mbi;
   end = start + sizeof (*mbi);
-  loader_add_region ("grub-mbi", start, end);
+  loader_add_region ("grub-mbi", start, end, mbi_relocate, NULL);
   
   if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count)
     {
       module_t *mod = (module_t *) mbi->mods_addr;
-      int nr;
 
       start = (l4_word_t) mod;
       end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
-      loader_add_region ("grub-mods", start, end);
+      loader_add_region ("grub-mods", start, end, mods_relocate, NULL);
 
-      start = (l4_word_t) mod[0].string;
-      end = start + 1;
+      l4_word_t nr;
       for (nr = 0; nr < mbi->mods_count; nr++)
-	{
-	  char *str = (char *) mod[nr].string;
-
-	  if (str)
-	    {
-	      if (((l4_word_t) str) < start)
-		start = (l4_word_t) str;
-	      while (*str)
-		str++;
-	      if (((l4_word_t) str) + 1 > end)
-		end = (l4_word_t) str + 1;
-	    }
-	}
-      loader_add_region ("grub-mods-cmdlines", start, end);
+	if (mod[nr].string)
+	  loader_add_region ("grub-mods-cmdlines",
+			     mod[nr].string,
+			     mod[nr].string + strlen ((char *) mod[nr].string),
+			     cmdline_relocate, (void *) nr);
     }
+
+  /* Protect the first page.  */
+  loader_add_region ("first-page", (l4_word_t) 0, (l4_word_t) 0xfff,
+		     NULL, NULL);
 }
