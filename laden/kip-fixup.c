@@ -1,12 +1,12 @@
 /* kip-fixup.c - Fixup the L4 KIP.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
+   published by the Free Software Foundation; either version 3, or (at
    your option) any later version.
 
    The GNU Hurd is distributed in the hope that it will be useful, but
@@ -46,6 +46,29 @@ kip_fixup (void)
   if ((l4_word_t) kip2 < kernel.high)
     panic ("More than one KIP found in kernel.\n");
 
+  l4_api_version_t api_version = l4_api_version_from (kip);
+  switch (api_version.version)
+    {
+#ifdef _L4_V2
+    case L4_API_VERSION_2:
+    case 0x87:
+      /* Booting a v2 kernel.  */
+      debug ("Booting a v2 kernel.\n");
+      break;
+#endif
+
+#ifdef _L4_X2
+    case L4_API_VERSION_X2:
+      /* Booting an x2 kernel.  */
+      debug ("Booting an x2 kernel.\n");
+      break;
+#endif
+
+    default:
+      panic ("Don't know how to boot kernel with API version %x.%x\n",
+	     api_version.version, api_version.subversion);
+    }
+
   /* Load the rootservers into the KIP.  */
   kip->sigma0 = sigma0;
   kip->sigma1 = sigma1;
@@ -62,6 +85,11 @@ kip_fixup (void)
 	 rootserver.low, rootserver.high, rootserver.ip, rootserver.sp);
 
   /* Load the memory map into the KIP.  */
+
+  /* Convert the reservations into memory maps.  */
+  loader_regions_reserve ();
+
+  /* Copy the memory map descriptors into the KIP.  */
   if (memory_map_size > kip->memory_info.nr)
     panic ("Memory map table in KIP is too small.");
 
@@ -69,7 +97,6 @@ kip_fixup (void)
 	  (char *) memory_map,
 	  sizeof (l4_memory_desc_t) * memory_map_size);
 
-  kip->memory_info.nr = memory_map_size;
   for (nr = 0; nr < memory_map_size; nr++)
     debug ("Memory Map %i: Type %i/%i, Low 0x%llx, High 0x%llx\n",
 	   nr + 1, memory_map[nr].type, memory_map[nr].subtype,
@@ -78,5 +105,4 @@ kip_fixup (void)
 
   /* Load the boot info into the KIP.  */
   kip->boot_info = boot_info;
-  debug ("Boot Info: 0x%x\n", boot_info);
 }

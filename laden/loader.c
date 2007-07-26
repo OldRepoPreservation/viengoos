@@ -112,17 +112,20 @@ static struct
 
   /* If this descriptor is valid.  */
   int used;
+
+  /* What type of descriptor this is (L4_MEMDESC_RESERVED,
+     L4_MEMDESC_BOOTLOADER, etc.).  If -1, added to the KIP's memory
+     descriptor table.  */
+  int desc_type;
 } used_regions[MAX_REGIONS];
 
 static int nr_regions;
 
 
-/* Add the region with the name NAME from START to END to the table of
-   regions to check against.  Before doing that, check for overlaps
-   with existing regions.  */
 void
 loader_add_region (const char *name, l4_word_t start, l4_word_t end,
-		   relocate_region rr, void *cookie)
+		   relocate_region rr, void *cookie,
+		   int desc_type)
 {
   debug ("Protected Region: %s (0x%x - 0x%x)\n", name, start, end);
 
@@ -153,6 +156,7 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
   used_regions[region].end = end;
   used_regions[region].rr = rr;
   used_regions[region].cookie = cookie;
+  used_regions[region].desc_type = desc_type;
   used_regions[region].used = 1;
 
   /* Check if the region overlaps with any established regions.  */
@@ -188,8 +192,9 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 	    l4_word_t mem_low = l4_memory_desc_low (memdesc);
 	    l4_word_t mem_high = l4_memory_desc_high (memdesc);
 
-	    printf ("memory_map: %d, %d, 0x%x-0x%x\n",
-		    j, memory_map[j].type, mem_low, mem_high);
+	    debug ("consider memory_map: %d, %d, 0x%x-0x%x\n",
+		   j, memory_map[j].type, mem_low, mem_high);
+
 	    if (memory_map[j].type == L4_MEMDESC_CONVENTIONAL
 		&& mem_high - mem_low >= msize)
 	      /* This memory map is useable and large enough.  See if
@@ -222,7 +227,9 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 		      debug ("Can't use 0x%x, %s(0x%x-0x%x) in way\n",
 			     ns, used_regions[k].name,
 			     used_regions[k].start, used_regions[k].end);
-		      ns = used_regions[k].end + 1;
+		      /* Try the page aligned after the end of this
+			 region.  */
+		      ns = (used_regions[k].end + 1 + 0xfff) & ~0xfff;
 		      debug ("Trying address 0x%x\n", ns);
 		      goto restart;
 		    }
@@ -230,10 +237,10 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 		if (k == nr_regions && ns + msize - 1 <= mem_high)
 		  /* NS is a good new start!  */
 		  {
-		    printf ("Moving %s(%d) from 0x%x-0x%x to 0x%x-0x%x\n",
-			    used_regions[i].name, i,
-			    used_regions[i].start, used_regions[i].end,
-			    ns, ns + msize - 1);
+		    debug ("Moving %s(%d) from 0x%x-0x%x to 0x%x-0x%x\n",
+			   used_regions[i].name, i,
+			   used_regions[i].start, used_regions[i].end,
+			   ns, ns + msize - 1);
 
 		    memmove ((void *) ns, (void *) used_regions[i].start,
 			     msize);
@@ -265,17 +272,35 @@ void
 loader_remove_region (const char *name)
 {
   int i;
+  int found = 0;
 
   for (i = 0; i < nr_regions; i++)
     if (!strcmp (used_regions[i].name, name))
-      break;
+      {
+	found = 1;
+	used_regions[i].used = 0;
+      }
 
-  if (i == nr_regions)
+  if (! found)
     panic ("Assertion failure: Could not find region %s for removal", name);
-
-  used_regions[i].used = 0;
 }
 
+void
+loader_regions_reserve (void)
+{
+  int i;
+  for (i = 0; i < nr_regions; i++)
+    if (used_regions[i].used && used_regions[i].desc_type != -1)
+      {
+	debug ("Reserving memory 0x%x-0x%x (%s)\n",
+	       used_regions[i].start, used_regions[i].end,
+	       used_regions[i].name);
+
+	add_memory_map (used_regions[i].start,
+			((used_regions[i].end + 0x3ff) & ~0x3ff) - 1,
+			used_regions[i].desc_type, 0);
+      }
+}
 
 /* Get the memory range to which the ELF image from START to END
    (exclusive) will be loaded.  NAME is used for panic messages.  */
@@ -352,7 +377,7 @@ loader_elf_dest (const char *name, l4_word_t start, l4_word_t end,
 void
 loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
 		 l4_word_t *new_start_p, l4_word_t *new_end_p,
-		 l4_word_t *entry)
+		 l4_word_t *entry, int desc_type)
 {
   l4_word_t new_start = -1;
   l4_word_t new_end = 0;
@@ -395,7 +420,9 @@ loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
   if (elf->e_machine != elf_machine)
     panic ("%s is not for this architecture", name);
 
-  /* Determine the bounds of the extracted executable.  */  
+  /* Determine the bounds of the extracted executable.  */
+  l4_word_t seg_start = 0;
+  l4_word_t seg_end = 0;
   for (i = 0; i < elf->e_phnum; i++)
     {
       Elf32_Phdr *ph = (Elf32_Phdr *) (start + elf->e_phoff
@@ -405,19 +432,45 @@ loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
 	  /* FIXME: Add this as a bootloader specific memory type to L4's
 	     memdesc list instead.  */
 	  /* Add the region.  */
-	  loader_add_region (name, ph->p_paddr, ph->p_paddr + ph->p_memsz - 1,
-			     NULL, NULL);
+	  if (seg_end == 0)
+	    seg_start = ph->p_paddr;
+	  else if (! (seg_end < ph->p_paddr
+		      && ph->p_paddr <= seg_end + 0x1000))
+	    /* Don't coalesce segments with more than a 4k separation.  */
+	    {
+	      /* Protect last segment(s), rounding up the end.  */
+	      seg_end = ((seg_end + 1 + 0x3ff) & ~0x3ff) - 1;
+	      loader_add_region (name, seg_start, seg_end, NULL, NULL,
+				 desc_type);
 
+	      /* Note start of new segment.  */
+	      seg_start = ph->p_paddr;
+	    }
+	  seg_end = ph->p_paddr + ph->p_memsz - 1;
+
+	  if (ph->p_paddr < new_start)
+	    new_start = ph->p_paddr;
+	  if (ph->p_memsz + ph->p_paddr > new_end)
+	    new_end = ph->p_memsz + ph->p_paddr;
+	}
+    }
+
+  if (seg_start != seg_end)
+    loader_add_region (name, seg_start, seg_end, NULL, NULL, desc_type);
+
+  /* Now load it.  */
+  for (i = 0; i < elf->e_phnum; i++)
+    {
+      Elf32_Phdr *ph = (Elf32_Phdr *) (start + elf->e_phoff
+				       + i * elf->e_phentsize);
+      if (ph->p_type == PT_LOAD)
+	{
 	  memcpy ((char *) ph->p_paddr, (char *) start + ph->p_offset,
 		  ph->p_filesz);
 	  /* Initialize the rest.  */
 	  if (ph->p_memsz > ph->p_filesz)
 	    memset ((char *) ph->p_paddr + ph->p_filesz, 0,
 		    ph->p_memsz - ph->p_filesz);
-	  if (ph->p_paddr < new_start)
-	    new_start = ph->p_paddr;
-	  if (ph->p_memsz + ph->p_paddr > new_end)
-	    new_end = ph->p_memsz + ph->p_paddr;
 	}
     }
 

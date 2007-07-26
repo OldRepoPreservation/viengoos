@@ -1,3 +1,41 @@
+2007-07-26  Neal H. Walfield  <neal@gnu.org>
+
+	* loader.h (loader_add_region): Take an additional parameter, the
+	L4 descriptor type.  Update callers.
+	(loader_elf_load): Likewise.
+	(loader_regions_reserve): New function.
+	* loader.c: Add field desc_type.
+	(loader_add_region): Take an additional parameter, an L4
+	descriptor type.  Save it in the allocated descriptor.  Round the
+	start address to a page boundary.
+	(loader_remove_region): Remove all regions with the name NAME, not
+	just the first one.
+	(loader_regions_reserve): New function.
+	(loader_elf_load): Take an additional parameter, an L4 descriptor
+	type.  Mark regions that we allocate with this type.  Coalesce
+	regions where possible.
+	* laden.h: Include <assert.h>.
+	(add_memory_map): Improve comment.  Add an assert.
+	* ia32-cmain.c (module_relocate): Rename from this...
+	(modules_relocate): ... to this.  Handle relocating multiple
+	modules.
+	(find_components): When protecting module data areas, coalesce
+	when possible.  Fix an off by one error when calculating the upper
+	memory bound.  Rename the module meta data region to better
+	reflect its nature.
+	
+	* kip-fixup.c (kip_fixup): Call loader_regions_reserve before
+	copying the memory descriptors.  Don't set KIP->MEMORY_INFO.NR
+
+	* laden.c (load_components): Allocate a stack for sigma0 and the
+	root server just beyond their highest address.
+
+	* kip-fixup.c (kip_fixup): Only boot versions of L4 that we know
+	how to boot.
+
+	* ia32-cmain.c (find_components): Only reserve conventional memory
+	for an X2 kernel.
+
 2007-07-25  Neal H. Walfield  <neal@gnu.org>
 
 	* laden.h (add_memory_map): Fix indentation.

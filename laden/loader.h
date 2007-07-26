@@ -48,20 +48,30 @@ typedef void (*relocate_region) (const char *name,
    regions to check against.  Before doing that, check for overlaps
    with existing regions.  If at some time an overlap is detected and
    RR is not NULL, the region may be relocated.  In this case RR is
-   invoked providing for the possibility to update any pointers.  */
+   invoked providing for the possibility to update any pointers.  If
+   DESC_TYPE is not -1, then this region will be added as a memory
+   descriptor by loader_regions_reserve.  */
 void loader_add_region (const char *name, l4_word_t start, l4_word_t end,
-			relocate_region rr, void *cookie);
+			relocate_region rr, void *cookie,
+			int desc_type);
 
-/* Remove the region with the name NAME from the table.  */
+/* Remove the region(s) with the name NAME from the region descriptor
+   table.  */
 void loader_remove_region (const char *name);
+
+/* Setup memory descriptors corresponding to the current set of
+   reserved descriptors.  Should be called once, immediately before
+   jumping into the kernel.  */
+void loader_regions_reserve (void);
 
 /* Load the ELF image from START to END into memory under the name
    NAME (also used as the name for the region of the resulting ELF
    program).  Return the lowest and highest address used by the
-   program in NEW_START_P and NEW_END_P, and the entry point in
-   ENTRY.  */
+   program in NEW_START_P and NEW_END_P, and the entry point in ENTRY.
+   The used regions are automatically added with the type DESC_TYPE
+   (cf., loader_add_region).  */
 void loader_elf_load (const char *name, l4_word_t start, l4_word_t end,
 		      l4_word_t *new_start_p, l4_word_t *new_end_p,
-		      l4_word_t *entry);
+		      l4_word_t *entry, int desc_type);
 
 #endif	/* _LOADER_H */

@@ -23,6 +23,7 @@
 #endif
 
 #include <string.h>
+#include <assert.h>
 
 #include <l4.h>
 
@@ -62,10 +63,15 @@ extern l4_word_t boot_info;
 extern l4_memory_desc_t memory_map[MEMORY_MAP_MAX];
 extern l4_word_t memory_map_size;
 
+/* START identifies the start of a region and must be 1k aligned.  END
+   is the last byte of the region.  END + 1 must be 1k aligned.  */
 #define add_memory_map(start, end, mtype, msubtype)			\
   ({									\
     if (memory_map_size == MEMORY_MAP_MAX)				\
       panic ("No more memory descriptor slots available.\n");		\
+    /* Make sure START and END are 1k aligned.  */			\
+    assert (((start) & ((1 << 10) - 1)) == 0);				\
+    assert (((end) & ((1 << 10) - 1)) == (1 << 10) - 1);		\
     memory_map[memory_map_size].low = (start) >> 10;			\
     memory_map[memory_map_size].high = (end) >> 10;			\
     memory_map[memory_map_size].virtual = 0;				\

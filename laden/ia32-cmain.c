@@ -49,8 +49,7 @@ start_kernel (l4_word_t ip)
      see the loaded kernel code.  */
   __asm__ __volatile__ ("wbinvd\n");
   /* Before jumping to IP, place the the address of the multiboot info
-     structure in ebx and the magic number in eax.  This is required
-     by Fiasco (but not, e.g., Pistachio).  */
+     structure in ebx and the magic number in eax.  */
   __asm__ __volatile__ ("jmp *%2\n"
 			: /* No output.  */
 			: "a" (MULTIBOOT_BOOTLOADER_MAGIC),
@@ -219,15 +218,27 @@ cmdline_relocate (const char *name,
 }
 
 static void
-module_relocate (const char *name,
+modules_relocate (const char *name,
 		 l4_word_t start, l4_word_t end, l4_word_t new_start,
 		 void *cookie)
 {
   multiboot_info_t *mbi = (multiboot_info_t *) boot_info;
   module_t *mod = (module_t *) mbi->mods_addr;
-  l4_word_t i = (l4_word_t) cookie;
-  mod[i].mod_start = new_start;
-  mod[i].mod_end = new_start + (end - start);
+
+  /* First module in this block.  */
+  l4_word_t i = ((l4_word_t) cookie) >> 16;
+  /* Number of modules.  */
+  l4_word_t count = ((l4_word_t) cookie) & ((1 << 16) - 1);
+  l4_word_t offset = new_start - start;
+  while (count)
+    {
+      /* Adjust the offset.  */
+      mod[i].mod_start += offset;
+      mod[i].mod_end += offset;
+
+      i ++;
+      count --;
+    }
 }
 
 /* Find the kernel, the initial servers and the other information
@@ -272,16 +283,46 @@ find_components (void)
 	}
 
       /* Add the rest of the modules.  */
+      /* Coalesce the modules as much as feasible (a page of
+	 tolerance) to reduce the number of required memory map
+	 descriptors.  */
+      start = 0;
+      end = 0;
+      int count = 0;
       int i;
       for (i = 1; i < mbi->mods_count; i ++)
-	loader_add_region ("module", mod[i].mod_start, mod[i].mod_end,
-			   module_relocate, (void *) (l4_word_t) i);
+	{
+	  if (end == 0)
+	    {
+	      start = mod[i].mod_start;
+	      count = 1;
+	    }
+	  else if (end < mod[i].mod_start
+		   && mod[i].mod_start <= end + 0x1000)
+	    count ++;
+	  else
+	    {
+	      loader_add_region ("modules", start, end,
+				 modules_relocate,
+				 (void *) (l4_word_t) ((i << 16) | count),
+				 L4_MEMDESC_BOOTLOADER);
+	      start = mod[i].mod_start;
+	      count = 1;
+	    }
+	  end = mod[i].mod_end;
+	}
+
+      if (count)
+	loader_add_region ("modules", start, end,
+			   modules_relocate,
+			   (void *) (l4_word_t) ((i << 16) | count),
+			   L4_MEMDESC_BOOTLOADER);
     }
 
   /* Now create the memory map.  */
 
-  /* First, add the whole address space as shared memory by default to
-     allow arbitrary device access.  */
+  /* XXX: First (for now), add the whole address space as shared
+     memory by default to allow arbitrary device access.  */
   add_memory_map (0, -1, L4_MEMDESC_SHARED, 0);
 
   /* Now add what GRUB tells us.  */
@@ -330,7 +371,8 @@ find_components (void)
      BIOS map.  We add it here.  */
   add_memory_map (0xa0000, 0xf0000 - 1, L4_MEMDESC_SHARED, 0);
 
-  /* The amount of conventional memory to be reserved for the kernel.  */
+#ifdef _L4_X2
+  /* Reserve some conventional memory for the kernel.  */
 #define KMEM_SIZE	(16 * 0x100000)
 
   /* The upper limit for the end of the kernel memory.  */
@@ -352,7 +394,7 @@ find_components (void)
 	      && ((uint32_t) mmap->base_addr) <= KMEM_MAX - KMEM_SIZE)
 	    {
 	      uint32_t high = ((uint32_t) mmap->base_addr)
-			       + ((uint32_t) mmap->length);
+			       + ((uint32_t) mmap->length) - 1;
 	      uint32_t low;
 
 	      if (high > KMEM_MAX)
@@ -382,15 +424,16 @@ find_components (void)
 	  add_memory_map (low, high, L4_MEMDESC_RESERVED, 0);
 	}
     }
+#endif
 
-  /* Now protect ourselves and the mulitboot info (at least the module
-     configuration.  */
+  /* Now protect ourselves and the mulitboot info.  */
   loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end,
-		     NULL, NULL);
+		     NULL, NULL, -1);
 
   start = (l4_word_t) mbi;
   end = start + sizeof (*mbi);
-  loader_add_region ("grub-mbi", start, end, mbi_relocate, NULL);
+  loader_add_region ("grub-mbi", start, end, mbi_relocate, NULL,
+		     L4_MEMDESC_BOOTLOADER);
   
   if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count)
     {
@@ -398,7 +441,9 @@ find_components (void)
 
       start = (l4_word_t) mod;
       end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
-      loader_add_region ("grub-mods", start, end, mods_relocate, NULL);
+      loader_add_region ("grub-mods-metadata", start, end,
+			 mods_relocate, NULL,
+			 L4_MEMDESC_BOOTLOADER);
 
       l4_word_t nr;
       for (nr = 0; nr < mbi->mods_count; nr++)
@@ -406,10 +451,11 @@ find_components (void)
 	  loader_add_region ("grub-mods-cmdlines",
 			     mod[nr].string,
 			     mod[nr].string + strlen ((char *) mod[nr].string),
-			     cmdline_relocate, (void *) nr);
+			     cmdline_relocate, (void *) nr,
+			     L4_MEMDESC_BOOTLOADER);
     }
 
   /* Protect the first page.  */
   loader_add_region ("first-page", (l4_word_t) 0, (l4_word_t) 0xfff,
-		     NULL, NULL);
+		     NULL, NULL, -1);
 }

@@ -80,42 +80,54 @@ load_components (void)
   if (!kernel.low)
     panic ("No L4 kernel found");
   loader_add_region ("kernel-mod", kernel.low, kernel.high,
-		     rootserver_relocate, &kernel);
+		     rootserver_relocate, &kernel, -1);
 
   if (!sigma0.low)
     panic ("No sigma0 server found");
   loader_add_region ("sigma0-mod", sigma0.low, sigma0.high,
-		     rootserver_relocate, &sigma0);
+		     rootserver_relocate, &sigma0, -1);
 
  if (sigma1.low)
     loader_add_region ("sigma1-mod", sigma1.low, sigma1.high,
-		       rootserver_relocate, &sigma1);
+		       rootserver_relocate, &sigma1, -1);
 
   if (!rootserver.low)
     panic ("No rootserver server found");
   loader_add_region ("rootserver-mod", rootserver.low, rootserver.high,
-		     rootserver_relocate, &rootserver);
+		     rootserver_relocate, &rootserver, -1);
 
   /* Since we did not panic, there are no conflicts and we can now
      unpack the images.  */
   loader_elf_load ("kernel", kernel.low, kernel.high,
-		   &kernel.low, &kernel.high, &kernel.ip);
+		   &kernel.low, &kernel.high, &kernel.ip,
+		   L4_MEMDESC_RESERVED);
   loader_remove_region ("kernel-mod");
 
   loader_elf_load ("sigma0", sigma0.low, sigma0.high,
-		   &sigma0.low, &sigma0.high, &sigma0.ip);
+		   &sigma0.low, &sigma0.high, &sigma0.ip,
+		   L4_MEMDESC_RESERVED);
   loader_remove_region ("sigma0-mod");
+#ifdef _L4_V2
+  /* Use the page following the extracted image as the stack.  */
+  sigma0.sp = ((sigma0.high + 0xfff) & ~0xfff) + 0x1000;
+#endif
 
   if (sigma1.low)
     {
       loader_elf_load ("sigma1", sigma1.low, sigma1.high,
-		       &sigma1.low, &sigma1.high, &sigma1.ip);
+		       &sigma1.low, &sigma1.high, &sigma1.ip,
+		       L4_MEMDESC_RESERVED);
       loader_remove_region ("sigma1-mod");
     }
 
   loader_elf_load ("rootserver", rootserver.low, rootserver.high,
-		   &rootserver.low, &rootserver.high, &rootserver.ip);
+		   &rootserver.low, &rootserver.high, &rootserver.ip,
+		   L4_MEMDESC_BOOTLOADER);
   loader_remove_region ("rootserver-mod");
+#ifdef _L4_V2
+  /* Use the page following the extracted image as the stack.  */
+  rootserver.sp = ((rootserver.high + 0xfff) & ~0xfff) + 0x1000;
+#endif
 }
 
 
