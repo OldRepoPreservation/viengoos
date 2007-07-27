@@ -37,27 +37,6 @@ l4_rootserver_t rootserver;
 l4_word_t boot_info;
 
 
-l4_memory_desc_t memory_map[MEMORY_MAP_MAX];
-
-l4_word_t memory_map_size;
-
-
-/* Return the number of memory descriptors.  */
-l4_word_t
-loader_get_num_memory_desc (void)
-{
-  return memory_map_size;
-}
-
-
-/* Return the NRth memory descriptor.  The first memory descriptor is
-   indexed by 0.  */
-l4_memory_desc_t *
-loader_get_memory_desc (l4_word_t nr)
-{
-  return &memory_map[nr];
-}
-
 static void
 rootserver_relocate (const char *name,
 		     l4_word_t start, l4_word_t end, l4_word_t new_start,
@@ -109,6 +88,7 @@ load_components (void)
   loader_remove_region ("sigma0-mod");
 #ifdef _L4_V2
   /* Use the page following the extracted image as the stack.  */
+  /* XXX: Should reserve this?  */
   sigma0.sp = ((sigma0.high + 0xfff) & ~0xfff) + 0x1000;
 #endif
 
@@ -126,6 +106,7 @@ load_components (void)
   loader_remove_region ("rootserver-mod");
 #ifdef _L4_V2
   /* Use the page following the extracted image as the stack.  */
+  /* XXX: Should reserve this?  */
   rootserver.sp = ((rootserver.high + 0xfff) & ~0xfff) + 0x1000;
 #endif
 }
@@ -228,6 +209,8 @@ main (int argc, char *argv[])
   find_components ();
 
   load_components ();
+
+  loader_regions_reserve ();
 
   kip_fixup ();
 

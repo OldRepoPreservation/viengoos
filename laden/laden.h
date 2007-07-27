@@ -69,7 +69,7 @@ extern l4_word_t memory_map_size;
   ({									\
     if (memory_map_size == MEMORY_MAP_MAX)				\
       panic ("No more memory descriptor slots available.\n");		\
-    /* Make sure START and END are 1k aligned.  */			\
+    /* Make sure START and END are aligned.  */				\
     assert (((start) & ((1 << 10) - 1)) == 0);				\
     assert (((end) & ((1 << 10) - 1)) == (1 << 10) - 1);		\
     memory_map[memory_map_size].low = (start) >> 10;			\

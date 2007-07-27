@@ -32,6 +32,27 @@
 
 #include "elf.h"
 
+l4_memory_desc_t memory_map[MEMORY_MAP_MAX];
+
+l4_word_t memory_map_size;
+
+
+/* Return the number of memory descriptors.  */
+l4_word_t
+loader_get_num_memory_desc (void)
+{
+  return memory_map_size;
+}
+
+
+/* Return the NRth memory descriptor.  The first memory descriptor is
+   indexed by 0.  */
+l4_memory_desc_t *
+loader_get_memory_desc (l4_word_t nr)
+{
+  return &memory_map[nr];
+}
+
 /* Verify that the memory region START to END (exclusive) is valid.  */
 static void
 mem_check (const char *name, l4_word_t start, l4_word_t end)
@@ -43,8 +64,6 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
 
   if (!loader_get_num_memory_desc ())
     return;
-
-  end--;
 
   /* FIXME: This implementation does not account for conventional
      memory overriding non-conventional memory in the descriptor

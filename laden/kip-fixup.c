@@ -86,9 +86,6 @@ kip_fixup (void)
 
   /* Load the memory map into the KIP.  */
 
-  /* Convert the reservations into memory maps.  */
-  loader_regions_reserve ();
-
   /* Copy the memory map descriptors into the KIP.  */
   if (memory_map_size > kip->memory_info.nr)
     panic ("Memory map table in KIP is too small.");

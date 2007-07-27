@@ -44,18 +44,19 @@ typedef void (*relocate_region) (const char *name,
 				 l4_word_t new_start,
 				 void *cookie);
 
-/* Add the region with the name NAME from START to END to the table of
-   regions to check against.  Before doing that, check for overlaps
-   with existing regions.  If at some time an overlap is detected and
-   RR is not NULL, the region may be relocated.  In this case RR is
-   invoked providing for the possibility to update any pointers.  If
-   DESC_TYPE is not -1, then this region will be added as a memory
-   descriptor by loader_regions_reserve.  */
+/* Add the region with the name NAME from covering memory starting at
+   byte START and continuing and including byte END to the table of
+   protected region.  Check for overlaps with existing regions.  If at
+   some time an overlap is detected and RR is not NULL, the region may
+   be relocated.  In this case RR is invoked (and passed COOKIE).  RR
+   can then update any pointers referring to the memory.  If DESC_TYPE
+   is not -1, then this region will be added as a memory descriptor by
+   loader_regions_reserve of type DESC_TYPE.  */
 void loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 			relocate_region rr, void *cookie,
 			int desc_type);
 
-/* Remove the region(s) with the name NAME from the region descriptor
+/* Remove any regions with the name NAME from the region descriptor
    table.  */
 void loader_remove_region (const char *name);
 

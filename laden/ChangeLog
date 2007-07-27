@@ -1,3 +1,24 @@
+2007-07-27  Neal H. Walfield  <neal@gnu.org>
+
+	* laden.h (add_memory_map): Improve comment.
+	* loader.h (loader_add_region): Likewise.
+	(loader_remove_region): Likewise.
+
+	* laden.c (memory_map): Move from here...
+	* loader.c (memory_map): ... to here.
+	* laden.c (memory_map_size): Move from here...
+	* loader.c (memory_map_size): ... to here.
+	* laden.c (loader_get_num_memory_desc): Move from here...
+	* loader.c (loader_get_num_memory_desc): ... to here.
+	* laden.c (loader_get_memory_desc): Move from here...
+	* loader.c (loader_get_memory_desc): ... to here.
+
+	* kip-fixup.c (kip_fixup): Don't call loader_regions_reserve
+	here...
+	* laden.c (main): ... but here.
+
+	* loader.c (mem_check): Don't decrement end.
+
 2007-07-26  Neal H. Walfield  <neal@gnu.org>
 
 	* loader.h (loader_add_region): Take an additional parameter, the
