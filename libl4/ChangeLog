@@ -1,3 +1,147 @@
+2007-07-27  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/abi.h: New file.
+	* v2/Makefile.am: New file.
+	* v2/ia32/Makefile.am: New file.
+	* v2/ia32/l4/abi/bits/kip.h: New file.
+	* v2/l4/abi/abi.h: New file.
+	* v2/l4/abi/kip.h: New file.
+	* x2/Makefile.am: New file.
+	* x2/l4/abi/abi.h: New file.
+	* x2/l4/abi/kip.h: New file.
+	* headers.m4: Configure a link from libl4/l4/abi.h to
+	include/l4/abi.h, libl4/${l4_abi}/l4/abi/kip.h to
+	include/l4/abi/kip.h, libl4/${l4_abi}/l4/abi/abi.h to
+	include/l4/abi/abi.h.  If L4_AVI is v2, then also configure a link
+	from libl4/v2/${arch}/l4/abi/bits/kip.h to
+	include/l4/abi/bits/kip.h.
+	* Makefile.am [L4_ABI_V2]: Set L4_ABI_SUBDIR to v2.
+	[L4_ABI_X2]: Set L4_ABI_SUBDIR to x2.
+	(SUBDIRS): Also include $(L4_ABI_SUBDIR).
+	* l4.h: Include <l4/abi.h>.
+	* l4/kip.h: Include <l4/abi/kip.h>.
+	(_L4_API_VERSION_L4SEC): New define.
+	(_L4_API_VERSION_N1): Likewise.
+	(_L4_API_VERSION_2PP): Likewise.
+	(__L4_kernel_version_t): New typedef.
+	(_L4_kernel_version): Rather than returning the version in the
+	arguments, return a __L4_kernel_version_t.  Update callers.
+	(_L4_page_info_t): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_page_info_t): ... to here.
+	* l4/kip.h (__L4_page_info_t): Move from here...
+	* l4/x2/l4/abi/kip.h (__L4_page_info_t): ... to here.
+	* l4/kip.h (struct _L4_kip): Move from here...
+	* l4/x2/l4/abi/kip.h (struct _L4_kip): ... to here.
+	* l4/kip.h (__L4_proc_desc_t): Move from here...
+	* l4/x2/l4/abi/kip.h (__L4_proc_desc_t): ... to here.
+	* l4/kip.h (_L4_proc_desc_t): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_proc_desc_t): ... to here.
+	* l4/kip.h (__L4_kern_desc_t): Move from here...
+	* l4/x2/l4/abi/kip.h (__L4_kern_desc_t): ... to here.
+	* l4/kip.h (_L4_kern_desc_t): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_kern_desc_t): ... to here.
+	* l4/kip.h (_L4_api_flags): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_api_flags): ... to here.
+	* l4/kip.h (_L4_kernel_desc): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_kernel_desc): ... to here.
+	* l4/kip.h (_L4_kernel_id): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_kernel_id): ... to here.
+	* l4/kip.h (_L4_kernel_gen_date): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_kernel_gen_date): ... to here.
+	* l4/kip.h (_L4_kernel_version): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_kernel_version): ... to here.
+	* l4/kip.h (_L4_kernel_supplier): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_kernel_supplier): ... to here.
+	* l4/kip.h (_L4_num_processors): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_num_processors): ... to here.
+	* l4/kip.h (_L4_proc_desc): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_proc_desc): ... to here.
+	* l4/kip.h (_L4_proc_internal_freq): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_proc_internal_freq): ... to here.
+	* l4/kip.h (_L4_proc_external_freq): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_proc_external_freq): ... to here.
+	* l4/kip.h (_L4_MIN_PAGE_SIZE_LOG2): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_MIN_PAGE_SIZE_LOG2): ... to here.
+	* l4/kip.h (_L4_page_size_mask): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_page_size_mask): ... to here.
+	* l4/kip.h (_L4_page_rights): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_page_rights): ... to here.
+	* l4/kip.h (_L4_thread_id_bits): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_thread_id_bits): ... to here.
+	* l4/kip.h (_L4_thread_system_base): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_thread_system_base): ... to here.
+	* l4/kip.h (_L4_thread_user_base): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_thread_user_base): ... to here.
+	* l4/kip.h (_L4_read_precision): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_read_precision): ... to here.
+	* l4/kip.h (_L4_schedule_precision): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_schedule_precision): ... to here.
+	* l4/kip.h (_L4_utcb_area_size_log2): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_utcb_area_size_log2): ... to here.
+	* l4/kip.h (_L4_utcb_alignment_log2): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_utcb_alignment_log2): ... to here.
+	* l4/kip.h (_L4_utcb_size): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_utcb_size): ... to here.
+	* l4/kip.h (_L4_kip_area_size_log2): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_kip_area_size_log2): ... to here.
+	* l4/kip.h (_L4_kernel_version_string): Move from here...
+	* l4/x2/l4/abi/kip.h (_L4_kernel_version_string): ... to here.
+	* l4/gnu/kip.h: Include <l4/abi.h>.
+	(L4_API_VERSION_2): Define.
+	(L4_API_VERSION_X0): Likewise.
+	(L4_API_SUBVERSION_X0): Likewise.
+	(L4_API_VERSION_X1): Likewise.
+	(L4_API_SUBVERSION_X1): Likewise.
+	(L4_API_VERSION_X2): Likewise.
+	(L4_API_SUBVERSION_X2): Likewise.
+	(L4_API_VERSION_L4SEC): Likewise.
+	(L4_API_VERSION_N1): Likewise.
+	(L4_API_VERSION_2PP): Likewise.
+	(L4_API_VERSION_4): Likewise.
+	(l4_api_version_t): New typedef.
+	(l4_api_version_from): New function.
+	(l4_read_precision_from): Only define if _L4_X2 is defined.
+	(l4_read_precision): Likewise.
+	(l4_schedule_precision_from): Likewise.
+	(l4_schedule_precision): Likewise.
+	(l4_utcb_area_size_log2_from): Likewise.
+	(l4_utcb_area_size_log2): Likewise.
+	(l4_utcb_area_size): Likewise.
+	(l4_utcb_alignment_log2_from): Likewise.
+	(l4_utcb_alignment_log2): Likewise.
+	(l4_utcb_alignment): Likewise.
+	(l4_utcb_size_from): Likewise.
+	(l4_utcb_size): Likewise.
+	(l4_proc_desc_t): Only define is _L4_X2 is define.
+	(l4_proc_desc_from): Only define if _L4_X2 is defined.
+	(l4_proc_desc): Likewise.
+	(l4_proc_external_freq): Likewise.
+	(l4_proc_internal_freq): Likewise.
+	* l4/compat/kip.h: Include <l4/abi.h>.
+	(L4_ProcDesc_t): Only define if _L4_X2 is defined.
+	(L4_APIVERSION_L4SEC): New define.
+	(L4_APIVERSION_N1): Likewise.
+	(L4_APIVERSION_2PP): Likewise.
+	(L4_KernelVersion): Call _L4_kernel_version to get the version.
+	(L4_KernelSupplier): Call _L4_kernel_supplier to get the supplier.
+	(L4_ReadPrecision): Only declare if _L4_X2 is defined.
+	(L4_SchedulePrecision): Likewise.
+	(L4_UtcbAreaSizeLog2): Likewise.
+	(L4_UtcbAlignmentLog2): Likewise.
+	(L4_UtcbSize): Likewise.
+	(L4_ProcDesc): Likewise.
+	(L4_ExternalFreq): Likewise.
+	(L4_ProcDescExternalFreq): Likewise.
+	(L4_InternalFreq): Likewise.
+	(L4_ProcDescInternalFreq): Likewise.
+	* tests/t-l4-kip.c (test_magic): Only check KIP->API_FLAGS if
+	_L4_X2 is defined.
+	(test_kernel_version) [_L4_V2]: Provide values for a v2 interface.
+	(test_processor_info): Only check if _L4_X2 is defined.
+	(test_clock_info): Likewise.
+	(test_utcb_info): Likewise.
+	(test_syscalls): Likewise.
+
 2005-04-07  Marcus Brinkmann  <marcus@gnu.org>
 
 	* l4/ipc.h (_L4_msg_append_word): Decrease loop variable.

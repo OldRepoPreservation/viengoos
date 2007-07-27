@@ -38,9 +38,9 @@ _L4_kernel_interface (_L4_api_version_t *api_version,
      returns a pointer to the kernel interface page in %eax, the API
      version in %ecx, the API flags in %edx, and the kernel ID in
      %esi.  */
-  __asm__ ("  lock; nop\n"
-	   : "=a" (kip), "=c" (*api_version),
-	   "=d" (*api_flags), "=S" (*kernel_id));
+  __asm__ __volatile__ ("  lock; nop\n"
+			: "=a" (kip), "=c" (*api_version),
+			"=d" (*api_flags), "=S" (*kernel_id));
 
   return kip;
 #else

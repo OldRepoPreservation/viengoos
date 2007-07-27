@@ -1,28 +1,30 @@
 /* l4/compat/kip.h - Public interface for L4 types.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
  
+    This file is part of the GNU L4 library.
+   
    The GNU L4 library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation; either version 2.1 of
+   as published by the Free Software Foundation; either version 3 of
    the License, or (at your option) any later version.
- 
-   The GNU L4 library is distributed in the hope that it will be
-   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
- 
+   
+   Foobar is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+   
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU L4 library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   License along with this program.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #ifndef _L4_KIP_H
 # error "Never use <l4/compat/kip.h> directly; include <l4/kip.h> instead."
 #endif
 
+#include <l4/abi.h>
 
 /* 1.2 Kernel Interface [Slow Systemcall]  */
 
@@ -45,10 +47,12 @@ typedef struct
 } L4_MemoryDesc_t;
 
 
+#ifdef _L4_X2
 typedef struct
 {
   L4_Word_t raw[2];
 } L4_ProcDesc_t;
+#endif /* _L4_X2 */
 
 
 /* Returns the address of the kernel interface page.  */
@@ -76,6 +80,9 @@ L4_GetKernelInterface (void)
 #define L4_APIVERSION_X2	_L4_API_VERSION_X2
 /* FIXME: The official libl4 incorrectly(?) defines this.  */
 #define L4_APISUBVERSION_X2	(0x82)
+#define L4_APIVERSION_L4SEC	_L4_API_VERSION_L4SEC
+#define L4_APIVERSION_N1	_L4_API_VERSION_N1
+#define L4_APIVERSION_2PP	_L4_API_VERSION_2PP
 /* FIXME: The official libl4 lacks this one.  */
 #define L4_APIVERSION_4		_L4_API_VERSION_4
 
@@ -174,9 +181,7 @@ static inline L4_Word_t
 _L4_attribute_always_inline
 L4_KernelVersion (void *kip)
 {
-  _L4_kern_desc_t kern = _L4_kernel_desc (kip);
-
-  return kern->version.raw;
+  return _L4_kernel_version (kip).raw;
 }
 
 
@@ -204,9 +209,8 @@ static inline L4_Word_t
 _L4_attribute_always_inline
 L4_KernelSupplier (void *kip)
 {
-  _L4_kern_desc_t kern = _L4_kernel_desc (kip);
-
-  return kern->supplier;
+  char *s = _L4_kernel_supplier (kip);
+  return s[0] + (s[1] << 8) + (s[2] << 16) + (s[3] << 24);
 }
 
 
@@ -273,6 +277,7 @@ L4_ThreadIdUserBase (void *kip)
 }
 
 
+#ifdef _L4_X2
 /* Returns the read precision.  */
 static inline L4_Word_t
 _L4_attribute_always_inline
@@ -289,8 +294,9 @@ L4_SchedulePrecision (void *kip)
 {
   return _L4_schedule_precision (kip);
 }
+#endif /* _L4_X2 */
 
-
+#ifdef _L4_X2
 /* Returns the UTCB area size.  */
 static inline L4_Word_t
 _L4_attribute_always_inline
@@ -316,6 +322,7 @@ L4_UtcbSize (void *kip)
 {
   return _L4_utcb_size (kip);
 }
+#endif /* _L4_X2 */
 
 
 /* Returns the KIP area size.  */
@@ -363,6 +370,7 @@ L4_MemoryDesc (void *kip, L4_Word_t num)
 }
 
 
+#ifdef _L4_X2
 /* Returns a pointer to the NUMth processor descriptor.  */
 static inline L4_ProcDesc_t *
 _L4_attribute_always_inline
@@ -370,6 +378,7 @@ L4_ProcDesc (void *kip, L4_Word_t num)
 {
   return (L4_ProcDesc_t *) _L4_proc_desc (kip, num);
 }
+#endif /* _L4_X2 */
 
 
 /* Support Functions.  */
@@ -431,6 +440,7 @@ L4_MemoryDescHigh (L4_MemoryDesc_t *mem_desc)
 }
 
 
+#ifdef _L4_X2
 static inline L4_Word_t
 _L4_attribute_always_inline
 #if defined(__cplusplus)
@@ -453,3 +463,4 @@ L4_ProcDescInternalFreq (L4_ProcDesc_t *proc_desc)
 {
   return _L4_proc_internal_freq ((_L4_proc_desc_t) proc_desc);
 }
+#endif /* _L4_X2 */

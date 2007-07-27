@@ -73,12 +73,14 @@ test_magic ()
 	      api_version, kip->api_version.raw);
     check_nr ("[intern]", "if fake API flags are returned",
 	      api_flags, api_flags_ok);
+#ifdef _L4_X2
     check_nr ("[intern]", "if fake API flags matches KIP",
 	      api_flags, kip->api_flags.raw);
+#endif
     check_nr ("[intern]", "if fake kernel ID is returned",
 	      kernel_id, kernel_id_ok);
     check_nr ("[intern]", "if fake kernel ID matches KIP",
-	      kernel_id, _L4_kernel_desc (kip)->id.raw);
+	      kernel_id, _L4_kernel_id (kip));
   }
 #endif
 
@@ -308,23 +310,30 @@ test_kernel_gen_date (_L4_kip_t kip)
 void
 test_kernel_version (_L4_kip_t kip)
 {
-  word_t version_ok = 0;
-  word_t subversion_ok = 4;
-  word_t subsubversion_ok = 0;
+  word_t version_ok;
+  word_t subversion_ok;
+  word_t subsubversion_ok;
+
+#ifdef _L4_V2
+  version_ok = _L4_API_VERSION_2;
+  subversion_ok = 0;
+  subsubversion_ok = 0;
+#endif
+#ifdef _L4_X2
+  version_ok = 0;
+  subversion_ok = 4;
+  subsubversion_ok = 0;
+#endif
 
 #ifdef _L4_INTERFACE_INTERN
   {
-    word_t version;
-    word_t subversion;
-    word_t subsubversion;
-
-    _L4_kernel_version (kip, &version, &subversion, &subsubversion);
+    __L4_kernel_version_t version = _L4_kernel_version (kip);
   
     check ("[intern]", "_L4_kernel_version",
-	   (version == version_ok && subversion == subversion_ok
-	    && subsubversion == subsubversion_ok),
+	   (version.ver == version_ok && version.subver == subversion_ok
+	    && version.subsubver == subsubversion_ok),
 	   "_L4_kernel_version == %d.%d.%d != %d.%d.%d",
-	   version, subversion, subsubversion,
+	   version.ver, version.subver, version.subsubver,
 	   version_ok, subversion_ok, subsubversion_ok);
   }
 #endif
@@ -577,6 +586,7 @@ test_kernel_feature (_L4_kip_t kip)
 void
 test_processor_info (_L4_kip_t kip)
 {
+#ifdef _L4_X2
   word_t processors_ok = 2;
   word_t internal_freq_ok[] = { 2809310, 2809311 };
   word_t external_freq_ok[] = { 0, 0 };
@@ -697,6 +707,7 @@ test_processor_info (_L4_kip_t kip)
 	}
       proc_desc_prev = proc_desc;
     }
+#endif
 }
 
 
@@ -1015,6 +1026,7 @@ test_thread_info (_L4_kip_t kip)
 void
 test_clock_info (_L4_kip_t kip)
 {
+#ifdef _L4_X2
   word_t read_precision_ok = 0;
   word_t schedule_precision_ok = 0;
 
@@ -1042,6 +1054,7 @@ test_clock_info (_L4_kip_t kip)
   check_nr ("[L4]", "l4_SchedulePrecision",
 	    L4_SchedulePrecision (kip), schedule_precision_ok);
 #endif
+#endif
 }
 
 
@@ -1049,6 +1062,7 @@ test_clock_info (_L4_kip_t kip)
 void
 test_utcb_info (_L4_kip_t kip)
 {
+#ifdef _L4_X2
   word_t utcb_align_log2_ok = 0x09;
   word_t utcb_area_size_log2_ok = 0x0c;
   word_t utcb_size_ok = 0x200;
@@ -1088,6 +1102,7 @@ test_utcb_info (_L4_kip_t kip)
 	    L4_UtcbAlignmentLog2 (kip), utcb_align_log2_ok);
   check_nr ("[L4]", "L4_UtcbSize",
 	    L4_UtcbSize (kip), utcb_size_ok);
+#endif
 #endif
 }
 
@@ -1148,6 +1163,7 @@ test_boot_info (_L4_kip_t kip)
 void
 test_syscalls (_L4_kip_t kip)
 {
+#ifdef _L4_X2
 #ifdef _L4_INTERFACE_INTERN
   word_t space_control_ok = 0x910;
   word_t thread_control_ok = 0x8e0;
@@ -1186,7 +1202,7 @@ test_syscalls (_L4_kip_t kip)
   CHECK_ONE_SYSCALL_LINK (arch3);
 #undef CHECK_ONE_SYSCALL_LINK
 #endif
-
+#endif
 }
 
 

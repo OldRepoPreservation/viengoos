@@ -23,6 +23,8 @@
 # error "Never use <l4/gnu/kip.h> directly; include <l4/kip.h> instead."
 #endif
 
+#include <l4/abi.h>
+
 /* The kernel interface page.  */
 
 typedef _L4_kip_t l4_kip_t;
@@ -40,6 +42,31 @@ l4_kip (void)
 
 typedef _L4_rootserver_t l4_rootserver_t;
 
+#define L4_API_VERSION_2	_L4_API_VERSION_2
+#define L4_API_VERSION_X0	_L4_API_VERSION_X0
+#define L4_API_SUBVERSION_X0	_L4_API_SUBVERSION_X0
+#define L4_API_VERSION_X1	_L4_API_VERSION_X1
+#define L4_API_SUBVERSION_X1	_L4_API_SUBVERSION_X1
+#define L4_API_VERSION_X2	_L4_API_VERSION_X2
+/* FIXME: The official libl4 incorrectly(?) defines this.  */
+#define L4_API_SUBVERSION_X2	(0x82)
+#define L4_API_VERSION_L4SEC	_L4_API_VERSION_L4SEC
+#define L4_API_VERSION_N1	_L4_API_VERSION_N1
+#define L4_API_VERSION_2PP	_L4_API_VERSION_2PP
+/* FIXME: The official libl4 lacks this one.  */
+#define L4_API_VERSION_4	_L4_API_VERSION_4
+
+typedef __L4_api_version_t l4_api_version_t;
+
+/* Returns the API version.  */
+static inline l4_api_version_t
+_L4_attribute_always_inline
+l4_api_version_from (l4_kip_t kip)
+{
+  __L4_api_version_t api_version;
+  api_version.raw = _L4_api_version (kip);
+  return api_version;
+}
 
 /* Paging information.  */
 
@@ -175,6 +202,7 @@ l4_thread_user_base (void)
 }
 
 
+#ifdef _L4_X2
 /* Scheduler information.  */
 
 static inline l4_word_t
@@ -205,8 +233,9 @@ l4_schedule_precision (void)
 {
   return l4_schedule_precision_from (l4_kip ());
 }
-
+#endif /* _L4_X2.  */
 
+#ifdef _L4_X2
 /* UTCB area information.  */
 
 static inline l4_word_t
@@ -269,7 +298,7 @@ l4_utcb_size (void)
 {
   return l4_utcb_size_from (l4_kip ());
 }
-
+#endif /* _L4_X2 */
 
 /* Meta-information about the KIP.  */
 
@@ -338,7 +367,10 @@ _L4_attribute_always_inline
 l4_kernel_version_from (l4_kip_t kip, l4_word_t *ver, l4_word_t *subver,
 			l4_word_t *subsubver)
 {
-  _L4_kernel_version (kip, ver, subver, subsubver);
+  __L4_kernel_version_t version = _L4_kernel_version (kip);
+  *ver = version.ver;
+  *subver = version.subver;
+  *subsubver = version.subsubver;
 }
 
 
@@ -483,8 +515,6 @@ l4_memory_desc_high (l4_memory_desc_t *mem)
 
 /* Processor descriptors.  */
 
-typedef __L4_proc_desc_t l4_proc_desc_t;
-
 static inline l4_word_t
 _L4_attribute_always_inline
 l4_num_processors_from (l4_kip_t kip)
@@ -500,6 +530,9 @@ l4_num_processors (void)
   return l4_num_processors_from (l4_kip ());
 }
 
+
+#ifdef _L4_X2
+typedef __L4_proc_desc_t l4_proc_desc_t;
 
 static inline l4_proc_desc_t *
 _L4_attribute_always_inline
@@ -531,3 +564,4 @@ l4_proc_internal_freq (l4_proc_desc_t *proc)
 {
   return _L4_proc_internal_freq (proc);
 }
+#endif /* _L4_X2 */

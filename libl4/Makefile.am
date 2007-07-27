@@ -1,12 +1,12 @@
 # Makefile.am - Makefile template for libl4.
-# Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
 # 
 # The GNU Hurd is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 # 
 # The GNU Hurd is distributed in the hope that it will be useful,
@@ -24,7 +24,13 @@ endif
 if ARCH_POWERPC
   ARCH_SUBDIR = powerpc
 endif
-SUBDIRS =  $(ARCH_SUBDIR) tests
+if L4_ABI_V2
+  L4_ABI_SUBDIR = v2
+endif
+if L4_ABI_X2
+  L4_ABI_SUBDIR = x2
+endif
+SUBDIRS =  $(ARCH_SUBDIR) $(L4_ABI_SUBDIR) tests
 
 # Header files that must be provided by all interfaces.
 common_headers := ipc.h kip.h message.h misc.h schedule.h space.h	\

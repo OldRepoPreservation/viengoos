@@ -13,6 +13,7 @@
 AC_CONFIG_LINKS([
   include/l4.h:libl4/l4.h
   include/l4/features.h:libl4/l4/features.h
+  include/l4/abi.h:libl4/l4/abi.h
   include/l4/globals.h:libl4/l4/globals.h
   include/l4/init.h:libl4/l4/init.h
   include/l4/ipc.h:libl4/l4/ipc.h
@@ -75,4 +76,20 @@ AC_CONFIG_LINKS([
   include/l4/bits/gnu/misc.h:libl4/${arch}/l4/bits/gnu/misc.h
   include/l4/bits/gnu/arch.h:libl4/${arch}/l4/bits/gnu/arch.h
   include/l4/bits/gnu/space.h:libl4/${arch}/l4/bits/gnu/space.h
+  include/l4/abi/kip.h:libl4/${l4_abi}/l4/abi/kip.h
+  include/l4/abi/abi.h:libl4/${l4_abi}/l4/abi/abi.h
 ])
+
+if test x$l4_abi = xv2
+then
+  AC_CONFIG_LINKS([
+    include/l4/abi/bits/kip.h:libl4/v2/${arch}/l4/abi/bits/kip.h
+  ])
+fi
+
+if test x$l4_abi = xx2
+then
+  # AC_CONFIG_LINKS([])
+  :
+fi
+
