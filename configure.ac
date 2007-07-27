@@ -1,22 +1,21 @@
 # configure.ac - Configure script for the GNU Hurd.
-# Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
 # 
 # The GNU Hurd is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
-# 
-# The GNU Hurd is distributed in the hope that it will be useful,
+#
+# This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
@@ -136,6 +135,32 @@ AM_CONDITIONAL([ARCH_IA32], $arch_ia32)
 AM_CONDITIONAL([ARCH_IA64], $arch_ia64)
 AM_CONDITIONAL([ARCH_POWERPC], $arch_powerpc)
 AM_CONDITIONAL([ARCH_POWERPC64], $arch_powerpc64)
+
+l4_abi_v2=false
+l4_abi_x2=false
+AC_ARG_ENABLE([l4-abi],
+	      AC_HELP_STRING([--enable-l4-abi=abi],
+		             [L4 ABI to use (supported are: v2, x2)]),
+	      [ac_cv_use_l4_abi=$enableval], [ac_cv_use_l4_abi=no])
+case $ac_cv_use_l4_abi in
+  v2)
+    l4_abi=v2
+    l4_abi_v2=true
+    ;;
+  x2)
+    l4_abi=x2
+    l4_abi_x2=true
+    ;;
+  no)
+    AC_MSG_ERROR([L4 ABI not specified; select an ABI using --enable-l4-abi])
+    ;;
+  *)
+    AC_MSG_ERROR([unsupported L4 ABI $ac_cv_use_l4_abi])
+    ;;
+esac
+AM_CONDITIONAL([L4_ABI_V2], $l4_abi_v2)
+AM_CONDITIONAL([L4_ABI_X2], $l4_abi_x2)
+AC_MSG_NOTICE([compiling for L4 ABI $l4_abi])
 
 # Configure components.
 m4_include([laden/config.m4])

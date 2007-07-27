@@ -1,3 +1,12 @@
+2007-07-27  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac (l4_abi_v2): New variable.
+	(l4_abi_x2): Likewise.
+	(l4-abi): New enable argument.
+	(L4_ABI_V2): New automake conditional.
+	(L4_ABI_X2): Likewise.
+	* README: Document option.
+
 2005-04-08  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Add include for physmem/headers.m4.

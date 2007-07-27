@@ -11,10 +11,10 @@ This is work in progress.
 How to build
 ------------
 
-Building the code is straight forward:
+Building the code is straightforward:
 
 $ autoreconf -f -i -s
-$ ./configure --enable-maintainer-mode --prefix=/l4
+$ ./configure --enable-maintainer-mode --prefix=/l4 --enable-l4-abi=x2
 $ make
 $ make install
 $ mkdir /l4/boot
@@ -25,9 +25,7 @@ $ install -s task/task /l4/boot
 $ install -s deva/deva /l4/boot
 $ install -s ruth/ruth /l4/boot
 
-You need at least automake 1.7 and autoconf 2.53.  Note that the
-binaries MUST be stripped, otherwise they will overlap in memory (or
-you can adjust the load addresses).
+You need at least automake 1.7 and autoconf 2.53.
 
 
 Installation on ia32
