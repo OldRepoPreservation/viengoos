@@ -51,7 +51,7 @@ kip_fixup (void)
     {
 #ifdef _L4_V2
     case L4_API_VERSION_2:
-    case 0x87:
+    case L4_API_VERSION_2PP:
       /* Booting a v2 kernel.  */
       debug ("Booting a v2 kernel.\n");
       break;
@@ -93,6 +93,10 @@ kip_fixup (void)
   memcpy ((char *) (((l4_word_t) kip) + kip->memory_info.mem_desc_ptr),
 	  (char *) memory_map,
 	  sizeof (l4_memory_desc_t) * memory_map_size);
+
+#ifdef _L4_X2
+  kip->memory_info.nr = memory_map_size;
+#endif
 
   for (nr = 0; nr < memory_map_size; nr++)
     debug ("Memory Map %i: Type %i/%i, Low 0x%llx, High 0x%llx\n",

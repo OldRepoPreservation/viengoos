@@ -78,13 +78,11 @@ load_components (void)
   /* Since we did not panic, there are no conflicts and we can now
      unpack the images.  */
   loader_elf_load ("kernel", kernel.low, kernel.high,
-		   &kernel.low, &kernel.high, &kernel.ip,
-		   L4_MEMDESC_RESERVED);
+		   &kernel.low, &kernel.high, &kernel.ip, -1);
   loader_remove_region ("kernel-mod");
 
   loader_elf_load ("sigma0", sigma0.low, sigma0.high,
-		   &sigma0.low, &sigma0.high, &sigma0.ip,
-		   L4_MEMDESC_RESERVED);
+		   &sigma0.low, &sigma0.high, &sigma0.ip, -1);
   loader_remove_region ("sigma0-mod");
 #ifdef _L4_V2
   /* Use the page following the extracted image as the stack.  */
@@ -95,14 +93,12 @@ load_components (void)
   if (sigma1.low)
     {
       loader_elf_load ("sigma1", sigma1.low, sigma1.high,
-		       &sigma1.low, &sigma1.high, &sigma1.ip,
-		       L4_MEMDESC_RESERVED);
+		       &sigma1.low, &sigma1.high, &sigma1.ip, -1);
       loader_remove_region ("sigma1-mod");
     }
 
   loader_elf_load ("rootserver", rootserver.low, rootserver.high,
-		   &rootserver.low, &rootserver.high, &rootserver.ip,
-		   L4_MEMDESC_BOOTLOADER);
+		   &rootserver.low, &rootserver.high, &rootserver.ip, -1);
   loader_remove_region ("rootserver-mod");
 #ifdef _L4_V2
   /* Use the page following the extracted image as the stack.  */

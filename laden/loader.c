@@ -79,7 +79,14 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
 	      && start <= l4_memory_desc_high (memdesc)
 	      && end >= l4_memory_desc_low (memdesc)
 	      && end <= l4_memory_desc_high (memdesc))
-	    fits = 1;
+	    {
+	      debug ("Memory 0x%x-0x%x fits in conventional memory map %d "
+		     "(0x%x-0x%x)\n",
+		     start, end, nr,
+		     l4_memory_desc_low (memdesc),
+		     l4_memory_desc_high (memdesc));
+	      fits = 1;
+	    }
 	}
       else
 	{
@@ -92,6 +99,11 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
 	      || (start < l4_memory_desc_low (memdesc)
 		  && end > l4_memory_desc_high (memdesc)))
 	    {
+	      debug ("Memory 0x%x-0x%x conflicts with non-conventional "
+		     "memory map %d (0x%x-0x%x)\n",
+		     start, end, nr,
+		     l4_memory_desc_low (memdesc),
+		     l4_memory_desc_high (memdesc));
 	      fits = 0;
 	      conflicts = 1 + nr;
 	    }
@@ -311,13 +323,15 @@ loader_regions_reserve (void)
   for (i = 0; i < nr_regions; i++)
     if (used_regions[i].used && used_regions[i].desc_type != -1)
       {
-	debug ("Reserving memory 0x%x-0x%x (%s)\n",
-	       used_regions[i].start, used_regions[i].end,
-	       used_regions[i].name);
+	/* Round down.  */
+	l4_word_t start = used_regions[i].start & ~0x3ff;
+	/* Round up.  */
+	l4_word_t end = ((used_regions[i].end + 0x3ff - 1) & ~0x3ff) - 1;
 
-	add_memory_map (used_regions[i].start,
-			((used_regions[i].end + 0x3ff) & ~0x3ff) - 1,
-			used_regions[i].desc_type, 0);
+	debug ("Reserving memory 0x%x-0x%x (%s)\n",
+	       start, end, used_regions[i].name);
+
+	add_memory_map (start, end, used_regions[i].desc_type, 0);
       }
 }
 

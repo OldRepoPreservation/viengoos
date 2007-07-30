@@ -1,3 +1,19 @@
+2007-07-30  Neal H. Walfield  <neal@gnu.org>
+
+	* kip-fixup.c (kip_fixup): Use a symbolic name rather than a magic
+	number.
+
+	[_L4_X2]: Set KIP->MEMORY_INFO.NR to MEMORY_MAP_SIZE.
+
+	* laden.c (load_components): Don't add L4 memory maps
+	corresponding to the the kernel's, sigma0's, sigma1's or the root
+	task's image.
+
+	* loader.c (mem_check): Add debugging output.
+	
+	(loader_regions_reserve): Round USED_REGIONS[I].START and
+	USED_REGIONS[I].END appropriately.
+
 2007-07-27  Neal H. Walfield  <neal@gnu.org>
 
 	* laden.h (add_memory_map): Improve comment.
