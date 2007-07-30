@@ -1,23 +1,21 @@
 /* Balanced tree insertion and deletion routines.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2007 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
-   your option) any later version.
-   
-   The GNU Hurd is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
-   
+   The GNU Hurd is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
+
+   The GNU Hurd is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
    You should have received a copy of the GNU General Public License
-   along with the GNU Hurd; see the file COPYING.  If not, write to
-   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
-   USA.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /* Copyright (C) 1995, 1996, 1997, 2000 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
@@ -71,6 +69,14 @@
 
 #ifndef BTREE_EXTERN_INLINE
 # define BTREE_EXTERN_INLINE extern inline
+#endif
+
+#ifndef offsetof
+#ifdef __compiler_offsetof
+#define offsetof(TYPE,MEMBER) __compiler_offsetof(TYPE,MEMBER)
+#else
+#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif
 #endif
 
 /* If BTREE_NAME_PREFIX is set then all functions and types will its
@@ -137,6 +143,7 @@ typedef int (*BTREE_(key_compare_t)) (const void *a, const void *b);
 
 /* Initialize a btree data structure.  (NB: nodes needn't be
    initialized.)  */
+BTREE_EXTERN_INLINE void BTREE_(tree_init) (BTREE_(t) *btree);
 BTREE_EXTERN_INLINE void
 BTREE_(tree_init) (BTREE_(t) *btree)
 {
@@ -170,6 +177,9 @@ extern void BTREE_(maybe_split2_internal) (BTREE_(t) *tree,
    This evaluates the "possibly" predicate described above.  If it
    true then we make the actual function call and do the real work
    there.  */
+BTREE_EXTERN_INLINE void BTREE_(maybe_split_internal) (BTREE_(t) *tree,
+						       BTREE_(node_t) *node,
+						       int force);
 BTREE_EXTERN_INLINE void
 BTREE_(maybe_split_internal) (BTREE_(t) *tree, BTREE_(node_t) *node,
 			      int force)
@@ -198,6 +208,11 @@ BTREE_(maybe_split_internal) (BTREE_(t) *tree, BTREE_(node_t) *node,
    *PREDP expect that it points to the node with the smallest key
    which compares greater than KEY or NULL if key is larger than all
    nodes in the tree.  Returns 0 if found and ESRCH otherwise.  */
+BTREE_EXTERN_INLINE error_t
+BTREE_(find_internal) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
+		       size_t key_offset, const void *key,
+		       BTREE_(node_t) ***nodepp, BTREE_(node_t) **predp,
+		       BTREE_(node_t) **succp, BTREE_(node_t) **parentp);
 BTREE_EXTERN_INLINE error_t
 BTREE_(find_internal) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 		       size_t key_offset, const void *key,
@@ -252,7 +267,10 @@ BTREE_(find_internal) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
    NULL.  */
 BTREE_EXTERN_INLINE BTREE_(node_t) *
 BTREE_(find) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
-	    size_t key_offset, const void *key)
+	      size_t key_offset, const void *key);
+BTREE_EXTERN_INLINE BTREE_(node_t) *
+BTREE_(find) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
+	      size_t key_offset, const void *key)
 {
   error_t err;
   BTREE_(node_t) **nodep, *node, *pred, *succ, *parent;
@@ -271,7 +289,10 @@ BTREE_(find) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
    the tree.  */
 BTREE_EXTERN_INLINE error_t
 BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
-	      size_t key_offset, BTREE_(node_t) *newnode)
+		size_t key_offset, BTREE_(node_t) *newnode);
+BTREE_EXTERN_INLINE error_t
+BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
+		size_t key_offset, BTREE_(node_t) *newnode)
 {
   error_t err;
   BTREE_(node_t) **nodep, *pred, *succ, *parent;
@@ -335,6 +356,7 @@ extern void BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *node);
 
 /* Return the node with the smallest key in tree BTREE or NULL if the
    tree is empty.  */
+BTREE_EXTERN_INLINE BTREE_(node_t) *BTREE_(first) (BTREE_(t) *btree);
 BTREE_EXTERN_INLINE BTREE_(node_t) *
 BTREE_(first) (BTREE_(t) *btree)
 {
@@ -353,6 +375,7 @@ BTREE_(first) (BTREE_(t) *btree)
 /* Return the node following node NODE or NULL if NODE is the last
    (i.e. largest) node in the tree.  This function is guaranteed to
    never touch a node which is lexically less than NODE.  */
+BTREE_EXTERN_INLINE BTREE_(node_t) *BTREE_(next) (BTREE_(node_t) *node);
 BTREE_EXTERN_INLINE BTREE_(node_t) *
 BTREE_(next) (BTREE_(node_t) *node)
 {

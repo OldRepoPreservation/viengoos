@@ -1,3 +1,14 @@
+2007-07-30  Neal H. Walfield  <neal@gnu.org>
+
+	* btree.h (offsetof) [! offsetof]: Define.
+	(tree_init): Add prototype.
+	(maybe_split_internal): Likewise.
+	(find_internal): Likewise.
+	(find): Likewise.
+	(insert): Likewise.
+	(first): Likewise.
+	(next): Likewise.
+
 2004-12-25  Neal H. Walfield  <neal@gnu.org>
 
 	* btree.h (BTREE_CLASS): Rename from BTREE_NODE_CLASS.
