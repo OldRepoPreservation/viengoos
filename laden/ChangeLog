@@ -1,3 +1,13 @@
+2007-08-02  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-cmain.c (find_components): Save the correct module number.
+
+	* loader.c (loader_add_region): When relocating a region, set the
+	new start and end after calling the callback.
+	
+	(loader_regions_reserve): Only convert region descriptors on a V2
+	kernel.
+
 2007-07-30  Neal H. Walfield  <neal@gnu.org>
 
 	* kip-fixup.c (kip_fixup): Use a symbolic name rather than a magic

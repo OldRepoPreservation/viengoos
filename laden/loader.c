@@ -275,12 +275,12 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 
 		    memmove ((void *) ns, (void *) used_regions[i].start,
 			     msize);
-		    used_regions[i].start = ns;
-		    used_regions[i].end = ns + msize - 1;
 		    used_regions[i].rr (used_regions[i].name,
 					used_regions[i].start,
 					used_regions[i].end,
 					ns, used_regions[i].cookie);
+		    used_regions[i].start = ns;
+		    used_regions[i].end = ns + msize - 1;
 		    break;
 		  }
 	      }
@@ -319,6 +319,7 @@ loader_remove_region (const char *name)
 void
 loader_regions_reserve (void)
 {
+#ifdef _L4_V2
   int i;
   for (i = 0; i < nr_regions; i++)
     if (used_regions[i].used && used_regions[i].desc_type != -1)
@@ -333,6 +334,7 @@ loader_regions_reserve (void)
 
 	add_memory_map (start, end, used_regions[i].desc_type, 0);
       }
+#endif
 }
 
 /* Get the memory range to which the ELF image from START to END

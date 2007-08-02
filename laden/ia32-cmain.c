@@ -230,6 +230,8 @@ modules_relocate (const char *name,
   /* Number of modules.  */
   l4_word_t count = ((l4_word_t) cookie) & ((1 << 16) - 1);
   l4_word_t offset = new_start - start;
+  debug ("Moving modules %d-%d from 0x%x-0x%x to 0x%x (+0x%x)\n",
+	 i, i + count, start, end, new_start, offset);
   while (count)
     {
       /* Adjust the offset.  */
@@ -288,6 +290,7 @@ find_components (void)
 	 descriptors.  */
       start = 0;
       end = 0;
+      int start_module = 0;
       int count = 0;
       int i;
       for (i = 1; i < mbi->mods_count; i ++)
@@ -295,6 +298,7 @@ find_components (void)
 	  if (end == 0)
 	    {
 	      start = mod[i].mod_start;
+	      start_module = i;
 	      count = 1;
 	    }
 	  else if (end < mod[i].mod_start
@@ -304,9 +308,11 @@ find_components (void)
 	    {
 	      loader_add_region ("modules", start, end,
 				 modules_relocate,
-				 (void *) (l4_word_t) ((i << 16) | count),
+				 (void *) (l4_word_t) ((start_module << 16)
+						       | count),
 				 L4_MEMDESC_BOOTLOADER);
 	      start = mod[i].mod_start;
+	      start_module = i;
 	      count = 1;
 	    }
 	  end = mod[i].mod_end;
@@ -315,7 +321,8 @@ find_components (void)
       if (count)
 	loader_add_region ("modules", start, end,
 			   modules_relocate,
-			   (void *) (l4_word_t) ((i << 16) | count),
+			   (void *) (l4_word_t) ((start_module << 16)
+						 | count),
 			   L4_MEMDESC_BOOTLOADER);
     }
 
