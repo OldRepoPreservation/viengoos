@@ -1,23 +1,22 @@
 /* l4/pagefault.h - Public interface to the pagefault protocol.
-   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
  
    The GNU L4 library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation; either version 2.1 of
+   as published by the Free Software Foundation; either version 3 of
    the License, or (at your option) any later version.
- 
+   
    The GNU L4 library is distributed in the hope that it will be
    useful, but WITHOUT ANY WARRANTY; without even the implied warranty
    of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
- 
+   
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU L4 library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   License along with this program.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #ifndef _L4_PAGEFAULT_H
 #define _L4_PAGEFAULT_H	1
@@ -65,13 +64,12 @@ _L4_pagefault (_L4_msg_tag_t tag, _L4_word_t *access, _L4_word_t *ip)
 }
 
 
-/* Reply to a previous pagefault request message by thread TO with the
-   provided map or grant item.  Returns 1 on success and 0 if the Ipc
-   system call failed (then _L4_error_code provides more information
-   about the failure).  */
-static inline _L4_word_t
+/* Formulate a reply message (in the thread's virtual registers) to a
+   previous pagefault request message with the provided map or grant
+   item.  */
+static inline void
 _L4_attribute_always_inline
-_L4_pagefault_reply (_L4_thread_id_t to, void *item)
+_L4_pagefault_reply_formulate (void *item)
 {
   __L4_msg_tag_t _tag;
   _L4_msg_tag_t tag;
@@ -88,6 +86,21 @@ _L4_pagefault_reply (_L4_thread_id_t to, void *item)
   _L4_set_msg_tag (tag);
   _L4_load_mr (1, msg[0]);
   _L4_load_mr (2, msg[1]);
+}
+
+
+/* Reply to a previous pagefault request message by thread TO with the
+   provided map or grant item.  Returns 1 on success and 0 if the Ipc
+   system call failed (then _L4_error_code provides more information
+   about the failure).  */
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_pagefault_reply (_L4_thread_id_t to, void *item)
+{
+  _L4_msg_tag_t tag;
+
+  _L4_pagefault_reply_formulate (item);
+
   tag = _L4_reply (to);
   return _L4_ipc_succeeded (tag);
 }

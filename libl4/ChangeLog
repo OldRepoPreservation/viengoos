@@ -1,3 +1,10 @@
+2007-08-05  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/pagefault.h (_L4_pagefault_reply_formulate): New function.
+	(_L4_pagefault_reply): Refactor code into the above new function
+	and use it.
+	* l4/gnu/pagefault.h (l4_pagefault_reply): New function.
+
 2007-07-27  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/abi.h: New file.
