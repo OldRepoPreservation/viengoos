@@ -1,3 +1,8 @@
+2007-08-06  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Configure libl4/v2/Makefile,
+	libl4/v2/ia32/Makefile and libl4/x2/Makefile.
+
 2007-07-27  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac (l4_abi_v2): New variable.

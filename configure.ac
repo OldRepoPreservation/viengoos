@@ -195,6 +195,8 @@ fi
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
 		 libl4/ia32/Makefile libl4/powerpc/Makefile
+		 libl4/v2/Makefile libl4/v2/ia32/Makefile
+		 libl4/x2/Makefile
 		 libl4/tests/Makefile libl4/Makefile
 		 platform/alpha/Makefile platform/amd64/Makefile
 		 platform/ia32/Makefile platform/ia64/Makefile
