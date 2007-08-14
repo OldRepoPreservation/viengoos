@@ -1,3 +1,7 @@
+2007-08-14  Marcus Brinkmann  <marcus@gnu.org>
+
+	* ia32-shutdown.c (reset): Swap arguments to outb_p.
+
 2007-08-02  Neal H. Walfield  <neal@gnu.org>
 
 	* ia32-cmain.c (find_components): Save the correct module number.

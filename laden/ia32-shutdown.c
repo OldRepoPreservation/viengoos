@@ -48,14 +48,14 @@ reset (void)
      fails, we should try to triple fault.  Alternatively, we could
      also try to make the BIOS call.  */
 
-  outb_p (0x70, 0x80);
+  outb_p (0x80, 0x70);
   inb_p (0x71);
 
   while (inb (0x64) & 0x02)
     ;
 
-  outb_p (0x70, 0x8F);
-  outb_p (0x71, 0x00);
+  outb_p (0x8F, 0x70);
+  outb_p (0x00, 0x71);
 
-  outb_p (0x64, 0xFE);
+  outb_p (0xFE, 0x64);
 }
