@@ -1,5 +1,5 @@
 /* ihash.c - Integer-keyed hash table functions.
-   Copyright (C) 1993-1997, 2001, 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 1993-1997, 2001, 2003, 2004, 2007 Free Software Foundation, Inc.
    Written by Michael I. Bushnell.
    Revised by Miles Bader <miles@gnu.org>.
    Revised by Marcus Brinkmann <marcus@gnu.org>.
@@ -151,11 +151,12 @@ find_index (hurd_ihash_t ht, hurd_ihash_key_t key)
 
 /* Remove the entry pointed to by the location pointer LOCP from the
    hashtable HT.  LOCP is the location pointer of which the address
-   was provided to hurd_ihash_add().  */
+   was provided to hurd_ihash_add().  If CLEANUP is true, call the
+   cleanup handler, if any.  */
 static inline void
-locp_remove (hurd_ihash_t ht, hurd_ihash_locp_t locp)
+locp_remove (hurd_ihash_t ht, hurd_ihash_locp_t locp, bool cleanup)
 {
-  if (ht->cleanup)
+  if (cleanup && ht->cleanup)
     (*ht->cleanup) (*locp, ht->cleanup_data);
   *locp = _HURD_IHASH_DELETED;
   ht->nr_items--;
@@ -252,15 +253,16 @@ hurd_ihash_set_max_load (hurd_ihash_t ht, unsigned int max_load)
 }
 
 
-/* Helper function for hurd_ihash_add.  Return 1 if the item was
+/* Helper function for hurd_ihash_replace.  Return 1 if the item was
    added, and 0 if it could not be added because no empty slot was
-   found.  The arguments are identical to hurd_ihash_add.
+   found.  The arguments are identical to hurd_ihash_replace.
 
    We are using open address hashing.  As the hash function we use the
    division method with quadratic probe.  This is guaranteed to try
    all slots in the hash table if the prime number is 3 mod 4.  */
 static inline int
-add_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value)
+replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
+	     bool *had_value, hurd_ihash_value_t *old_value)
 {
   unsigned int idx;
   unsigned int first_free;
@@ -315,7 +317,19 @@ add_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value)
 
   /* Remove the old entry for this key if necessary.  */
   if (index_valid (ht, idx, key))
-    locp_remove (ht, &ht->items[idx].value);
+    {
+      if (had_value)
+	*had_value = true;
+
+      if (old_value)
+	*old_value = ht->items[idx].value;
+      locp_remove (ht, &ht->items[idx].value, !! old_value);
+    }
+  else
+    {
+      if (had_value)
+	*had_value = false;
+    }
 
   /* If we have not found an empty slot, maybe the last one we
      looked at was empty (or just got deleted).  */
@@ -340,11 +354,17 @@ add_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value)
 
   
 /* Add ITEM to the hash table HT under the key KEY.  If there already
-   is an item under this key, call the cleanup function (if any) for
-   it before overriding the value.  If a memory allocation error
-   occurs, ENOMEM is returned, otherwise 0.  */
+   is an item under this key and OLD_VALUE is not NULL, then stores
+   the value in *OLD_VALUE.  If there already is an item under this
+   key and OLD_VALUE is NULL, then calls the cleanup function (if any)
+   for it before overriding the value.  If HAD_VALUE is not NULL, then
+   stores whether there was already an item under this key in
+   *HAD_VALUE.  If a memory allocation error occurs, ENOMEM is
+   returned, otherwise 0.  */
 error_t
-hurd_ihash_add (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t item)
+hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key_t key,
+		    hurd_ihash_value_t item,
+		    bool *had_value, hurd_ihash_value_t  *old_value)
 {
   struct hurd_ihash old_ht = *ht;
   int was_added;
@@ -354,7 +374,7 @@ hurd_ihash_add (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t item)
     {
       /* Only fill the hash table up to its maximum load factor.  */
       if (ht->nr_items * 100 / ht->size <= ht->max_load)
-	if (add_one (ht, key, item))
+	if (replace_one (ht, key, item, had_value, old_value))
 	  return 0;
     }
 
@@ -384,12 +404,14 @@ hurd_ihash_add (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t item)
   for (i = 0; i < old_ht.size; i++)
     if (!index_empty (&old_ht, i))
       {
-	was_added = add_one (ht, old_ht.items[i].key, old_ht.items[i].value);
+	was_added = replace_one (ht, old_ht.items[i].key,
+				 old_ht.items[i].value,
+				 had_value, old_value);
 	assert (was_added);
       }
 
   /* Finally add the new element!  */
-  was_added = add_one (ht, key, item);
+  was_added = replace_one (ht, key, item, had_value, old_value);
   assert (was_added);
 
   if (old_ht.size > 0)
@@ -425,7 +447,7 @@ hurd_ihash_remove (hurd_ihash_t ht, hurd_ihash_key_t key)
       
       if (index_valid (ht, idx, key))
 	{
-	  locp_remove (ht, &ht->items[idx].value);
+	  locp_remove (ht, &ht->items[idx].value, true);
 	  return 1;
 	}
     }
@@ -441,5 +463,5 @@ hurd_ihash_remove (hurd_ihash_t ht, hurd_ihash_key_t key)
 void
 hurd_ihash_locp_remove (hurd_ihash_t ht, hurd_ihash_locp_t locp)
 {
-  locp_remove (ht, locp);
+  locp_remove (ht, locp, true);
 }

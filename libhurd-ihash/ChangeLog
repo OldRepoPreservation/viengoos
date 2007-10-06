@@ -1,3 +1,37 @@
+2007-10-06  Neal H. Walfield  <neal@gnu.org>
+
+	* ihash.h (hurd_ihash_replace): New prototype.
+	(hurd_ihash_add): Replace prototype with a static inline
+	implementation that calls hurd_ihash_replace with the right
+	parameters.
+	* ihash.c (locp_remove): Take additional argument, cleanup.  Only
+	call the cleanup function if CLEANUP is true.  Update callers.
+	(add_one): Rename from this...
+	(replace_one): ... to this.  Add two parameters, had_value and
+	old_value.  If the key has a value and OLD_VALUE is not NULL, then
+	do not call the cleanup function but save the old value in
+	*OLD_VALUE.  If the key had a value and HAD_VALUE is not NULL,
+	then store true in *HAD_VALUE, otherwise, false.  Update callers.
+	
+	* Makefile.am (TESTS): Set to t-ihash.
+	(check_PROGRAMS): Set to t-ihash.
+	(t_ihash_SOURCES): Set to t-ihash.c and ihash.h.
+	(t_ihash_LDADD): Set to libhurd-ihash.a.
+	* t-ihash.c: New file.
+
+2007-08-23  Neal H. Walfield  <neal@gnu.org>
+
+	* ihash.h (hurd_ihash_replace): New declaration.
+	(hurd_ihash_add): Replace declaration with a static inline stub
+	that calls hurd_ihash_replace.
+	* ihash.c (add_one): Rename from this...
+	(replace_one): ... to this.  Add two parameters.  Save the old key
+	value in *OLD_VALUE.  Save whether there was an old value in
+	*HAD_VALUE.  Update callers.
+	(hurd_ihash_add): Rename from this...
+	(hurd_ihash_replace): ... to this.  Add two parameters.  Pass them
+	in calls to replace_one.
+
 2004-04-21  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ihash.h (HURD_IHASH_ITERATE): Don't use increment operator in

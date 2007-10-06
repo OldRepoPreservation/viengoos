@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libhurd-ihash.
-# Copyright (C) 2003 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2007 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -29,3 +29,9 @@ includehurd_HEADERS = ihash.h
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts
 AM_CFLAGS = -std=gnu99
 libhurd_ihash_a_SOURCES = ihash.h ihash.c
+
+TESTS = t-ihash
+
+check_PROGRAMS = t-ihash
+t_ihash_SOURCES = t-ihash.c ihash.h
+t_ihash_LDADD = libhurd-ihash.a

@@ -1,5 +1,5 @@
 /* ihash.h - Integer keyed hash table interface.
-   Copyright (C) 1995, 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2003, 2004, 2007 Free Software Foundation, Inc.
    Written by Miles Bader <miles@gnu.org>.
    Revised by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -155,11 +155,28 @@ void hurd_ihash_set_max_load (hurd_ihash_t ht, unsigned int max_load);
 
 
 /* Add ITEM to the hash table HT under the key KEY.  If there already
+   is an item under this key and OLD_VALUE is not NULL, then stores
+   the value in *OLD_VALUE.  If there already is an item under this
+   key and OLD_VALUE is NULL, then calls the cleanup function (if any)
+   for it before overriding the value.  If HAD_VALUE is not NULL, then
+   stores whether there was already an item under this key in
+   *HAD_VALUE.  If a memory allocation error occurs, ENOMEM is
+   returned, otherwise 0.  */
+error_t
+hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key_t key,
+		    hurd_ihash_value_t item,
+		    bool *had_value, hurd_ihash_value_t *old_value);
+
+/* Add ITEM to the hash table HT under the key KEY.  If there already
    is an item under this key, call the cleanup function (if any) for
    it before overriding the value.  If a memory allocation error
    occurs, ENOMEM is returned, otherwise 0.  */
-error_t hurd_ihash_add (hurd_ihash_t ht, hurd_ihash_key_t key,
-			hurd_ihash_value_t item);
+static inline error_t
+hurd_ihash_add (hurd_ihash_t ht, hurd_ihash_key_t key,
+		hurd_ihash_value_t item)
+{
+  return hurd_ihash_replace (ht, key, item, NULL, NULL);
+}
 
 /* Find and return the item in the hash table HT with key KEY, or NULL
    if it doesn't exist.  */
