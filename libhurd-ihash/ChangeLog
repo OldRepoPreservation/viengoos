@@ -1,3 +1,7 @@
+2007-10-09  Neal H. Walfield  <neal@gnu.org>
+
+	* ihash.h (hurd_ihash_locp_remove): Update comment.
+
 2007-10-06  Neal H. Walfield  <neal@gnu.org>
 
 	* ihash.h (hurd_ihash_replace): New prototype.

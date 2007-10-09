@@ -239,9 +239,9 @@ hurd_ihash_value_t hurd_ihash_find (hurd_ihash_t ht, hurd_ihash_key_t key);
    an entry was found and removed, 1 is returned, otherwise 0.  */
 int hurd_ihash_remove (hurd_ihash_t ht, hurd_ihash_key_t key);
 
-/* Remove the entry pointed to by the location pointer LOCP from the
-   hash table HT.  LOCP is the location pointer of which the address
-   was provided to hurd_ihash_add().  This call is faster than
+/* Remove from the hast table HT the entry with the location pointer
+   LOCP.  That is, if the location pointer is stored in a field named
+   locp in the value, pass &value.locp.  This call is faster than
    hurd_ihash_remove().  */
 void hurd_ihash_locp_remove (hurd_ihash_t ht, hurd_ihash_locp_t locp);
 
