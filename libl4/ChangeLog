@@ -1,3 +1,11 @@
+2007-10-16  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/gnu/ipc.h (l4_set_msg_msg_tag): Rename from this...
+	(l4_msg_set_msg_tag): ... to this.
+	(l4_msg_set_untyped_words): New function.
+	(l4_msg_set_typed_words): Likewise.
+	(l4_msg_set_words): Likewise.
+
 2007-08-05  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/pagefault.h (_L4_pagefault_reply_formulate): New function.

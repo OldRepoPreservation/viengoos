@@ -1,5 +1,5 @@
 /* l4/gnu/ipc.h - Public GNU interface for L4 IPC.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -455,9 +455,40 @@ l4_msg_msg_tag (l4_msg_t msg)
 
 static inline void
 _L4_attribute_always_inline
-l4_set_msg_msg_tag (l4_msg_t msg, l4_msg_tag_t tag)
+l4_msg_set_msg_tag (l4_msg_t msg, l4_msg_tag_t tag)
 {
   _L4_set_msg_msg_tag (msg, tag);
+}
+
+
+static inline void
+_L4_attribute_always_inline
+l4_msg_set_untyped_words (l4_msg_t msg, l4_word_t untyped)
+{
+  l4_msg_tag_t tag = l4_msg_msg_tag (msg);
+  l4_msg_tag_set_untyped_words (&tag, untyped);
+  l4_msg_set_msg_tag (msg, tag);
+}
+
+
+static inline void
+_L4_attribute_always_inline
+l4_msg_set_typed_words (l4_msg_t msg, l4_word_t typed)
+{
+  l4_msg_tag_t tag = l4_msg_msg_tag (msg);
+  l4_msg_tag_set_typed_words (&tag, typed);
+  l4_msg_set_msg_tag (msg, tag);
+}
+
+
+static inline void
+_L4_attribute_always_inline
+l4_msg_set_words (l4_msg_t msg, l4_word_t untyped, l4_word_t typed)
+{
+  l4_msg_tag_t tag = l4_msg_msg_tag (msg);
+  l4_msg_tag_set_untyped_words (&tag, untyped);
+  l4_msg_tag_set_typed_words (&tag, typed);
+  l4_msg_set_msg_tag (msg, tag);
 }
 
 
