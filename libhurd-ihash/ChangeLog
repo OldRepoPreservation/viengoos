@@ -1,3 +1,8 @@
+2007-10-16  Neal H. Walfield  <neal@gnu.org>
+
+	* ihash.h: Don't include <sys/types.h>.
+	Include <stddef.h> and <stdbool.h>.
+
 2007-10-09  Neal H. Walfield  <neal@gnu.org>
 
 	* ihash.h (hurd_ihash_locp_remove): Update comment.

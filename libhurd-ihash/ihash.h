@@ -23,9 +23,10 @@
 #define _HURD_IHASH_H	1
 
 #include <errno.h>
-#include <sys/types.h>
+#include <stddef.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 
 /* The type of the values corresponding to the keys.  Must be a
