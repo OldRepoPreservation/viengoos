@@ -1,5 +1,5 @@
 /* assert.h - Assert declaration for libc-parts.
-   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -24,8 +24,12 @@
 
 int printf (const char *fmt, ...);
 
-#ifndef NDEBUG
-#define assert(expr)					\
+#ifdef _L4_TEST_ENVIRONMENT
+# include_next <assert.h>
+#else
+
+# ifndef NDEBUG
+#  define assert(expr)					\
 	do {						\
 	  if (! (expr))					\
 	    {						\
@@ -34,9 +38,11 @@ int printf (const char *fmt, ...);
 	      for (;;);					\
 	    }						\
 	} while (0)
-#else
-#define assert(expr) do { } while (0)
-#endif
-#define assert_perror(err) assert(err == 0)
+# else
+#  define assert(expr) do { } while (0)
+# endif
+# define assert_perror(err) assert(err == 0)
+
+#endif /* _L4_TEST_ENVIRONMENT */
 
 #endif /* _ASSERT_H */

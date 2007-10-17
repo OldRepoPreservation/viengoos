@@ -1,3 +1,7 @@
+2007-10-17  Neal H. Walfield  <neal@gnu.org>
+
+	* assert.h [_L4_TEST_ENVIRONMENT]: Include the next <assert.h>.
+
 2005-01-12  Neal H. Walfield  <neal@gnu.org>
 
 	* assert.h: Include prototype for printf.
