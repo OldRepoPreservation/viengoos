@@ -61,7 +61,6 @@
 #ifndef BTREE_H
 #define BTREE_H	1
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <errno.h>
