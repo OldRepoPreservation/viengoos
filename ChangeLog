@@ -1,3 +1,10 @@
+2007-10-17  Neal H. Walfield  <neal@gnu.org>
+
+	* libbitarray: New directory.
+	* configure.ac: m4_include libbitarray/headers.m4.
+	(AC_CONFIGU_FILES): Add libbitarray/Makefile.
+	* Makefile.am (SUBDIRS): Add libbitarray.
+
 2007-08-06  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Configure libl4/v2/Makefile,

@@ -1,12 +1,12 @@
-# Makefile.am - Makefile template for hurd-l4.
-# Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
-# Written by Marcus Brinkmann.
+# Makefile.am - Makefile template for libbitarray
+# Copyright (C) 2007 Free Software Foundation, Inc.
+# Written by Neal H. Walfield
 #
 # This file is part of the GNU Hurd.
 # 
 # The GNU Hurd is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 # 
 # The GNU Hurd is distributed in the hope that it will be useful,
@@ -18,18 +18,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-if WITH_LIBC
-  LIBC_SUBDIRS = libc
-else
-  LIBC_SUBDIRS =
-endif
+include_HEADERS = bit-array.h
 
-SUBDIRS = libl4 platform				\
-	hurd libhurd-ihash libhurd-btree libbitarray	\
-	libhurd-slab					\
-	libhurd-cap libhurd-cap-server			\
-	libhurd-mm					\
-	libpthread					\
-	libc-parts laden wortel physmem task deva ruth	\
-	$(LIBC_SUBDIRS)					\
-	doc
+TESTS = t-bit-array
+check_PROGRAMS = $(TESTS)
+
+t_bit_array_CPPFLAGS = $(AM_CPPFLAGS)
+t_bit_array_SOURCES = t-bit-array.c
+

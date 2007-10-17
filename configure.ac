@@ -173,6 +173,7 @@ m4_include([platform/headers.m4])
 m4_include([hurd/headers.m4])
 m4_include([libhurd-ihash/headers.m4])
 m4_include([libhurd-btree/headers.m4])
+m4_include([libbitarray/headers.m4])
 m4_include([libhurd-slab/headers.m4])
 m4_include([libhurd-cap/headers.m4])
 m4_include([libhurd-cap-server/headers.m4])
@@ -206,6 +207,7 @@ AC_CONFIG_FILES([Makefile
 		 hurd/Makefile
 		 libhurd-ihash/Makefile
 		 libhurd-btree/Makefile
+		 libbitarray/Makefile
 		 libhurd-slab/Makefile
 		 libhurd-cap/Makefile
 		 libhurd-cap-server/Makefile
