@@ -1,3 +1,10 @@
+2007-10-26  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/math.h (_L4_msb64): New function.
+	(_L4_lsb64): Likewise.
+	* l4/gnu/math.h (l4_msb64): Likewise.
+	(l4_lsb64): Likewise.
+
 2007-10-16  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/gnu/ipc.h (l4_set_msg_msg_tag): Rename from this...

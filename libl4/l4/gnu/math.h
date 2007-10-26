@@ -1,5 +1,5 @@
 /* l4/gnu/math.h - Public GNU interface for L4 mathematical functions.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -31,10 +31,24 @@ l4_msb (l4_word_t data)
   return _L4_msb (data);
 }
 
+static inline l4_word_t
+_L4_attribute_always_inline
+l4_msb64 (l4_uint64_t data)
+{
+  return _L4_msb64 (data);
+}
+
 
 static inline l4_word_t
 _L4_attribute_always_inline
 l4_lsb (l4_word_t data)
 {
   return _L4_lsb (data);
+}
+
+static inline l4_word_t
+_L4_attribute_always_inline
+l4_lsb64 (l4_uint64_t data)
+{
+  return _L4_lsb64 (data);
 }

@@ -1,5 +1,5 @@
 /* l4/math.h - Public interface to L4 mathematical support functions.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -72,6 +72,19 @@ _L4_msb (_L4_word_t data)
     return 0;
 }
 
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_msb64 (_L4_uint64_t data)
+{
+#if L4_WORDSIZE == 64
+  return _L4_msb (data);
+#else
+  int d = _L4_msb (data >> 32);
+  if (d)
+    return d + 32;
+  return _L4_msb (data);
+#endif
+}
 
 /* Return 0 if DATA is 0, or the bit number of the least significant
    bit set in DATA.  The least significant bit is 1, the most
@@ -113,6 +126,22 @@ _L4_lsb (_L4_word_t data)
     return 0;
 }
 
+static inline _L4_word_t
+_L4_attribute_always_inline
+_L4_lsb64 (_L4_uint64_t data)
+{
+#if L4_WORDSIZE == 64
+  return _L4_lsb (data);
+#else
+  int d = _L4_lsb (data);
+  if (d)
+    return d;
+  d = _L4_lsb (data >> 32);
+  if (d)
+    return d + 32;
+  return 0;
+#endif
+}
 
 /* Now incorporate the public interfaces the user has selected.  */
 #ifdef _L4_INTERFACE_GNU
