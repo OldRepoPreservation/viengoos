@@ -283,13 +283,13 @@ BTREE_(find) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 }
 
 /* Insert node NODE into btree BTREE.  COMPARE is the comparison
-   function.  NEWNODE's key must be valid.  Returns 0 on success.
-   Otherwise, EEXIST if a node with the same key as NEWNODE exists in
-   the tree.  */
-BTREE_EXTERN_INLINE error_t
+   function.  NEWNODE's key must be valid.  If the node cannot be
+   inserted as a node with the key already exists, returns the node.
+   Otherwise, returns 0.  */
+BTREE_EXTERN_INLINE BTREE_(node_t) *
 BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 		size_t key_offset, BTREE_(node_t) *newnode);
-BTREE_EXTERN_INLINE error_t
+BTREE_EXTERN_INLINE BTREE_(node_t) *
 BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 		size_t key_offset, BTREE_(node_t) *newnode)
 {
@@ -300,7 +300,9 @@ BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 			       (void *) newnode + key_offset,
 			       &nodep, &pred, &succ, &parent);
   if (! err)
-    return EEXIST;
+    /* Overlap!  Bail.  */
+    return BTREE_(link_internal) (*nodep);
+
   assert (err == ESRCH);
   assert (BTREE_(link_internal) (*nodep) == NULL);
 
@@ -410,7 +412,7 @@ extern BTREE_(node_t) *BTREE_(prev) (BTREE_(node_t) *node);
     Functions:
      void btree_NAME_tree_init (btree_NAME_t *btree, NODE_TYPE *node);
      NODE_TYPE *btree_NAME_find (btree_NAME_t *btree, const KEY_TYPE *key);
-     error_t btree_NAME_insert (btree_NAME_t *btree, NODE_TYPE *newnode);
+     NODE_TYPE *btree_NAME_insert (btree_NAME_t *btree, NODE_TYPE *newnode);
      void btree_NAME_detach (btree_NAME_t *btree, NODE_TYPE *node);
      NODE_TYPE *btree_NAME_first (btree_NAME_t *btree);
      NODE_TYPE *btree_NAME_next (NODE_TYPE *node);
@@ -494,7 +496,7 @@ BTREE_(name##_find) (BTREE_(name##_t) *btree, const key_type *key)	\
   return n ? n - offsetof (node_type, btree_node_field) : NULL;		\
 }									\
 									\
-static inline error_t							\
+static inline node_type *						\
 BTREE_(name##_insert) (BTREE_(name##_t) *btree, node_type *newnode)	\
 {									\
   int (*cmp) (const key_type *, const key_type *) = (cmp_function);	\

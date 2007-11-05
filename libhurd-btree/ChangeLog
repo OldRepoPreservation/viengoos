@@ -1,3 +1,9 @@
+2007-11-05  Neal H. Walfield  <neal@gnu.org>
+
+	* btree.h (insert): Don't return an error code.  Return the node
+	with the overlapping key.
+	(BTREE_CLASS): Update insert template.
+
 2007-10-17  Neal H. Walfield  <neal@gnu.org>
 
 	* btree.h: Don't include <stdlib.h>.
