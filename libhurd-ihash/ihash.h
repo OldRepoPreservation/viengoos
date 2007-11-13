@@ -242,7 +242,7 @@ int hurd_ihash_remove (hurd_ihash_t ht, hurd_ihash_key_t key);
 
 /* Remove from the hast table HT the entry with the location pointer
    LOCP.  That is, if the location pointer is stored in a field named
-   locp in the value, pass &value.locp.  This call is faster than
+   locp in the value, pass value.locp.  This call is faster than
    hurd_ihash_remove().  */
 void hurd_ihash_locp_remove (hurd_ihash_t ht, hurd_ihash_locp_t locp);
 

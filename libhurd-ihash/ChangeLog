@@ -1,3 +1,9 @@
+2007-11-13  Neal H. Walfield  <neal@gnu.org>
+
+	* ihash.h (hurd_ihash_locp_remove): Fix comment.
+	* t-ihash.c (program_name): Add variable.
+	(main): Add a test case for hurd_ihash_locp_remove.
+
 2007-10-16  Neal H. Walfield  <neal@gnu.org>
 
 	* ihash.h: Don't include <sys/types.h>.

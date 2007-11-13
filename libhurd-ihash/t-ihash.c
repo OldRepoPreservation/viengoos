@@ -20,6 +20,8 @@
 
 #define _GNU_SOURCE
 
+extern const char program_name[] = "t-ihash";
+
 #if HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -92,6 +94,30 @@ main (int argc, char *argv[])
       F ("No value for key %d\n", k);
     else if ((int) v != k + 1)
       F ("Value for key %d is %d, not %d\n", k, (int) v, k + 1);
+
+  printf ("ok\n");
+
+  printf ("Checking hurd_ihash_locp_remove... ");
+
+  struct s
+  {
+    int value;
+    hurd_ihash_locp_t locp;
+  };
+  hurd_ihash_init (&hash, &(((struct s *)0)->locp));
+
+  if (hurd_ihash_find (&hash, 1))
+    F ("Found object with key 1 in otherwise empty hash");
+
+  struct s s;
+  s.value = 1;
+  hurd_ihash_add (&hash, 1, &s);
+  if (! hurd_ihash_find (&hash, 1))
+    F ("Did not find recently inserted object with key 1");
+
+  hurd_ihash_locp_remove (&hash, s.locp);
+  if (hurd_ihash_find (&hash, 1))
+    F ("Found recently removed object with key 1");
 
   printf ("ok\n");
 
