@@ -65,6 +65,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <assert.h>
+#include <stddef.h>
 
 #ifndef BTREE_EXTERN_INLINE
 # define BTREE_EXTERN_INLINE extern inline
@@ -501,11 +502,12 @@ BTREE_(name##_insert) (BTREE_(name##_t) *btree, node_type *newnode)	\
 {									\
   int (*cmp) (const key_type *, const key_type *) = (cmp_function);	\
 									\
-  return BTREE_(insert) (&btree->btree,					\
-			 (int (*) (const void *, const void *)) cmp,	\
-			 offsetof (node_type, key_field)		\
-			 - offsetof (node_type, btree_node_field),	\
-			 &newnode->btree_node_field);			\
+  return (node_type *)							\
+    BTREE_(insert) (&btree->btree,					\
+		    (int (*) (const void *, const void *)) cmp,		\
+		    offsetof (node_type, key_field)			\
+		    - offsetof (node_type, btree_node_field),		\
+		    &newnode->btree_node_field);			\
 }									\
 									\
 static inline void							\

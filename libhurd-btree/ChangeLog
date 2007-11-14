@@ -1,3 +1,9 @@
+2007-11-14  Neal H. Walfield  <neal@gnu.org>
+
+	* btree.h: Include <stddef.h>.
+	(BTREE_CLASS): Cast the return of the insert template
+	appropriately.
+
 2007-11-05  Neal H. Walfield  <neal@gnu.org>
 
 	* btree.h (insert): Don't return an error code.  Return the node
