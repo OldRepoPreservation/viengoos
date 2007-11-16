@@ -1,5 +1,9 @@
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
+	* README: Update building and booting instructions.
+
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
 	* configure.ac: Don't include wortel/config.m4 or
 	physmem/config.m4.  Include viengoos/config.m4.
  

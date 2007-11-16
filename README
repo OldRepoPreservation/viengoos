@@ -19,10 +19,7 @@ $ make
 $ make install
 $ mkdir /l4/boot
 $ install -s laden/laden /l4/boot
-$ install -s wortel/wortel /l4/boot
-$ install -s physmem/physmem /l4/boot
-$ install -s task/task /l4/boot
-$ install -s deva/deva /l4/boot
+$ install -s viengoos/viengoos /l4/boot
 $ install -s ruth/ruth /l4/boot
 
 You need at least automake 1.7 and autoconf 2.53.
@@ -49,13 +46,10 @@ distribution.  You may want to install the other programs and
 utilities as well to test your L4 kernel, though.
 
 Then set up GRUB to boot laden as the kernel, and the L4 kernel,
-sigma0, wortel (the rootserver), physmem and task as its modules (in
-that order).  Also, add some dummy entries for the not-yet-existing
-modules deva, deva-store and rootfs (just repeat the task server entry
-another three times)
+sigma0, viengoos and ruth (in that order).
 
-Try the debug option (-D) to laden and wortel to see some output from
-them.  They are silent by default.
+Try the debug option (-D 3) to laden and viengoos to see some output
+from them.  They are relatively silent by default.
 
 Here is an example menu.lst file for GNU GRUB:
 
@@ -64,20 +58,42 @@ root (hd0,0)
 kernel /boot/laden -D
 module /boot/ia32-kernel
 module /boot/sigma0
-module /boot/wortel -D
-module /boot/physmem
-module /boot/task
-module /boot/deva
-module /boot/task
-module /boot/ruth
+module /boot/viengoos -D 3
+module /boot/ruth -D 3
 
 
 Pistachio Patch
 ---------------
 
-There are a couple of patches you need to apply to the L4 kernel to be
-able to use it with the Hurd on L4 servers.  These patches add missing
-features, or tweak the kernel interfaces to meet our requirements.
+The most important patch to get the Hurd running on Pistachio is the
+one to change Pistachio to use %gs:4 to store the UTCB pointer on
+ia32.  If you don't want to apply this and are not building glibc,
+then you can use this patch to the libl4 included with this source
+code:
+
+Index: libl4/ia32/l4/bits/vregs.h
+===================================================================
+RCS file: /sources/hurd/hurd-l4/libl4/ia32/l4/bits/vregs.h,v
+retrieving revision 1.9
+diff -u -r1.9 vregs.h
+--- libl4/ia32/l4/bits/vregs.h	15 Feb 2005 18:27:46 -0000	1.9
++++ libl4/ia32/l4/bits/vregs.h	16 Nov 2007 15:29:58 -0000
+@@ -32,7 +33,7 @@
+ #ifndef _L4_TEST_ENVIRONMENT
+   _L4_word_t *utcb;
+ 
+-  __asm__ __volatile__ ("movl %%gs:4, %[utcb]"
++  __asm__ __volatile__ ("movl %%gs:0, %[utcb]"
+ 			: [utcb] "=r" (utcb));
+ 
+   return utcb;
+
+
+
+Otherwise, there are a couple of patches you need to apply to the L4
+kernel to be able to use it with the Hurd on L4 servers.  These
+patches add missing features, or tweak the kernel interfaces to meet
+our requirements.
 
 You can apply all patches in one go by changing your working directory
 to the pistachio source tree, and feed this README file through patch:
