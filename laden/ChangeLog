@@ -1,3 +1,10 @@
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
+	* laden.h (program_name): Change type to a const char [].
+	* laden.c (program_name): Likewise.
+	* shutdown.h (program_name): Likewise.
+	* output.h (debug): Change program_name's type to a const char [].
+
 2007-08-14  Marcus Brinkmann  <marcus@gnu.org>
 
 	* ia32-shutdown.c (reset): Swap arguments to outb_p.
