@@ -18,17 +18,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-/* The size of our stack (4KB).  */
-#define STACK_SIZE			0x1000
+/* The size of our stack (32 * 4KB).  */
+#define STACK_SIZE			0x20000
 	
 	.text
 
 	.globl	start, _start
 start:
 _start:
-	/* The Hurd startup data is the first argument on the stack.  */
-	movl	4(%esp), %eax
-	movl	%eax, __hurd_startup_data
+	/* The location of the Hurd startup data is stored in esp.  */
+	movl	%esp, __hurd_startup_data
 
 	/* Initialize the stack pointer.  */
 	movl	$(stack + STACK_SIZE), %esp

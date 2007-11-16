@@ -1,6 +1,6 @@
-/* ruth.c - Main function for the ruth server.
-   Copyright (C) 2004 Free Software Foundation, Inc.
-   Written by Marcus Brinkmann.
+/* ruth.c - Test server.
+   Copyright (C) 2007 Free Software Foundation, Inc.
+   Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
 
@@ -23,22 +23,32 @@
 #include <config.h>
 #endif
 
-#include <stdlib.h>
-#include <pthread.h>
-
 #include <hurd/startup.h>
-#include <hurd/wortel.h>
+#include <hurd/cap.h>
+#include <hurd/folio.h>
+#include <hurd/rm.h>
+#include <hurd/stddef.h>
+#include <hurd/capalloc.h>
+#include <hurd/as.h>
+#include <hurd/storage.h>
+
+#include <bit-array.h>
+#include <string.h>
+
+#include <sys/mman.h>
 
 #include "ruth.h"
-#include "task-user.h"
 
-
+int output_debug;
+
+static addr_t activity;
+
 /* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
 
 
 /* The program name.  */
-char program_name[] = "ruth";
+const char program_name[] = "ruth";
 
 
 /* The following functions are required by pthread.  */
@@ -62,137 +72,220 @@ abort (void)
 int
 getpagesize()
 {
-  return l4_min_page_size ();
+  return PAGESIZE;
 }
-
-
-/* Get our task ID.  */
-static l4_word_t
-get_task_id ()
-{
-  return l4_version (l4_my_global_id ());
-}
-
-
-/* Initialize the thread support, and return the L4 thread ID to be
-   used for the server thread.  */
-static l4_thread_id_t
-setup_threads (void)
-{
-  error_t err;
-  l4_thread_id_t server_thread;
-  l4_thread_id_t tid;
-  l4_thread_id_t pager;
-  pthread_t thread;
-  struct hurd_startup_cap *task = &__hurd_startup_data->task;
-
-  server_thread = l4_my_global_id ();
-  err = task_thread_alloc (task->server, task->cap_handle,
-			   (void *)
-			   (l4_address (__hurd_startup_data->utcb_area)
-			   + l4_utcb_size ()),
-			   &tid);
-  if (err)
-    panic ("could not create main task thread: %i", err);
-
-  /* Switch threads.  We still need the current main thread as the
-     server thread.  */
-  pager = l4_pager ();
-  switch_thread (server_thread, tid);
-  l4_set_pager (pager);
-
-  /* Create the main thread.  */
-  err = pthread_create (&thread, 0, 0, 0);
-  if (err)
-    panic ("could not create main thread: %i\n", err);
-
-  /* FIXME: This is unecessary as soon as we implement this properly
-     in pthread (of course, within the task server, we will use an
-     override to not actually make an RPC to ourselves.  */
-
-  /* Now add the remaining extra threads to the pool.  */
-  err = task_thread_alloc (task->server, task->cap_handle,
-			   (void *)
-			   (l4_address (__hurd_startup_data->utcb_area)
-			    + 2 * l4_utcb_size ()),
-			   &tid);
-  if (err)
-    panic ("could not create first extra thread: %i", err);
-
-  pthread_pool_add_np (tid);
-
-  err = task_thread_alloc (task->server, task->cap_handle,
-			   (void *)
-			   (l4_address (__hurd_startup_data->utcb_area)
-			    + 3 * l4_utcb_size ()),
-			   &tid);
-  if (err)
-    panic ("could not create first extra thread: %i", err);
-
-  pthread_pool_add_np (tid);
-
-  return server_thread;
-}
-
-
-#if 0
-void *
-ruth_server (void *arg)
-{
-  hurd_cap_bucket_t bucket = (hurd_cap_bucket_t) arg;
-  error_t err;
-
-  /* No (anonymous) root object is provided by the task server.  */
-  /* FIXME: Use a worker timeout.  */
-  err = hurd_cap_bucket_manage_mt (bucket, NULL, 0, 0);
-  if (err)
-    debug ("bucket_manage_mt failed: %i\n", err);
-
-  panic ("bucket_manage_mt returned!");
-}
-#endif
 
 
 int
 main (int argc, char *argv[])
 {
-  error_t err;
-  l4_thread_id_t server_thread;
-  hurd_cap_bucket_t bucket;
-  pthread_t manager;
+  output_debug = 2;
 
-  output_debug = 1;
+  printf ("%s " PACKAGE_VERSION "\n", program_name);
+  printf ("Hello, here is Ruth, your friendly root server!\n");
 
-  debug ("%s " PACKAGE_VERSION "\n", program_name);
+  debug (2, "RM: %x.%x", l4_thread_no (__hurd_startup_data->rm),
+	 l4_version (__hurd_startup_data->rm));
 
-  debug ("Hello, here is Ruth, your friendly root server!\n");
+  activity = __hurd_startup_data->activity;
 
-  server_thread = setup_threads ();
+  {
+    printf ("Checking shadow page tables... ");
 
-#if 0
-  err = ruth_class_init ();
-  if (err)
-    panic ("ruth_class_init: %i\n", err);
+    int visit (addr_t addr,
+	       l4_word_t type, struct cap_addr_trans cap_addr_trans,
+	       bool writable,
+	       void *cookie)
+      {
+	struct cap *slot = slot_lookup (activity, addr, -1, NULL);
 
-  err = hurd_cap_bucket_create (&bucket);
-  if (err)
-    panic ("bucket_create: %i\n", err);
+	assert (slot);
+	assert (type == slot->type);
+	if (type == cap_cappage || type == cap_rcappage || type == cap_folio)
+	  assert (slot->shadow);
+	else
+	  assert (! slot->shadow);
 
-  create_bootstrap_caps (bucket);
+	return 0;
+      }
 
-  /* Create the server thread and start serving RPC requests.  */
-  err = pthread_create_from_l4_tid_np (&manager, NULL, server_thread,
-				       ruth_server, bucket);
+    as_walk (visit, ~(1 << cap_void), NULL);
+    printf ("ok.\n");
+  }
 
-  if (err)
-    panic ("pthread_create_from_l4_tid_np: %i\n", err);
-  pthread_detach (manager);
+  {
+    printf ("Checking folio_object_alloc... ");
 
-  /* FIXME: get root filesystem cap (for loading drivers).  */
-#endif
 
-  /* FIXME: Eventually, add shutdown support on wortels(?)
-     request.  */
+    addr_t folio = capalloc ();
+    assert (! ADDR_IS_VOID (folio));
+    error_t err = rm_folio_alloc (activity, folio);
+    assert (! err);
+
+    int i;
+    for (i = -10; i < 129; i ++)
+      {
+	addr_t addr = capalloc ();
+	if (ADDR_IS_VOID (addr))
+	  panic ("capalloc");
+
+	err = rm_folio_object_alloc (activity, folio, i, cap_page, addr);
+	assert ((err == 0) == (0 <= i && i < FOLIO_OBJECTS));
+
+	if (0 <= i && i < FOLIO_OBJECTS)
+	  {
+	    l4_word_t type;
+	    struct cap_addr_trans cap_addr_trans;
+	    err = rm_cap_read (activity, addr, &type, &cap_addr_trans);
+	    assert (! err);
+	    assert (type == cap_page);
+	  }
+	capfree (addr);
+      }
+
+    err = rm_folio_free (activity, folio);
+    assert (! err);
+    capfree (folio);
+
+    printf ("ok.\n");
+  }
+
+  {
+    printf ("Checking folio_alloc... ");
+
+    /* We allocate a sub-tree and fill it with folios (specifically,
+       2^(bits - 1) folios).  */
+    int bits = 2;
+    addr_t root = as_alloc (bits + FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2,
+			    1, true);
+    assert (! ADDR_IS_VOID (root));
+
+    int i;
+    for (i = 0; i < (1 << bits); i ++)
+      {
+	addr_t f = addr_extend (root, i, bits);
+
+	struct cap *slot = as_slot_ensure (f);
+	assert (slot);
+	slot->type = cap_folio;
+
+	error_t err = rm_folio_alloc (activity, f);
+	assert (! err);
+
+	addr_t shadow_addr
+	  = storage_alloc (activity, cap_page, STORAGE_EPHEMERAL, ADDR_VOID);
+	struct object *shadow = ADDR_TO_PTR (shadow_addr);
+	cap_set_shadow (slot, shadow);
+	memset (shadow, 0, PAGESIZE);
+
+	int j;
+	for (j = 0; j <= i; j ++)
+	  {
+	    l4_word_t type;
+	    struct cap_addr_trans addr_trans;
+
+	    error_t err = rm_cap_read (activity, addr_extend (root, j, bits),
+				       &type, &addr_trans);
+	    assert (! err);
+	    assert (type == cap_folio);
+
+	    struct cap *slot = slot_lookup (activity, f, -1, NULL);
+	    assert (slot);
+	    assert (slot->type == cap_folio);
+	  }
+      }
+
+    for (i = 0; i < (1 << bits); i ++)
+      {
+	addr_t f = addr_extend (root, i, bits);
+
+	error_t err = rm_folio_free (activity, f);
+	assert (! err);
+
+	struct cap *slot = slot_lookup (activity, f, -1, NULL);
+	assert (slot);
+	assert (slot->type == cap_folio);
+	slot->type = cap_void;
+
+	void *shadow = cap_get_shadow (slot);
+	assert (shadow);
+	storage_free (PTR_TO_ADDR (shadow), 1);
+      }
+
+    as_free (root, 1);
+
+    printf ("ok.\n");
+  }
+
+
+  {
+    printf ("Checking storage_alloc... ");
+
+    const int n = 4 * FOLIO_OBJECTS;
+    addr_t storage[n];
+
+    int i;
+    for (i = 0; i < n; i ++)
+      {
+	storage[i] = storage_alloc (activity, cap_page,
+				    (i & 1) == 0
+				    ? STORAGE_LONG_LIVED
+				    : STORAGE_EPHEMERAL,
+				    ADDR_VOID);
+	assert (! ADDR_IS_VOID (storage[i]));
+	* (int *) (ADDR_TO_PTR (storage[i])) = i;
+
+	int j;
+	for (j = 0; j <= i; j ++)
+	  assert (* (int *) (ADDR_TO_PTR (storage[j])) == j);
+      }
+
+    for (i = 0; i < n; i ++)
+      {
+	storage_free (storage[i], true);
+      }
+  }
+
+  {
+    printf ("Checking mmap... ");
+
+#define SIZE (16 * PAGESIZE)
+    void *buffer = mmap (0, SIZE, PROT_READ | PROT_WRITE,
+			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    assert (buffer != MAP_FAILED);
+
+    char *p;
+    for (p = buffer; (uintptr_t) p < (uintptr_t) buffer + SIZE; p ++)
+      *p = 1;
+    for (p = buffer; (uintptr_t) p < (uintptr_t) buffer + SIZE; p ++)
+      assert (*p == 1);
+
+    printf ("ok.\n");
+  }
+
+  {
+    addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
+    assert (! ADDR_IS_VOID (addr));
+
+    bool r = as_slot_ensure (addr);
+    assert (r);
+
+    addr_t storage = storage_alloc (activity, cap_page,
+				    STORAGE_MEDIUM_LIVED,
+				    addr);
+    assert (! ADDR_IS_VOID (storage));
+
+    debug (1, "Writing before dealloc...");
+    int *buffer = ADDR_TO_PTR (addr);
+    *buffer = 0;
+
+    storage_free (storage, true);
+
+    debug (1, "Writing after dealloc (should sigsegv)...");
+    *buffer = 0;
+  }
+
+  debug (1, "Shutting down...");
   while (1)
     l4_sleep (L4_NEVER);
 

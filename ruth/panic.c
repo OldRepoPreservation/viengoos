@@ -1,6 +1,6 @@
-/* ruth.h - Generic definitions.
-   Copyright (C) 2004, 2005, 2007 Free Software Foundation, Inc.
-   Written by Marcus Brinkmann.
+/* panic.h - Panic interface.
+   Copyright (C) 2007 Free Software Foundation, Inc.
+   Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
 
@@ -18,24 +18,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-#include <errno.h>
-
-#include <l4.h>
-
+#include <hurd/stddef.h>
 #include "output.h"
 
-
-/* The program name.  */
 extern const char program_name[];
 
-#define BUG_ADDRESS	"<bug-hurd@gnu.org>"
+void
+panic_ (const char *func, int line, const char *fmt, ...)
+{
+  va_list ap;
 
-int main (int argc, char *argv[]);
+  va_start (ap, fmt);
 
-
-/* The following function must be defined by the architecture
-   dependent code.  */
+  printf ("%s:%s:%d error: ", program_name, func, line);
+  vprintf (fmt, ap);
+  putchar ('\n');
+  va_end (ap);
 
-/* Switch execution transparently to thread TO.  The thread FROM,
-   which must be the current thread, will be halted.  */
-void switch_thread (l4_thread_id_t from, l4_thread_id_t to);
+  for (;;);
+}
+

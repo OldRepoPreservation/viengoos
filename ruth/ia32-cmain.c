@@ -32,7 +32,6 @@
 
 #include "ruth.h"
 
-#include <hurd/wortel.h>
 #include <hurd/startup.h>
 #include <hurd/mm.h>
 
@@ -41,50 +40,72 @@
 extern struct hurd_startup_data *__hurd_startup_data;
 
 
-/* Initialized in cmain.  */
-l4_thread_id_t wortel_thread_id;
-wortel_cap_id_t wortel_cap_id;
-
-/* Pager thread.  */
-l4_thread_id_t pager_tid;
-
-
 /* Initialize libl4, setup the argument vector, and pass control over
    to the main function.  */
 void
 cmain (void)
 {
-  error_t err;
   int argc = 0;
   char **argv = 0;
 
   l4_init ();
   l4_init_stubs ();
-  err = task_thread_alloc (__hurd_startup_data->task.server,
-			   __hurd_startup_data->task.cap_handle,
-			   /* We are the second thread.  */
-			   (void *)
-			   (l4_address (__hurd_startup_data->utcb_area)
-			    + l4_utcb_size ()),
-			   &pager_tid);
-  if (err)
+
+  printf ("In cmain\n");
+
+  mm_init (__hurd_startup_data->activity);
+
+  char *str = __hurd_startup_data->argz;
+  if (str)
+    /* A command line was passed.  */
     {
-      printf ("Unable to allocate a thread for the pager thread.\n");
-      return;
+      int nr = 0;
+
+      /* First time around we count the number of arguments.  */
+      argc = 1;
+      while (*str && *str == ' ')
+	str++;
+
+      while (*str)
+	if (*(str++) == ' ')
+	  {
+	    while (*str && *str == ' ')
+	      str++;
+	    if (*str)
+	      argc++;
+	  }
+      argv = alloca (sizeof (char *) * (argc + 1));
+
+      /* Second time around we fill in the argv.  */
+      str = (char *) __hurd_startup_data->argz;
+
+      while (*str && *str == ' ')
+	str++;
+      argv[nr++] = str;
+
+      while (*str)
+	{
+	  if (*str == ' ')
+	    {
+	      *(str++) = '\0';
+	      while (*str && *str == ' ')
+		str++;
+	      if (*str)
+		argv[nr++] = str;
+	    }
+	  else
+	    str++;
+	}
+      argv[nr] = 0;
     }
+  else
+    {
+      argc = 1;
 
-
-  hurd_mm_init (pager_tid);
-
-  l4_set_pager (pager_tid);
-
-  wortel_thread_id = __hurd_startup_data->wortel.server;
-  wortel_cap_id = __hurd_startup_data->wortel.cap_handle;
-
-  argc = 1;
-  argv = alloca (sizeof (char *) * 2);
-  argv[0] = program_name;
-  argv[1] = 0;
+      argv = alloca (sizeof (char *) * 2);
+      argv[0] = program_name;
+      argv[1] = 0;
+    }
 
   /* Now invoke the main function.  */
   main (argc, argv);

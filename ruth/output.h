@@ -1,5 +1,5 @@
 /* output.h - Output routines interfaces.
-   Copyright (C) 2003, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -21,40 +21,15 @@
 #ifndef _OUTPUT_H
 #define _OUTPUT_H	1
 
+#include <stdarg.h>
 
 /* Print the single character CHR on the output device.  */
 int putchar (int chr);
 
 int puts (const char *str);
 
+int vprintf (const char *fmt, va_list ap);
+
 int printf (const char *fmt, ...);
-
-/* This is not an output function, but it is part of the panic()
-   macro.  */
-void __attribute__((__noreturn__)) shutdown (void);
-
-
-/* The program name.  */
-extern char program_name[];
-
-/* True if debug mode is enabled.  */
-extern int output_debug;
-
-/* Print a debug message.  */
-#define debug(fmt, ...)					\
-  ({							\
-    if (output_debug)					\
-      printf ("%s:%s: " fmt, program_name,		\
-	      __FUNCTION__, ##__VA_ARGS__);		\
-  })
-
-/* Print an error message and fail.  */
-#define panic(...)					\
-  ({							\
-    printf ("%s: %s: error: ", program_name, __func__);	\
-    printf (__VA_ARGS__);				\
-    putchar ('\n');					\
-    shutdown ();					\
-  })
 
 #endif	/* _OUTPUT_H */

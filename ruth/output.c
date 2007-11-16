@@ -1,5 +1,5 @@
 /* output.c - Output routines.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -28,11 +28,7 @@
 
 #include "output.h"
 
-#include <hurd/wortel.h>
-
-
-/* True if debugging is enabled.  */
-int output_debug;
+#include <hurd/rm.h>
 
 
 /* Send a shutdown request to the rootserver wortel.  */
@@ -40,8 +36,6 @@ void
 __attribute__((__noreturn__))
 shutdown (void)
 {
-  wortel_shutdown ();
-
   while (1)
     l4_sleep (L4_NEVER);
 
@@ -53,7 +47,7 @@ shutdown (void)
 int
 putchar (int chr)
 {
-  wortel_putchar (chr);
+  rm_putchar (chr);
 
   return 0;
 }
@@ -109,11 +103,8 @@ print_signed_nr (long long nr, int base)
   
 
 int
-printf (const char *fmt, ...)
+vprintf (const char *fmt, va_list ap)
 {
-  va_list ap;
-
-  va_start (ap, fmt);
   const char *p = fmt;
 
   while (*p != '\0')
@@ -225,4 +216,15 @@ printf (const char *fmt, ...)
     }
 
   return 0;
+}
+
+int
+printf (const char *fmt, ...)
+{
+  va_list ap;
+
+  va_start (ap, fmt);
+  int r = vprintf (fmt, ap);
+  va_end (ap);
+  return r;
 }

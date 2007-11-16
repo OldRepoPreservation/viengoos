@@ -25,13 +25,15 @@ endif
 bootdir = $(prefix)/boot
 boot_PROGRAMS = ruth
 
-ruth_CPPFLAGS = -I$(top_builddir)/include			\
-	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS)
+COMMON_CPPFLAGS = -Wall -g -std=gnu99 -I$(srcdir)	\
+	-I$(top_builddir)/include			\
+	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE
 
-ruth_SOURCES = $(ARCH_SOURCES)					\
-	output.h output.c					\
-	mmap.c malloc-wrap.c					\
-	task-user.h task-user.c					\
+ruth_CPPFLAGS = $(COMMON_CPPFLAGS)
+ruth_SOURCES = $(ARCH_SOURCES)			\
+	output.h output.c			\
+	panic.h panic.c				\
+	malloc-wrap.c				\
 	ruth.h ruth.c
 
 # Doug Lea's malloc is included by malloc-wrap.c.
@@ -39,10 +41,11 @@ EXTRA_ruth_SOURCES = malloc.c
 
 ruth_LDFLAGS = -u_start -e_start -nostdlib
 
-ruth_LDADD = ../libhurd-cap-server/libhurd-cap-server.a		\
-	../libhurd-mm/libhurd-mm.a				\
-	../libhurd-slab/libhurd-slab.a				\
-	../libpthread/libpthread.a				\
-	../libhurd-ihash/libhurd-ihash.a			\
-	../libhurd-btree/libhurd-btree.a			\
+ruth_LDADD =					\
+	../libhurd-mm/libhurd-mm.a		\
+	../viengoos/libhurd-cap.a		\
+	../libhurd-slab/libhurd-slab.a		\
+	../libpthread/libpthread.a		\
+	../libhurd-ihash/libhurd-ihash.a	\
+	../libhurd-btree/libhurd-btree.a	\
 	../libc-parts/libc-parts.a -lgcc

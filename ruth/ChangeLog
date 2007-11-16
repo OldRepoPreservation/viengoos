@@ -1,3 +1,45 @@
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (ruth_CPPFLAGS): Move value from here...
+	(COMMON_CPPFLAGS): ... to this new variable.
+	(ruth_CPPFLAGS): Set to COMMON_CPPFLAGS.
+	(ruth_SOURCES): Remove task-user.h, task-user.c and mmap.c.
+	(ruth_LDADD): Remove ../libhurd-cap-server/libhurd-cap-server.a
+	and ../viengoos/libhurd-cap.a.
+	* ruth.h: Don't include <hurd/cap-server.h>.
+	(program_name): Make const.
+	* ruth.c: Rewrite.
+	* output.h: Include <stdarg.h>.
+	(shutdown): Don't declare.
+	(program_name): Likewise.
+	(output_debug): Likewise.
+	(debug): Don't define.
+	(panic): Don't define.
+	(vprintf): New declaration.
+	* output.c: Don't include <hurd/wortel.h>.
+	Include <hurd/rm.h>.
+	(output_debug): Don't define.
+	(shutdown): Don't call wortel_shutdown.
+	(putchar): Call rm_putchar, not wortel_putchar.
+	(vprintf): New function.  Body copied from printf.
+	(printf): Implement in terms of vprintf.
+	* malloc.c: Update to version 2.8.3.
+	* malloc-wrap.c (ABORT): Define.
+	(ABORT_ON_ASSERT_FAILURE): Likewise.
+	(LACKS_SYS_TYPES_H): Likewise.
+	(size_t): New definition.
+	(LACKS_STDLIB_H): Likewise.
+	(LACKS_STDIO_H): Likewise.
+	(MORECORE): Don't define.
+	(HAVE_MORECORE): Define to 0.
+	* ia32-crt0.S (STACK_SIZE): Increase to 32 pages.  Set
+	__hurd_startup_data to the value of %sp.
+	* ia32-cmain.c: Rewrite.
+	* panic.c: New file.
+	* mmap.c: Remove file.
+	* task-user.h: Likewise.
+	* task-user.c: Likewise.
+
 2005-04-06  Neal H. Walfield  <neal@gnu.org>
 
 	* mmap.c: Include <hurd/anonymous.h>.
