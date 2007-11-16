@@ -164,8 +164,7 @@ AC_MSG_NOTICE([compiling for L4 ABI $l4_abi])
 
 # Configure components.
 m4_include([laden/config.m4])
-m4_include([wortel/config.m4])
-m4_include([physmem/config.m4])
+m4_include([viengoos/config.m4])
 
 # Create links for header file.
 m4_include([libl4/headers.m4])
@@ -175,12 +174,9 @@ m4_include([libhurd-ihash/headers.m4])
 m4_include([libhurd-btree/headers.m4])
 m4_include([libbitarray/headers.m4])
 m4_include([libhurd-slab/headers.m4])
-m4_include([libhurd-cap/headers.m4])
-m4_include([libhurd-cap-server/headers.m4])
-m4_include([libhurd-mm/headers.m4])
 m4_include([libpthread/headers.m4])
-m4_include([wortel/headers.m4])
-m4_include([physmem/headers.m4])
+m4_include([libhurd-mm/headers.m4])
+m4_include([viengoos/headers.m4])
 
 # Check for libc and components using it.
 
@@ -209,15 +205,10 @@ AC_CONFIG_FILES([Makefile
 		 libhurd-btree/Makefile
 		 libbitarray/Makefile
 		 libhurd-slab/Makefile
-		 libhurd-cap/Makefile
-		 libhurd-cap-server/Makefile
-		 libhurd-mm/Makefile
 		 libpthread/Makefile
+		 libhurd-mm/Makefile
                  laden/Makefile
-                 wortel/Makefile
-                 physmem/Makefile
-                 task/Makefile
-                 deva/Makefile
+		 viengoos/Makefile
 		 libc/Makefile
                  ruth/Makefile
 		 doc/Makefile])

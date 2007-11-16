@@ -1,3 +1,19 @@
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Don't include wortel/config.m4 or
+	physmem/config.m4.  Include viengoos/config.m4.
+ 
+	Don't include libhurd-cap/headers.m4,
+	libhurd-cap-server/headers.m4, wortel/headers.m4 or
+	physmem/headers.m4.  Include viengoos/headers.m4.
+
+	Don't generate libhurd-cap/Makefile, libhurd-cap-server/Makefile,
+	wortel/Makefile, physmem/Makefile, task/Makefile, or
+	deva/Makefile.  Generate viengoos/Makefile.
+
+	* Makefile.am (SUBDIRS): Remove libhurd-cap, libhurd-cap-server,
+	wortel, physmem, task and deva.  Add viengoos.
+
 2007-10-17  Neal H. Walfield  <neal@gnu.org>
 
 	* libbitarray: New directory.

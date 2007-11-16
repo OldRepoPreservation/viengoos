@@ -27,9 +27,8 @@ endif
 SUBDIRS = libl4 platform				\
 	hurd libhurd-ihash libhurd-btree libbitarray	\
 	libhurd-slab					\
-	libhurd-cap libhurd-cap-server			\
-	libhurd-mm					\
 	libpthread					\
-	libc-parts laden wortel physmem task deva ruth	\
+	libhurd-mm					\
+	libc-parts laden viengoos ruth			\
 	$(LIBC_SUBDIRS)					\
 	doc
