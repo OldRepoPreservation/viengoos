@@ -23,72 +23,27 @@
 #include <config.h>
 #endif
 
-#include <assert.h>
-#include <errno.h>
-#include <stdbool.h>
-#include <l4.h>
 #include <hurd/startup.h>
 
-#include "anonymous.h"
-#include "vm.h"
-#include "priv.h"
+#include "storage.h"
+#include "as.h"
 
-/* Physmem's server thread.  */
-l4_thread_id_t physmem;
-
-/* True once the MM is up and running.  */
-int mm_init_done;
-
-/* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
 
-/* Initialize the memory management subsystem.  */
+addr_t meta_data_activity;
+
 void
-hurd_mm_init (l4_thread_id_t pager_tid)
+mm_init (addr_t activity)
 {
-  error_t err;
-  uintptr_t stack;
+  extern int output_debug;
 
-  /* FIXME: The image server may not be (and will likely not be)
-     physmem.  */
-  physmem = __hurd_startup_data->image.server;
+  output_debug = 4;
 
-#define INIT(service) \
-  do \
-    { \
-      void service##_system_init (void); \
-      service##_system_init (); \
-    } \
-  while (0)
+  if (ADDR_IS_VOID (activity))
+    meta_data_activity = __hurd_startup_data->activity;
+  else
+    meta_data_activity = activity;
 
-  /* Initialize the core.  */
-  INIT (memory);
-
-  /* Initialize the system pagers.  */
-  INIT (core);
-  INIT (hurd_anonymous);
-
-  /* Initialize the mapping database.  */
-  INIT (map);
-
-  /* The mapping database is now bootstrapped.  */
-  mm_init_done = 1;
-
-  /* Allocate a stack for the pager thread.  */
-  err = core_allocate (&stack, getpagesize (), 0, 1);
-  if (err)
-    panic ("Unable to allocate a stack for the pager thread.\n");
-
-  /* Start it up.  */
-  l4_start_sp_ip (pager_tid, stack + getpagesize (), (l4_word_t) pager);
-
-  /* XXX: EVIL.  If a thread causes a page fault before its pager is
-     waiting for faults, the pager will not get the correct message
-     contents.  This is an evil work around to make sure that the
-     pager is up before we return.  */
-  int i;
-  for (i = 0; i < 100; i ++)
-    l4_yield ();
-
-  l4_set_pager (pager_tid);
+  storage_init ();
+  as_init ();
 }

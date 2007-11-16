@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libhurd-mm.
-# Copyright (C) 2004, 2005 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2005, 2007 Free Software Foundation, Inc.
 # Written by Neal H. Walfield
 #
 # This file is part of the GNU Hurd.
@@ -22,16 +22,13 @@
 lib_LIBRARIES = libhurd-mm.a
 
 includehurddir = $(includedir)/hurd
-includehurd_HEADERS = mm.h vm.h
+includehurd_HEADERS = mm.h storage.h as.h
 
-AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts
-AM_CFLAGS = 
-libhurd_mm_a_SOURCES = mm.h mm-init.c		\
-	as.c					\
-	vm.h vm.c				\
-	priv.h					\
-	store.c map.c memory.c			\
-	pager.c					\
-	core.c					\
-	anonymous.c anonymous.h			\
-	physmem-user.h physmem-user.c
+COMMON_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts
+	-D_GNU_SOURCE -Wall -std=gnu99 -g -O3
+libhurd_mm_a_SOURCES = mm.h			\
+	capalloc.h capalloc.c			\
+	storage.h storage.c			\
+	as.h as.c				\
+	mmap.c					\
+	mm-init.c

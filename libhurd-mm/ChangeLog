@@ -1,3 +1,31 @@
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (includehurd_HEADERS): Remove vm.h.  Add storage.h
+	and as.h.
+	(AM_CPPFLAGS): Rename from this...
+	(COMMON_CPPFLAGS): ... to this.
+	(libhurd_mm_a_SOURCES): Remove vm.h, vm.c, priv.h, store.c, map.c,
+	memory.c, pager.c, core.c, anonymous.c, anonymous.h,
+	physmem-user.h and physmem-user.c.  Add capalloc.h, capalloc.c,
+	storage.h, storage.c, as.h and mmap.c.
+	* headers.m4: Don't link $(BUILDDIR)/include/hurd/vm.h to vm.h or
+	$(BUILDDIR)/include/hurd/anonymous.h to anonymous.h.  Link
+	$(BUILDDIR)/include/hurd/as.h to as.h,
+	$(BUILDDIR)/include/hurd/storage.h to storage.h, and
+	$(BUILDDIR)/include/hurd/capalloc.h to libhurd-mm/capalloc.h.
+	* mm-init.c: Rewrite.
+	* mm.h: Likewise.
+	* as.c: Likewise.
+	* as.h: New file.
+	* capalloc.h: Likewise.
+	* capalloc.c: Likewise.
+	* mmap.c: Likewise.
+	* storage.h: Likewise.
+	* storage.c: Likewise.
+
+	* physmem-user.h: Remove file.
+	* physmem-user.c: Remove file.
+
 2005-04-06  Neal H. Walfield  <neal@gnu.org>
 
 	* vm.h (hurd_vm_allocate): Remove declaration.

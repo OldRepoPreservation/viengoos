@@ -1,5 +1,5 @@
 # headers.m4 - Autoconf snippets to install links for header files.
-# Copyright 2004, 2005 Free Software Foundation, Inc.
+# Copyright 2004, 2005, 2007 Free Software Foundation, Inc.
 # Written by Neal H. Walfield <neal@gnu.org>.
 #
 # This file is free software; as a special exception the author gives
@@ -12,6 +12,7 @@
 
 AC_CONFIG_LINKS([
   include/hurd/mm.h:libhurd-mm/mm.h
-  include/hurd/vm.h:libhurd-mm/vm.h
-  include/hurd/anonymous.h:libhurd-mm/anonymous.h
+  include/hurd/as.h:libhurd-mm/as.h
+  include/hurd/storage.h:libhurd-mm/storage.h
+  include/hurd/capalloc.h:libhurd-mm/capalloc.h
 ])
