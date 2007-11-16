@@ -1,3 +1,7 @@
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/thread-start.h (_L4_thread_start): Don't send, reply.
+
 2007-10-26  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/math.h (_L4_msb64): New function.

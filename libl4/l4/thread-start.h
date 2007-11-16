@@ -1,5 +1,5 @@
 /* l4/thread-start.h - Public interface to the thread start protocol.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -43,7 +43,7 @@ _L4_thread_start (_L4_thread_id_t to, _L4_word_t sp, _L4_word_t ip)
   _L4_set_msg_tag (tag);
   _L4_load_mr (1, ip);
   _L4_load_mr (2, sp);
-  tag = _L4_send (to);
+  tag = _L4_reply (to);
   return _L4_ipc_succeeded (tag);
 }
 
