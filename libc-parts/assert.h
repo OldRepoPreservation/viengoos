@@ -31,10 +31,13 @@ int printf (const char *fmt, ...);
 # ifndef NDEBUG
 #  define assert(expr)					\
 	do {						\
+	  extern const char program_name[];		\
 	  if (! (expr))					\
 	    {						\
-	      printf ("%s:%s:%d: Assert failed!\n",	\
-		      __FILE__, __func__, __LINE__);	\
+	      printf ("%s:%s:%s:%d: %s failed\n",	\
+		      program_name,			\
+		      __FILE__, __func__, __LINE__,	\
+		      #expr);				\
 	      for (;;);					\
 	    }						\
 	} while (0)

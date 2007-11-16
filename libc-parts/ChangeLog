@@ -1,3 +1,7 @@
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
+	* assert.h (assert): Print program_name and EXPR as a string.
+
 2007-10-17  Neal H. Walfield  <neal@gnu.org>
 
 	* assert.h [_L4_TEST_ENVIRONMENT]: Include the next <assert.h>.
