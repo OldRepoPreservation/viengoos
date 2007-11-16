@@ -1,5 +1,5 @@
 /* startup.h - Interface for starting a new program.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2007 Free Software Foundation, Inc.
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
@@ -21,62 +21,36 @@
 #define _HURD_STARTUP_H	1
 
 #include <stdint.h>
-#include <sys/types.h>
+#include <stddef.h>
 
 #include <l4/types.h>
 
 #include <hurd/types.h>
-
+#include <hurd/addr.h>
 
 /* The version of the startup data defined by this header file.  */
 #define HURD_STARTUP_VERSION_MAJOR UINT16_C (0)
 #define HURD_STARTUP_VERSION_MINOR UINT16_C (0)
 
-
-/* The virtual address size of the startup fpage.  */
-#define HURD_STARTUP_ADDR	((void *) (32*1024))
-#define HURD_STARTUP_SIZE_LOG2	(15)
-#define HURD_STARTUP_SIZE	(1 << HURD_STARTUP_SIZE_LOG2)
-
-
-/* A single capability comes with the information in this struct.  */
-struct hurd_startup_cap
+/* Hurd object descriptors are used as a way to provide a map of its
+   layout to a new task.  */
+struct hurd_object_desc
 {
-  /* The server thread providing this capability.  */
-  l4_thread_id_t server;
+  /* The object.  */
+  addr_t object;
 
-  /* The capability ID.  FIXME: Should actually be a box ID (or a
-     union with a box ID).  */
-  hurd_cap_handle_t cap_handle;
+  /* If the object is not a folio, then:  */
+
+  /* The location of the storage.  (addr_chop (STORAGE,
+     FOLIO_OBJECTS_LOG2) => the folio.)  */
+  addr_t storage;
+
+  /* The type of the object (for convenience).  */
+  unsigned char type;
 };
 
-
-struct hurd_startup_map
-{
-  /* The container from which to map.  */
-  struct hurd_startup_cap cont;
-  
-  /* Container offset and access permission (in the lower bits).  */
-  l4_word_t offset;
-
-  /* The intended load address of the fpage.  */
-  void *vaddr;
-
-  /* Size of the fpage.  */
-  size_t size;
-};
-
-
-/* Enable secure mode.  */
-#define HURD_STARTUP_FLAG_SECURE	(1 << 0)
-
-/* This is the bootstrap server (ie the root filesystem).  */
-#define HURD_STARTUP_FLAG_BOOTSTRAP	(1 << 1)
-
-/* The actual startup data.  A pointer to this data will be passed on
-   the stack to the startup code (without a return address), and to
-   the main program (with a return address, i.e. normal calling
-   conventions).  */
+/* A program's startup data.  When a program is started, the address
+   is in the program's SP.  */
 struct hurd_startup_data
 {
   /* The version fields.  All versions with the same major version are
@@ -92,54 +66,31 @@ struct hurd_startup_data
 
   /* The argument vector.  */
   char *argz;
+  /* Absolute address in the data space.  */
   size_t argz_len;
 
   /* The environment vector.  */
   char *envz;
+  /* Absolute address in the data space.  */
   size_t envz_len;
 
-  /* The wortel thread and cap ID, or L4_NILTHREAD if this task does
-     not have permission to access wortel.  */
-  struct hurd_startup_cap wortel;
+  /* Thread id of the resource manager.  */
+  l4_thread_id_t rm;
 
-  /* The task that is being started.  */
-  struct hurd_startup_cap task;
+  /* Slot in which a capability designating the task's primary
+     activity is stored.  */
+  addr_t activity;
 
-  /* The container of the executable binary image.  */
-  struct hurd_startup_cap image;
+  /* Slot in which a capability designating the task's first thread is
+     stored.  */
+  addr_t thread;
 
-  /* The memory map of the executable image.  FIXME: Later, this needs
-     more distinction, so that only the startup and pager code will be
-     mapped in initially, for dynamic paging.  */
-  unsigned int mapc;
-  struct hurd_startup_map *mapv;
+  struct hurd_object_desc *descs;
+  int desc_count;
 
   /* The program header.  */
   void *phdr;
   size_t phdr_len;
-
-  /* The entry point.  */
-  void *entry_point;
-
-  /* The container of the startup code.  */
-  struct hurd_startup_cap startup;
-
-  /* The bootstrap information.  This is only valid if the
-     HURD_STARTUP_FLAG_BOOTSTRAP is set in FLAGS.  */
-  struct
-  {
-    /* The physical memory server master capability.  */
-    struct hurd_startup_cap physmem_master;
-  
-    /* The task server master capability.  */
-    struct hurd_startup_cap task_master;
-
-    /* The device master capability.  */
-    struct hurd_startup_cap deva_master;
-
-    /* The console capability.  */
-    struct hurd_startup_cap deva_console;
-  };
 };
 
 

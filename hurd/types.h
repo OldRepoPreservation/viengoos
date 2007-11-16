@@ -1,6 +1,6 @@
 /* hurd/types.h - Basic types for the GNU Hurd.
-   Copyright (C) 2004 Free Software Foundation, Inc.
-   Written by Marcus Brinkmann <marcus@gnu.org>
+   Copyright (C) 2007 Free Software Foundation, Inc.
+   Written by Neal H. Walfield <neal@gnu.org>
 
    This file is part of the GNU Hurd.
 
@@ -23,26 +23,7 @@
 #define _HURD_TYPES_H	1
 
 #include <l4/types.h>
-#include <l4/thread.h>
 
-
-/* The number of bits that are valid for the task ID.  */
-#define HURD_TASK_ID_BITS	L4_THREAD_VERSION_BITS
-
-/* The Hurd task ID is always stored in the version part of the thread ID.  */
-typedef l4_word_t hurd_task_id_t;
-
-#define HURD_TASK_ID_NULL	(0)
-
-static inline hurd_task_id_t
-__attribute__((always_inline))
-hurd_task_id_from_thread_id (l4_thread_id_t tid)
-{
-  return l4_version (tid);
-}
-
-
-/* Client-side capability handle.  */
-typedef l4_word_t hurd_cap_handle_t;
+#include <hurd/addr.h>
 
 #endif	/* _HURD_TYPES_H */

@@ -1,3 +1,42 @@
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
+	* addr-trans.h: New file.
+	* addr.h: Likewise.
+	* cap.h: Likewise.
+	* folio.h: Likewise.
+	* stddef.h: Likewise.
+	* startup.h: Include <hurd/addr.h> and <stddef.h>.  Don't include
+	<sys/types.h>.
+	(HURD_STARTUP_ADDR): Don't define.
+	(HURD_STARTUP_SIZE_LOG2): Likewise.
+	(HURD_STARTUP_SIZE): Likewise.
+	(struct hurd_startup_cap): Remove definition.
+	(struct hurd_startup_map): Likewise.
+	(HURD_STARTUP_FLAG_SECURE): Don't define.
+	(HURD_STARTUP_FLAG_BOOTSTRAP): Likewise.
+	(struct hurd_object_desc): New definition.
+	(struct hurd_startup_data): Remove fields wortel, task, image,
+	mapc, mapv, entry_point, startup, physmem_master, task_master,
+	deva_master and deva_console.  Add fields rm, activity, thread,
+	descs and desc_count.
+	* types.h: Rewrite.
+	* t-addr-trans.c: New file.
+	* t-addr.c: New file.
+	* Makefile.am (COMMON_CPPFLAGS): New variable.
+	(includehurd_HEADERS): Add stddef.h, addr.h, addr-trans.h, cap.h
+	and folio.h.
+	(TESTS): New variable.
+	(check_PROGRAMS): Likewise.
+	(t_addr_CPPFLAGS): Likewise.
+	(t_addr_SOURCES): Likewise.
+	(t_addr_trans_CPPFLAGS): Likewise.
+	(t_addr_trans_SOURCES): Likewise.
+	* headers.m4: Link $(BUILDIR)/include/hurd/stddef.h to stddef.h,
+	link $(BUILDIR)/include/hurd/addr.h to addr.h, link
+	$(BUILDIR)/include/hurd/addr-trans.h to addr-trans.h, link
+	$(BUILDIR)/include/hurd/cap.h to cap.h, and link
+	$(BUILDIR)/include/hurd/folio.h to hurd/folio.h.
+
 2005-01-30  Marcus Brinkmann  <marcus@gnu.org>
 
 	* startup.h (struct hurd_startup_data): New members
