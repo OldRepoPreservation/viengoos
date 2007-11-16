@@ -1,0 +1,95 @@
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
+	* viengoos/Makefile.am: New file based on ../wortel/Makefile.am.
+	* viengoos/headers.m4: New file.
+	* viengoos/config.m4: New file based on ../wortel/config.m4.
+
+	* viengoos/viengoos.h: New file.
+	* viengoos/viengoos.c: New file.
+	* viengoos/activity.h: Likewise.
+	* viengoos/activity.c: Likewise.
+	* viengoos/as.h: Likewise.
+	* viengoos/as.c: Likewise.
+	* viengoos/cap-lookup.c: Likewise.
+	* viengoos/cap.h: Likewise.
+	* viengoos/cap.c: Likewise.
+	* viengoos/thread.h: New file.
+	* viengoos/thread.c: New file.
+	* viengoos/object.h: New file.
+	* viengoos/object.c: New file.
+	* viengoos/rm.h: New file.
+	* viengoos/server.c: New file.
+	* viengoos/server.h: New file.
+
+	* viengoos/zalloc.h: Copied from ../physmem.
+	* viengoos/zalloc.c: Copied from ../physmem.
+	Don't include "output.h".
+	Include <hurd/stddef.h>.
+	Change uses of min_page_size to PAGESIZE.
+	* viengoos/memory.h: New file.
+	* viengoos/memory.c: New file.
+	* viengoos/sigma0.c: Copy from ../wortel.
+	* viengoos/sigma0.h: Copy from ../wortel.
+	Don't include "shutdown.h".
+	Include <hurd/stddef.h>.
+
+	* viengoos/bits.h: Likewise.
+
+	* viengoos/panic.c: New file.
+	* viengoos/debug.c: Likewise.
+	* viengoos/debug.h: Likewise.
+
+	* viengoos/boot-modules.h: Likewise.
+	* viengoos/boot-modules.c: Likewise.
+	* viengoos/elf.h: Copied from ../wortel.
+	* viengoos/loader.c: New file based on ../wortel/loader.c.
+	* viengoos/loader.h: New file.
+	* viengoos/multiboot.h: Copied from Grub.
+
+	* viengoos/mmap.c: New file based on ../physmem/mmap.c.
+	* viengoos/malloc-wrap.c: New file based on ../physmem/malloc-wrap.c.
+	* viengoos/malloc.c: Version 2.8.3 of Doug Lea's malloc.c.
+	* viengoos/malloc.h: Version 2.8.3 of Doug Lea's malloc.h.
+
+	* viengoos/ia32-cmain.c: New file based on ../wortel/ia32-cmain.c.
+	* viengoos/ia32-crt0.S: Copied from ../wortel.
+	(STACK_SIZE): Use a 16 page stack.
+	* viengoos/ia32-output.c: Copied from ../wortel.
+	* viengoos/ia32-shutdown.c: Likewise.
+
+	* viengoos/output.h: New file based on ../wortel/output.h.
+	Include <stdarg.h>.
+	(cprintf): New definition.
+	(output_debug): Don't define.
+	(debug): Don't define.
+	* viengoos/output.c: New file based on ../wortel/output.c.
+	Don't include <stdlib.h>.
+	(vprintf): New function.
+	(printf): Implement in terms of vprintf.
+	* viengoos/output-none.c: Copied from ../wortel.
+	* viengoos/output-serial.c: Likewise.
+	* viengoos/output-stdio.c: New file.
+	* viengoos/output-vga.c: Copied from ../wortel.
+
+	* viengoos/shutdown.h: New file based on ../wortel/shutdown.h.
+	Don't include "output.h".
+	(panic): Don't define.
+	(shutdown): Rename from this...
+	(shutdown_machine): ... to this.
+	* viengoos/shutdown.c: New file based on ../wortel/shutdown.c.
+	(reset) [_L4_TEST_ENVIRONMENT]: Call abort.
+	(halt) [_L4_TEST_ENVIRONMENT]: Call abort.
+	(shutdown): Rename from this...
+	(shutdown_machine): ... to this.
+
+	* viengoos/t-environment.h: New file based on
+	../libl4/tests/environment.h.
+	Protect from multiple inclusion.
+	Include <hurd/stddef.h>.
+	Include <string.h>.
+	Include <l4/stubs.h>.
+	(program_name): New declaration.
+	(check_nr): Don't assume that val1 and val2 are _L4_word_t, use
+	typeof instead.
+	(main): Call output_init.
+	* viengoos/t-as.c: New file.
