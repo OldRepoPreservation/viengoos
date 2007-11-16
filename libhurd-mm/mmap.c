@@ -103,3 +103,9 @@ mmap (void *addr, size_t length, int protect, int flags,
 
   return addr;
 }
+
+int
+munmap (void *addr, size_t length)
+{
+  return 0;
+}

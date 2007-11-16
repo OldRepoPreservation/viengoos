@@ -1,5 +1,12 @@
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (COMMON_CPPFLAGS): Include \ at end of line.
+	(libhurd_mm_a_CPPFLAGS): New variable.  Set to COMMON_CPPFLAGS.
+
+	* mmap.c: New function.
+
+2007-11-16  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (includehurd_HEADERS): Remove vm.h.  Add storage.h
 	and as.h.
 	(AM_CPPFLAGS): Rename from this...
