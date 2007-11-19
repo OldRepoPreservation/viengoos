@@ -1,3 +1,20 @@
+2007-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c (__hurd_startup_data): Declare.
+	(free_space_desc_slab_alloc): Use ADDR_TO_PTR and PTR_TO_ADDR
+	correctly.
+	(free_space_desc_slab_dealloc): Likewise.
+	(allocate_object): Likewise.
+	(storage_alloc): Likewise.
+	(as_init): Likewise.
+	* capalloc.c (cappage_desc_slab_alloc): Likewise.
+	(cappage_desc_slab_dealloc): Likewise.
+	* storage.c (__hurd_startup_data): Declare.
+	(check_slab_space_reserve): Likewise.
+	(storage_desc_slab_dealloc): Likewise.
+	(shadow_setup): Likewise.
+	(storage_free): Likewise.
+
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (COMMON_CPPFLAGS): Include \ at end of line.

@@ -145,12 +145,12 @@ addr_extract (addr_t addr, int width)
 #define ADDR_TO_PTR(addr_) \
   ({ \
     assert (addr_prefix ((addr_)) < ((uintptr_t) -1)); \
-    assert (addr_depth ((addr_)) == ADDR_BITS - PAGESIZE_LOG2); \
+    assert (addr_depth ((addr_)) == ADDR_BITS); \
     (void *) (uintptr_t) addr_prefix ((addr_)); \
   })
 
-/* Convert an pointer to an address.  */
+/* Convert a pointer to an address.  */
 #define PTR_TO_ADDR(ptr_) \
-  (ADDR ((uintptr_t) (ptr_), ADDR_BITS - PAGESIZE_LOG2))
+  (ADDR ((uintptr_t) (ptr_), ADDR_BITS))
 
 #endif

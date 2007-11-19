@@ -1,6 +1,13 @@
 2007-11-19  Neal H. Walfield  <neal@gnu.org>
 
-	* Makefile.am (includehurd_HEADERS): Add rpc.h and exceptions.h.
+	* addr.h (ADDR_TO_PTR): Assert that the address corresponds to a
+	pointer, not the root of a mapped page.  Update callers.
+	(PTR_TO_ADDR): Return an address corresponding to a pointer, not
+	the root of a mapped page.  Update callers.
+
+2007-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (includehurd_HEADERS): Add rpc.h.
 	* headers.m4: Link $(BUILDIR)/include/hurd/rpc.h to rpc.h.
 	* rpc.h: New file.  Moved and generalized definitions RPC template
 	definitions here from ../viengoos/rm.h.

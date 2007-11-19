@@ -89,7 +89,7 @@ cappage_desc_slab_alloc (void *hook, size_t size, void **ptr)
 				  cap_page, STORAGE_LONG_LIVED, ADDR_VOID);
   if (ADDR_IS_VOID (storage))
     panic ("Out of storage");
-  *ptr = ADDR_TO_PTR (storage);
+  *ptr = ADDR_TO_PTR (addr_extend (storage, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -99,7 +99,7 @@ cappage_desc_slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
-  addr_t addr = ADDR ((uintptr_t) buffer, ADDR_BITS - PAGESIZE_LOG2);
+  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;

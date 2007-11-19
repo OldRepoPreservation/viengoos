@@ -30,6 +30,8 @@
 
 #include <string.h>
 
+extern struct hurd_startup_data *__hurd_startup_data;
+
 /* The top of the data address space.  */
 #if L4_WORDSIZE == 32
 #define DATA_ADDR_MAX (0xC0000000ULL)
@@ -210,7 +212,7 @@ free_space_desc_slab_alloc (void *hook, size_t size, void **ptr)
 
   addr_t storage = storage_alloc (meta_data_activity,
 				  cap_page, STORAGE_LONG_LIVED, ADDR_VOID);
-  *ptr = ADDR_TO_PTR (storage);
+  *ptr = ADDR_TO_PTR (addr_extend (storage, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -220,7 +222,7 @@ free_space_desc_slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
-  addr_t addr = PTR_TO_ADDR (buffer);
+  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;
@@ -442,7 +444,8 @@ allocate_object (enum cap_type type, addr_t addr)
 	  storage_free (storage, false);
 	  return rt;
 	}
-      cap_set_shadow (&rt.cap, ADDR_TO_PTR (shadow));
+      cap_set_shadow (&rt.cap, ADDR_TO_PTR (addr_extend (shadow,
+							 0, PAGESIZE_LOG2)));
     }
 
   rt.storage = storage;
@@ -646,7 +649,7 @@ as_init (void)
 	  shadow_addr = storage_alloc (meta_data_activity,
 				       cap_page, STORAGE_LONG_LIVED,
 				       ADDR_VOID);
-	  shadow = ADDR_TO_PTR (shadow_addr);
+	  shadow = ADDR_TO_PTR (addr_extend (shadow_addr, 0, PAGESIZE_LOG2));
 	  cap_set_shadow (cap, shadow);
 
 	  /* We expect at least one non-void capability per
@@ -778,16 +781,17 @@ as_init (void)
   as_alloc_at (ADDR ((uintptr_t) _L4_utcb (), ADDR_BITS), l4_utcb_size ());
 
   /* And the page at 0.  */
-  as_alloc_at (PTR_TO_ADDR (0), 1);
+  as_alloc_at (addr_chop (PTR_TO_ADDR (0), PAGESIZE_LOG2), 1);
 
   /* Free DESC_ADDITIONAL.  */
   for (i = 0, desc = &__hurd_startup_data->descs[0];
        i < __hurd_startup_data->desc_count;
        i ++, desc ++)
-    if (ADDR_EQ (desc->object, PTR_TO_ADDR (desc_additional)))
+    if (ADDR_EQ (desc->object,
+		 addr_chop (PTR_TO_ADDR (desc_additional), PAGESIZE_LOG2)))
       {
 	storage_free (desc->storage, false);
-	as_free (PTR_TO_ADDR (desc_additional), 1);
+	as_free (addr_chop (PTR_TO_ADDR (desc_additional), PAGESIZE_LOG2), 1);
 	break;
       }
   assert (i != __hurd_startup_data->desc_count);

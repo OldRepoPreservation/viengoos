@@ -36,6 +36,8 @@
 
 #include "as.h"
 
+extern struct hurd_startup_data *__hurd_startup_data;
+
 /* Objects are allocated from folios.  As a folio is the unit of
    storage allocation, we can only free a folio when it is completely
    empty.  For this reason, we try to group long lived objects
@@ -124,7 +126,7 @@ check_slab_space_reserve (void)
   
   addr_t addr = storage_alloc (meta_data_activity, cap_page,
 			       STORAGE_LONG_LIVED, ADDR_VOID);
-  slab_space_reserve = ADDR_TO_PTR (addr);
+  slab_space_reserve = ADDR_TO_PTR (addr_extend (addr, 0, PAGESIZE_LOG2));
 }
 
 static error_t
@@ -147,7 +149,7 @@ storage_desc_slab_dealloc (void *hook, void *buffer, size_t size)
 
   assert (size == PAGESIZE);
 
-  addr_t addr = PTR_TO_ADDR (buffer);
+  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;
@@ -215,8 +217,10 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
 				       storage->folio, idx, cap_page,
 				       ADDR_VOID);
   assert (err == 0);
-  storage->shadow = ADDR_TO_PTR (addr_extend (storage->folio, idx,
-					      FOLIO_OBJECTS_LOG2));
+  storage->shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
+							   idx,
+							   FOLIO_OBJECTS_LOG2),
+					      0, PAGESIZE_LOG2));
   cap_set_shadow (cap, storage->shadow);
   cap->type = cap_folio;
 
@@ -418,12 +422,12 @@ storage_free (addr_t object, bool unmap_now)
   if (storage->free == FOLIO_OBJECTS - 1)
     {
       if (ADDR_EQ (addr_chop (PTR_TO_ADDR (storage->shadow),
-			      FOLIO_OBJECTS_LOG2),
+			      PAGESIZE_LOG2 + FOLIO_OBJECTS_LOG2),
 		   storage->folio))
 	/* The last allocated page is our shadow page.  Free this
 	   folio.  */
 	{
-	  object = PTR_TO_ADDR (storage->shadow);
+	  object = addr_chop (PTR_TO_ADDR (storage->shadow), PAGESIZE_LOG2);
 	  storage->shadow = NULL;
 	  freeing_shadow = true;
 	  goto restart;
@@ -466,7 +470,8 @@ storage_free (addr_t object, bool unmap_now)
 	  if (shadow)
 	    {
 	      assert (! freeing_shadow);
-	      storage_free (PTR_TO_ADDR (shadow), false);
+	      storage_free (addr_chop (PTR_TO_ADDR (shadow), PAGESIZE_LOG2),
+			    false);
 	    }
 	  else
 	    assert (freeing_shadow);

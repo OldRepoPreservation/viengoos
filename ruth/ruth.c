@@ -79,7 +79,7 @@ getpagesize()
 int
 main (int argc, char *argv[])
 {
-  output_debug = 2;
+  output_debug = 3;
 
   printf ("%s " PACKAGE_VERSION "\n", program_name);
   printf ("Hello, here is Ruth, your friendly root server!\n");
@@ -174,7 +174,8 @@ main (int argc, char *argv[])
 
 	addr_t shadow_addr
 	  = storage_alloc (activity, cap_page, STORAGE_EPHEMERAL, ADDR_VOID);
-	struct object *shadow = ADDR_TO_PTR (shadow_addr);
+	struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_addr,
+							  0, PAGESIZE_LOG2));
 	cap_set_shadow (slot, shadow);
 	memset (shadow, 0, PAGESIZE);
 
@@ -209,7 +210,7 @@ main (int argc, char *argv[])
 
 	void *shadow = cap_get_shadow (slot);
 	assert (shadow);
-	storage_free (PTR_TO_ADDR (shadow), 1);
+	storage_free (addr_chop (PTR_TO_ADDR (shadow), PAGESIZE_LOG2), 1);
       }
 
     as_free (root, 1);
@@ -233,17 +234,22 @@ main (int argc, char *argv[])
 				    : STORAGE_EPHEMERAL,
 				    ADDR_VOID);
 	assert (! ADDR_IS_VOID (storage[i]));
-	* (int *) (ADDR_TO_PTR (storage[i])) = i;
+	* (int *) (ADDR_TO_PTR (addr_extend (storage[i], 0, PAGESIZE_LOG2)))
+	  = i;
 
 	int j;
 	for (j = 0; j <= i; j ++)
-	  assert (* (int *) (ADDR_TO_PTR (storage[j])) == j);
+	  assert (* (int *) (ADDR_TO_PTR (addr_extend (storage[j],
+						       0, PAGESIZE_LOG2)))
+		  == j);
       }
 
     for (i = 0; i < n; i ++)
       {
 	storage_free (storage[i], true);
       }
+
+    printf ("ok.\n");
   }
 
   {
@@ -276,7 +282,7 @@ main (int argc, char *argv[])
     assert (! ADDR_IS_VOID (storage));
 
     debug (1, "Writing before dealloc...");
-    int *buffer = ADDR_TO_PTR (addr);
+    int *buffer = ADDR_TO_PTR (addr_extend (addr, 0, PAGESIZE_LOG2));
     *buffer = 0;
 
     storage_free (storage, true);

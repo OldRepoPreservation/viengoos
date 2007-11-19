@@ -1,3 +1,7 @@
+2007-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Use ADDR_TO_PTR and PTR_TO_ADDR correctly.
+
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (ruth_CPPFLAGS): Move value from here...
