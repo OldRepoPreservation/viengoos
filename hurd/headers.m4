@@ -16,4 +16,6 @@ AC_CONFIG_LINKS([include/hurd/stddef.h:hurd/stddef.h
 		 include/hurd/addr.h:hurd/addr.h
 		 include/hurd/addr-trans.h:hurd/addr-trans.h
 		 include/hurd/cap.h:hurd/cap.h
-		 include/hurd/folio.h:hurd/folio.h])
+		 include/hurd/folio.h:hurd/folio.h
+		 include/hurd/rpc.h:hurd/rpc.h
+		])

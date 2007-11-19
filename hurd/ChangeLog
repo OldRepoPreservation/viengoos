@@ -1,3 +1,26 @@
+2007-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (includehurd_HEADERS): Add rpc.h and exceptions.h.
+	* headers.m4: Link $(BUILDIR)/include/hurd/rpc.h to rpc.h.
+	* rpc.h: New file.  Moved and generalized definitions RPC template
+	definitions here from ../viengoos/rm.h.
+	(RPC_CONCAT2): New macro.
+	(RPC_CONCAT): Likewise.
+	(RPC_STUB_PREFIX): Likewise.  Use it to generate the stub names.
+	(RPC_STUB_PREFIX_): New macro.
+	(RPC_ID_PREFIX): Likewise.  Use it to generate method ids.
+	(RPC_ID_PREFIX_): New macro.
+	(RPC_TARGET): Make sure this macro is defined.
+	(RPC_TARGET_ARG_): Define.
+	(RPC_TARGET_): Define.
+	(RPC_MARSHAL): New macro.
+	(RPC_UNMARSHAL): New macro.
+	(RPCX): Use the above macros.  Take four additional arguments, the
+	list of in and out parameters with and without types.  Update
+	users.  General marshal and unmarshal stubs.
+	(RPCLOAD): Append argument to *MSG.
+	(RPCSTORE): Store from *MSG, not registers.
+
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
 	* addr-trans.h: New file.

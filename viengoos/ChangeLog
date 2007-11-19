@@ -1,3 +1,15 @@
+2007-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* rm.h (RPC_STUB_PREFIX): Define.
+	(RPC_ID_PREFIX): Likewise.
+	(RPC_TARGET_NEED_ARG): Undefine.
+	(RPC_TARGET): Define.
+	#include <hurd/rpc.h>.
+	(rm_putchar): Add declaration for __hurd_startup_data.
+	(RPCX, RPCLOAD, RPCSTORE, RPC2, RPC3, RPC4, RPC5, RPC6, RPC7) 
+	(RPC8, RPC9, RPC22, RPC32, RPC42, RPC52): Move from here...
+	* ../hurd/rpc.h: ... to here.
+
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
 	* viengoos/Makefile.am: New file based on ../wortel/Makefile.am.

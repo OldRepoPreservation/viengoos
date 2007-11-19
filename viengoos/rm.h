@@ -23,15 +23,23 @@
 
 #include <assert.h>
 #include <l4.h>
+#include <errno.h>
 
 #include <hurd/types.h>
 #include <hurd/addr.h>
 #include <hurd/addr-trans.h>
 #include <hurd/startup.h>
 
-#include <errno.h>
+#define RPC_STUB_PREFIX rm
+#define RPC_ID_PREFIX RM
+#undef RPC_TARGET_NEED_ARG
+#define RPC_TARGET \
+  ({ \
+    extern struct hurd_startup_data *__hurd_startup_data; \
+    __hurd_startup_data->rm; \
+  })
 
-extern struct hurd_startup_data *__hurd_startup_data;
+#include <hurd/rpc.h>
 
 enum rm_method_id
   {
@@ -82,6 +90,8 @@ static inline void
 __attribute__((always_inline))
 rm_putchar (int chr)
 {
+  extern struct hurd_startup_data *__hurd_startup_data;
+
   l4_msg_tag_t tag;
 
   l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
@@ -95,285 +105,6 @@ rm_putchar (int chr)
   /* XXX: We should send data to the log server.  */
   tag = l4_send (__hurd_startup_data->rm);
 }
-
-/* RPC template.  ID is the method name, ARGS is the list of arguments
-   as normally passed to a function, LOADER is code to load the in
-   parameters, and STORER is code to load the out parameters.  The
-   code assumes that the first MR contains the error code and returns
-   this as the function return value.  If the IPC fails, EHOSTDOWN is
-   returned.  */
-#define RPCX(id, args, loader, storer) \
-  static inline error_t \
-  __attribute__((always_inline)) \
-  rm_##id args \
-  { \
-    l4_msg_tag_t tag; \
-    l4_msg_t msg; \
-    \
-    l4_accept (L4_UNTYPED_WORDS_ACCEPTOR); \
-    \
-    l4_msg_clear (msg); \
-    tag = l4_niltag; \
-    l4_msg_tag_set_label (&tag, RM_##id); \
-    l4_msg_set_msg_tag (msg, tag); \
-    loader; \
-    l4_msg_load (msg); \
-    tag = l4_call (__hurd_startup_data->rm); \
-    \
-    if (l4_ipc_failed (tag)) \
-      return EHOSTDOWN; \
-    \
-    l4_word_t err; \
-    l4_store_mr (1, &err); \
-    \
-    int idx __attribute__ ((unused)); \
-    idx = 2; \
-    storer; \
-    \
-    return err; \
-  }
-
-/* Load the argument ARG, which is of type TYPE into MR IDX.  */
-#define RPCLOAD(type, arg) \
-  { \
-    assert ((sizeof (arg) & (sizeof (l4_word_t) - 1)) == 0); \
-    union \
-      { \
-        type arg_value_; \
-        l4_word_t raw[sizeof (type) / sizeof (l4_word_t)]; \
-      } arg_union_ = { (arg) }; \
-    for (int i_ = 0; i_ < sizeof (type) / sizeof (l4_word_t); i_ ++) \
-      l4_msg_append_word (msg, arg_union_.raw[i_]); \
-  }
-
-/* Store the contents of MR IDX+1 into *ARG, which is of type TYPE.
-   NB: IDX is thus the return parameter number, not the message
-   register number; MR0 contains the error code.  */
-#define RPCSTORE(type, arg) \
-  { \
-    assert ((sizeof (*arg) & (sizeof (l4_word_t) - 1)) == 0); \
-    union \
-      { \
-        type a__; \
-        l4_word_t *raw; \
-      } arg_union_ = { (arg) }; \
-    for (int i_ = 0; i_ < sizeof (*arg) / sizeof (l4_word_t); i_ ++) \
-      l4_store_mr (idx ++, &arg_union_.raw[i_]); \
-  }
-
-/* RPC with 2 in parameters and no out parameters.  */
-#define RPC2(id, type1, arg1, type2, arg2) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-       }, \
-       {})
-
-/* RPC with 3 in parameters and no out parameters.  */
-#define RPC3(id, type1, arg1, \
-             type2, arg2, \
-             type3, arg3) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-       }, \
-       {})
-
-/* RPC with 4 in parameters and no out parameters.  */
-#define RPC4(id, type1, arg1, \
-             type2, arg2, \
-             type3, arg3, \
-             type4, arg4) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, type4 arg4), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-        RPCLOAD(type4, arg4) \
-       }, \
-       {})
-
-/* RPC with 5 in parameters and no out parameters.  */
-#define RPC5(id, type1, arg1, \
-             type2, arg2, \
-             type3, arg3, \
-             type4, arg4, \
-             type5, arg5) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-        RPCLOAD(type4, arg4) \
-        RPCLOAD(type5, arg5) \
-       }, \
-       {})
-
-/* RPC with 6 in parameters and no out parameters.  */
-#define RPC6(id, type1, arg1, \
-             type2, arg2, \
-             type3, arg3, \
-             type4, arg4, \
-             type5, arg5, \
-             type6, arg6) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, \
-        type6 arg6), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-        RPCLOAD(type4, arg4) \
-        RPCLOAD(type5, arg5) \
-        RPCLOAD(type6, arg6) \
-       }, \
-       {})
-
-/* RPC with 7 in parameters and no out parameters.  */
-#define RPC7(id, type1, arg1, \
-             type2, arg2, \
-             type3, arg3, \
-             type4, arg4, \
-             type5, arg5, \
-             type6, arg6, \
-             type7, arg7) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, \
-        type6 arg6, type7 arg7), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-        RPCLOAD(type4, arg4) \
-        RPCLOAD(type5, arg5) \
-        RPCLOAD(type6, arg6) \
-        RPCLOAD(type7, arg7) \
-       }, \
-       {})
-
-/* RPC with 8 in parameters and no out parameters.  */
-#define RPC8(id, type1, arg1, \
-             type2, arg2, \
-             type3, arg3, \
-             type4, arg4, \
-             type5, arg5, \
-             type6, arg6, \
-             type7, arg7, \
-             type8, arg8) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, \
-        type6 arg6, type7 arg7, type8 arg8), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-        RPCLOAD(type4, arg4) \
-        RPCLOAD(type5, arg5) \
-        RPCLOAD(type6, arg6) \
-        RPCLOAD(type7, arg7) \
-        RPCLOAD(type8, arg8) \
-       }, \
-       {})
-
-/* RPC with 9 in parameters and no out parameters.  */
-#define RPC9(id, type1, arg1, \
-             type2, arg2, \
-             type3, arg3, \
-             type4, arg4, \
-             type5, arg5, \
-             type6, arg6, \
-             type7, arg7, \
-             type8, arg8, \
-             type9, arg9) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, \
-        type6 arg6, type7 arg7, type8 arg8, type9 arg9), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-        RPCLOAD(type4, arg4) \
-        RPCLOAD(type5, arg5) \
-        RPCLOAD(type6, arg6) \
-        RPCLOAD(type7, arg7) \
-        RPCLOAD(type8, arg8) \
-        RPCLOAD(type9, arg9) \
-       }, \
-       {})
-
-/* RPC with 2 in parameters and 2 out parameters.  */
-#define RPC22(id, type1, arg1, \
-              type2, arg2, \
-              otype1, oarg1, \
-              otype2, oarg2) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, otype1 oarg1, otype2 oarg2), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-       }, \
-       { \
-        RPCSTORE(otype1, oarg1) \
-        RPCSTORE(otype2, oarg2) \
-       })
-
-/* RPC with 3 in parameters and 2 out parameters.  */
-#define RPC32(id, type1, arg1, \
-              type2, arg2, \
-              type3, arg3, \
-              otype1, oarg1, \
-              otype2, oarg2) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, otype1 oarg1, otype2 oarg2), \
-       {l4_msg_tag_set_untyped_words (&tag, 3); \
-        RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-       }, \
-       { \
-        RPCSTORE(otype1, oarg1) \
-        RPCSTORE(otype2, oarg2) \
-       })
-
-/* RPC with 4 in parameters and 2 out parameters.  */
-#define RPC42(id, type1, arg1, \
-              type2, arg2, \
-              type3, arg3, \
-              type4, arg4, \
-              otype1, oarg1, \
-              otype2, oarg2) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
-        otype1 oarg1, otype2 oarg2), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-        RPCLOAD(type4, arg4) \
-       }, \
-       { \
-        RPCSTORE(otype1, oarg1) \
-        RPCSTORE(otype2, oarg2) \
-       })
-
-/* RPC with 5 in parameters and 2 out parameters.  */
-#define RPC52(id, type1, arg1, \
-              type2, arg2, \
-              type3, arg3, \
-              type4, arg4, \
-              type5, arg5, \
-              otype1, oarg1, \
-              otype2, oarg2) \
-  RPCX(id, \
-       (type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, \
-        otype1 oarg1, otype2 oarg2), \
-       {RPCLOAD(type1, arg1) \
-        RPCLOAD(type2, arg2) \
-        RPCLOAD(type3, arg3) \
-        RPCLOAD(type4, arg4) \
-        RPCLOAD(type5, arg5) \
-       }, \
-       { \
-        RPCSTORE(otype1, oarg1) \
-        RPCSTORE(otype2, oarg2) \
-       })
 
 /* Allocate a folio against PRINCIPAL.  Store a capability in
    the caller's cspace in slot FOLIO.  */
@@ -433,5 +164,9 @@ RPC6(object_slot_copy_in, addr_t, principal,
 RPC32(object_slot_read, addr_t, principal,
       addr_t, object, l4_word_t, slot,
       l4_word_t *, type, struct cap_addr_trans *, cap_addr_trans)
+
+#undef RPC_STUB_PREFIX
+#undef RPC_ID_PREFIX
+#undef RPC_TARGET
 
 #endif

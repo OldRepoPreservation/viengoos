@@ -23,7 +23,7 @@ COMMON_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
 	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE -Wall -std=gnu99 -g
 
 includehurddir = $(includedir)/hurd
-includehurd_HEADERS = startup.h stddef.h types.h addr.h \
+includehurd_HEADERS = rpc.h startup.h stddef.h types.h addr.h \
 	addr-trans.h cap.h folio.h
 
 TESTS = t-addr t-addr-trans
