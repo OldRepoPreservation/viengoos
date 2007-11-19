@@ -1,5 +1,30 @@
 2007-11-19  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (struct thread): Add fields have_exception and
+	exception.
+	(UTCB_AREA_SIZE): Provide space for two UTCBs.
+	* thread.c: Include <hurd/exceptions.h>.
+	(thread_create_in): For each thread that we allocate, allocate two
+	consecutive l4 thread ids.
+	(thread_commission): Initialize the main thread and the exception
+	thread.
+	(thread_decommission): Destroy both the main thread and the
+	exception thread.
+
+	* rm.h: Add RM_exception_collect.
+	(rm_method_id_string): Handle RM_exception_collect.
+	(exception_collect): New RPC method.
+	* server.c: Include <hurd/exceptions.h>.
+	(server_loop): If FROM is the exception thread, look up the thread
+	object using the main thread id.  Propagate any fault to the
+	exception thread.  If not immediately successful, save the message
+	in THREAD->EXCEPTION and set THREAD->HAVE_EXCEPTION.  Implement
+	the exception_collect method.
+
+	(DEBUG): Also print the method number.
+
+2007-11-19  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h (RPC_STUB_PREFIX): Define.
 	(RPC_ID_PREFIX): Likewise.
 	(RPC_TARGET_NEED_ARG): Undefine.

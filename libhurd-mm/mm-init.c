@@ -27,6 +27,7 @@
 
 #include "storage.h"
 #include "as.h"
+#include "exceptions.h"
 
 extern struct hurd_startup_data *__hurd_startup_data;
 
@@ -46,4 +47,5 @@ mm_init (addr_t activity)
 
   storage_init ();
   as_init ();
+  exception_handler_init ();
 }

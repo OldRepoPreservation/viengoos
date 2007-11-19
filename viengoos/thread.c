@@ -23,6 +23,7 @@
 #include <hurd/ihash.h>
 #include <hurd/cap.h>
 #include <hurd/stddef.h>
+#include <hurd/exceptions.h>
 #include <bit-array.h>
 
 #include "cap.h"
@@ -70,15 +71,15 @@ thread_create_in (struct activity *activity,
 {
   /* Allocate a thread id.  */
   /* Find the next free thread id starting at thread_id_next.  */
-  int tid = bit_alloc (thread_ids, THREAD_IDS_MAX / 8, thread_id_next);
+  int tid;
+  tid = bit_alloc (thread_ids, THREAD_IDS_MAX / 8, thread_id_next);
   if (tid == -1)
     panic ("No thread ids left!");
-  tid += THREAD_ID_BASE;
-  debug (2, "Allocated thread id 0x%x", tid);
   thread_id_next = (tid + 1) % THREAD_IDS_MAX;
-  /* We don't assign any semantic meaning to the version field.  We
-     use a version of 1 (0 is not legal for global thread ids).  */
-  thread->tid = l4_global_id (tid, 1);
+  tid = tid * 2 + THREAD_ID_BASE;
+
+  debug (2, "Allocated thread id 0x%x", tid);
+  thread->tid = l4_global_id (tid, HURD_THREAD_MAIN_VERSION);
 
   /* Set the initial activity to ACTIVITY.  */
   thread->activity = object_to_cap ((struct object *) activity);
@@ -174,12 +175,12 @@ thread_commission (struct thread *thread)
 {
   assert (! thread->commissioned);
 
-  /* Create the thread.  */
+  /* Create the AS.  */
   l4_word_t ret;
   ret = l4_thread_control (thread->tid, thread->tid,
 			   l4_myself (), l4_nilthread, (void *) -1);
   if (! ret)
-    panic ("Could not create initial thread (id=%x.%x): %s",
+    panic ("Could not create thread (id=%x.%x): %s",
 	   l4_thread_no (thread->tid), l4_version (thread->tid),
 	   l4_strerror (l4_error_code ()));
 
@@ -187,18 +188,37 @@ thread_commission (struct thread *thread)
   ret = l4_space_control (thread->tid, l4_nilthread,
 			  l4_fpage_log2 (KIP_BASE,
 					 l4_kip_area_size_log2 ()),
-			  l4_fpage (UTCB_AREA_BASE, UTCB_AREA_SIZE),
+			  l4_fpage (UTCB_AREA_BASE,
+				    UTCB_AREA_SIZE),
 			  l4_anythread, &control);
   if (! ret)
     panic ("Could not create address space: %s",
 	   l4_strerror (l4_error_code ()));
 
   ret = l4_thread_control (thread->tid, thread->tid,
-			   l4_nilthread,
+			   l4_myself (),
 			   l4_myself (),
 			   (void *) UTCB_AREA_BASE);
   if (! ret)
-    panic ("Failed to create thread: %s", l4_strerror (l4_error_code ()));
+    {
+      int err = l4_error_code ();
+      panic ("Failed to create thread %x.%x: %s (%d)",
+	     l4_thread_no (thread->tid), l4_version (thread->tid),
+	     l4_strerror (err), err);
+    }
+
+  ret = l4_thread_control (hurd_exception_thread (thread->tid), thread->tid,
+			   l4_myself (),
+			   l4_myself (),
+			   (void *) UTCB_AREA_BASE + l4_utcb_area_size ());
+  if (! ret)
+    {
+      l4_thread_id_t tid = hurd_exception_thread (thread->tid);
+      int err = l4_error_code ();
+      panic ("Failed to create exception thread %x.%x: %s (%d)",
+	     l4_thread_no (tid), l4_version (tid),
+	     l4_strerror (err), err);
+    }
 
   /* XXX: Restore the register state!  (See comment above for the
      plan.)  */
@@ -221,13 +241,20 @@ thread_decommission (struct thread *thread)
   /* XXX: Save the register state!  (See comment above for the
      plan.)  */
 
-  /* Free the thread.  */
-  l4_word_t ret;
-  ret = l4_thread_control (thread->tid, l4_nilthread,
-			   l4_nilthread, l4_nilthread, (void *) -1);
-  if (! ret)
-    panic ("Failed to delete thread %d",
-	   l4_thread_no (thread->tid));
+  int i;
+  for (i = 0; i < 2; i ++)
+    {
+      l4_thread_id_t tid = l4_global_id (l4_thread_no (thread->tid) + i,
+					 l4_version (thread->tid));
+
+      /* Free the thread.  */
+      l4_word_t ret;
+      ret = l4_thread_control (tid, l4_nilthread,
+			       l4_nilthread, l4_nilthread, (void *) -1);
+      if (! ret)
+	panic ("Failed to delete thread %d",
+	       l4_thread_no (tid));
+    }
 
   thread->commissioned = 0;
 }

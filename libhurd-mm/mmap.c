@@ -23,6 +23,7 @@
 #include <hurd/addr.h>
 #include <hurd/as.h>
 #include <hurd/storage.h>
+#include <hurd/anonymous.h>
 
 #include <sys/mman.h>
 #include <stdint.h>
@@ -75,31 +76,14 @@ mmap (void *addr, size_t length, int protect, int flags,
       if (ADDR_IS_VOID (region))
 	return MAP_FAILED;
 
-      addr = ADDR_TO_PTR (region);
+      addr = ADDR_TO_PTR (addr_extend (region, 0, PAGESIZE_LOG2));
     }
 
-  /* Right now we allocate each page and its supporting data
-     structures immediately.  It may make more sense to setup a
-     pager.  */
-  /* XXX: Save the association between the storage that we allocate
-     and the addresses; we need to deallocate it on unmap!  */
-  uintptr_t page;
-  for (page = (uintptr_t) addr; page < (uintptr_t) addr + length;
-       page += PAGESIZE)
-    {
-      addr_t page_addr = PTR_TO_ADDR (page);
-      bool r = as_slot_ensure (page_addr);
-      if (! r)
-	panic ("Failed to ensure slot at 0x%x/%d",
-	       addr_prefix (page_addr), addr_depth (page_addr));
-
-      addr_t storage
-	= storage_alloc (ADDR_VOID,
-			 protect & PROT_WRITE ? cap_page : cap_rpage,
-			 STORAGE_UNKNOWN, page_addr);
-      if (ADDR_IS_VOID (storage))
-	panic ("Out of memory.");
-    }
+  struct anonymous_pager *pager;
+  pager = anonymous_pager_alloc (ADDR_VOID, addr, length,
+				 ANONYMOUS_ZEROFILL, false);
+  if (! pager)
+    panic ("Failed to create pager!");
 
   return addr;
 }

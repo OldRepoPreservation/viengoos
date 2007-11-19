@@ -1,5 +1,5 @@
-/* anonymous.h - Standard anonymous memory.
-   Copyright (C) 2005 Free Software Foundation, Inc.
+/* anonymous.h - Anonymous memory pager interface.
+   Copyright (C) 2007 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -22,13 +22,39 @@
 #ifndef HURD_ANONYMOUS_H
 #define HURD_ANONYMOUS_H
 
-#include <stdint.h>
+#include <hurd/pager.h>
+#include <hurd/btree.h>
+#include <hurd/addr.h>
 
-/* Require zero filled anonymous memory.  */
-#define HURD_ANONYMOUS_ZEROFILL (1 << 16)
+enum
+  {
+    /* Require zero filled anonymous memory.  */
+    ANONYMOUS_ZEROFILL = 1 << 0,
+    /* The memory in this region is discardable.  */
+    ANONYMOUS_DISCARDABLE = 1 << 1
+  };
 
-/* Initialize the anonymous memory subsystem.  */
-extern void hurd_anonymous_init (void);
+struct anonymous_pager
+{
+  struct pager pager;
+
+  addr_t activity;
+
+  /* The storage used by this pager.  */
+  hurd_btree_t storage;
+
+  l4_word_t flags;
+
+  /* Generate the content for the page starting at page START and
+     continuing for COUNT bytes (count will be a multiple of
+     PAGESIZE).  The pager must not touch any other pages provided by
+     this pager unless it first calls anonymous_pager_ensure.  */
+  bool (*fill) (struct anonymous_pager *anon,
+		void *cookie, uintptr_t start, uintptr_t count);
+
+  /* Cookie passed to fill.  */
+  void *cookie;
+};
 
 /* Allocate a region of virtual memory to be backed by anonymous
    storage.  (Memory is allocated on demand and multiplexed.)  The
@@ -65,7 +91,12 @@ extern void hurd_anonymous_init (void);
    *ADDR.  If the caller knows the region will be accessed
    immediately, it may pass the required access permissions in MAP_NOW
    the map will be installed immediately.  */
-extern error_t hurd_anonymous_allocate (uintptr_t *addr, size_t size,
-					uintptr_t flags, int map_now);
+extern struct anonymous_pager *anonymous_pager_alloc (addr_t activity,
+						      uintptr_t addr,
+						      size_t size,
+						      l4_word_t flags,
+						      int alloc_now);
+
+extern void anonymous_pager_destroy (struct anonymous_pager *pager);
 
 #endif /* HURD_ANONYMOUS_H */

@@ -1,5 +1,22 @@
 2007-11-19  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (libhurd_mm_a_SOURCES): Add exceptions.h,
+	exceptions.c, pager.h, pager.c, anonymous.h and anonymous.c.
+	* headers.m4: Link $(BUILDDIR)/include/hurd/pager.h to pager.h.
+	Link $(BUILDDIR)/include/hurd/anonymous.h to anonymous.h.
+	* mm-init.c: Include "exceptions.h".
+	(mm_init): Call exception_handler_init.
+	* pager.h: Completely rewrite.
+	* pager.c: Likewise.
+	* anonymous.h: Likewise.
+	* anonymous.c: Likewise.
+	* exceptions.h: New file.
+	* exceptions.c: Likewise.
+	* mmap.c: Include <hurd/anonymous.h>.
+	(mmap): Rewrite to use an anonymous pager.
+
+2007-11-19  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (__hurd_startup_data): Declare.
 	(free_space_desc_slab_alloc): Use ADDR_TO_PTR and PTR_TO_ADDR
 	correctly.

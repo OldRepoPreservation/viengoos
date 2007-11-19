@@ -55,6 +55,8 @@ enum rm_method_id
     RM_object_slot_copy_out = 400,
     RM_object_slot_copy_in,
     RM_object_slot_read,
+
+    RM_exception_collect = 500,
   };
 
 static inline const char *
@@ -80,6 +82,8 @@ rm_method_id_string (enum rm_method_id id)
       return "object_slot_copy_in";
     case RM_object_slot_read:
       return "object_slot_read";
+    case RM_exception_collect:
+      return "exception_collect";
     default:
       return "unknown method id";
     }
@@ -164,6 +168,9 @@ RPC6(object_slot_copy_in, addr_t, principal,
 RPC32(object_slot_read, addr_t, principal,
       addr_t, object, l4_word_t, slot,
       l4_word_t *, type, struct cap_addr_trans *, cap_addr_trans)
+
+/* Wait for an exception.  (Called by the exception thread.)  */
+RPC00(exception_collect)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

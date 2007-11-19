@@ -22,6 +22,7 @@
 #include <l4/pagefault.h>
 #include <hurd/cap.h>
 #include <hurd/stddef.h>
+#include <hurd/exceptions.h>
 
 #include "server.h"
 
@@ -33,10 +34,11 @@
 #include "activity.h"
 #include "viengoos.h"
 
+/* Like debug but also prints the method id.  */
 #define DEBUG(level, format, args...)			\
-  debug (level, "(%s) " format,				\
+  debug (level, "(%s %d) " format,			\
          l4_is_pagefault (msg_tag) ? "pagefault"	\
-         : rm_method_id_string (label),			\
+         : rm_method_id_string (label), label,		\
 	##args)
 
 void
@@ -71,7 +73,12 @@ server_loop (void)
       do_reply = 0;
 
       /* Find the sender.  */
-      struct thread *thread = thread_lookup (from);
+      struct thread *thread;
+      if (! hurd_thread_is_exception_thread (from))
+	thread = thread_lookup (from);
+      else
+	thread = thread_lookup (l4_global_id (l4_thread_no (from) - 1,
+					      HURD_THREAD_MAIN_VERSION));
       assert (thread);
 
       /* XXX: We can't charge THREAD's activity until we have the
@@ -114,20 +121,59 @@ server_loop (void)
 	  if (cap.type != cap_void)
 	    page = cap_to_object (activity, &cap);
 
+	  bool raise_fault = false;
 	  if (! page)
 	    {
-	      do_debug (4)
-		as_dump_from (activity, &thread->aspace, NULL);
-	      DEBUG (1, "Send %x.%x a SIGSEGV (ip: %x; fault: %x.%c)!",
+	      raise_fault = true;
+	      DEBUG (5, "%x.%x raised fault (ip: %x; fault: %x.%c)!",
 		     l4_thread_no (from), l4_version (from), ip,
 		     fault, w ? 'w' : 'r');
-	      continue;
+	    }
+	  else if (w && ! writable)
+	    /* Only allow permitted writes through.  */
+	    {
+	      raise_fault = true;
+	      DEBUG (5, "%x.%x raised access fault (ip: %x; fault: %x.%c)!",
+		     l4_thread_no (from), l4_version (from), ip,
+		     fault, w ? 'w' : 'r');
 	    }
 
-	  /* Only allow permitted rights through.  */
-	  if (w && ! writable)
+	  if (raise_fault)
 	    {
-	      DEBUG (1, "Sending SIGSEGV!  Bad access.");
+	      if (hurd_thread_is_exception_thread (from))
+		{
+		  DEBUG (1, "Exception thread %x.%x raised fault at "
+			 "(ip: %x; fault: %x.%c)!",
+			 l4_thread_no (from), l4_version (from), ip,
+			 fault, w ? 'w' : 'r');
+		  continue;
+		}
+
+	      if (thread->have_exception)
+		{
+		  DEBUG (1, "Double fault!");
+		  continue;
+		}
+
+	      struct exception_info info;
+	      info.access = access;
+	      info.type = cap_page;
+
+	      l4_msg_t msg;
+	      exception_fault_marshal (&msg, PTR_TO_ADDR (fault), ip, info);
+
+	      l4_msg_load (msg);
+	      l4_msg_tag_t tag = l4_reply (hurd_exception_thread (from));
+	      if (l4_ipc_failed (tag))
+		/* The receiver was not ready.  Store the message.  */
+		{
+		  debug (4, "Failed to send to exception thread.  Storing.");
+		  memcpy (thread->exception, msg,
+			  sizeof (l4_word_t)
+			  * (1 + l4_untyped_words (l4_msg_msg_tag (msg))));
+		  thread->have_exception = true;
+		}
+
 	      continue;
 	    }
 
@@ -297,6 +343,19 @@ server_loop (void)
 	  putchar (chr);
 
 	  /* No reply needed.  */
+	  continue;
+	}
+      else if (label == RM_exception_collect)
+	{
+	  /* We don't expect a principal.  */
+	  CHECK (0, -1);
+
+	  if (thread->have_exception)
+	    {
+	      do_reply = true;
+	      l4_msg_load (thread->exception);
+	      thread->have_exception = false;
+	    }
 	  continue;
 	}
 

@@ -56,12 +56,15 @@ struct thread
   /* Debugging: whether the thread has been commissioned.  */
   int commissioned;
 
+  bool have_exception;
+  /* 64 words (256/512 bytes).  */
+  l4_msg_t exception;
 };
 
 /* The hardwired base of the UTCB (2.5GB).  */
 #define UTCB_AREA_BASE (0xA0000000)
 /* The size of the UTCB.  */
-#define UTCB_AREA_SIZE (l4_utcb_area_size ())
+#define UTCB_AREA_SIZE (2 * l4_utcb_area_size ())
 /* The hardwired base of the KIP.  */
 #define KIP_BASE (UTCB_AREA_BASE + UTCB_AREA_SIZE)
 

@@ -31,5 +31,8 @@ libhurd_mm_a_SOURCES = mm.h			\
 	capalloc.h capalloc.c			\
 	storage.h storage.c			\
 	as.h as.c				\
+	exceptions.h exceptions.c		\
+	pager.h pager.c				\
+	anonymous.h anonymous.c			\
 	mmap.c					\
 	mm-init.c

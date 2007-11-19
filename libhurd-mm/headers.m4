@@ -15,4 +15,6 @@ AC_CONFIG_LINKS([
   include/hurd/as.h:libhurd-mm/as.h
   include/hurd/storage.h:libhurd-mm/storage.h
   include/hurd/capalloc.h:libhurd-mm/capalloc.h
+  include/hurd/pager.h:libhurd-mm/pager.h
+  include/hurd/anonymous.h:libhurd-mm/anonymous.h
 ])

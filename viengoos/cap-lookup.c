@@ -253,7 +253,8 @@ lookup (activity_t activity,
       else if (type != -1)
 	/* Incompatible types.  */
 	{
-	  as_dump_from (activity, start, __func__);
+	  do_debug (4)
+	    as_dump_from (activity, start, __func__);
 	  debug (4, "Requested type %s but cap at 0x%llx/%d designates a %s",
 		 cap_type_string (type),
 		 addr_prefix (address), addr_depth (address),

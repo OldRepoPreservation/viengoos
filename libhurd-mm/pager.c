@@ -1,5 +1,5 @@
-/* pager.c - Page fault handler.
-   Copyright (C) 2005 Free Software Foundation, Inc.
+/* pager.c - Generic pager implementation.
+   Copyright (C) 2007 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -23,85 +23,79 @@
 #include <config.h>
 #endif
 
-#include <assert.h>
-#include <errno.h>
-#include <l4.h>
-#include <l4/pagefault.h>
-#include <compiler.h>
+#include "pager.h"
 
-#include "priv.h"
+static hurd_btree_pager_t pagers;
 
-void
-pager (void)
+bool
+pager_install (struct pager *pager)
 {
-  error_t err;
-  l4_thread_id_t sender = l4_nilthread;
-  l4_msg_tag_t tag;
-  l4_msg_t msg;
-  l4_word_t access;
-  uintptr_t ip, addr;
-  struct map *map;
-  uintptr_t store_offset;
-  struct hurd_memory *memory;
+  debug (3, "Installing pager at " ADDR_FMT "+%d",
+	 ADDR_PRINTF (pager->region.start), pager->region.count);
 
-  /* Enter an infinite loop waiting for page faults.  */
-  for (;;)
+  struct pager *conflict = hurd_btree_pager_insert (&pagers, pager);
+  if (conflict)
     {
-      l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
-      l4_msg_clear (msg);
-      l4_msg_load (msg);
-
-      tag = l4_ipc (sender, l4_anylocalthread,
-		    l4_timeouts (L4_ZERO_TIME, L4_NEVER), &sender);
-      assert (! l4_ipc_failed (tag));
-
-      if (EXPECT_FALSE (! l4_is_pagefault (tag)))
-	{
-	  printf ("Pager ignoring non-pagefault ipc (tag: %x) from %x. "
-		  "Komisch.\n",
-		  tag, sender);
-	  sender = l4_nilthread;
-	  continue;
-	}
-
-      addr = l4_pagefault (tag, &access, &ip);
-
-#if 0
-      printf ("Page fault from %x at address %x (IP: %x) require rights %x\n",
-	      sender, addr, ip, access);
-#endif
-
-      /* Find the mapping on which the region faulted.  */
-      map = map_find_first (addr, 1);
-      if (EXPECT_FALSE (! map))
-	/* XXX: Segmentation fault.  */
-	panic ("Virtual address %x is unmapped.  Cannot handle fault! "
-	       "(segmentation fault?!)\n", addr);
-
-      assert (map->store);
-
-      store_offset = map->store_offset + addr - map->vm.start;
-
-      /* The mapping might be cached in physical memory but not
-	 properly mapped.  */
-      for (;;)
-	{
-	  memory = hurd_store_find_cached (map->store, store_offset, 1);
-	  if (memory)
-	    break;
-
-	  /* It isn't.  We need to page the data in to physical memory
-	     (or, in the case of anonymous memory, allocate physical
-	     memory to cover the region).  */
-	  map->store->fault (map->store, map->store->hook, sender,
-			     map->vm, store_offset,
-			     addr, access);
-	}
-
-      err = hurd_memory_map (memory, 0, memory->store.size,
-			     map->vm.start);
-      assert_perror (err);
+      debug (1, "Can't install pager at " ADDR_FMT "+%d; conflicts "
+	     "with pager at " ADDR_FMT "+%d",
+	     ADDR_PRINTF (pager->region.start), pager->region.count,
+	     ADDR_PRINTF (conflict->region.start), conflict->region.count);
+      return false;
     }
 
-  panic ("Page fault loop broken?");
+  return true;
+}
+
+bool
+pager_relocate (struct pager *pager, struct pager_region region)
+{
+  /* XXX: Grows could be a bit smarter.  We could check the next and
+     previous pointers, for instance.  */
+
+  /* Detach the pager.  */
+  hurd_btree_pager_detach (&pagers, pager);
+
+  /* Save the old region in case there is a conflict.  */
+  struct pager_region old = pager->region;
+
+  pager->region = region;
+  struct pager *conflict = hurd_btree_pager_insert (&pagers, pager);
+  if (conflict)
+    /* There is a conflict.  Insert the pager back where it was.  */
+    {
+      pager->region = old;
+      conflict = hurd_btree_pager_insert (&pagers, pager);
+      assert (! conflict);
+
+      return false;
+    }
+  return true;
+}
+
+void
+pager_deinstall (struct pager *pager)
+{
+  hurd_btree_pager_detach (&pagers, pager);
+}
+
+bool
+pager_fault (addr_t addr, uintptr_t ip, struct exception_info info)
+{
+  /* Find the pager.  */
+  struct pager_region region;
+  region.start = addr;
+  region.count = 1;
+
+  struct pager *pager = hurd_btree_pager_find (&pagers, &region);
+  if (! pager)
+    {
+      debug (3, "No pager covers " ADDR_FMT, ADDR_PRINTF (addr));
+      return false;
+    }
+
+  /* Propagate the fault.  */
+  bool r = pager->fault (pager, addr, ip, info);
+  if (! r)
+    debug (3, "Pager did not fault " ADDR_FMT, ADDR_PRINTF (addr));
+  return r;
 }

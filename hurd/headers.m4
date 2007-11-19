@@ -18,4 +18,5 @@ AC_CONFIG_LINKS([include/hurd/stddef.h:hurd/stddef.h
 		 include/hurd/cap.h:hurd/cap.h
 		 include/hurd/folio.h:hurd/folio.h
 		 include/hurd/rpc.h:hurd/rpc.h
+		 include/hurd/exceptions.h:hurd/exceptions.h
 		])
