@@ -1,3 +1,10 @@
+2007-11-20  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-cmain.c (finish): New function.
+	(cmain): Call _pthread_init_routine.  Switch to the new sp and
+	jump to finish.  Move argument passing there.
+	* ia32-crt0.S (STACK_SIZE): Change to a single page.
+
 2007-11-19  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Use ADDR_TO_PTR and PTR_TO_ADDR correctly.

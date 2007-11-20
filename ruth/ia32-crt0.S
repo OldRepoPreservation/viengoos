@@ -18,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-/* The size of our stack (32 * 4KB).  */
-#define STACK_SIZE			0x20000
+/* The size of our stack (4KB).  */
+#define STACK_SIZE			0x1000
 	
 	.text
 

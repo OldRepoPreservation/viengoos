@@ -40,20 +40,11 @@
 extern struct hurd_startup_data *__hurd_startup_data;
 
 
-/* Initialize libl4, setup the argument vector, and pass control over
-   to the main function.  */
-void
-cmain (void)
+static void
+finish (void)
 {
   int argc = 0;
   char **argv = 0;
-
-  l4_init ();
-  l4_init_stubs ();
-
-  printf ("In cmain\n");
-
-  mm_init (__hurd_startup_data->activity);
 
   char *str = __hurd_startup_data->argz;
   if (str)
@@ -108,7 +99,26 @@ cmain (void)
     }
 
   /* Now invoke the main function.  */
-  main (argc, argv);
+  exit (main (argc, argv));
+}
+
+/* Initialize libl4, setup the argument vector, and pass control over
+   to the main function.  */
+void
+cmain (void)
+{
+  l4_init ();
+  l4_init_stubs ();
+
+  printf ("In cmain");
+
+  mm_init (__hurd_startup_data->activity);
+
+  extern void *(*_pthread_init_routine)(void);
+  void *sp = _pthread_init_routine ();
+
+  /* Switch stacks.  */
+  l4_start_sp_ip (l4_myself (), sp, &finish);
 
   /* Never reached.  */
 }
