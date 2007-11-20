@@ -36,7 +36,8 @@ pthread_create_from_l4_tid_np (pthread_t *thread,
   int err;
   struct __pthread *pthread;
 
-  err = __pthread_create_internal (&pthread, attr, (void *) &tid, 
+#warning Does not use TID.
+  err = __pthread_create_internal (&pthread, attr,
 				   start_routine, arg);
   if (! err)
     *thread = pthread->thread;
