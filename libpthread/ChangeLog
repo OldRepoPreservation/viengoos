@@ -1,5 +1,9 @@
 2007-11-20  Neal H. Walfield  <neal@gnu.org>
 
+	Also merge semaphore changes from mainline Hurd.
+
+2007-11-20  Neal H. Walfield  <neal@gnu.org>
+
 	Merge changes from mainline Hurd.  Update L4 bits to compile with
 	those changes.
 
