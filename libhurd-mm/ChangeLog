@@ -1,3 +1,8 @@
+2007-11-20  Neal H. Walfield  <neal@gnu.org>
+
+	* pager.h (pager_region_compare): Set A_END and B_END to the last
+	byte in their respective region, not the first byte after the end.
+
 2007-11-19  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (libhurd_mm_a_SOURCES): Add exceptions.h,

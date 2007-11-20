@@ -79,9 +79,9 @@ pager_region_compare (const struct pager_region *a,
 		      const struct pager_region *b)
 {
   l4_uint64_t a_end = addr_prefix (a->start)
-    + (a->count << (ADDR_BITS - addr_depth (a->start)));
+    + (a->count << (ADDR_BITS - addr_depth (a->start))) - 1;
   l4_uint64_t b_end = addr_prefix (b->start)
-    + (b->count << (ADDR_BITS - addr_depth (b->start)));
+    + (b->count << (ADDR_BITS - addr_depth (b->start))) - 1;
 
   if (a_end < addr_prefix (b->start))
     return -1;
