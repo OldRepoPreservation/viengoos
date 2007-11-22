@@ -132,6 +132,4 @@ activity_destroy (struct activity *activity,
 	/* NEXT is new head.  */
 	p->children = activity->sibling_next;
     }
-
-  object_free (activity, (struct object *) target);
 }

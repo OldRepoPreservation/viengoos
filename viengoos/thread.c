@@ -148,8 +148,6 @@ thread_destroy (struct activity *activity, struct thread *thread)
 
   int removed = hurd_ihash_remove (&tid_to_thread, thread->tid);
   assert (removed == 0);
-
-  object_free (activity, (struct object *) thread);
 }
 
 /* FIXME:
