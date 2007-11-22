@@ -130,7 +130,8 @@
     int idx __attribute__ ((unused)); \
     idx = 1; \
     storer; \
-    assert (idx == l4_untyped_words (tag)); \
+    if (err == 0) \
+      assert (idx == l4_untyped_words (tag)); \
     return err; \
   }
 
@@ -490,6 +491,123 @@
        { \
         RPCSTORE(otype1, oarg1) \
         RPCSTORE(otype2, oarg2) \
+       })
+
+/* RPC with 6 in parameters and 3 out parameters.  */
+#define RPC63(id, type1, arg1, \
+              type2, arg2, \
+              type3, arg3, \
+              type4, arg4, \
+              type5, arg5, \
+              type6, arg6, \
+              otype1, oarg1, \
+              otype2, oarg2, \
+              otype3, oarg3) \
+  RPCX(id, \
+       (RPC_TARGET_ARG_ type1 arg1, type2 arg2, type3 arg3, \
+        type4 arg4, type5 arg5, type6 arg6, \
+        otype1 oarg1, otype2 oarg2, otype3 oarg3), \
+       (l4_msg_t *msg, type1 arg1, type2 arg2, type3 arg3, \
+	type4 arg4, type5 arg5, type6 arg6), \
+       (&msg, arg1, arg2, arg3, arg4, arg5, arg6), \
+       {RPCLOAD(type1, arg1) \
+        RPCLOAD(type2, arg2) \
+        RPCLOAD(type3, arg3) \
+        RPCLOAD(type4, arg4) \
+        RPCLOAD(type5, arg5) \
+        RPCLOAD(type6, arg6) \
+       }, \
+       (l4_msg_t *msg, otype1 oarg1, otype2 oarg2, otype3 oarg3), \
+       (&msg, oarg1, oarg2, oarg3),				  \
+       { \
+        RPCSTORE(otype1, oarg1) \
+        RPCSTORE(otype2, oarg2) \
+        RPCSTORE(otype3, oarg3) \
+       })
+
+/* RPC with 7 in parameters and 4 out parameters.  */
+#define RPC74(id, type1, arg1, \
+              type2, arg2, \
+              type3, arg3, \
+              type4, arg4, \
+              type5, arg5, \
+              type6, arg6, \
+              type7, arg7, \
+              otype1, oarg1, \
+              otype2, oarg2, \
+              otype3, oarg3, \
+              otype4, oarg4) \
+  RPCX(id, \
+       (RPC_TARGET_ARG_ type1 arg1, type2 arg2, type3 arg3, \
+        type4 arg4, type5 arg5, type6 arg6, type7 arg7, \
+        otype1 oarg1, otype2 oarg2, otype3 oarg3, otype4 oarg4), \
+       (l4_msg_t *msg, type1 arg1, type2 arg2, type3 arg3, \
+	type4 arg4, type5 arg5, type6 arg6, type7 arg7), \
+       (&msg, arg1, arg2, arg3, arg4, arg5, arg6, arg7), \
+       {RPCLOAD(type1, arg1) \
+        RPCLOAD(type2, arg2) \
+        RPCLOAD(type3, arg3) \
+        RPCLOAD(type4, arg4) \
+        RPCLOAD(type5, arg5) \
+        RPCLOAD(type6, arg6) \
+        RPCLOAD(type7, arg7) \
+       }, \
+       (l4_msg_t *msg, otype1 oarg1, otype2 oarg2, otype3 oarg3, \
+	otype4 oarg4), \
+       (&msg, oarg1, oarg2, oarg3, oarg4),			  \
+       { \
+        RPCSTORE(otype1, oarg1) \
+        RPCSTORE(otype2, oarg2) \
+        RPCSTORE(otype3, oarg3) \
+        RPCSTORE(otype4, oarg4) \
+       })
+
+/* RPC with 7 in parameters and 4 out parameters.  */
+#define RPC11_4(id, type1, arg1, \
+		type2, arg2,	 \
+		type3, arg3,	 \
+		type4, arg4,	 \
+		type5, arg5,	 \
+		type6, arg6,	 \
+		type7, arg7,	 \
+		type8, arg8,	 \
+		type9, arg9,	 \
+		type10, arg10,	 \
+		type11, arg11,	 \
+		otype1, oarg1,	 \
+		otype2, oarg2,	 \
+		otype3, oarg3,	 \
+		otype4, oarg4)	 \
+  RPCX(id, \
+       (RPC_TARGET_ARG_ type1 arg1, type2 arg2, type3 arg3, \
+        type4 arg4, type5 arg5, type6 arg6, type7 arg7, \
+        type8 arg8, type9 arg9, type10 arg10, type11 arg11, \
+        otype1 oarg1, otype2 oarg2, otype3 oarg3, otype4 oarg4), \
+       (l4_msg_t *msg, type1 arg1, type2 arg2, type3 arg3, \
+	type4 arg4, type5 arg5, type6 arg6, type7 arg7, \
+	type8 arg8, type9 arg9, type10 arg10, type11 arg11), \
+       (&msg, arg1, arg2, arg3, arg4, arg5, arg6, arg7, \
+        arg8, arg9, arg10, arg11),    \
+       {RPCLOAD(type1, arg1) \
+        RPCLOAD(type2, arg2) \
+        RPCLOAD(type3, arg3) \
+        RPCLOAD(type4, arg4) \
+        RPCLOAD(type5, arg5) \
+        RPCLOAD(type6, arg6) \
+        RPCLOAD(type7, arg7) \
+        RPCLOAD(type8, arg8) \
+        RPCLOAD(type9, arg9) \
+        RPCLOAD(type10, arg10) \
+        RPCLOAD(type11, arg11) \
+       }, \
+       (l4_msg_t *msg, otype1 oarg1, otype2 oarg2, otype3 oarg3, \
+	otype4 oarg4), \
+       (&msg, oarg1, oarg2, oarg3, oarg4),			  \
+       { \
+        RPCSTORE(otype1, oarg1) \
+        RPCSTORE(otype2, oarg2) \
+        RPCSTORE(otype3, oarg3) \
+        RPCSTORE(otype4, oarg4) \
        })
 
 #endif

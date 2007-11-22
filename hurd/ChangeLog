@@ -1,3 +1,12 @@
+2007-11-22  Neal H. Walfield  <neal@gnu.org>
+
+	* rpc.h (RPC_UNMARSHAL): Only assert that IDX is equal to the
+	number of untyped words if the error code is 0.
+
+	(RPC63): New macro.
+	(RPC74): Likewise.
+	(RPC11_4): Likewise.
+
 2007-11-19  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (includehurd_HEADERS): Add exceptions.h.
