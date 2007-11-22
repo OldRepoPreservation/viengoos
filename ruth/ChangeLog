@@ -1,5 +1,10 @@
 2007-11-22  Neal H. Walfield  <neal@gnu.org>
 
+	* ruth.c: Include <hurd/thread.h>.
+	(main): Add test case for thread creation.
+
+2007-11-22  Neal H. Walfield  <neal@gnu.org>
+
 	* ruth.c (main): Update uses of stroage_alloc to its new
 	interface.
 

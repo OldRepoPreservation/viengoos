@@ -52,9 +52,13 @@ struct thread
   /* XXX: Register state, blah, blah, blah.  */
   l4_word_t sp;
   l4_word_t ip;
+  l4_word_t eflags;
+  l4_word_t user_handle;
 
-  /* Debugging: whether the thread has been commissioned.  */
-  int commissioned;
+  /* Whether the thread data structure has been initialized.  */
+  l4_word_t init : 1;
+  /* Whether the thread has been commissioned (a tid allocated).  */
+  l4_word_t commissioned : 1;
 
   bool have_exception;
   /* 64 words (256/512 bytes).  */
@@ -70,25 +74,11 @@ struct thread
 
 /* Create a new thread.  Uses the object THREAD to store the thread
    information.  */
-extern void thread_create_in (struct activity *activity,
-			      struct thread *thread);
-
-/* Create a new thread.  FOLIO designates a folio in CALLER's CSPACE.
-   INDEX specifies which object in the folio to use for the new
-   thread's storage.  Sets the thread's current activity to ACTIVITY.
-   On success, a capability to this object is saved in the capability
-   slot at address THREAD in CALLER's address space, the thread object
-   is returned in *THREADP and 0 is returned.  Otherwise, an error
-   code.  */
-extern error_t thread_create (struct activity *activity,
-			      struct thread *caller,
-			      addr_t folio, l4_word_t index,
-			      addr_t thread,
-			      struct thread **threadp);
+extern void thread_init (struct thread *thread);
 
 /* Destroy the thread object THREAD (and the accompanying thread).  */
-extern void thread_destroy (struct activity *activity,
-			    struct thread *thread);
+extern void thread_deinit (struct activity *activity,
+			   struct thread *thread);
 
 /* Prepare the thread object THREAD to run.  (Called after bringing a
    thread object into core.)  */
@@ -99,13 +89,16 @@ extern void thread_commission (struct thread *thread);
    store.)  */
 extern void thread_decommission (struct thread *thread);
 
-/* Send a thread start message to the thread THREAD (in CALLER's
-   address space).  This may be called at most once per thread.  If
-   called multiple times, the results are undefined.  If thread is not
-   decommissioned, returns EINVAL.  Commissions thread.  */
-extern error_t thread_send_sp_ip (struct activity *activity,
-				  struct thread *caller, addr_t thread,
-				  l4_word_t sp, l4_word_t ip);
+/* Perform an exregs on thread THREAD.  CONTROL, SP, IP, EFLAGS and
+   USER_HANDLER are as per l4_exchange_regs, however, the caller may
+   not set the pager.  */
+extern error_t thread_exregs (struct activity *principal,
+			      struct thread *thread, l4_word_t control,
+			      struct cap *aspace, struct cap *activity,
+			      l4_word_t *sp, l4_word_t *ip,
+			      l4_word_t *eflags, l4_word_t *user_handle,
+			      struct cap *aspace_out,
+			      struct cap *activity_out);
 
 /* Given the L4 thread id THREADID, find the associated thread.  */
 extern struct thread *thread_lookup (l4_thread_id_t threadid);

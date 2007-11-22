@@ -1,5 +1,39 @@
 2007-11-22  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (struct thread): Add fields efalgs, user_handle and
+	init.
+	(thread_create_in): Rename from this...
+	(thread_init): ... to this.  Remove the activity argument.
+	Update all users.
+	(thread_create): Remove declaration.
+	(thread_destroy): Rename from this...
+	(thread_deinit): ... to this.  Update all users.
+	(thread_send_sp_ip): Remove declaration.
+	(thread_exregs): New declaration.
+	* thread.c: Include <hurd/thread.h>.
+	(thread_lookup): Add additional asserts.
+	(thread_create_in): Rename from this...
+	(thread_init): ... to this.  Remove the activity argument.  Don't
+	set THREAD->ACTIVITY.  Set THREAD->INIT to true.
+	(thread_create): Remove function.
+	(thread_destroy): Rename from this...
+	(thread_deinit): ... to this.  Correctly calculate the bit to
+	deallocate.  Fix assert.  Set THREAD->INIT to false.
+	(thread_commission): If THREAD->INIT is false, first call
+	thread_init.  Correctly calculate the thread ids to initialize.
+	(thread_send_sp_ip): Remove function.
+	(thread_exregs): New function.
+	* rm.h (RPC_STUB_PREFIX): Include <hurd/thread.h>.
+	(rm_method_id_string): Support RM_thread_exregs.
+	(THREAD_ASPACE_SLOT, THREAD_ACTIVITY_SLOT): Move from...
+	* ../hurd/thread.h: ... to this new file.
+	* server.c: Include <hurd/thread.h>.
+	(server_loop): Implement the thread_exregs RPC.
+	* viengoos.c (system_task_load): Set THREAD->ACTIVITY to a
+	capability designating ROOT_ACTIVITY.
+	
+2007-11-22  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.c (activity_destroy): Don't call OBJECT_FREE.
 	* thread.c (thread_destroy): Likewise.
 

@@ -1,5 +1,12 @@
 2007-11-22  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (includehurd_HEADERS): Add thread.h.
+	* headers.m4: Link $(BUILDIR)/include/hurd/thread.h to thread.h.
+	* thread.h: New file.
+	* rpc.h: Include <errno.h>.
+
+2007-11-22  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (cap_copy_x): Use CAP_COPY_COPY_ADDR_TRANS_GUARD, not
 	CAP_COPY_COPY_GUARD.  Use CAP_COPY_COPY_ADDR_TRANS_SUBPAGE, not
 	Use CAP_COPY_COPY_SUBPAGE.  Support CAP_COPY_COPY_SOURCE_GUARD.

@@ -23,6 +23,7 @@
 #include <hurd/cap.h>
 #include <hurd/stddef.h>
 #include <hurd/exceptions.h>
+#include <hurd/thread.h>
 
 #include "server.h"
 
@@ -565,6 +566,55 @@ server_loop (void)
 	  l4_msg_put_word (msg, 2, *(l4_word_t *) &source.addr_trans);
 
 	  REPLYW (0, 2);
+
+	case RM_thread_exregs:
+	  CHECK (5, 5);
+
+	  struct thread *t
+	    = (struct thread *) OBJECT (ARG_ADDR (), cap_thread, NULL);
+
+	  l4_word_t control = ARG ();
+
+	  addr_t aspace_addr = ARG_ADDR ();
+	  struct cap *aspace = NULL;
+	  if ((HURD_EXREGS_SET_ASPACE & control))
+	    aspace = SLOT (aspace_addr);
+
+	  addr_t activity_addr = ARG_ADDR ();
+	  struct cap *activity = NULL;
+	  if ((HURD_EXREGS_SET_ACTIVITY & control))
+	    activity = SLOT (activity_addr);
+
+	  l4_word_t sp = ARG ();
+	  l4_word_t ip = ARG ();
+	  l4_word_t eflags = ARG ();
+	  l4_word_t user_handler = ARG ();
+
+	  addr_t aspace_out_addr = ARG_ADDR ();
+	  struct cap *aspace_out = NULL;
+	  if ((HURD_EXREGS_GET_REGS & control)
+	      && ! ADDR_IS_VOID (aspace_out_addr))
+	    aspace_out = SLOT (aspace_out_addr);
+
+	  addr_t activity_out_addr = ARG_ADDR ();
+	  struct cap *activity_out = NULL;
+	  if ((HURD_EXREGS_GET_REGS & control)
+	      && ! ADDR_IS_VOID (activity_out_addr))
+	    activity_out = SLOT (activity_out_addr);
+
+	  error_t err = thread_exregs (principal, t, control,
+				       aspace, activity,
+				       &sp, &ip, &eflags, &user_handler,
+				       aspace_out, activity_out);
+	  if (err)
+	    REPLY (err);
+
+	  l4_msg_put_word (msg, 1, sp);
+	  l4_msg_put_word (msg, 2, ip);
+	  l4_msg_put_word (msg, 3, eflags);
+	  l4_msg_put_word (msg, 4, user_handler);
+
+	  REPLYW (0, 4);
 
 	default:
 	  /* XXX: Don't panic when running production code.  */

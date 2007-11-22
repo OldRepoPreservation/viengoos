@@ -30,6 +30,8 @@
 #include <hurd/addr-trans.h>
 #include <hurd/startup.h>
 
+#include <hurd/thread.h>
+
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
 #undef RPC_TARGET_NEED_ARG
@@ -84,13 +86,12 @@ rm_method_id_string (enum rm_method_id id)
       return "object_slot_read";
     case RM_exception_collect:
       return "exception_collect";
+    case RM_thread_exregs:
+      return "thread_exregs";
     default:
       return "unknown method id";
     }
 }
-
-#define THREAD_ASPACE_SLOT 0
-#define THREAD_ACTIVITY_SLOT 1
 
 /* Echo the character CHR on the manager console.  */
 static inline void

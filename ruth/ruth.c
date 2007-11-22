@@ -23,6 +23,7 @@
 #include <config.h>
 #endif
 
+#include <hurd/thread.h>
 #include <hurd/startup.h>
 #include <hurd/cap.h>
 #include <hurd/folio.h>
@@ -265,6 +266,58 @@ main (int argc, char *argv[])
       *p = 1;
     for (p = buffer; (uintptr_t) p < (uintptr_t) buffer + SIZE; p ++)
       assert (*p == 1);
+
+    printf ("ok.\n");
+  }
+
+  {
+    static volatile int done;
+    char stack[0x1000];
+
+    void start (void)
+    {
+      do_debug (4)
+	as_dump ("thread");
+
+      debug (2, "I'm running (%x.%x)!\n",
+	     l4_thread_no (l4_myself ()),
+	     l4_version (l4_myself ()));
+
+      done = 1;
+      do
+	l4_yield ();
+      while (1);
+    }
+
+    printf ("Checking thread creation... ");
+
+    addr_t thread = capalloc ();
+    debug (1, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
+    addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
+				    thread).addr;
+
+    struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
+    rm_object_slot_copy_in (activity, thread, THREAD_ASPACE_SLOT,
+			    ADDR (0, 0), CAP_COPY_COPY_SOURCE_GUARD,
+			    addr_trans);
+
+    l4_word_t dummy;
+    rm_thread_exregs (activity, thread,
+		      HURD_EXREGS_SET_ACTIVITY
+		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START,
+		      ADDR (0, 0), activity,
+		      (l4_word_t) ((void *) stack + sizeof (stack)),
+		      (l4_word_t) &start, 0, 0,
+		      ADDR_VOID, ADDR_VOID,
+		      &dummy, &dummy, &dummy, &dummy);
+
+    debug (2, "Waiting for thread");
+    while (done == 0)
+      l4_yield ();
+    debug (2, "Thread done!");
+
+    storage_free (storage, true);
+    capfree (thread);
 
     printf ("ok.\n");
   }

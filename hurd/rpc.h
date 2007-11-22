@@ -102,6 +102,7 @@
 #define _HURD_RPC_H
 
 #include <l4/ipc.h>
+#include <errno.h>
 
 /* Marshal the in-arguments and return a message buffer.  */
 #define RPC_MARSHAL(id, idescs, loader) \

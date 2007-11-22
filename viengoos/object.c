@@ -376,10 +376,12 @@ folio_object_alloc (struct activity *activity,
       switch (folio->objects[idx].type)
 	{
 	case cap_activity:
+	  debug (3, "Destroying activity at %llx", oid);
 	  activity_destroy (activity, NULL, (struct activity *) object);
 	  break;
 	case cap_thread:
-	  thread_destroy (activity, (struct thread *) object);
+	  debug (3, "Destroying thread object at %llx", oid);
+	  thread_deinit (activity, (struct thread *) object);
 	  break;
 	default:
 	  assert (!"Object desc type does not match folio type.");
@@ -411,7 +413,6 @@ folio_object_alloc (struct activity *activity,
 
       odesc->type = type;
       odesc->version = folio->objects[idx].version;
-
     }
 
   if (folio->objects[idx].type != cap_void)

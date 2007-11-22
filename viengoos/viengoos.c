@@ -317,7 +317,8 @@ system_task_load (void)
   startup_data->thread = csalloc ();
   cap = allocate_object (cap_thread, startup_data->thread).cap;
   thread = (struct thread *) cap_to_object (root_activity, &cap);
-  thread_create_in (root_activity, thread);
+  thread->activity = object_to_cap (root_activity);
+  thread_init (thread);
 
   /* Insert the objects we've allocated so far into TASK's address
      space.  */
