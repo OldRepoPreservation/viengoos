@@ -496,7 +496,9 @@ server_loop (void)
 	cap_copy_body:;
 
 	  l4_word_t flags = ARG ();
-	  if ((flags & ~(CAP_COPY_COPY_SUBPAGE | CAP_COPY_COPY_GUARD)))
+	  if ((flags & ~(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
+			 | CAP_COPY_COPY_ADDR_TRANS_GUARD
+			 | CAP_COPY_COPY_SOURCE_GUARD)))
 	    REPLY (EINVAL);
 
 	  struct cap_addr_trans addr_trans;
@@ -505,8 +507,11 @@ server_loop (void)
 	  DEBUG (4, "(%llx/%d, %llx/%d, %s|%s, {%llx/%d %d/%d})",
 		 addr_prefix (target_addr), addr_depth (target_addr),
 		 addr_prefix (source_addr), addr_depth (source_addr),
-		 flags & CAP_COPY_COPY_GUARD ? "copy" : "preserve",
-		 flags & CAP_COPY_COPY_SUBPAGE ? "copy" : "preserve",
+		 flags & CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
+		 : (flags & CAP_COPY_COPY_SOURCE_GUARD ? "source"
+		    : "preserve"),
+		 flags & CAP_COPY_COPY_ADDR_TRANS_SUBPAGE ? "copy"
+		 : "preserve",
 		 CAP_ADDR_TRANS_GUARD (addr_trans),
 		 CAP_ADDR_TRANS_GUARD_BITS (addr_trans),
 		 CAP_ADDR_TRANS_SUBPAGE (addr_trans),

@@ -541,7 +541,7 @@ as_alloc_slow (int width, bool data_mappable, bool may_alloc)
       struct cap_addr_trans cap_addr_trans = CAP_ADDR_TRANS_VOID;
       CAP_ADDR_TRANS_SET_GUARD (&cap_addr_trans, 0, gbits);
       err = rm_cap_copy (meta_data_activity, slot, slot,
-			 CAP_COPY_COPY_GUARD, cap_addr_trans);
+			 CAP_COPY_COPY_ADDR_TRANS_GUARD, cap_addr_trans);
       if (err)
 	panic ("failed to copy capability: %d", err);
 

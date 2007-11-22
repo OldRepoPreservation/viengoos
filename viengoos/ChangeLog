@@ -1,3 +1,11 @@
+2007-11-22  Neal H. Walfield  <neal@gnu.org>
+
+	* rm.h (CAP_COPY_COPY_SUBPAGE): Rename from this...
+	(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE): ... to this.  Update all users.
+	(CAP_COPY_COPY_GUARD): Rename from this...
+	(CAP_COPY_COPY_ADDR_TRANS_GUARD): ... to this.  Update all users.
+	(CAP_COPY_COPY_SOURCE_GUARD): New constant.
+
 2007-11-19  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (struct thread): Add fields have_exception and

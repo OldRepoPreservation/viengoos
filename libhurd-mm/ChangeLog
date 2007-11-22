@@ -1,5 +1,10 @@
 2007-11-22  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (as_alloc_slow): Use CAP_COPY_COPY_ADDR_TRANS_GUARD, not
+	CAP_COPY_COPY_GUARD.
+
+2007-11-22  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.h (struct storage): New struct.
 	(storage_alloc): Return a struct storage, not an addr.  Update all
 	callers.
