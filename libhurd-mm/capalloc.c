@@ -38,6 +38,8 @@ struct cappage_desc
   hurd_btree_node_t node;
 
   addr_t cappage;
+  struct cap *cap;
+
   unsigned char alloced[CAPPAGE_SLOTS / 8];
   unsigned short free;
 
@@ -85,11 +87,12 @@ cappage_desc_slab_alloc (void *hook, size_t size, void **ptr)
 {
   assert (size == PAGESIZE);
 
-  addr_t storage = storage_alloc (meta_data_activity,
-				  cap_page, STORAGE_LONG_LIVED, ADDR_VOID);
-  if (ADDR_IS_VOID (storage))
+  struct storage storage = storage_alloc (meta_data_activity,
+					  cap_page, STORAGE_LONG_LIVED,
+					  ADDR_VOID);
+  if (ADDR_IS_VOID (storage.addr))
     panic ("Out of storage");
-  *ptr = ADDR_TO_PTR (addr_extend (storage, 0, PAGESIZE_LOG2));
+  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -136,11 +139,36 @@ capalloc (void)
     {
       nonempty = cappage_desc_alloc ();
 
-      /* As there is such a large number of objects, we expect that
-	 the page will be long lived.  */
-      nonempty->cappage = storage_alloc (meta_data_activity,
-					 cap_cappage, STORAGE_LONG_LIVED,
-					 ADDR_VOID);
+      /* As there is such a large number of caps per cappage, we
+	 expect that the page will be long lived.  */
+      struct storage storage = storage_alloc (meta_data_activity,
+					      cap_cappage, STORAGE_LONG_LIVED,
+					      ADDR_VOID);
+      if (ADDR_IS_VOID (storage.addr))
+	{
+	  cappage_desc_free (nonempty);
+	  return ADDR_VOID;
+	}
+
+      nonempty->cappage = storage.addr;
+      nonempty->cap = storage.cap;
+
+      /* Then, allocate the shadow object.  */
+      struct storage shadow_storage
+	= storage_alloc (meta_data_activity, cap_page,
+			 STORAGE_LONG_LIVED, ADDR_VOID);
+      if (ADDR_IS_VOID (shadow_storage.addr))
+	{
+	  /* No memory.  */
+	  storage_free (nonempty->cappage, false);
+	  cappage_desc_free (nonempty);
+	  return ADDR_VOID;
+	}
+
+      struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
+							0, PAGESIZE_LOG2));
+      memset (shadow, 0, PAGESIZE);
+      cap_set_shadow (nonempty->cap, shadow);
 
       memset (&nonempty->alloced, 0, sizeof (nonempty->alloced));
       nonempty->free = CAPPAGE_SLOTS;
@@ -182,10 +210,22 @@ capfree (addr_t cap)
     /* No slots in the cappage are allocated.  Free it if there is at
        least one cappage on NONEMPTY.  */
     {
-      if (nonempty)
+      assert (nonempty);
+      if (nonempty->next)
 	{
 	  hurd_btree_cappage_desc_detach (&cappage_descs, desc);
+	  unlink (desc);
+
+	  struct object *shadow = cap_get_shadow (desc->cap);
+	  storage_free (addr_chop (PTR_TO_ADDR (shadow), PAGESIZE_LOG2),
+			false);
+	  cap_set_shadow (desc->cap, NULL);
+
+	  desc->cap->type = cap_void;
+
 	  cappage_desc_free (desc);
+
+	  storage_free (cappage, false);
 	}
     }
 }

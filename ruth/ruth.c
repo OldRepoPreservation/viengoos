@@ -172,9 +172,9 @@ main (int argc, char *argv[])
 	error_t err = rm_folio_alloc (activity, f);
 	assert (! err);
 
-	addr_t shadow_addr
+	struct storage shadow_storage
 	  = storage_alloc (activity, cap_page, STORAGE_EPHEMERAL, ADDR_VOID);
-	struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_addr,
+	struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
 							  0, PAGESIZE_LOG2));
 	cap_set_shadow (slot, shadow);
 	memset (shadow, 0, PAGESIZE);
@@ -232,7 +232,7 @@ main (int argc, char *argv[])
 				    (i & 1) == 0
 				    ? STORAGE_LONG_LIVED
 				    : STORAGE_EPHEMERAL,
-				    ADDR_VOID);
+				    ADDR_VOID).addr;
 	assert (! ADDR_IS_VOID (storage[i]));
 	* (int *) (ADDR_TO_PTR (addr_extend (storage[i], 0, PAGESIZE_LOG2)))
 	  = i;
@@ -270,6 +270,110 @@ main (int argc, char *argv[])
   }
 
   {
+    static volatile int done;
+    char stack[0x1000];
+
+    void start (void)
+    {
+      do_debug (4)
+	as_dump ("thread");
+
+      debug (2, "I'm running (%x.%x)!\n",
+	     l4_thread_no (l4_myself ()),
+	     l4_version (l4_myself ()));
+
+      done = 1;
+      do
+	l4_yield ();
+      while (1);
+    }
+
+    printf ("Checking thread creation... ");
+
+    addr_t thread = capalloc ();
+    debug (1, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
+    addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
+				    thread).addr;
+
+    struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
+    rm_object_slot_copy_in (activity, thread, THREAD_ASPACE_SLOT,
+			    ADDR (0, 0), CAP_COPY_COPY_SOURCE_GUARD,
+			    addr_trans);
+
+    l4_word_t dummy;
+    rm_thread_exregs (activity, thread,
+		      HURD_EXREGS_SET_ACTIVITY
+		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START,
+		      ADDR (0, 0), activity,
+		      (l4_word_t) ((void *) stack + sizeof (stack)),
+		      (l4_word_t) &start, 0, 0,
+		      ADDR_VOID, ADDR_VOID,
+		      &dummy, &dummy, &dummy, &dummy);
+
+    debug (2, "Waiting for thread");
+    while (done == 0)
+      l4_yield ();
+    debug (2, "Thread done!");
+
+    storage_free (storage, true);
+    capfree (thread);
+
+    printf ("ok.\n");
+  }
+
+  {
+    static volatile int done;
+    char stack[0x1000];
+
+    void start (void)
+    {
+      do_debug (4)
+	as_dump ("thread");
+
+      debug (2, "I'm running (%x.%x)!\n",
+	     l4_thread_no (l4_myself ()),
+	     l4_version (l4_myself ()));
+
+      done = 1;
+      do
+	l4_yield ();
+      while (1);
+    }
+
+    printf ("Checking thread creation... ");
+
+    addr_t thread = capalloc ();
+    debug (1, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
+    addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
+				    thread).addr;
+
+    struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
+    rm_object_slot_copy_in (activity, thread, THREAD_ASPACE_SLOT,
+			    ADDR (0, 0), CAP_COPY_COPY_SOURCE_GUARD,
+			    addr_trans);
+
+    l4_word_t dummy;
+    rm_thread_exregs (activity, thread,
+		      HURD_EXREGS_SET_ACTIVITY
+		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START,
+		      ADDR (0, 0), activity,
+		      (l4_word_t) ((void *) stack + sizeof (stack)),
+		      (l4_word_t) &start, 0, 0,
+		      ADDR_VOID, ADDR_VOID,
+		      &dummy, &dummy, &dummy, &dummy);
+
+    debug (2, "Waiting for thread");
+    while (done == 0)
+      l4_yield ();
+    debug (2, "Thread done!");
+
+    storage_free (storage, true);
+    capfree (thread);
+
+    printf ("ok.\n");
+  }
+
+  {
     addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
     assert (! ADDR_IS_VOID (addr));
 
@@ -278,7 +382,7 @@ main (int argc, char *argv[])
 
     addr_t storage = storage_alloc (activity, cap_page,
 				    STORAGE_MEDIUM_LIVED,
-				    addr);
+				    addr).addr;
     assert (! ADDR_IS_VOID (storage));
 
     debug (1, "Writing before dealloc...");

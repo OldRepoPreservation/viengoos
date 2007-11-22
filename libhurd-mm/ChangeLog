@@ -1,3 +1,27 @@
+2007-11-22  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.h (struct storage): New struct.
+	(storage_alloc): Return a struct storage, not an addr.  Update all
+	callers.
+	* storage.c (struct storage_desc): Remove field shadow.  Add field
+	cap.
+	(shadow_setup): Save the cap.
+	(storage_alloc): Return a struct storage, not an addr.
+	(storage_free): Correctly free the shadow if not used.  Update
+	STORAGE->CAP to reflect that the folio has been removed.
+	* capalloc.c (struct cappage_desc): Add field cap.
+	(capalloc): Stash CAP.  When allocating a cappage, allocate a
+	shadow object.
+	(capfree): Really free CAPPAGE if there is another page available.
+	If freeing CAPPAGE, unlink DESC and update DESC->CAP to reflect
+	that the page has been deallocated, deallocate the shadow, and
+	deallocate CAPPAGE.
+
+	* exceptions.c (exception_thread): Print IP when a fault cannot be
+	resolved.
+
+	* mmap.c (mmap): Cast addr to a uintptr_t to elide warning.
+
 2007-11-20  Neal H. Walfield  <neal@gnu.org>
 
 	* pager.h (pager_region_compare): Set A_END and B_END to the last

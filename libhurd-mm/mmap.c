@@ -80,7 +80,7 @@ mmap (void *addr, size_t length, int protect, int flags,
     }
 
   struct anonymous_pager *pager;
-  pager = anonymous_pager_alloc (ADDR_VOID, addr, length,
+  pager = anonymous_pager_alloc (ADDR_VOID, (uintptr_t) addr, length,
 				 ANONYMOUS_ZEROFILL, false);
   if (! pager)
     panic ("Failed to create pager!");

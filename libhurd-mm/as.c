@@ -210,9 +210,10 @@ free_space_desc_slab_alloc (void *hook, size_t size, void **ptr)
 {
   assert (size == PAGESIZE);
 
-  addr_t storage = storage_alloc (meta_data_activity,
-				  cap_page, STORAGE_LONG_LIVED, ADDR_VOID);
-  *ptr = ADDR_TO_PTR (addr_extend (storage, 0, PAGESIZE_LOG2));
+  struct storage storage  = storage_alloc (meta_data_activity,
+					   cap_page, STORAGE_LONG_LIVED,
+					   ADDR_VOID);
+  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -424,31 +425,30 @@ allocate_object (enum cap_type type, addr_t addr)
   rt.cap.type = cap_void;
 
   /* First allocate the real object.  */
-  addr_t storage = storage_alloc (meta_data_activity, type,
-				  STORAGE_LONG_LIVED, ADDR_VOID);
-  if (ADDR_IS_VOID (storage))
+  struct storage storage = storage_alloc (meta_data_activity, type,
+					  STORAGE_LONG_LIVED, ADDR_VOID);
+  if (ADDR_IS_VOID (storage.addr))
     return rt;
 
-  debug (4, "%llx/%d %s -> %llx/%d",
-	 addr_prefix (addr), addr_depth (addr),
-	 cap_type_string (type),
-	 addr_prefix (storage), addr_depth (storage));
+  debug (4, ADDR_FMT " %s -> " ADDR_FMT,
+	 ADDR_PRINTF (addr), cap_type_string (type),
+	 ADDR_PRINTF (storage.addr));
 
   if (type == cap_cappage || type == cap_rcappage)
     {
       /* Then, allocate the shadow object.  */
-      addr_t shadow = storage_alloc (meta_data_activity, cap_page,
-				     STORAGE_LONG_LIVED, ADDR_VOID);
-      if (ADDR_IS_VOID (shadow))
+      struct storage shadow = storage_alloc (meta_data_activity, cap_page,
+					     STORAGE_LONG_LIVED, ADDR_VOID);
+      if (ADDR_IS_VOID (shadow.addr))
 	{
-	  storage_free (storage, false);
+	  storage_free (storage.addr, false);
 	  return rt;
 	}
-      cap_set_shadow (&rt.cap, ADDR_TO_PTR (addr_extend (shadow,
+      cap_set_shadow (&rt.cap, ADDR_TO_PTR (addr_extend (shadow.addr,
 							 0, PAGESIZE_LOG2)));
     }
 
-  rt.storage = storage;
+  rt.storage = storage.addr;
   rt.cap.type = type;
 
   return rt;
@@ -557,11 +557,11 @@ as_alloc_slow (int width, bool data_mappable, bool may_alloc)
 	/* Need a new area.  */
 	{
 	  cappage = alloc_area (CAPPAGE_SLOTS_LOG2 + PAGESIZE_LOG2);
-	  addr_t storage = storage_alloc (meta_data_activity,
-					  cap_cappage, STORAGE_LONG_LIVED,
-					  cappage);
+	  struct storage storage
+	    = storage_alloc (meta_data_activity, cap_cappage,
+			     STORAGE_LONG_LIVED, cappage);
 
-	  if (ADDR_IS_VOID (storage))
+	  if (ADDR_IS_VOID (storage.addr))
 	    cappage = ADDR_VOID;
 	  else
 	    {
@@ -574,7 +574,7 @@ as_alloc_slow (int width, bool data_mappable, bool may_alloc)
 	      if (desc_additional_count == DESC_ADDITIONAL)
 		panic ("Out of object descriptors!");
 	      desc->object = cappage;
-	      desc->storage = storage;
+	      desc->storage = storage.addr;
 	      desc->type = cap_cappage;
 	    }
 	}
@@ -612,7 +612,6 @@ as_init (void)
     {
       error_t err;
       int i;
-      addr_t shadow_addr;
       struct object *shadow;
 
       debug (5, "Adding object %llx/%d",
@@ -646,10 +645,13 @@ as_init (void)
 	       in appropriately.  */
 	    as_free (desc->object, 1);
 
-	  shadow_addr = storage_alloc (meta_data_activity,
-				       cap_page, STORAGE_LONG_LIVED,
-				       ADDR_VOID);
-	  shadow = ADDR_TO_PTR (addr_extend (shadow_addr, 0, PAGESIZE_LOG2));
+	  struct storage shadow_storage
+	    = storage_alloc (meta_data_activity,
+			     cap_page, STORAGE_LONG_LIVED, ADDR_VOID);
+	  if (ADDR_IS_VOID (shadow_storage.addr))
+	    panic ("Out of space.");
+	  shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
+					     0, PAGESIZE_LOG2));
 	  cap_set_shadow (cap, shadow);
 
 	  /* We expect at least one non-void capability per

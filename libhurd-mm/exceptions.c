@@ -106,8 +106,8 @@ exception_thread (void)
 	    l4_start (hurd_main_thread (l4_myself ()));
 	  else
 	    {
-	      debug (1, "Failed to handle fault at " ADDR_FMT,
-		     ADDR_PRINTF (fault));
+	      debug (1, "Failed to handle fault at " ADDR_FMT " (ip=%x)",
+		     ADDR_PRINTF (fault), ip);
 	      /* XXX: Should raise SIGSEGV.  */
 	    }
 

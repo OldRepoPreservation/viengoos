@@ -54,11 +54,12 @@ struct storage_desc
 
   /* The address of the folio.  */
   addr_t folio;
-  /* The location of the folio's shadow object.  */
-  struct object *shadow;
+  /* The location of the shadow cap designating this folio.  */
+  struct cap *cap;
 
   /* Which objects are allocated.  */
   unsigned char alloced[FOLIO_OBJECTS / 8];
+
   /* The number of free objects.  */
   unsigned char free;
 
@@ -123,10 +124,11 @@ check_slab_space_reserve (void)
 {
   if (likely (!!slab_space_reserve))
     return;
-  
-  addr_t addr = storage_alloc (meta_data_activity, cap_page,
-			       STORAGE_LONG_LIVED, ADDR_VOID);
-  slab_space_reserve = ADDR_TO_PTR (addr_extend (addr, 0, PAGESIZE_LOG2));
+
+  struct storage storage = storage_alloc (meta_data_activity, cap_page,
+					  STORAGE_LONG_LIVED, ADDR_VOID);
+  slab_space_reserve = ADDR_TO_PTR (addr_extend (storage.addr,
+						 0, PAGESIZE_LOG2));
 }
 
 static error_t
@@ -203,9 +205,6 @@ static struct storage_desc *short_lived;
 static void
 shadow_setup (struct cap *cap, struct storage_desc *storage)
 {
-  /* XXX: We need to remember that we freed the shadow page from
-     ourself so that we can deteck when this storage area is
-     actually free.  */
   int idx = bit_alloc (storage->alloced, sizeof (storage->alloced), 0);
   if (idx == -1)
     panic ("Folio full!  No space for a shadow object.");
@@ -213,19 +212,21 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
   storage->free --;
   free_count --;
 
+  storage->cap = cap;
+  cap->type = cap_folio;
+
   error_t err = rm_folio_object_alloc (meta_data_activity,
 				       storage->folio, idx, cap_page,
 				       ADDR_VOID);
   assert (err == 0);
-  storage->shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
-							   idx,
-							   FOLIO_OBJECTS_LOG2),
-					      0, PAGESIZE_LOG2));
-  cap_set_shadow (cap, storage->shadow);
-  cap->type = cap_folio;
+  struct object *shadow;
+  shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
+						  idx, FOLIO_OBJECTS_LOG2),
+				     0, PAGESIZE_LOG2));
+  cap_set_shadow (cap, shadow);
 
-  storage->shadow->caps[idx].type = cap_page;
-  storage->shadow->caps[idx].addr_trans = CAP_ADDR_TRANS_VOID;
+  shadow->caps[idx].type = cap_page;
+  shadow->caps[idx].addr_trans = CAP_ADDR_TRANS_VOID;
 }
 
 void
@@ -238,46 +239,44 @@ storage_shadow_setup (struct cap *cap, addr_t folio)
   shadow_setup (cap, sdesc);
 }
 
-/* Allocate an object of type TYPE.  If ADDR is not ADDR_VOID, inserts
-   a capability to it the slot at address ADDR.  Returns the address
-   of the object in the folio (which must be passed to storage_free to
-   free the storage).  */
-addr_t
+struct storage
 storage_alloc (addr_t activity,
 	       enum cap_type type, enum storage_expectancy expectancy,
 	       addr_t addr)
 {
-  struct storage_desc *storage;
+  struct storage_desc *desc;
 
  restart:
   if (expectancy == STORAGE_EPHEMERAL)
     {
-      storage = short_lived;
-      if (! storage)
-	storage = long_lived_allocing;
-      if (! storage)
-	storage = long_lived_freeing;
+      desc = short_lived;
+      if (! desc)
+	desc = long_lived_allocing;
+      if (! desc)
+	desc = long_lived_freeing;
     }
   else
     {
-      storage = long_lived_allocing;
-      if (! storage)
+      desc = long_lived_allocing;
+      if (! desc)
 	{
-	  storage = long_lived_freeing;
-	  if (! storage)
-	    storage = short_lived;
+	  desc = long_lived_freeing;
+	  if (! desc)
+	    desc = short_lived;
 
-	  if (storage)
+	  if (desc)
 	    {
-	      unlink (storage);
-	      link (&long_lived_allocing, storage);
+	      unlink (desc);
+	      link (&long_lived_allocing, desc);
 	    }
 	}
     }
 
-  if (! storage || free_count <= MIN_FREE_PAGES)
+  if (! desc || free_count <= MIN_FREE_PAGES)
     /* Insufficient free storage.  Allocate a new storage area.  */
     {
+      debug (3, "Allocate additional folio, free count: %d", free_count);
+
       /* Although we have not yet allocated the objects, allocating
 	 structures may require memory causing us to recurse.  Thus,
 	 we add them first.  */
@@ -307,7 +306,7 @@ storage_alloc (addr_t activity,
       memset (&s->alloced, 0, sizeof (s->alloced));
       s->free = FOLIO_OBJECTS;
 
-      if (! storage && expectancy == STORAGE_EPHEMERAL)
+      if (! desc && expectancy == STORAGE_EPHEMERAL)
 	{
 	  s->mode = SHORT_LIVED;
 	  link (&short_lived, s);
@@ -327,47 +326,48 @@ storage_alloc (addr_t activity,
 	 a new reserve slab buffer.  */
       check_slab_space_reserve ();
 
-      if (! storage)
-	storage = s;
+      if (! desc)
+	desc = s;
 
-      if (storage->free == 0)
+      if (desc->free == 0)
 	/* Some allocations (by as_slot_ensure) appear to have caused
 	   us to empty this folio.  Restart.  */
 	goto restart;
     }
 
-  int idx = bit_alloc (storage->alloced, sizeof (storage->alloced), 0);
+  int idx = bit_alloc (desc->alloced, sizeof (desc->alloced), 0);
   assert (idx != -1);
 
-  addr_t folio = storage->folio;
+  addr_t folio = desc->folio;
   addr_t object = addr_extend (folio, idx, FOLIO_OBJECTS_LOG2);
 
   debug (5, "Allocating object %d from " ADDR_FMT " (" ADDR_FMT ") "
 	 "(%d left), copying to " ADDR_FMT,
 	 idx, ADDR_PRINTF (folio), ADDR_PRINTF (object),
-	 storage->free, ADDR_PRINTF (addr));
+	 desc->free, ADDR_PRINTF (addr));
 
-  storage->free --;
+  desc->free --;
   free_count --;
 
-  if (storage->free == 0)
+  if (desc->free == 0)
     /* The folio is now full.  */
     {
-      unlink (storage);
+      unlink (desc);
 #ifndef NDEBUG
-      storage->next = NULL;
-      storage->prevp = NULL;
+      desc->next = NULL;
+      desc->prevp = NULL;
 #endif
-      if (storage->mode == LONG_LIVED_ALLOCING)
+      if (desc->mode == LONG_LIVED_ALLOCING)
 	/* Change the folio from the allocating state to the stable
 	   state.  */
-	storage->mode = LONG_LIVED_STABLE;
+	desc->mode = LONG_LIVED_STABLE;
     }
 
-  if (likely (!! storage->shadow))
+  struct object *shadow = desc->cap ? cap_get_shadow (desc->cap) : NULL;
+  if (likely (!! shadow))
     {
-      storage->shadow->caps[idx].addr_trans = CAP_ADDR_TRANS_VOID;
-      storage->shadow->caps[idx].type = type;
+      shadow->caps[idx].addr_trans = CAP_ADDR_TRANS_VOID;
+      shadow->caps[idx].type = type;
     }
   else
     assert (! as_init_done);
@@ -381,19 +381,26 @@ storage_alloc (addr_t activity,
        don't have the cap although the caller might.  */
     {
       struct cap *cap = slot_lookup (meta_data_activity, addr, -1, NULL);
-
+      if (! cap)
+	as_dump (NULL);
+      assert (cap);
       cap->type = type;
     }
 
-  return object;
+  struct storage storage;
+
+  if (likely (!! shadow))
+    storage.cap = &shadow->caps[idx];
+  else
+    storage.cap = NULL;
+  storage.addr = object;
+
+  return storage;
 }
 
 void
 storage_free (addr_t object, bool unmap_now)
 {
-  bool freeing_shadow = false;
-
- restart:;
   addr_t folio = addr_chop (object, FOLIO_OBJECTS_LOG2);
 
   struct storage_desc *storage;
@@ -410,31 +417,16 @@ storage_free (addr_t object, bool unmap_now)
   assert (err == 0);
 
   /* Update the shadow object.  */
-  if (likely (!! storage->shadow))
+  struct object *shadow = storage->cap ? cap_get_shadow (storage->cap) : NULL;
+  if (likely (!! shadow))
     {
-      storage->shadow->caps[idx].type = cap_void;
-      storage->shadow->caps[idx].addr_trans = CAP_ADDR_TRANS_VOID;
+      shadow->caps[idx].type = cap_void;
+      shadow->caps[idx].addr_trans = CAP_ADDR_TRANS_VOID;
     }
   else
-    assert (! storage->shadow);
+    assert (! as_init_done);
 
-
-  if (storage->free == FOLIO_OBJECTS - 1)
-    {
-      if (ADDR_EQ (addr_chop (PTR_TO_ADDR (storage->shadow),
-			      PAGESIZE_LOG2 + FOLIO_OBJECTS_LOG2),
-		   storage->folio))
-	/* The last allocated page is our shadow page.  Free this
-	   folio.  */
-	{
-	  object = addr_chop (PTR_TO_ADDR (storage->shadow), PAGESIZE_LOG2);
-	  storage->shadow = NULL;
-	  freeing_shadow = true;
-	  goto restart;
-	}
-    }
-
-  else if (storage->free == 1 && storage->mode == LONG_LIVED_STABLE)
+  if (storage->free == 1 && storage->mode == LONG_LIVED_STABLE)
     /* The folio is no longer completely full.  Return it to the long
        lived allocating list.  */
     link (&long_lived_allocing, storage);
@@ -449,19 +441,27 @@ storage_free (addr_t object, bool unmap_now)
       link (&long_lived_freeing, storage);
     }
 
-  else if (storage->free == FOLIO_OBJECTS)
+  else if (storage->free == FOLIO_OBJECTS
+	   || ((storage->free == FOLIO_OBJECTS - 1)
+	       && (! shadow
+		   || ADDR_EQ (folio,
+			       addr_chop (PTR_TO_ADDR (shadow),
+					  FOLIO_OBJECTS_LOG2
+					  + PAGESIZE_LOG2)))))
     /* The folio is now empty.  */
     {
       if (free_count - FOLIO_OBJECTS > MIN_FREE_PAGES)
 	/* There are sufficient reserve pages not including this
 	   folio.  Thus, we free STORAGE.  */
 	{
-	  void *shadow = storage->shadow;
-
 	  free_count -= FOLIO_OBJECTS;
 
 	  unlink (storage);
 	  hurd_btree_storage_desc_detach (&storage_descs, storage);
+
+	  cap_set_shadow (storage->cap, NULL);
+	  storage->cap->type = cap_void;
+
 	  storage_desc_free (storage);
 
 	  error_t err = rm_folio_free (meta_data_activity, folio);
@@ -469,12 +469,17 @@ storage_free (addr_t object, bool unmap_now)
 
 	  if (shadow)
 	    {
-	      assert (! freeing_shadow);
-	      storage_free (addr_chop (PTR_TO_ADDR (shadow), PAGESIZE_LOG2),
-			    false);
+	      addr_t shadow_addr = addr_chop (PTR_TO_ADDR (shadow),
+					      PAGESIZE_LOG2);
+
+	      if (ADDR_EQ (addr_chop (shadow_addr, FOLIO_OBJECTS_LOG2), folio))
+		{
+		  /* The shadow was allocate from ourself, which we
+		     already freed.  */
+		}
+	      else
+		storage_free (shadow_addr, false);
 	    }
-	  else
-	    assert (freeing_shadow);
 	}
     }
 }

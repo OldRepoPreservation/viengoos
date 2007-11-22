@@ -58,10 +58,11 @@ BTREE_CLASS (storage_desc, struct storage_desc,
 static error_t
 slab_alloc (void *hook, size_t size, void **ptr)
 {
-  addr_t storage = storage_alloc (meta_data_activity,
-				  cap_page, STORAGE_LONG_LIVED, ADDR_VOID);
-
-  *ptr = ADDR_TO_PTR (addr_extend (storage, 0, PAGESIZE_LOG2));
+  struct storage storage = storage_alloc (meta_data_activity, cap_page,
+					  STORAGE_LONG_LIVED, ADDR_VOID);
+  if (ADDR_IS_VOID (storage.addr))
+    panic ("Out of space.");
+  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -161,10 +162,11 @@ fault (struct pager *pager,
       if (! r)
 	panic ("Failed to ensure slot at " ADDR_FMT, ADDR_PRINTF (page));
 
-      storage_desc->storage = storage_alloc (anon->activity,
-					     cap_page, STORAGE_UNKNOWN, page);
-      if (ADDR_IS_VOID (storage_desc->storage))
+      struct storage storage = storage_alloc (anon->activity,
+					      cap_page, STORAGE_UNKNOWN, page);
+      if (ADDR_IS_VOID (storage.addr))
 	panic ("Out of memory.");
+      storage_desc->storage = storage.addr;
 
       struct storage_desc *conflict;
       conflict = hurd_btree_storage_desc_insert (storage_descs, storage_desc);

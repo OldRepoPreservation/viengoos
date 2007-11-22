@@ -40,15 +40,31 @@ enum storage_expectancy
     STORAGE_LONG_LIVED,
   };
 
+struct storage
+{
+  struct cap *cap;
+  addr_t addr;
+};
+
 /* Allocate an object of type TYPE.  The object has a life expectancy
    of EXPECTANCY.  If ADDR is not ADDR_VOID, a capability to the
-   storage will be saved at ADDR.  On success, the address of the
-   storage object is returned.  Otherwise, ADDR_VOID.  ACTIVITY is the
-   activity to use to account the memory.  */
-extern addr_t storage_alloc (addr_t activity,
-			     enum cap_type type,
-			     enum storage_expectancy expectancy,
-			     addr_t addr);
+   storage will be saved at ADDR (and the shadow object updated
+   appropriately).  On success, the shadow capability slot for the
+   storage is returned (useful for setting up a shadow object) and the
+   address of the storage object.  Otherwise, NULL and ADDR_VOID,
+   respectively, are returned.  ACTIVITY is the activity to use to
+   account the storage.
+
+   NB: This function does not allocate a shadow object for the
+   allocated object; it does update the relevant shadow objects so
+   that the address of the storage and ADDR are reachable.  If the
+   caller wants to use the allocated object for address translation,
+   the caller must allocate the shadow object.  If not, functions
+   including the cap_lookup family will fail.  */
+extern struct storage storage_alloc (addr_t activity,
+				     enum cap_type type,
+				     enum storage_expectancy expectancy,
+				     addr_t addr);
 
 /* Frees the storage at STORAGE.  STORAGE must be the address returned
    by storage_alloc (NOT the address provided to storage_alloc).  If
