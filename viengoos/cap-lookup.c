@@ -181,9 +181,9 @@ lookup (activity_t activity,
 
 	  struct folio *folio = (struct folio *) object;
 
-	  root = &fake_slot;
-
 	  int i = extract_bits64_inv (addr, remaining - 1, FOLIO_OBJECTS_LOG2);
+#ifdef RM_INTERN
+	  root = &fake_slot;
 	  if (folio->objects[i].type == cap_void)
 	    {
 	      memset (root, 0, sizeof (*root));
@@ -191,20 +191,16 @@ lookup (activity_t activity,
 	    }
 	  else
 	    {
-
-#ifdef RM_INTERN
 	      struct object_desc *fdesc;
 	      fdesc = object_to_object_desc (object);
 
 	      object = object_find (activity, fdesc->oid + i + 1);
 	      assert (object);
 	      *root = object_to_cap (object);
-#else
-	      root->addr_trans = CAP_ADDR_TRANS_VOID;
-	      root->type = folio->objects[i].type;
-	      cap_set_shadow (root, cap_get_shadow (&folio->objects[i]));
-#endif
 	    }
+#else
+	  root = &folio->objects[i];
+#endif
 
 	  remaining -= FOLIO_OBJECTS_LOG2;
 	  break;

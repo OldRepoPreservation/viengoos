@@ -1,5 +1,10 @@
 2007-11-22  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-lookup.c (lookup) [!RM_INTERN]: Set ROOT to the shadow slot
+	when indexing a folio, not &FAKE_ROOT.
+
+2007-11-22  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h (CAP_COPY_COPY_SUBPAGE): Rename from this...
 	(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE): ... to this.  Update all users.
 	(CAP_COPY_COPY_GUARD): Rename from this...
