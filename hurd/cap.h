@@ -238,8 +238,10 @@ cap_to_object (activity_t activity, struct cap *cap)
 /* Copy the capability SOURCE to capability TARGET.  By default,
    preserves SOURCE's subpage specification and TARGET's guard.  If
    CAP_COPY_COPY_SUBPAGE is set, then uses the subpage specification
-   in CAP_ADDR_TRANS.  If CAP_COPY_COPY_GUARD is set, uses the guard
-   description in CAP_ADDR_TRANS.  */
+   in CAP_ADDR_TRANS.  If CAP_COPY_COPY_ADDR_TRANS_GUARD is set, uses
+   the guard description in CAP_ADDR_TRANS.  If
+   CAP_COPY_COPY_SOURCE_GUARD is set, uses the guard description in
+   source.  Otherwise, preserves the guard in TARGET.  */
 static inline bool
 cap_copy_x (activity_t activity,
 	    struct cap *target, addr_t target_addr,
@@ -251,7 +253,7 @@ cap_copy_x (activity_t activity,
   int subpage = CAP_SUBPAGE (&source);
   int subpages = CAP_SUBPAGES (&source);
 
-  if ((flags & CAP_COPY_COPY_SUBPAGE))
+  if ((flags & CAP_COPY_COPY_ADDR_TRANS_SUBPAGE))
     /* Copy the subpage descriptor from CAP_ADDR_TRANS.  */
     {
       if (CAP_ADDR_TRANS_SUBPAGES (cap_addr_trans) != 1
@@ -297,11 +299,17 @@ cap_copy_x (activity_t activity,
   int guard = CAP_GUARD (target);
   int gbits = CAP_GUARD_BITS (target);
 
-  if ((flags & CAP_COPY_COPY_GUARD))
+  if ((flags & CAP_COPY_COPY_ADDR_TRANS_GUARD))
     /* Copy guard from CAP_ADDR_TRANS.  */
     {
       guard = CAP_ADDR_TRANS_GUARD (cap_addr_trans);
       gbits = CAP_ADDR_TRANS_GUARD_BITS (cap_addr_trans);
+    }
+  else if ((flags & CAP_COPY_COPY_SOURCE_GUARD))
+    /* Copy guard from SOURCE.  */
+    {
+      guard = CAP_GUARD (&source);
+      gbits = CAP_GUARD_BITS (&source);
     }
 
 #ifdef RM_INTERN
