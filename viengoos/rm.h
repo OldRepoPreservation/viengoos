@@ -89,6 +89,9 @@ rm_method_id_string (enum rm_method_id id)
     }
 }
 
+#define THREAD_ASPACE_SLOT 0
+#define THREAD_ACTIVITY_SLOT 1
+
 /* Echo the character CHR on the manager console.  */
 static inline void
 __attribute__((always_inline))
@@ -127,13 +130,12 @@ enum
 {
   /* Use subpage in CAP_ADDR_TRANS (must be a subset of subpage in
      SOURCE).  */
-  CAP_COPY_COPY_SUBPAGE = 1 << 0,
+  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE = 1 << 0,
   /* Use guard in TARGET, not the guard in CAP_ADDR_TRANS.  */
-  CAP_COPY_COPY_GUARD = 1 << 1,
+  CAP_COPY_COPY_ADDR_TRANS_GUARD = 1 << 1,
+  /* Use guard in SOURCE.  */
+  CAP_COPY_COPY_SOURCE_GUARD = 1 << 2,
 };
-
-#define THREAD_ASPACE_SLOT 0
-#define THREAD_ACTIVITY_SLOT 1
 
 /* Copy capability SOURCE to the capability slot TARGET.
    ADDR_TRANS_FLAGS is a subset of CAP_COPY_GUARD, CAP_COPY_SUBPAGE,
