@@ -1,3 +1,8 @@
+2007-11-23  Neal H. Walfield  <neal@gnu.org>
+
+	* cap-lookup.c (lookup): Improving debugging output for when we
+	expect an address translation unit but don't find one.
+
 2007-11-22  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (struct thread): Add fields efalgs, user_handle and

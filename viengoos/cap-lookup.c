@@ -208,10 +208,13 @@ lookup (activity_t activity,
 	default:
 	  /* We designate a non-address bit translating object but we
 	     have no bits left to translate.  */
-	  debug (1, "Encountered a %s at %llx/%d, expected a cappage",
+	  do_debug (4)
+	    as_dump_from (activity, start, NULL);
+	  debug (1, "Translating " ADDR_FMT ", encountered a %s at "
+		 ADDR_FMT " but expected a cappage or a folio",
+		 ADDR_PRINTF (address),
 		 cap_type_string (root->type),
-		 addr_prefix (addr_chop (address, remaining)),
-		 addr_depth (address) - remaining);
+		 ADDR_PRINTF (addr_chop (address, remaining)));
 	  return false;
 	}
 
