@@ -24,10 +24,10 @@
 #endif
 
 #include <hurd/startup.h>
+#include <hurd/exceptions.h>
 
 #include "storage.h"
 #include "as.h"
-#include "exceptions.h"
 
 extern struct hurd_startup_data *__hurd_startup_data;
 

@@ -1,5 +1,10 @@
 2007-11-23  Neal H. Walfield  <neal@gnu.org>
 
+	* mm-init.c: Don't include "exceptions.h".  Include
+	<hurd/exceptions.h>.
+
+2007-11-23  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.c (exception_thread): Rename from this...
 	(exception_handler_loop): ... to this.  Update caller.
 
