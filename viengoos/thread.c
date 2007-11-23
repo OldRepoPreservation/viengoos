@@ -90,7 +90,7 @@ thread_init (struct thread *thread)
   tid = tid * 2 + THREAD_ID_BASE;
 
   thread->tid = l4_global_id (tid, HURD_THREAD_MAIN_VERSION);
-  debug (3, "Allocated thread 0x%x.%x (%llx/%p)",
+  debug (4, "Allocated thread 0x%x.%x (%llx/%p)",
 	 l4_thread_no (thread->tid), l4_version (thread->tid),
 	 object_to_object_desc ((struct object *) thread)->oid, thread);
 
@@ -106,7 +106,7 @@ thread_init (struct thread *thread)
 void
 thread_deinit (struct activity *activity, struct thread *thread)
 {
-  debug (3, "Destroying thread 0x%x.%x",
+  debug (4, "Destroying thread 0x%x.%x",
 	 l4_thread_no (thread->tid), l4_version (thread->tid));
 
   if (! thread->init)
@@ -202,13 +202,6 @@ thread_commission (struct thread *thread)
   /* XXX: Restore the register state!  (See comment above for the
      plan.)  */
 
-  /* Start the thread.  */
-  if (thread->sp || thread->ip)
-    {
-      l4_word_t ret = l4_thread_start (thread->tid, thread->sp, thread->ip);
-      assert (ret == 1);
-    }
-
   thread->commissioned = 1;
 }
 
@@ -244,15 +237,35 @@ thread_decommission (struct thread *thread)
   thread->commissioned = 0;
 }
 
+static void
+control_to_string (l4_word_t control, char string[33])
+{
+  int i = 0;
+  string[i ++] = (control & _L4_XCHG_REGS_DELIVER) ? 'd' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_SET_HALT) ? 'h' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_SET_PAGER) ? 'p' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_SET_USER_HANDLE) ? 'u' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_SET_FLAGS) ? 'f' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_SET_IP) ? 'i' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_SET_SP) ? 's' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_CANCEL_SEND) ? 'S' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_CANCEL_RECV) ? 'R' : '-';
+  string[i ++] = (control & _L4_XCHG_REGS_HALT) ? 'H' : '-';
+  string[i] = 0;
+}
+
 error_t
 thread_exregs (struct activity *principal,
 	       struct thread *thread, l4_word_t control,
-	       struct cap *aspace, struct cap *activity,
+	       struct cap *aspace,
+	       l4_word_t flags, struct cap_addr_trans addr_trans,
+	       struct cap *activity,
 	       l4_word_t *sp, l4_word_t *ip,
 	       l4_word_t *eflags, l4_word_t *user_handle,
 	       struct cap *aspace_out, struct cap *activity_out)
 {
-  if ((control & ~(HURD_EXREGS_SET_REGS
+  if ((control & ~(HURD_EXREGS_EXCEPTION_THREAD
+		   | HURD_EXREGS_SET_REGS
 		   | HURD_EXREGS_GET_REGS
 		   | HURD_EXREGS_START
 		   | HURD_EXREGS_STOP
@@ -266,7 +279,8 @@ thread_exregs (struct activity *principal,
     cap_copy (principal, aspace_out, ADDR_VOID, thread->aspace, ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_ASPACE))
-    cap_copy (principal, &thread->aspace, ADDR_VOID, *aspace, ADDR_VOID);
+    cap_copy_x (principal, &thread->aspace, ADDR_VOID, *aspace, ADDR_VOID,
+		flags, addr_trans);
 
   if ((control & HURD_EXREGS_GET_REGS) && activity_out)
     cap_copy (principal, activity_out, ADDR_VOID, thread->activity, ADDR_VOID);
@@ -274,16 +288,49 @@ thread_exregs (struct activity *principal,
   if ((control & HURD_EXREGS_SET_ACTIVITY))
     cap_copy (principal, &thread->activity, ADDR_VOID, *activity, ADDR_VOID);
 
-  /* Clear hurd specific bits so that l4_exchange_registers works.  */
-  control = control & ~(HURD_EXREGS_SET_ACTIVITY | HURD_EXREGS_SET_ASPACE);
-
   if (thread->commissioned)
     {
-      l4_word_t dummy = 0;
       l4_thread_id_t tid = thread->tid;
-      _L4_exchange_registers (&tid,
+      if ((control & HURD_EXREGS_EXCEPTION_THREAD))
+	tid = hurd_exception_thread (thread->tid);
+
+      /* Clear hurd specific bits so that l4_exchange_registers works.  */
+      control = control & ~(HURD_EXREGS_SET_ACTIVITY | HURD_EXREGS_SET_ASPACE
+			    | HURD_EXREGS_EXCEPTION_THREAD);
+
+      do_debug (4)
+	{
+	  char string[33];
+	  control_to_string (control, string);
+	  debug (0, "Calling exregs on %x.%x with control: %s (%x)",
+		 l4_thread_no (tid), l4_version (tid),
+		 string, control);
+	}
+
+      l4_word_t dummy = 0;
+      l4_thread_id_t targ = tid;
+      _L4_exchange_registers (&targ,
 			      &control, sp, ip, eflags,
 			      user_handle, &dummy);
+      if (targ == l4_nilthread)
+	/* XXX: This can happen if the user changes a thread's pager.
+	   We could change it back.  */
+	{
+	  int err = l4_error_code ();
+	  debug (1, "Failed to exregs %x.%x: %s (%d)",
+		 l4_thread_no (tid), l4_version (tid),
+		 l4_strerror (err), err);
+	  return EINVAL;
+	}
+
+      do_debug (4)
+	{
+	  char string[33];
+	  control_to_string (control, string);
+	  debug (0, "exregs on %x.%x returned control: %s (%x)",
+		 l4_thread_no (tid), l4_version (tid),
+		 string, control);
+	}
     }
   else
     {
@@ -329,16 +376,61 @@ thread_exregs (struct activity *principal,
 	    }
 
 	  thread_commission (thread);
+	  debug (4, "Starting thread %x.%x",
+		 l4_thread_no (thread->tid), l4_version (thread->tid));
 
-	  control = _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP
-	    | _L4_XCHG_REGS_SET_FLAGS | _L4_XCHG_REGS_SET_USER_HANDLE;
-
-	  l4_word_t dummy = 0;
 	  l4_thread_id_t tid = thread->tid;
-	  _L4_exchange_registers (&tid,
-				  &control, &thread->sp, &thread->ip,
-				  &thread->eflags, &thread->user_handle,
+	  if ((control & HURD_EXREGS_EXCEPTION_THREAD))
+	    tid = hurd_exception_thread (thread->tid);
+
+	  l4_word_t c = _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP
+	    | _L4_XCHG_REGS_SET_FLAGS | _L4_XCHG_REGS_SET_USER_HANDLE
+	    | _L4_XCHG_REGS_SET_HALT;
+
+	  if ((control & HURD_EXREGS_STOP) == HURD_EXREGS_STOP)
+	    c |= _L4_XCHG_REGS_HALT;
+	  if ((control & HURD_EXREGS_ABORT_SEND) == HURD_EXREGS_ABORT_SEND)
+	    c |= _L4_XCHG_REGS_CANCEL_SEND;
+	  if ((control & HURD_EXREGS_ABORT_RECEIVE)
+	      == HURD_EXREGS_ABORT_RECEIVE)
+	    c |= _L4_XCHG_REGS_CANCEL_RECV;
+
+	  l4_thread_id_t targ = tid;
+	  l4_word_t sp = thread->sp;
+	  l4_word_t ip = thread->ip;
+	  l4_word_t eflags = thread->eflags;
+	  l4_word_t user_handle = thread->user_handle;
+	  l4_word_t dummy = 0;
+
+	  do_debug (4)
+	    {
+	      char string[33];
+	      control_to_string (c, string);
+	      debug (0, "Calling exregs on %x.%x with control: %s (%x)",
+		     l4_thread_no (tid), l4_version (tid),
+		     string, c);
+	    }
+	  _L4_exchange_registers (&targ, &c,
+				  &sp, &ip, &eflags, &user_handle,
 				  &dummy);
+	  if (targ == l4_nilthread)
+	    /* XXX: This can happen if the user changes a thread's
+	       pager.  We could change it back.  */
+	    {
+	      int err = l4_error_code ();
+	      debug (1, "Failed to exregs %x.%x: %s (%d)",
+		     l4_thread_no (tid), l4_version (tid),
+		     l4_strerror (err), err);
+	      return EINVAL;
+	    }
+	  do_debug (4)
+	    {
+	      char string[33];
+	      control_to_string (c, string);
+	      debug (0, "exregs on %x.%x returned control: %s (%x)",
+		     l4_thread_no (tid), l4_version (tid),
+		     string, control);
+	    }
 	}
     }
 

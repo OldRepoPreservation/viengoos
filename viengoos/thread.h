@@ -94,7 +94,9 @@ extern void thread_decommission (struct thread *thread);
    not set the pager.  */
 extern error_t thread_exregs (struct activity *principal,
 			      struct thread *thread, l4_word_t control,
-			      struct cap *aspace, struct cap *activity,
+			      struct cap *aspace,
+			      l4_word_t flags, struct cap_addr_trans addr_trans,
+			      struct cap *activity,
 			      l4_word_t *sp, l4_word_t *ip,
 			      l4_word_t *eflags, l4_word_t *user_handle,
 			      struct cap *aspace_out,

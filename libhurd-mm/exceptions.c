@@ -66,8 +66,8 @@ extern struct hurd_startup_data *__hurd_startup_data;
       } \
   })
 
-static void
-exception_thread (void)
+void
+exception_handler_loop (void)
 {
   debug (5, "Exception thread launched (0x%x.%x)",
 	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()));
@@ -121,15 +121,16 @@ exception_thread (void)
     }
 }
 
-static char stack[2 * PAGESIZE] __attribute__ ((aligned(PAGESIZE)));
+#define STACK_SIZE (2 * PAGESIZE)
+static char stack[STACK_SIZE] __attribute__ ((aligned(PAGESIZE)));
 
 void
 exception_handler_init (void)
 {
   /* XXX: This only works for architectures on which the stack grows
      downward.  */
-  void *sp = stack + sizeof (stack);
+  char *sp = (char *) stack + STACK_SIZE;
 
   l4_thread_id_t tid = hurd_exception_thread (l4_myself ());
-  l4_start_sp_ip (tid, (l4_word_t) sp, (l4_word_t) &exception_thread);
+  l4_start_sp_ip (tid, (l4_word_t) sp, (l4_word_t) &exception_handler_loop);
 }

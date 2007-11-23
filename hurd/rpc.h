@@ -563,7 +563,7 @@
         RPCSTORE(otype4, oarg4) \
        })
 
-/* RPC with 7 in parameters and 4 out parameters.  */
+/* RPC with 11 in parameters and 4 out parameters.  */
 #define RPC11_4(id, type1, arg1, \
 		type2, arg2,	 \
 		type3, arg3,	 \
@@ -600,6 +600,110 @@
         RPCLOAD(type9, arg9) \
         RPCLOAD(type10, arg10) \
         RPCLOAD(type11, arg11) \
+       }, \
+       (l4_msg_t *msg, otype1 oarg1, otype2 oarg2, otype3 oarg3, \
+	otype4 oarg4), \
+       (&msg, oarg1, oarg2, oarg3, oarg4),			  \
+       { \
+        RPCSTORE(otype1, oarg1) \
+        RPCSTORE(otype2, oarg2) \
+        RPCSTORE(otype3, oarg3) \
+        RPCSTORE(otype4, oarg4) \
+       })
+
+/* RPC with 12 in parameters and 4 out parameters.  */
+#define RPC12_4(id, type1, arg1, \
+		type2, arg2,	 \
+		type3, arg3,	 \
+		type4, arg4,	 \
+		type5, arg5,	 \
+		type6, arg6,	 \
+		type7, arg7,	 \
+		type8, arg8,	 \
+		type9, arg9,	 \
+		type10, arg10,	 \
+		type11, arg11,	 \
+		type12, arg12,	 \
+		otype1, oarg1,	 \
+		otype2, oarg2,	 \
+		otype3, oarg3,	 \
+		otype4, oarg4)	 \
+  RPCX(id, \
+       (RPC_TARGET_ARG_ type1 arg1, type2 arg2, type3 arg3, \
+        type4 arg4, type5 arg5, type6 arg6, type7 arg7, \
+        type8 arg8, type9 arg9, type10 arg10, type11 arg11, type12 arg12, \
+        otype1 oarg1, otype2 oarg2, otype3 oarg3, otype4 oarg4), \
+       (l4_msg_t *msg, type1 arg1, type2 arg2, type3 arg3, \
+	type4 arg4, type5 arg5, type6 arg6, type7 arg7, \
+	type8 arg8, type9 arg9, type10 arg10, type11 arg11, type12 arg12), \
+       (&msg, arg1, arg2, arg3, arg4, arg5, arg6, arg7, \
+        arg8, arg9, arg10, arg11, arg12),    \
+       {RPCLOAD(type1, arg1) \
+        RPCLOAD(type2, arg2) \
+        RPCLOAD(type3, arg3) \
+        RPCLOAD(type4, arg4) \
+        RPCLOAD(type5, arg5) \
+        RPCLOAD(type6, arg6) \
+        RPCLOAD(type7, arg7) \
+        RPCLOAD(type8, arg8) \
+        RPCLOAD(type9, arg9) \
+        RPCLOAD(type10, arg10) \
+        RPCLOAD(type11, arg11) \
+        RPCLOAD(type12, arg12) \
+       }, \
+       (l4_msg_t *msg, otype1 oarg1, otype2 oarg2, otype3 oarg3, \
+	otype4 oarg4), \
+       (&msg, oarg1, oarg2, oarg3, oarg4),			  \
+       { \
+        RPCSTORE(otype1, oarg1) \
+        RPCSTORE(otype2, oarg2) \
+        RPCSTORE(otype3, oarg3) \
+        RPCSTORE(otype4, oarg4) \
+       })
+
+/* RPC with 13 in parameters and 4 out parameters.  */
+#define RPC13_4(id, type1, arg1, \
+		type2, arg2,	 \
+		type3, arg3,	 \
+		type4, arg4,	 \
+		type5, arg5,	 \
+		type6, arg6,	 \
+		type7, arg7,	 \
+		type8, arg8,	 \
+		type9, arg9,	 \
+		type10, arg10,	 \
+		type11, arg11,	 \
+		type12, arg12,	 \
+		type13, arg13,	 \
+		otype1, oarg1,	 \
+		otype2, oarg2,	 \
+		otype3, oarg3,	 \
+		otype4, oarg4)	 \
+  RPCX(id, \
+       (RPC_TARGET_ARG_ type1 arg1, type2 arg2, type3 arg3, \
+        type4 arg4, type5 arg5, type6 arg6, type7 arg7, \
+        type8 arg8, type9 arg9, type10 arg10, type11 arg11, type12 arg12, \
+	type13 arg13, \
+        otype1 oarg1, otype2 oarg2, otype3 oarg3, otype4 oarg4), \
+       (l4_msg_t *msg, type1 arg1, type2 arg2, type3 arg3, \
+	type4 arg4, type5 arg5, type6 arg6, type7 arg7, \
+	type8 arg8, type9 arg9, type10 arg10, type11 arg11, type12 arg12, \
+	type13 arg13), \
+       (&msg, arg1, arg2, arg3, arg4, arg5, arg6, arg7, \
+        arg8, arg9, arg10, arg11, arg12, arg13),    \
+       {RPCLOAD(type1, arg1) \
+        RPCLOAD(type2, arg2) \
+        RPCLOAD(type3, arg3) \
+        RPCLOAD(type4, arg4) \
+        RPCLOAD(type5, arg5) \
+        RPCLOAD(type6, arg6) \
+        RPCLOAD(type7, arg7) \
+        RPCLOAD(type8, arg8) \
+        RPCLOAD(type9, arg9) \
+        RPCLOAD(type10, arg10) \
+        RPCLOAD(type11, arg11) \
+        RPCLOAD(type12, arg12) \
+        RPCLOAD(type13, arg13) \
        }, \
        (l4_msg_t *msg, otype1 oarg1, otype2 oarg2, otype3 oarg3, \
 	otype4 oarg4), \

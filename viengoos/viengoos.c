@@ -317,8 +317,7 @@ system_task_load (void)
   startup_data->thread = csalloc ();
   cap = allocate_object (cap_thread, startup_data->thread).cap;
   thread = (struct thread *) cap_to_object (root_activity, &cap);
-  thread->activity = object_to_cap (root_activity);
-  thread_init (thread);
+  thread->activity = object_to_cap ((struct object *) root_activity);
 
   /* Insert the objects we've allocated so far into TASK's address
      space.  */
@@ -411,7 +410,16 @@ system_task_load (void)
       as_dump_from (root_activity, &thread->aspace, "");
     }
 
-  thread_commission (thread);
+  error_t err;
+  err = thread_exregs (root_activity, thread,
+		       HURD_EXREGS_SET_SP_IP
+		       | HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC,
+		       NULL, 0, (struct cap_addr_trans) CAP_ADDR_TRANS_VOID,
+		       NULL, &thread->sp, &thread->ip, NULL, NULL,
+		       NULL, NULL);
+  if (err)
+    panic ("Failed to start initial thread: %d", err);
+
   debug (1, "System task started (tid: %x.%x; ip=0x%x).",
 	 l4_thread_no (thread->tid), l4_version (thread->tid), thread->ip);
 }

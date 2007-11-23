@@ -24,6 +24,7 @@
 
 #include <hurd/types.h>
 #include <hurd/startup.h>
+#include <hurd/addr-trans.h>
 #include <l4/syscall.h>
 
 enum
@@ -39,6 +40,8 @@ enum
 
 enum
 {
+  HURD_EXREGS_EXCEPTION_THREAD = 0x1000,
+
   HURD_EXREGS_SET_ASPACE = 0x800,
   HURD_EXREGS_SET_ACTIVITY = 0x400,
   HURD_EXREGS_SET_SP = _L4_XCHG_REGS_SET_SP,
@@ -50,7 +53,6 @@ enum
 			  | HURD_EXREGS_SET_ACTIVITY
 			  | HURD_EXREGS_SET_SP
 			  | HURD_EXREGS_SET_IP
-			  | HURD_EXREGS_SET_SP_IP
 			  | HURD_EXREGS_SET_EFLAGS
 			  | HURD_EXREGS_SET_USER_HANDLE),
 
@@ -76,8 +78,10 @@ enum
 #include <hurd/rpc.h>
 
 /* l4_exregs wrapper.  */
-RPC11_4 (thread_exregs, addr_t, principal, addr_t, thread,
-	 l4_word_t, control, addr_t, aspace, addr_t, activity,
+RPC13_4 (thread_exregs, addr_t, principal, addr_t, thread,
+	 l4_word_t, control,
+	 addr_t, aspace, l4_word_t, flags, struct cap_addr_trans, aspace_trans,
+	 addr_t, activity,
 	 l4_word_t, sp, l4_word_t, ip, l4_word_t, eflags,
 	 l4_word_t, user_handler, 
 	 addr_t, aspace_out, addr_t, activity_out,
@@ -87,5 +91,17 @@ RPC11_4 (thread_exregs, addr_t, principal, addr_t, thread,
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
 #undef RPC_TARGET
+
+static inline error_t
+thread_stop (addr_t thread)
+{
+  l4_word_t dummy = 0;
+  return rm_thread_exregs (ADDR_VOID, thread,
+			   HURD_EXREGS_STOP | HURD_EXREGS_ABORT_IPC,
+			   ADDR_VOID, 0, CAP_ADDR_TRANS_VOID, ADDR_VOID,
+			   0, 0, 0, 0,
+			   ADDR_VOID, ADDR_VOID,
+			   &dummy, &dummy, &dummy, &dummy);
+}
 
 #endif

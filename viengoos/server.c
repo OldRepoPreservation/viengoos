@@ -108,7 +108,8 @@ server_loop (void)
 	  l4_word_t fault = l4_pagefault (msg_tag, &access, &ip);
 	  bool w = !! (access & L4_FPAGE_WRITABLE);
 
-	  DEBUG (5, "Page fault at %x (ip = %x)", fault, ip);
+	  DEBUG (5, "%x.%x page faults at %x (ip = %x)",
+		 l4_thread_no (from), l4_version (from), fault, ip);
 	  l4_word_t page_addr = fault & ~(PAGESIZE - 1);
 
 	  bool writable;
@@ -375,6 +376,7 @@ server_loop (void)
       addr_t source_addr;
       struct cap *target;
       addr_t target_addr;
+      struct cap_addr_trans addr_trans;
 
       DEBUG (5, "");
 
@@ -502,7 +504,6 @@ server_loop (void)
 			 | CAP_COPY_COPY_SOURCE_GUARD)))
 	    REPLY (EINVAL);
 
-	  struct cap_addr_trans addr_trans;
 	  addr_trans.raw = ARG ();
 
 	  DEBUG (4, "(%llx/%d, %llx/%d, %s|%s, {%llx/%d %d/%d})",
@@ -568,7 +569,7 @@ server_loop (void)
 	  REPLYW (0, 2);
 
 	case RM_thread_exregs:
-	  CHECK (5, 5);
+	  CHECK (7, 5);
 
 	  struct thread *t
 	    = (struct thread *) OBJECT (ARG_ADDR (), cap_thread, NULL);
@@ -580,10 +581,21 @@ server_loop (void)
 	  if ((HURD_EXREGS_SET_ASPACE & control))
 	    aspace = SLOT (aspace_addr);
 
+	  l4_word_t addr_trans_flags = ARG ();
+
+	  struct cap_addr_trans addr_trans;
+	  addr_trans.raw = ARG ();
+
+
 	  addr_t activity_addr = ARG_ADDR ();
-	  struct cap *activity = NULL;
+	  struct cap *a = NULL;
 	  if ((HURD_EXREGS_SET_ACTIVITY & control))
-	    activity = SLOT (activity_addr);
+	    {
+	      if (ADDR_IS_VOID (activity_addr))
+		a = &thread->activity;
+	      else
+		a = SLOT (activity_addr);
+	    }
 
 	  l4_word_t sp = ARG ();
 	  l4_word_t ip = ARG ();
@@ -603,7 +615,7 @@ server_loop (void)
 	    activity_out = SLOT (activity_out_addr);
 
 	  error_t err = thread_exregs (principal, t, control,
-				       aspace, activity,
+				       aspace, addr_trans_flags, addr_trans, a,
 				       &sp, &ip, &eflags, &user_handler,
 				       aspace_out, activity_out);
 	  if (err)

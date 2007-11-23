@@ -35,6 +35,9 @@ URL:
 
 http://www.l4ka.org/projects/pistachio/download.php
 
+Make sure that Kernel -> Experimental Features -> Pager ExchangeRegisters
+is enabled.
+
 sigma0 must be built with a different link base than the default value
 0x20000, because that conflicts with GRUB (on ia32).  I have
 successfully used a link base of 0x40000.  Use the configure option

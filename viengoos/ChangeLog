@@ -1,5 +1,23 @@
 2007-11-23  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (thread_exregs): Take two additional arguments, a
+	cap_addr_trans structure and a corresponding flags.  Update users.
+	* thread.c (thread_commission): Don't start thread THREAD.
+	(control_to_string): New function.
+	(thread_exregs): Take two additional arguments, a cap_addr_trans
+	structure and a corresponding flags.  Use them when copying a
+	supplied capability into the address space slot of the thread.
+	Support the HURD_EXREGS_EXCEPTION_THREAD flag.  Improve error
+	detection and debugging out.
+	* server.c (server_loop): Let a void address for the activity slot
+	imply the caller's current activity.  Take two additional
+	arguments, a cap_addr_trans structure and a corresponding flags
+	argument.  Pass them to thread_exregs.
+	* viengoos.c (system_task_load): Set THREAD_ACTIVITY.  Don't call
+	thread_commission.  Instead, call thread_exregs.
+
+2007-11-23  Neal H. Walfield  <neal@gnu.org>
+
 	* cap-lookup.c (lookup): Improving debugging output for when we
 	expect an address translation unit but don't find one.
 

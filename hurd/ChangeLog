@@ -1,3 +1,16 @@
+2007-11-23  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h: Include <hurd/addr-trans.h>.
+	(HURD_EXREGS_EXCEPTION_THREAD): New definition.
+	(trans_exregs): Take two additional arguments for determining how
+	to copy the aspace address translation bits.  Update callers.
+	(thread_stop): New function.
+	* rpc.h (RPC12_4): New macro.
+	(RPC13_4): Likewise.
+
+	* exceptions.h (exception_handler_init): New declaration.
+	(exception_handler_loop): Likewise.
+
 2007-11-22  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (includehurd_HEADERS): Add thread.h.

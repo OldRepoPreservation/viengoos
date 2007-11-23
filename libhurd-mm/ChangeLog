@@ -1,3 +1,11 @@
+2007-11-23  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c (exception_thread): Rename from this...
+	(exception_handler_loop): ... to this.  Update caller.
+
+	* Makefile.am (libhurd_mm_a_SOURCES): Remove exceptions.h.
+	* exceptions.h: Remove file.
+
 2007-11-22  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c (as_alloc_slow): Use CAP_COPY_COPY_ADDR_TRANS_GUARD, not

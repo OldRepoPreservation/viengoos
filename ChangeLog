@@ -1,3 +1,8 @@
+2007-11-23  Neal H. Walfield  <neal@gnu.org>
+
+	* README: Add note that Pistachio must be compiled with the Pager
+	ExchangeRegisters configure option enabled.
+
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
 	* README: Update building and booting instructions.

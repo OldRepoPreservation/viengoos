@@ -110,15 +110,20 @@ cmain (void)
   l4_init ();
   l4_init_stubs ();
 
-  printf ("In cmain");
+  printf ("In cmain\n");
 
   mm_init (__hurd_startup_data->activity);
 
   extern void *(*_pthread_init_routine)(void);
-  void *sp = _pthread_init_routine ();
+  if (_pthread_init_routine)
+    {
+      void *sp = _pthread_init_routine ();
 
-  /* Switch stacks.  */
-  l4_start_sp_ip (l4_myself (), sp, &finish);
+      /* Switch stacks.  */
+      l4_start_sp_ip (l4_myself (), (l4_word_t) sp, (l4_word_t) &finish);
+    }
+  else
+    finish ();
 
   /* Never reached.  */
 }

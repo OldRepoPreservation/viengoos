@@ -376,11 +376,11 @@ folio_object_alloc (struct activity *activity,
       switch (folio->objects[idx].type)
 	{
 	case cap_activity:
-	  debug (3, "Destroying activity at %llx", oid);
+	  debug (4, "Destroying activity at %llx", oid);
 	  activity_destroy (activity, NULL, (struct activity *) object);
 	  break;
 	case cap_thread:
-	  debug (3, "Destroying thread object at %llx", oid);
+	  debug (4, "Destroying thread object at %llx", oid);
 	  thread_deinit (activity, (struct thread *) object);
 	  break;
 	default:

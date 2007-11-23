@@ -139,5 +139,11 @@ RPC3 (fault, addr_t, fault_address, uintptr_t, ip,
 #undef RPC_TARGET_NEED_ARG
 #undef RPC_TARGET_ARG_TYPE
 #undef RPC_TARGET
+
+/* Initialize the exception handler.  */
+extern void exception_handler_init (void);
+
+/* The exception handler loop.  */
+extern void exception_handler_loop (void);
 
 #endif

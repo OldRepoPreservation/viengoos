@@ -37,6 +37,7 @@
 #include <string.h>
 
 #include <sys/mman.h>
+#include <pthread.h>
 
 #include "ruth.h"
 
@@ -279,7 +280,7 @@ main (int argc, char *argv[])
       do_debug (4)
 	as_dump ("thread");
 
-      debug (2, "I'm running (%x.%x)!\n",
+      debug (4, "I'm running (%x.%x)!",
 	     l4_thread_no (l4_myself ()),
 	     l4_version (l4_myself ()));
 
@@ -292,29 +293,27 @@ main (int argc, char *argv[])
     printf ("Checking thread creation... ");
 
     addr_t thread = capalloc ();
-    debug (1, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
+    debug (5, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
     addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
 				    thread).addr;
 
     struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
-    rm_object_slot_copy_in (activity, thread, THREAD_ASPACE_SLOT,
-			    ADDR (0, 0), CAP_COPY_COPY_SOURCE_GUARD,
-			    addr_trans);
-
     l4_word_t dummy;
     rm_thread_exregs (activity, thread,
-		      HURD_EXREGS_SET_ACTIVITY
-		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START,
-		      ADDR (0, 0), activity,
+		      HURD_EXREGS_SET_ASPACE | HURD_EXREGS_SET_ACTIVITY
+		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START
+		      | HURD_EXREGS_ABORT_IPC,
+		      ADDR (0, 0), CAP_COPY_COPY_SOURCE_GUARD, addr_trans,
+		      activity,
 		      (l4_word_t) ((void *) stack + sizeof (stack)),
 		      (l4_word_t) &start, 0, 0,
 		      ADDR_VOID, ADDR_VOID,
 		      &dummy, &dummy, &dummy, &dummy);
 
-    debug (2, "Waiting for thread");
+    debug (5, "Waiting for thread");
     while (done == 0)
       l4_yield ();
-    debug (2, "Thread done!");
+    debug (5, "Thread done!");
 
     storage_free (storage, true);
     capfree (thread);
@@ -323,105 +322,64 @@ main (int argc, char *argv[])
   }
 
   {
-    static volatile int done;
-    char stack[0x1000];
+    printf ("Checking pthread library... ");
 
-    void start (void)
+#define N 4
+    pthread_t threads[N];
+
+    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+#define FACTOR 10
+    static volatile int shared_resource;
+
+    void *start (void *arg)
     {
-      do_debug (4)
-	as_dump ("thread");
+      uintptr_t i = (uintptr_t) arg;
 
-      debug (2, "I'm running (%x.%x)!\n",
-	     l4_thread_no (l4_myself ()),
-	     l4_version (l4_myself ()));
+      debug (5, "%d (%x.%x) started", (int) i,
+	     l4_thread_no (l4_myself ()), l4_version (l4_myself ()));
 
-      done = 1;
-      do
-	l4_yield ();
-      while (1);
+      int c;
+      for (c = 0; c < FACTOR; c ++)
+	{
+	  int w;
+	  for (w = 0; w < 10; w ++)
+	    l4_yield ();
+
+	  pthread_mutex_lock (&mutex);
+
+	  debug (5, "%d calling, count=%d", (int) i, shared_resource);
+
+	  for (w = 0; w < 10; w ++)
+	    l4_yield ();
+
+	  shared_resource ++;
+
+	  pthread_mutex_unlock (&mutex);
+	}
+
+      return arg;
     }
 
-    printf ("Checking thread creation... ");
+    int i;
+    for (i = 0; i < N; i ++)
+      {
+	debug (5, "Creating thread %d", i);
+	error_t err = pthread_create (&threads[i], NULL, start,
+				      (uintptr_t) i);
+	assert (err == 0);
+      }
 
-    addr_t thread = capalloc ();
-    debug (1, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
-    addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
-				    thread).addr;
+    for (i = 0; i < N; i ++)
+      {
+	void *status = (void *) 1;
+	debug (5, "Waiting on thread %d", i);
+	error_t err = pthread_join (threads[i], &status);
+	assert (err == 0);
+	assert (status == (uintptr_t) i);
+	debug (5, "Joined %d", i);
+      }
 
-    struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
-    rm_object_slot_copy_in (activity, thread, THREAD_ASPACE_SLOT,
-			    ADDR (0, 0), CAP_COPY_COPY_SOURCE_GUARD,
-			    addr_trans);
-
-    l4_word_t dummy;
-    rm_thread_exregs (activity, thread,
-		      HURD_EXREGS_SET_ACTIVITY
-		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START,
-		      ADDR (0, 0), activity,
-		      (l4_word_t) ((void *) stack + sizeof (stack)),
-		      (l4_word_t) &start, 0, 0,
-		      ADDR_VOID, ADDR_VOID,
-		      &dummy, &dummy, &dummy, &dummy);
-
-    debug (2, "Waiting for thread");
-    while (done == 0)
-      l4_yield ();
-    debug (2, "Thread done!");
-
-    storage_free (storage, true);
-    capfree (thread);
-
-    printf ("ok.\n");
-  }
-
-  {
-    static volatile int done;
-    char stack[0x1000];
-
-    void start (void)
-    {
-      do_debug (4)
-	as_dump ("thread");
-
-      debug (2, "I'm running (%x.%x)!\n",
-	     l4_thread_no (l4_myself ()),
-	     l4_version (l4_myself ()));
-
-      done = 1;
-      do
-	l4_yield ();
-      while (1);
-    }
-
-    printf ("Checking thread creation... ");
-
-    addr_t thread = capalloc ();
-    debug (1, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
-    addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
-				    thread).addr;
-
-    struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
-    rm_object_slot_copy_in (activity, thread, THREAD_ASPACE_SLOT,
-			    ADDR (0, 0), CAP_COPY_COPY_SOURCE_GUARD,
-			    addr_trans);
-
-    l4_word_t dummy;
-    rm_thread_exregs (activity, thread,
-		      HURD_EXREGS_SET_ACTIVITY
-		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START,
-		      ADDR (0, 0), activity,
-		      (l4_word_t) ((void *) stack + sizeof (stack)),
-		      (l4_word_t) &start, 0, 0,
-		      ADDR_VOID, ADDR_VOID,
-		      &dummy, &dummy, &dummy, &dummy);
-
-    debug (2, "Waiting for thread");
-    while (done == 0)
-      l4_yield ();
-    debug (2, "Thread done!");
-
-    storage_free (storage, true);
-    capfree (thread);
+    assert (shared_resource == N * FACTOR);
 
     printf ("ok.\n");
   }
