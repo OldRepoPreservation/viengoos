@@ -131,6 +131,21 @@ exception_handler_init (void)
      downward.  */
   char *sp = (char *) stack + STACK_SIZE;
 
+  debug (5, "Starting exception thread");
+
   l4_thread_id_t tid = hurd_exception_thread (l4_myself ());
-  l4_start_sp_ip (tid, (l4_word_t) sp, (l4_word_t) &exception_handler_loop);
+  l4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_SET_SP
+    | _L4_XCHG_REGS_SET_IP | _L4_XCHG_REGS_CANCEL_IPC;
+  l4_word_t dummy = 0;
+  l4_word_t ip = exception_handler_loop;
+  _L4_exchange_registers (&tid, &control, &sp, &ip,
+			  &dummy, &dummy, &dummy);
+  if (tid == l4_nilthread)
+    {
+      int err = l4_error_code ();
+      panic ("Error starting exception thread %x.%x: %s (%d)",
+	     l4_thread_no (hurd_exception_thread (l4_myself ())),
+	     l4_version (hurd_exception_thread (l4_myself ())),
+	     l4_strerror (err), err);
+    }
 }

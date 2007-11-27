@@ -1,3 +1,9 @@
+2007-11-27  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c (exception_handler_init): Use
+	_L4_exchange_registers rather than l4_start_sp_ip to be able to
+	detect errors.
+
 2007-11-23  Neal H. Walfield  <neal@gnu.org>
 
 	* mm-init.c: Don't include "exceptions.h".  Include
