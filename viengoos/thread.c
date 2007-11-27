@@ -199,6 +199,18 @@ thread_commission (struct thread *thread)
 	     l4_strerror (err), err);
     }
 
+  /* By default, a new active thread follows the thread start up
+     protocol.  If the main thread causes an exception before the
+     exception thread is properly running, then it starts running with
+     the exception code.  To avoid this,we break the thread out of the
+     receive phase.  */
+  l4_thread_id_t targ = hurd_exception_thread (thread->tid);
+  l4_word_t c = _L4_XCHG_REGS_CANCEL_RECV
+    | _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_HALT;
+  l4_word_t dummy = 0;
+  _L4_exchange_registers (&targ, &c, &dummy, &dummy, &dummy,
+			  &dummy, &dummy);
+
   /* XXX: Restore the register state!  (See comment above for the
      plan.)  */
 
