@@ -169,7 +169,12 @@ server_loop (void)
 	      if (l4_ipc_failed (tag))
 		/* The receiver was not ready.  Store the message.  */
 		{
-		  debug (4, "Failed to send to exception thread.  Storing.");
+		  debug (4, "Failed to send exception to %x.%x at "
+			 ADDR_FMT " (ip=%x).  Storing.",
+			 l4_thread_no (hurd_exception_thread (from)),
+			 l4_version (hurd_exception_thread (from)),
+			 ADDR_PRINTF (PTR_TO_ADDR (fault)), ip);
+
 		  memcpy (thread->exception, msg,
 			  sizeof (l4_word_t)
 			  * (1 + l4_untyped_words (l4_msg_msg_tag (msg))));
@@ -351,6 +356,9 @@ server_loop (void)
 	{
 	  /* We don't expect a principal.  */
 	  CHECK (0, -1);
+
+	  debug (4, "Collecting exception: %x.%x",
+		 l4_thread_no (from), l4_version (from));
 
 	  if (thread->have_exception)
 	    {
