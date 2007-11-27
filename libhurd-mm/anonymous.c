@@ -34,6 +34,7 @@
 
 #define DISCARDABLE(a) ((a)->flags & ANONYMOUS_DISCARDABLE)
 
+/* All fields are protected by the pager's lock.  */
 struct storage_desc
 {
   hurd_btree_node_t node;
@@ -131,6 +132,8 @@ static bool
 fault (struct pager *pager,
        addr_t addr, uintptr_t ip, struct exception_info info)
 {
+  assert (pthread_mutex_trylock (&pager->lock) == EBUSY);
+
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
 
   addr_t page;
@@ -209,7 +212,9 @@ anonymous_pager_alloc (addr_t activity,
   anon->pager.region.start = addr_chop (PTR_TO_ADDR (addr), PAGESIZE_LOG2);
   anon->pager.region.count = size >> PAGESIZE_LOG2;
 
+  pthread_mutex_lock (&pagers_lock);
   bool r = pager_install (&anon->pager);
+  pthread_mutex_unlock (&pagers_lock);
   if (! r)
     /* Ooops!  There is a region conflict.  */
     {
@@ -223,8 +228,14 @@ anonymous_pager_alloc (addr_t activity,
 void
 anonymous_pager_destroy (struct anonymous_pager *anon)
 {
+  pthread_mutex_lock (&pagers_lock);
+
   /* Deinstall the pager.  */
   pager_deinstall (&anon->pager);
+
+  pthread_mutex_unlock (&pagers_lock);
+
+  pthread_mutex_lock (&anon->pager.lock);
 
   /* Free the allocated storage.  */
   hurd_btree_storage_desc_t *storage_descs;
@@ -238,6 +249,8 @@ anonymous_pager_destroy (struct anonymous_pager *anon)
       storage_free (node->storage, false);
       storage_desc_free (node);
     }
+
+  /* There is no need to unlock &anon->pager.lock: we free it.  */
 
   /* And free its storage.  */
   hurd_slab_dealloc (&anonymous_pager_slab, anon);

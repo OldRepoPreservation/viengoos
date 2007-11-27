@@ -32,16 +32,19 @@
 #include <bit-array.h>
 
 #include <string.h>
+#include <pthread.h>
 
 struct cappage_desc
 {
-  hurd_btree_node_t node;
-
   addr_t cappage;
   struct cap *cap;
 
   unsigned char alloced[CAPPAGE_SLOTS / 8];
   unsigned short free;
+
+  pthread_mutex_t lock;
+
+  hurd_btree_node_t node;
 
   struct cappage_desc *next;
   struct cappage_desc **prevp;
@@ -60,7 +63,6 @@ link (struct cappage_desc **list, struct cappage_desc *e)
 static void
 unlink (struct cappage_desc *e)
 {
-  assert (e->next);
   assert (e->prevp);
 
   *e->prevp = e->next;
@@ -79,6 +81,7 @@ addr_compare (const addr_t *a, const addr_t *b)
 BTREE_CLASS (cappage_desc, struct cappage_desc,
 	     addr_t, cappage, node, addr_compare)
 
+static pthread_mutex_t cappage_descs_lock = PTHREAD_MUTEX_INITIALIZER;
 static hurd_btree_cappage_desc_t cappage_descs;
 
 /* Storage descriptors are alloced from a slab.  */
@@ -135,9 +138,34 @@ struct cappage_desc *nonempty;
 addr_t
 capalloc (void)
 {
-  if (! nonempty)
+  /* Find an appropriate storage area.  */
+  struct cappage_desc *pluck (struct cappage_desc *list)
+  {
+    while (list)
+      {
+	/* We could just wait on the lock, however, we can just as
+	   well allocate from another storage descriptor.  This may
+	   lead to allocating additional storage areas, however, this
+	   should be proportional to the contention.  */
+	if (pthread_mutex_trylock (&list->lock) == 0)
+	  return list;
+
+	list = list->next;
+      }
+
+    return NULL;
+  }
+
+  pthread_mutex_lock (&cappage_descs_lock);
+  struct cappage_desc *area = pluck (nonempty);
+  pthread_mutex_unlock (&cappage_descs_lock);
+
+  bool did_alloc = false;
+  if (! area)
     {
-      nonempty = cappage_desc_alloc ();
+      did_alloc = true;
+
+      area = cappage_desc_alloc ();
 
       /* As there is such a large number of caps per cappage, we
 	 expect that the page will be long lived.  */
@@ -146,12 +174,15 @@ capalloc (void)
 					      ADDR_VOID);
       if (ADDR_IS_VOID (storage.addr))
 	{
-	  cappage_desc_free (nonempty);
+	  cappage_desc_free (area);
 	  return ADDR_VOID;
 	}
 
-      nonempty->cappage = storage.addr;
-      nonempty->cap = storage.cap;
+      area->lock = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
+      pthread_mutex_lock (&area->lock);
+
+      area->cappage = storage.addr;
+      area->cap = storage.cap;
 
       /* Then, allocate the shadow object.  */
       struct storage shadow_storage
@@ -160,34 +191,53 @@ capalloc (void)
       if (ADDR_IS_VOID (shadow_storage.addr))
 	{
 	  /* No memory.  */
-	  storage_free (nonempty->cappage, false);
-	  cappage_desc_free (nonempty);
+	  storage_free (area->cappage, false);
+	  cappage_desc_free (area);
 	  return ADDR_VOID;
 	}
 
       struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
 							0, PAGESIZE_LOG2));
       memset (shadow, 0, PAGESIZE);
-      cap_set_shadow (nonempty->cap, shadow);
+      cap_set_shadow (area->cap, shadow);
 
-      memset (&nonempty->alloced, 0, sizeof (nonempty->alloced));
-      nonempty->free = CAPPAGE_SLOTS;
-
-      nonempty->next = NULL;
-      nonempty->prevp = &nonempty;
-
-      hurd_btree_cappage_desc_insert (&cappage_descs, nonempty);
+      memset (&area->alloced, 0, sizeof (area->alloced));
+      area->free = CAPPAGE_SLOTS;
     }
 
-  int idx = bit_alloc (nonempty->alloced, sizeof (nonempty->alloced), 0);
+  int idx = bit_alloc (area->alloced, sizeof (area->alloced), 0);
   assert (idx != -1);
 
-  nonempty->free --;
+  addr_t addr = addr_extend (area->cappage, idx, CAPPAGE_SLOTS_LOG2);
 
-  if (nonempty->free == 0)
-    unlink (nonempty);
+  area->free --;
+  if (area->free == 0)
+    {
+      pthread_mutex_unlock (&area->lock);
 
-  return addr_extend (nonempty->cappage, idx, CAPPAGE_SLOTS_LOG2);
+      pthread_mutex_lock (&cappage_descs_lock);
+      pthread_mutex_lock (&area->lock);
+      if (area->free == 0)
+	unlink (area);
+      pthread_mutex_unlock (&area->lock);
+      pthread_mutex_unlock (&cappage_descs_lock);
+    }
+  else
+    pthread_mutex_unlock (&area->lock);
+
+  if (did_alloc)
+    /* Only add the cappage now.  This way, we only make it available
+       once AREA->LOCK is no longer held.  */
+    {
+      pthread_mutex_lock (&cappage_descs_lock);
+
+      link (&nonempty, area);
+      hurd_btree_cappage_desc_insert (&cappage_descs, area);
+
+      pthread_mutex_unlock (&cappage_descs_lock);
+    }
+
+  return addr;
 }
 
 void
@@ -196,8 +246,11 @@ capfree (addr_t cap)
   addr_t cappage = addr_chop (cap, CAPPAGE_SLOTS_LOG2);
 
   struct cappage_desc *desc;
+
+  pthread_mutex_lock (&cappage_descs_lock);
   desc = hurd_btree_cappage_desc_find (&cappage_descs, &cappage);
   assert (desc);
+  pthread_mutex_lock (&desc->lock);
 
   bit_dealloc (desc->alloced, addr_extract (cap, CAPPAGE_SLOTS_LOG2));
   desc->free ++;
@@ -215,6 +268,7 @@ capfree (addr_t cap)
 	{
 	  hurd_btree_cappage_desc_detach (&cappage_descs, desc);
 	  unlink (desc);
+	  pthread_mutex_unlock (&cappage_descs_lock);
 
 	  struct object *shadow = cap_get_shadow (desc->cap);
 	  storage_free (addr_chop (PTR_TO_ADDR (shadow), PAGESIZE_LOG2),
@@ -225,8 +279,16 @@ capfree (addr_t cap)
 
 	  cappage_desc_free (desc);
 
+	  pthread_mutex_unlock (&cappage_descs_lock);
+
 	  storage_free (cappage, false);
+
+	  /* Already dropped the locks.  */
+	  return;
 	}
     }
+
+  pthread_mutex_unlock (&desc->lock);
+  pthread_mutex_unlock (&cappage_descs_lock);
 }
 

@@ -27,13 +27,15 @@
 #include <hurd/exceptions.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 /* Forward.  */
 struct pager;
 
-/* A fault occured at address ADDR.  If an access occurred, it is
-   described by IP and INFO.  Return true if the fault was handler
-   (and an appropriate mapping installed), otherwise, false.  */
+/* A fault occured at address ADDR.  Called with PAGER->LOCK held.  If
+   an access occurred, it is described by IP and INFO.  Return true if
+   the fault was handler (and an appropriate mapping installed),
+   otherwise, false.  */
 typedef bool (*pager_fault_t) (struct pager *pager,
 			       addr_t addr, uintptr_t ip,
 			       struct exception_info info);
@@ -63,14 +65,24 @@ struct pager
      pager_relocate function.  */
   struct pager_region region;
 
+  /* Region's fault handler.  */
   pager_fault_t fault;
 
+  /* Callback (possibly NULL) to evict memory.  */
   pager_evict_t evict;
   /* The effort required to reconstruct a freed page.  */
   int reconstruction_effort;
   /* The effort required to scan and free a page.  */
   int eviction_effort;
+
+  /* Protects everything but NODE and REGION.  This lock may be taken
+     if PAGERS_LOCK is held.  */
+  pthread_mutex_t lock;
 };
+
+/* Protects PAGERS and all pager's NODE.  This lock may not be taken
+   if a pager's LOCK is held by the caller.  */
+extern pthread_mutex_t pagers_lock;
 
 /* Compare two regions.  Two regions are considered equal if there is
    any overlap at all.  */
@@ -95,14 +107,15 @@ BTREE_CLASS (pager, struct pager, struct pager_region, region, node,
 	     pager_region_compare)
 
 /* Install the pager PAGER.  Pagers may not overlap.  Returns true on
-   success, false otherwise.  */
+   success, false otherwise.  PAGERS_LOCK must be held.  */
 extern bool pager_install (struct pager *pager);
 
-/* Change pager PAGER to pager the region REGION.  */
+/* Change pager PAGER to page the region REGION.  PAGERS_LOCK must be
+   held.  */
 extern bool pager_relocate (struct pager *pager, struct pager_region region);
 
 /* Deinstall an installed pager.  Results are undefined if PAGER is
-   not installed.  */
+   not installed.  PAGERS_LOCK must be held.  */
 extern void pager_deinstall (struct pager *pager);
 
 /* Raise a fault at address ADDR.  Returns true if the fault was

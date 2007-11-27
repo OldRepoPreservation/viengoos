@@ -1,5 +1,54 @@
 2007-11-27  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c: Include <pthread.h>.  Remove dead code.
+	(free_spaces_lock): New variable.
+	(free_space_split): Assert that it is held.
+	(as_alloc): Make thread-safe.
+	(as_alloc_at): Likewise.
+	(as_free): Likewise.
+	(as_alloced_dump): Likewise.
+	* storage.c: Include <pthread.h> and <atomic.h>.
+	(free_count): Make a uatomic32_t, rather than an int.  Update
+	users to access it using atomic operations.
+	(struct storage_desc): New field, lock.
+	(storage_descs_lock): New global variable.
+	(link): Assert that STORAGE_DESCS_LOCK is held.
+	(unlink): Likewise.  Don't assert that E->NEXT is NULL, which is
+	valid.
+	(slab_space_reserve): Make an atomicptr_t, rather than a void *.
+	Update users to access it using atomic operations.
+	(check_slab_space_reserve): Rewrite function to be thread-safe.
+	(storage_desc_free): Assert that STORAGE_DESCS_LOCK is held.
+	(storage_alloc): Rewrite function to be thread-safe.
+	(storage_free): Likewise.
+	(storage_init): Take STORAGE_DESCS_LOCK.  Initialize SDESC->LOCK.
+	* capalloc.c: Include <pthread.h>.
+	(struct cappage_desc): New field, lock.
+	(unlink): Don't assert E->NEXT.
+	(cappage_descs_lock): New variable.
+	(capalloc): Make thread safe.
+	(capfree): Likewise.
+	* pager.h: Include <pthread.h>.
+	(pager_fault_t): Note that PAGER->LOCK will be held.
+	(struct pager): New field, lock.
+	(pagers_lock): New declaration.
+	(pager_install): Note locking requirements.
+	(pager_relocate): Likewise.
+	(pager_deinstall): Likewise.
+	* pager.c (pagers_lock): New definition.
+	(pager_install): Add asserts.
+	(pager_relocate): Likewise.
+	(pager_deinstall): Likewise.
+	(pager_fault): Likewise.  Make function thread-safe.
+	* anonymous.c (struct storage_desc): Add comment about locking.
+	(fault): Add assert.
+	(anonymous_pager_alloc): Take PAGERS_LOCK before calling
+	pager_install and drop it afterwards.
+	(anonymous_pager_destroy): Take PAGERS_LOCK before calling
+	pager_deinstall and drop it afterwards.  Take ANON->PAGER.LOCK.
+
+2007-11-27  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.c (exception_handler_init): Use
 	_L4_exchange_registers rather than l4_start_sp_ip to be able to
 	detect errors.

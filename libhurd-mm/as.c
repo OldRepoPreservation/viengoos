@@ -29,6 +29,7 @@
 #include <l4/types.h>
 
 #include <string.h>
+#include <pthread.h>
 
 extern struct hurd_startup_data *__hurd_startup_data;
 
@@ -42,127 +43,6 @@ extern struct hurd_startup_data *__hurd_startup_data;
 /* Set to true before as_init returns.  Indicates that the shadow page
    table structures may be used, etc.  */
 bool as_init_done;
-
-#if 0
-/* We keep track of cappages that have slots appropriate for storing
-   regions with depth < /20, < /28 and < /36.  This allows for fast
-   allocation of subtrees.  */
-struct cappage
-{
-  btree_node_t node;
-
-  struct cappage *next;
-  struct cappage **prevp;
-
-  union
-  {
-    struct cap *cap;
-    struct cappage *parent;
-  };
-  /* If this cappage describes an unallocated cappage, then this
-     cappage is a place holder.  That is, the cappage is elidged via
-     the use of a guard.  In this case, PARENT points to the parent
-     cappage.  Be careful: this may also be a placeholder.  SLOT
-     describes which slot in PARENT this page is a place for.  */
-  unsigned char is_placeholder: 1;
-  unsigned char slot;
-
-  /* Number of free caps.  */
-  short free;
-  /* Which caps are allocated.  */
-  unsigned char alloced[CAPPAGE_SLOTS / 8];
-};
-
-/* List of cappages with free slots that dominate subtrees with height
-   less than PAGESIZE + (i + 1) * CAPPAGE_SLOTS_LOG2.  */
-#define DEPTHS \
-  ((ADDR_BITS - PAGESIZE_LOG2 + CAPPAGE_SLOTS_LOG2 - 1) / CAPPAGE_SLOTS_LOG2)
-static struct cappage *depth[DEPTHS];
-#define DEPTH(width) \
-  ({ \
-    int d_; \
-    if ((width) <= PAGESIZE_LOG2) \
-      d_ = 0; \
-    else \
-      d_ = ((width) - PAGESIZE_LOG2) / CAPPAGE_SLOTS_LOG2; \
-    d_; \
-  })
-
-static void
-link (struct cappage **list, struct cappage *e)
-{
-  e->next = *list;
-  if (e->next)
-    e->next->prevp = &e->next;
-  e->prevp = list;
-  *list = e;
-}
-
-static void
-unlink (struct cappage *e)
-{
-  assert (e->next);
-  assert (e->prevp);
-
-  *e->prevp = e->next;
-  if (e->next)
-    e->next->prevp = e->prevp;
-}
-
-addr_t
-as_alloc (int width, l4_uint64_t count, bool data_mappable)
-{
-  int d = DEPTH (width);
-
-  /* Grab is the number of levels above D to which we have to go to
-     get a slot.  */
-  int grab = 0;
-  for (grab = 0; d + grab < sizeof (depth) / sizeof (depth[0]); grab ++)
-    if (depth[d + grab])
-      break;
-
-  struct cappage *cappage = depth[d + grab];
-
-  int slot = bit_alloc (cappage->alloced, sizeof (cappage->alloced), 0);
-  assert (slot != -1);
-  cappage->free --;
-
-  int i;
-  for (i = 0; i < grab; i ++)
-    {
-      struct cappage *placeholder = cappage_alloc ();
-
-      placeholder->parent = cappage;
-      placeholder->is_placeholder = true;
-      placeholder->slot = slot;
-      placeholder->free = CAPPAGE_SLOTS - 1;
-
-      link (&depth[d + i], placeholder);
-      = cappage
-
-    }
-
-  addr_t addr = addr_extend (cappage->cap->self, slot, CAPPAGE_SLOTS_LOG2);
-  addr = addr_extend (addr, 0, grab * CAPPAGE_SLOTS_LOG2);
-
-  int guard_depth = ADDR_BITS - addr_depth (cappage->cap->self)
-    - CAPPAGE_SLOTS_LOG2 - width;
-
-
-  /* When we grab, we don't want to actually allocate the slot as it
-     would be possible to insert a cappage in place of the extra
-     guard.  What to do...  If we grab, should we always just insert a
-     cappage?  */
-
-  struct object *object = cap_to_object (cappage->cap);
-  assert (object);
-
-  CAP_SET_GUARD (object->caps[i], 0, guard_depth);
-
-  return addr_extend (addr, 0, guard_depth);
-}
-
-#endif
 
 /* We keep track of the regions which are unallocated.  These regions
    are kept in a btree allowing for fast allocation, fast searching
@@ -201,6 +81,7 @@ BTREE_CLASS (free_space, struct free_space, struct region, region, node,
 	     region_compare)
 
 /* The list of free regions.  */
+pthread_mutex_t free_spaces_lock = PTHREAD_MUTEX_INITIALIZER;
 hurd_btree_free_space_t free_spaces;
 
 static struct hurd_slab_space free_space_desc_slab;
@@ -251,6 +132,8 @@ free_space_desc_free (struct free_space *free_space)
 static void
 free_space_split (struct free_space *f, l4_uint64_t start, l4_uint64_t end)
 {
+  assert (pthread_mutex_trylock (&free_spaces_lock) == EBUSY);
+
   /* START and END must be inside F.  */
   assert (f->region.start <= start);
   assert (end <= f->region.end);
@@ -308,6 +191,10 @@ as_alloc (int width, l4_uint64_t count, bool data_mappable)
   l4_uint64_t align = 1ULL << w;
   l4_uint64_t length = align * count;
 
+  pthread_mutex_lock (&free_spaces_lock);
+
+  addr_t addr = ADDR_VOID;
+
   struct free_space *free_space;
   for (free_space = hurd_btree_free_space_first (&free_spaces);
        free_space;
@@ -323,14 +210,17 @@ as_alloc (int width, l4_uint64_t count, bool data_mappable)
 	  if (data_mappable && start + length - 1 >= DATA_ADDR_MAX)
 	    /* But it must be mappable and it extends beyond the end
 	       of the address space!  */
-	    return ADDR_VOID;
+	    break;
 
 	  free_space_split (free_space, start, start + length - 1);
-	  return ADDR (start, ADDR_BITS - (w - shift));
+	  addr = ADDR (start, ADDR_BITS - (w - shift));
+	  break;
 	}
     }
 
-  return ADDR_VOID;
+  pthread_mutex_unlock (&free_spaces_lock);
+
+  return addr;
 }
 
 bool
@@ -342,15 +232,20 @@ as_alloc_at (addr_t addr, l4_uint64_t count)
 
   struct region region = { start, end };
   struct free_space *f;
+
+  bool ret = false;
+  pthread_mutex_lock (&free_spaces_lock);
+
   f = hurd_btree_free_space_find (&free_spaces, &region);
-  if (! f)
-    return false;
+  if (f && (f->region.start <= start && end <= f->region.end))
+    {
+      free_space_split (f, start, end);
+      ret = true;
+    }
 
-  if (! (f->region.start <= start && end <= f->region.end))
-    return false;
+  pthread_mutex_unlock (&free_spaces_lock);
 
-  free_space_split (f, start, end);
-  return true;
+  return ret;
 }
 
 void
@@ -365,6 +260,8 @@ as_free (addr_t addr, l4_uint64_t count)
      if there is overlap, we bail.  */
   space->region.start = start == 0 ? 0 : start - 1;
   space->region.end = end == -1ULL ? -1ULL : end + 1;
+
+  pthread_mutex_lock (&free_spaces_lock);
 
   struct free_space *f = hurd_btree_free_space_insert (&free_spaces, space);
   if (f)
@@ -411,6 +308,8 @@ as_free (addr_t addr, l4_uint64_t count)
       space->region.start = start;
       space->region.end = end;
     }
+
+  pthread_mutex_unlock (&free_spaces_lock);
 }
 
 static struct as_insert_rt
@@ -826,6 +725,8 @@ as_init (void)
 void
 as_alloced_dump (const char *prefix)
 {
+  pthread_mutex_lock (&free_spaces_lock);
+
   struct free_space *free_space;
   for (free_space = hurd_btree_free_space_first (&free_spaces);
        free_space;
@@ -833,6 +734,8 @@ as_alloced_dump (const char *prefix)
     printf ("%s%s%llx-%llx\n",
 	    prefix ?: "", prefix ? ": " : "",
 	    free_space->region.start, free_space->region.end);
+
+  pthread_mutex_unlock (&free_spaces_lock);
 }
 
 struct cap
