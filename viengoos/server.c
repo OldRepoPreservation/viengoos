@@ -24,6 +24,7 @@
 #include <hurd/stddef.h>
 #include <hurd/exceptions.h>
 #include <hurd/thread.h>
+#include <hurd/activity.h>
 
 #include "server.h"
 
@@ -287,11 +288,13 @@ server_loop (void)
       /* Return a cap referencing the object at address ADDR of the
 	 callers capability space if it is of type TYPE (-1 = don't care).
 	 Whether the object is writable is stored in *WRITABLEP_.  */
-      error_t CAP_ (addr_t addr, int type, bool *writablep, struct cap *cap)
+      error_t CAP_ (addr_t addr, int type, bool require_writable,
+		    struct cap *cap)
 	{
+	  bool writable = true;
 	  *cap = cap_lookup_rel (principal, &thread->aspace, addr,
-				 type, writablep);
-	  if (type != -1 && cap->type != type)
+				 type, require_writable ? &writable : NULL);
+	  if (type != -1 && ! cap_types_compatible (cap->type, type))
 	    {
 	      DEBUG (1, "Addr 0x%llx/%d does not reference object of type %s",
 		     addr_prefix (addr), addr_depth (addr),
@@ -299,37 +302,55 @@ server_loop (void)
 	      as_dump_from (activity, &thread->aspace, "");
 	      return ENOENT;
 	    }
+
+	  if (require_writable && ! writable)
+	    {
+	      DEBUG (1, "Addr " ADDR_FMT " not writable",
+		     ADDR_PRINTF (addr));
+	      return EPERM;
+	    }
+
 	  return 0;
 	}
-#define CAP(addr_, type_, writeablep_) \
+#define CAP(addr_, type_, require_writable_) \
   ({ struct cap CAP_ret; \
-     error_t err = CAP_ (addr_, type_, writeablep_, &CAP_ret); \
+     error_t err = CAP_ (addr_, type_, require_writable_, &CAP_ret); \
      if (err) \
        REPLY (err); \
      CAP_ret; \
   })
 
-      error_t OBJECT_ (addr_t addr, int type, bool *writablep,
+      error_t OBJECT_ (addr_t addr, int type, bool require_writable,
 		       struct object **objectp)
 	{
 	  struct cap cap;
-	  error_t err = CAP_ (addr, type, writablep, &cap);
+	  bool writable = true;
+	  error_t err = CAP_ (addr, type,
+			      require_writable ? &writable : NULL,
+			      &cap);
 	  if (err)
 	    return err;
+
+	  if (require_writable && ! writable)
+	    {
+	      DEBUG (1, "Object at " ADDR_FMT " not writable",
+		     ADDR_PRINTF (addr));
+	      return EPERM;
+	    }
 
 	  *objectp = cap_to_object (principal, &cap);
 	  if (! *objectp)
 	    {
-	      DEBUG (1, "Addr 0x%llx/%d, dangling pointer",
+	      DEBUG (4, "Addr 0x%llx/%d, dangling pointer",
 		     addr_prefix (addr), addr_depth (addr));
 	      return ENOENT;
 	    }
 
 	  return 0;
 	}
-#define OBJECT(addr_, type_, writeablep_) \
+#define OBJECT(addr_, type_, require_writable_) \
   ({ struct object *OBJECT_ret; \
-     error_t err = OBJECT_ (addr_, type_, writeablep_, &OBJECT_ret); \
+     error_t err = OBJECT_ (addr_, type_, require_writable_, &OBJECT_ret); \
      if (err) \
        REPLY (err); \
      OBJECT_ret; \
@@ -373,7 +394,7 @@ server_loop (void)
       addr_t principal_addr = ARG_ADDR ();
       if (! ADDR_IS_VOID (principal_addr))
 	principal = (struct activity *) OBJECT (principal_addr,
-						cap_activity, NULL);
+						cap_activity, false);
 
       struct folio *folio;
       struct object *object;
@@ -405,7 +426,7 @@ server_loop (void)
 	case RM_folio_free:;
 	  CHECK (0, 1);
 
-	  folio = (struct folio *) OBJECT (ARG_ADDR (), cap_folio, NULL);
+	  folio = (struct folio *) OBJECT (ARG_ADDR (), cap_folio, true);
 	  folio_free (principal, folio);
 
 	  REPLY (0);
@@ -414,7 +435,7 @@ server_loop (void)
 	  CHECK (2, 2);
 
 	  addr_t folio_addr = ARG_ADDR ();
-	  folio = (struct folio *) OBJECT (folio_addr, cap_folio, NULL);
+	  folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
 
 	  idx = ARG ();
 	  if (idx >= FOLIO_OBJECTS)
@@ -450,7 +471,7 @@ server_loop (void)
 	  CHECK (3, 2);
 
 	  addr_t addr = ARG_ADDR ();
-	  source = CAP (addr, -1, NULL);
+	  source = CAP (addr, -1, false);
 	  idx = ARG ();
 
 	  if (idx >= cap_type_num_slots[source.type])
@@ -489,7 +510,7 @@ server_loop (void)
 	      target_addr = addr;
 
 	      source_addr = ARG_ADDR ();
-	      source = CAP (source_addr, -1, NULL);
+	      source = CAP (source_addr, -1, false);
 	      target = &((struct cap *) object)[idx];
 	    }
 
@@ -502,7 +523,7 @@ server_loop (void)
 	  target = SLOT (target_addr);
 
 	  source_addr = ARG_ADDR ();
-	  source = CAP (source_addr, -1, NULL);
+	  source = CAP (source_addr, -1, false);
 
 	cap_copy_body:;
 
@@ -541,7 +562,7 @@ server_loop (void)
 
 	  /* We don't look up the argument directly as we need to
 	     respect any subpag specification for cappages.  */
-	  source = CAP (ARG_ADDR (), -1, NULL);
+	  source = CAP (ARG_ADDR (), -1, false);
 	  l4_word_t idx = ARG ();
 
 	  object = cap_to_object (activity, &source);
@@ -567,7 +588,7 @@ server_loop (void)
 	case RM_cap_read:;
 	  CHECK (0, 1);
 
-	  source = CAP (ARG_ADDR (), -1, NULL);
+	  source = CAP (ARG_ADDR (), -1, false);
 
 	cap_read_body:
 
@@ -580,7 +601,7 @@ server_loop (void)
 	  CHECK (7, 5);
 
 	  struct thread *t
-	    = (struct thread *) OBJECT (ARG_ADDR (), cap_thread, NULL);
+	    = (struct thread *) OBJECT (ARG_ADDR (), cap_thread, true);
 
 	  l4_word_t control = ARG ();
 
@@ -635,6 +656,44 @@ server_loop (void)
 	  l4_msg_put_word (msg, 4, user_handler);
 
 	  REPLYW (0, 4);
+
+	case RM_activity_create:
+	  {
+	    CHECK (3, 3);
+
+	    struct object *child = OBJECT (ARG_ADDR (), cap_activity_control,
+					   true);
+	    l4_word_t priority = ARG ();
+	    l4_word_t weight = ARG ();
+	    l4_word_t storage_quota = ARG ();
+
+	    addr_t activity_out_addr = ARG_ADDR ();
+	    struct cap *activity_out_slot = NULL;
+	    if (! ADDR_IS_VOID (activity_out_addr))
+	      activity_out_slot = SLOT (activity_out_addr);
+
+	    addr_t activity_control_out_addr = ARG_ADDR ();
+	    struct cap *activity_control_out_slot = NULL;
+	    if (! ADDR_IS_VOID (activity_control_out_addr))
+	      activity_control_out_slot = SLOT (activity_control_out_addr);
+
+	    err = activity_create (principal, (struct activity *) child,
+				   priority, weight, storage_quota);
+
+	    if (activity_out_slot)
+	      {
+		r = cap_set (activity_out_slot, object_to_cap (child));
+		assert (r);
+		activity_out_slot->type = cap_activity;
+	      }
+	    if (activity_control_out_slot)
+	      {
+		r = cap_set (activity_control_out_slot, object_to_cap (child));
+		assert (r);
+	      }
+
+	    REPLYW (err, 0);
+	  }
 
 	default:
 	  /* XXX: Don't panic when running production code.  */

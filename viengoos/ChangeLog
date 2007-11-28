@@ -1,5 +1,42 @@
 2007-11-28  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (activity_allocate): Rename from this...
+	(activity_create): ... to this.  Remove arguments caller, folio,
+	indent, activity and control.  Add argument child.  Update users.
+	* activity.c (activity_allocate): Rename from this...
+	(activity_create): ... to this.  Remove arguments caller, folio,
+	indent, activity and control.  Add argument child.  If CHILD is
+	live, destroy it first.  Correctly add CHILD to PARENT's children
+	list.
+	* activity.h (activity_destroy): Remove argument cap.  Update
+	callers.
+	* activity.c (activity_destroy): Remove argument cap.  Correctly
+	destroy child activities and allocated folios.  Correctly unlink
+	from parent.
+	* server.c (CAP_): Remove argument writablep.  Add argument
+	require_writable.  Fail if REQUIRE_WRITABLE is true, and the
+	object is not writable.
+	(OBJECT_): Likewise.
+	(CAP): Remove argument writablep.  Add argument require_writable.
+	Update callers.
+	(OBJECT): Likewise.
+	(server_loop): Add support for the activity_create method.
+	* object.c (folio_free): Also update FOLIO->FOLIO_VERSION.
+	(folio_object_alloc): Check if the object is a
+	cap_activity_control, not a cap_activity.
+	(folio_reparent): Correctly link FOLIO to PARENT.
+	* t-as.c (test): Don't create a cap_activity object but a
+	cap_activity_control object.
+	* viengoos.c (system_task_load): Likewise.
+	* cap.c (cap_to_object): Use cap_types_compatible when asserting
+	that the capability's type and the object's type are identical.
+	* thread.c (thread_exregs): Use cap_types_compatible when checking
+	whether the thread has a valid activity object.
+	* rm.h: Include <hurd/activity.h>.
+	(rm_method_id_string): Handle the RM_activity_create case.
+
+2007-11-28  Neal H. Walfield  <neal@gnu.org>
+
 	* cap-lookup.c (lookup): Use cap_types_compatible to determine
 	whether two types are compatible.
 

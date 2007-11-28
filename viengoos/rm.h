@@ -31,6 +31,7 @@
 #include <hurd/startup.h>
 
 #include <hurd/thread.h>
+#include <hurd/activity.h>
 
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
@@ -88,6 +89,8 @@ rm_method_id_string (enum rm_method_id id)
       return "exception_collect";
     case RM_thread_exregs:
       return "thread_exregs";
+    case RM_activity_create:
+      return "activity_create";
     default:
       return "unknown method id";
     }

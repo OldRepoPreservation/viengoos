@@ -1,3 +1,8 @@
+2007-11-28  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c: Include <hurd/activity.h>.
+	(main): Add test for activity_create.
+
 2007-11-23  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Don't call rm_object_slot_copy_in to update the

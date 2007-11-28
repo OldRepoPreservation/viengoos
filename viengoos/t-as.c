@@ -218,7 +218,7 @@ test (void)
   if (! folio)
     panic ("Failed to allocate storage for the initial task!");
 
-  struct cap c = allocate_object (cap_activity, ADDR_VOID).cap;
+  struct cap c = allocate_object (cap_activity_control, ADDR_VOID).cap;
   root_activity = (struct activity *) cap_to_object (root_activity, &c);
     
   folio_reparent (root_activity, folio, root_activity);

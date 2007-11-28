@@ -310,7 +310,8 @@ system_task_load (void)
      A way around this problem would be the approach that EROS takes:
      start with a hand-created system image.  */
   startup_data->activity = csalloc ();
-  struct cap cap = allocate_object (cap_activity, startup_data->activity).cap;
+  struct cap cap = allocate_object (cap_activity_control,
+				    startup_data->activity).cap;
   root_activity = (struct activity *) cap_to_object (root_activity, &cap);
   folio_reparent (root_activity, folio, root_activity);
 

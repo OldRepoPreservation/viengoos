@@ -214,48 +214,28 @@ object_find (struct activity *activity, oid_t oid)
 
 void
 folio_reparent (struct activity *principal, struct folio *folio,
-		struct activity *new_parent)
+		struct activity *parent)
 {
   /* XXX: Implement this for the real "reparent" case (and not just
      the parent case).  */
 
   /* Record the owner.  */
-  struct object_desc *pdesc
-    = object_to_object_desc ((struct object *) new_parent);
-  assert (pdesc->type == cap_activity);
-  folio->activity.oid = pdesc->oid;
-  folio->activity.version = pdesc->version;
-  folio->activity.type = cap_activity;
+  folio->activity = object_to_cap ((struct object *) parent);
 
-  /* Add FOLIO to ACTIVITY's list of allocated folios.  */
+  folio->next = parent->folios;
 
-  /* Set FOLIO->NEXT to the current head.  */
-  folio->next = new_parent->folios;
-  folio->prev.type = cap_void;
-
-  oid_t foid = object_to_object_desc ((struct object *) folio)->oid;
-
-  struct object *head = cap_to_object (principal, &new_parent->folios);
-  if (head)
-    /* Update the old head's previous pointer to point to FOLIO.  */
+  struct object *n = cap_to_object (principal, &folio->next);
+  if (n)
     {
-      struct object_desc *odesc = object_to_object_desc (head);
-      assert (odesc->type == cap_folio);
+      struct folio *next = (struct folio *) n;
 
-      struct folio *h = (struct folio *) head;
+      struct object *prev = cap_to_object (principal, &next->prev);
+      assert (! prev);
 
-      struct object *head_prev = cap_to_object (principal, &h->prev);
-      assert (! head_prev);
-
-      h->prev.oid = foid;
-      h->prev.type = cap_folio;
-      h->prev.version = folio->folio_version;
+      next->prev = object_to_cap ((struct object *) folio);
     }
 
-  /* Make FOLIO the head.  */
-  new_parent->folios.oid = foid;
-  new_parent->folios.type = cap_folio;
-  new_parent->folios.version = folio->folio_version;
+  parent->folios = object_to_cap ((struct object *) folio);
 }
 
 struct folio *
@@ -341,7 +321,7 @@ folio_free (struct activity *activity, struct folio *folio)
   /* And free the folio.  */
   bit_dealloc (folios, fdesc->oid / (FOLIO_OBJECTS + 1));
 
-  fdesc->version ++;
+  folio->folio_version = fdesc->version ++;
 }
 
 void
@@ -365,7 +345,7 @@ folio_object_alloc (struct activity *activity,
 
   /* Deallocate any existing object.  */
 
-  if (folio->objects[idx].type == cap_activity
+  if (folio->objects[idx].type == cap_activity_control
       || folio->objects[idx].type == cap_thread)
     /* These object types have state that needs to be explicitly
        destroyed.  */
@@ -375,9 +355,9 @@ folio_object_alloc (struct activity *activity,
       /* See if we need to destroy the object.  */
       switch (folio->objects[idx].type)
 	{
-	case cap_activity:
+	case cap_activity_control:
 	  debug (4, "Destroying activity at %llx", oid);
-	  activity_destroy (activity, NULL, (struct activity *) object);
+	  activity_destroy (activity, (struct activity *) object);
 	  break;
 	case cap_thread:
 	  debug (4, "Destroying thread object at %llx", oid);

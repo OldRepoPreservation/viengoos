@@ -1,5 +1,12 @@
 2007-11-28  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (includehurd_HEADERS): Add activity.h.
+	* headers.m4: Create link from ../include/hurd/activity.h to
+	activity.h.
+	* activity.h: New file.
+
+2007-11-28  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (cap_types_compatible): New function.
 
 2007-11-23  Neal H. Walfield  <neal@gnu.org>

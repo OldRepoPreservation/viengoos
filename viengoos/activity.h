@@ -78,14 +78,13 @@ struct activity
    activity and the activity's control capability, respectively.
    PRIORITY, WEIGHT and STORAGE_QUOTA are the initial priority and
    weight of the activity.  */
-extern error_t activity_allocate (struct activity *parent,
-				  struct thread *caller,
-				  addr_t folio, l4_word_t index,
-				  addr_t activity, addr_t control,
-				  l4_word_t priority, l4_word_t weight,
-				  l4_word_t storage_quota);
+extern error_t activity_create (struct activity *parent,
+				struct activity *child,
+				l4_word_t priority, l4_word_t weight,
+				l4_word_t storage_quota);
 
+/* The ACTIVITY activity destroys the activity VICTIM.  */
 extern void activity_destroy (struct activity *activity,
-			      struct cap *cap, struct activity *target);
+			      struct activity *victim);
 
 #endif

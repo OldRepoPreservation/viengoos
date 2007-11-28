@@ -62,8 +62,9 @@ cap_to_object (struct activity *activity, struct cap *cap)
       return NULL;
     }
 
-  /* If the capability is valid, then the types must match.  */
-  assert (cap->type == desc->type);
+  /* If the capability is valid, then the cap type and the object type
+     must be compatible.  */
+  assert (cap_types_compatible (cap->type, desc->type));
 
   return object;
 }

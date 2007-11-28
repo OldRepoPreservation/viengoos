@@ -32,6 +32,7 @@
 #include <hurd/capalloc.h>
 #include <hurd/as.h>
 #include <hurd/storage.h>
+#include <hurd/activity.h>
 
 #include <bit-array.h>
 #include <string.h>
@@ -380,6 +381,96 @@ main (int argc, char *argv[])
       }
 
     assert (shared_resource == N * FACTOR);
+
+    printf ("ok.\n");
+  }
+
+  {
+    printf ("Checking activity_create... ");
+
+#define N 10
+    void test (addr_t activity, addr_t folio, int depth)
+    {
+      error_t err;
+      int i;
+      int obj = 0;
+
+      struct
+      {
+	addr_t child;
+	addr_t folio;
+	addr_t page;
+      } a[N];
+
+      for (i = 0; i < N; i ++)
+	{
+	  /* Allocate a new activity.  */
+	  a[i].child = capalloc ();
+	  err = rm_folio_object_alloc (activity, folio, obj ++,
+				       cap_activity_control, a[i].child);
+	  assert (err == 0);
+
+	  err = rm_activity_create (activity, a[i].child, 1, 1, 0,
+				    ADDR_VOID, ADDR_VOID);
+	  assert (err == 0);
+
+	  /* Allocate a folio against the activity and use it.  */
+	  a[i].folio = capalloc ();
+	  err = rm_folio_alloc (a[i].child, a[i].folio);
+	  assert (err == 0);
+
+	  a[i].page = capalloc ();
+	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 0, cap_page,
+				       a[i].page);
+	  assert (err == 0);
+
+	  l4_word_t type;
+	  struct cap_addr_trans addr_trans;
+
+	  err = rm_cap_read (a[i].child, a[i].page, &type, &addr_trans);
+	  assert (err == 0);
+	  assert (type == cap_page);
+	}
+
+      if (depth > 0)
+	/* Create another hierarchy depth.  */
+	for (i = 0; i < 2; i ++)
+	  test (a[i].child, a[i].folio, depth - 1);
+
+      /* We destroy the first N / 2 activities.  The caller will
+	 destroy the rest.  */
+      for (i = 0; i < N / 2; i ++)
+	{
+	  /* Destroy the activity.  */
+	  rm_folio_free (activity, a[i].folio);
+
+	  /* To determine if the folio has been destroyed, we cannot simply
+	     read the capability: this returns the type stored in the
+	     capability, not the type of the designated object.  Destroying
+	     the object does not destroy the capability.  Instead, we try to
+	     use the object.  If this fails, we assume that the folio was
+	     destroyed.  */
+	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 1, cap_page,
+				       a[i].page);
+	  assert (err);
+
+	  capfree (a[i].page);
+	  capfree (a[i].folio);
+	  capfree (a[i].child);
+	}
+    }
+
+    error_t err;
+    addr_t folio = capalloc ();
+    err = rm_folio_alloc (activity, folio);
+    assert (err == 0);
+
+    test (activity, folio, 2);
+
+    err = rm_folio_free (activity, folio);
+    assert (err == 0);
+
+    capfree (folio);
 
     printf ("ok.\n");
   }

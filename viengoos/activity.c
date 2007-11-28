@@ -26,110 +26,132 @@
 #include "object.h"
 
 error_t
-activity_allocate (struct activity *parent,
-		   struct thread *caller,
-		   addr_t faddr, l4_word_t index,
-		   addr_t aaddr, addr_t caddr,
-		   l4_word_t priority, l4_word_t weight,
-		   l4_word_t storage_quota)
+activity_create (struct activity *parent,
+		 struct activity *child,
+		 l4_word_t priority, l4_word_t weight,
+		 l4_word_t storage_quota)
 {
-  if (! (0 <= index && index < FOLIO_OBJECTS))
-    return EINVAL;
+  struct object_desc *desc = object_to_object_desc ((struct object *) parent);
+  assert (desc->type == cap_activity_control);
 
-  struct cap folio_cap = object_lookup_rel (parent, &caller->aspace,
-					    faddr, cap_folio, NULL);
-  if (folio_cap.type == cap_void)
-    return ENOENT;
-  struct object *folio = cap_to_object (parent, &folio_cap);
-  if (! folio)
-    return ENOENT;
+  desc = object_to_object_desc ((struct object *) child);
+  assert (desc->type == cap_activity_control);
 
-  struct cap *acap = slot_lookup_rel (parent, &caller->aspace, aaddr,
-				      -1, NULL);
-  if (! acap)
-    return ENOENT;
-  struct cap *ccap = slot_lookup_rel (parent, &caller->aspace, caddr,
-				      -1, NULL);
-  if (! ccap)
-    return ENOENT;
+  struct object *old_parent = cap_to_object (parent, &child->parent);
+  if (old_parent)
+    /* CHILD is live.  Destroy it first.  */
+    {
+      struct object_desc *desc = object_to_object_desc (old_parent);
+      assert (desc->type == cap_activity_control);
 
-  struct object *o;
-  folio_object_alloc (parent, (struct folio *) folio, index,
-		      cap_activity, &o);
-  struct activity *activity = (struct activity *) o;
-  *ccap = *acap = object_to_cap (o);
-  ccap->type = cap_activity_control;
+      activity_destroy (parent, child);
+    }
 
-  activity->priority = priority;
-  activity->weight = weight;
-  activity->storage_quota = storage_quota;
+  child->parent = object_to_cap ((struct object *) parent);
+
+  child->sibling_next = parent->children;
+  child->sibling_prev.type = cap_void;
+  parent->children = object_to_cap ((struct object *) child);
+
+  struct object *next = cap_to_object (parent, &child->sibling_next);
+  if (next)
+    {
+      desc = object_to_object_desc (next);
+      assert (desc->type == cap_activity_control);
+
+      struct activity *n = (struct activity *) next;
+
+      struct object *prev = cap_to_object (parent, &n->sibling_prev);
+      assert (! prev);
+
+      ((struct activity *) n)->sibling_prev
+	= object_to_cap ((struct object *) child);
+    }
+
+  child->priority = priority;
+  child->weight = weight;
+  child->storage_quota = storage_quota;
 
   return 0;
 }
 
 void
-activity_destroy (struct activity *activity,
-		  struct cap *cap, struct activity *target)
+activity_destroy (struct activity *activity, struct activity *victim)
 {
-  /* XXX: If we implement storage reparenting, we need to be careful
-     to avoid a recursive loop as an activity's storage may be stored
-     in a folio allocated to itself.  */
-  assert (! cap || cap->type == cap_activity_control);
+  struct object_desc *desc = object_to_object_desc ((struct object *) activity);
+  assert (desc->type == cap_activity_control);
+
+  desc = object_to_object_desc ((struct object *) victim);
+  assert (desc->type == cap_activity_control);
 
   /* We should never destroy the root activity.  */
-  if (target->parent.type == cap_void)
+  if (victim->parent.type == cap_void)
     panic ("Request to destroy root activity");
 
   /* XXX: Rewrite this to avoid recusion!!!  */
 
   /* Destroy all folios allocated to this activity.  */
-  while (target->folios.type != cap_void)
+  struct object *o;
+  while ((o = cap_to_object (activity, &victim->folios)))
     {
-      struct object *f = cap_to_object (activity, &target->folios);
-      /* If F was destroyed, it should have been removed from its
+      /* If O was destroyed, it should have been removed from its
 	 respective activity's allocation list.  */
-      assert (f);
-      folio_free (activity, (struct folio *) f);
+      assert (o);
+
+      struct object_desc *desc = object_to_object_desc (o);
+      assert (desc->type == cap_folio);
+
+      folio_free (activity, (struct folio *) o);
     }
 
   /* Activity's that are sub-activity's of ACTIVITY are not
      necessarily allocated out of storage allocated to ACTIVITY.  */
-  while (target->children.type != cap_void)
+  while ((o = cap_to_object (activity, &victim->children)))
     {
-      struct object *a = cap_to_object (activity, &activity->children);
-      /* If A was destroyed, it should have been removed from its
+      /* If O was destroyed, it should have been removed from its
 	 respective activity's allocation list.  */
-      assert (a);
-      activity_destroy (target, NULL, (struct activity *) a);
+      assert (o);
+
+      struct object_desc *desc = object_to_object_desc (o);
+      assert (desc->type == cap_activity_control);
+
+      activity_destroy (activity, (struct activity *) o);
     }
 
   /* Remove from parent's activity list.  */
-  struct activity *prev = NULL;
-  if (target->sibling_prev.type != cap_void)
-    prev = (struct activity *) cap_to_object (activity, &target->sibling_prev);
+  struct object *parent_object = cap_to_object (activity, &victim->parent);
+  assert (parent_object);
+  struct object_desc *pdesc = object_to_object_desc (parent_object);
+  assert (pdesc->type == cap_activity_control);
+  struct activity *parent = (struct activity *) parent_object;
 
-  struct activity *next = NULL;
-  if (target->sibling_next.type != cap_void)
-    next = (struct activity *) cap_to_object (activity, &target->sibling_next);
+  struct object *prev_object = cap_to_object (activity, &victim->sibling_prev);
+  assert (! prev_object
+	  || object_to_object_desc (prev_object)->type == cap_activity_control);
+  struct activity *prev = (struct activity *) prev_object;
 
-  struct activity *p
-    = (struct activity *) cap_to_object (activity, &target->parent);
-  assert (p);
-  struct object_desc *pdesc = object_to_object_desc ((struct object *) p);
+  struct object *next_object = cap_to_object (activity, &victim->sibling_next);
+  assert (! next_object
+	  || object_to_object_desc (next_object)->type == cap_activity_control);
+  struct activity *next = (struct activity *) next_object;
 
   if (prev)
-    prev->sibling_next = target->sibling_next;
+    prev->sibling_next = victim->sibling_next;
   else
+    /* VICTIM better be the head of PARENT's child list.  */
     {
-      assert (p->children.oid == pdesc->oid);
-      assert (p->children.version == pdesc->version);
+      struct object_desc *desc
+	= object_to_object_desc ((struct object *) victim);
+
+      assert (parent->children.oid == desc->oid);
+      assert (parent->children.version == desc->version);
     }
 
   if (next)
     {
-      next->sibling_prev = target->sibling_prev;
+      next->sibling_prev = victim->sibling_prev;
       if (! prev)
 	/* NEXT is new head.  */
-	p->children = activity->sibling_next;
+	parent->children = victim->sibling_next;
     }
 }

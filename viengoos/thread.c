@@ -380,7 +380,7 @@ thread_exregs (struct activity *principal,
 	    }
 
 	  struct object_desc *desc = object_to_object_desc (a);
-	  if (desc->type != cap_activity)
+	  if (! cap_types_compatible (desc->type, cap_activity))
 	    {
 	      debug (1, "Thread not schedulable: activity slot contains a %s",
 		     cap_type_string (desc->type));
