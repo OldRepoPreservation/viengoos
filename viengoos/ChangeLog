@@ -1,3 +1,8 @@
+2007-11-28  Neal H. Walfield  <neal@gnu.org>
+
+	* cap-lookup.c (lookup): Use cap_types_compatible to determine
+	whether two types are compatible.
+
 2007-11-27  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.c (thread_commission): After creating the exception

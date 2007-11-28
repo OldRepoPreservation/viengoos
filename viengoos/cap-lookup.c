@@ -105,8 +105,9 @@ lookup (activity_t activity,
 	  int guard = extract_bits64_inv (addr, remaining - 1, gdepth);
 	  if (CAP_GUARD (root) != guard)
 	    {
-	      debug (1, "Guard 0x%llx/%d does not match 0x%llx's "
-		     "bits %d-%d => 0x%x",
+	      debug (1, "Translating " ADDR_FMT ": guard 0x%llx/%d does "
+		     "not match 0x%llx's bits %d-%d => 0x%x",
+		     ADDR_PRINTF (address),
 		     CAP_GUARD (root), CAP_GUARD_BITS (root), addr,
 		     remaining - gdepth, remaining - 1, guard);
 	      return false;
@@ -242,10 +243,7 @@ lookup (activity_t activity,
   if (! cap_is_a (root, type))
     /* Types don't match.  They may, however, be compatible.  */
     {
-      if (((cap_is_a (root, cap_rpage) || cap_is_a (root, cap_page))
-	   && (type == cap_rpage || type == cap_page))
-	  || ((cap_is_a (root, cap_rcappage) || cap_is_a (root, cap_cappage))
-	      && (type == cap_rcappage || type == cap_cappage)))
+      if (cap_types_compatible (root->type, type))
 	/* Type are compatible.  We just need to downgrade the
 	   rights.  */
 	w = false;

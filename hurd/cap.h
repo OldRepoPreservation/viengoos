@@ -134,6 +134,32 @@ cap_is_a_page (struct cap *cap)
     || cap_is_a (cap, cap_cappage) || cap_is_a (cap, cap_rcappage);
 }
 
+/* Return whether two types are compatible in the sense that two caps
+   with the given types can designate the same object.  */
+static inline bool
+cap_types_compatible (enum cap_type a, enum cap_type b)
+{
+  if (a == b)
+    return true;
+
+  if (a == cap_page && b == cap_rpage)
+    return true;
+  if (a == cap_rpage && b == cap_page)
+    return true;
+
+  if (a == cap_cappage && b == cap_rcappage)
+    return true;
+  if (a == cap_rcappage && b == cap_cappage)
+    return true;
+
+  if (a == cap_activity && b == cap_activity_control)
+    return true;
+  if (a == cap_activity_control && b == cap_activity)
+    return true;
+
+  return false;
+}
+
 static inline const char *
 cap_type_string (enum cap_type type)
 {
