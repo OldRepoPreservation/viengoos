@@ -1,3 +1,14 @@
+2007-11-29  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h: Include <hurd/addr.h>.
+	Add method id RM_activity_properties.
+	(ACTIVITY_PROPERTIES_PRIORITY_SET): Define.
+	(ACTIVITY_PROPERTIES_WEIGHT_SET): Likewise.
+	(ACTIVITY_PROPERTIES_STORAGE_QUOTA_SET): Likewise.
+	(ACTIVITY_PROPERTIES_ALL_SET): Likewise.
+	(activity_properties): New declaration.
+	* rpc.h (RPC53): New macro.
+
 2007-11-28  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (includehurd_HEADERS): Add activity.h.

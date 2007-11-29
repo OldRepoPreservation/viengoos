@@ -476,6 +476,42 @@ main (int argc, char *argv[])
   }
 
   {
+    printf ("Checking activity_properties... ");
+
+    l4_word_t priority;
+    l4_word_t weight;
+    l4_word_t storage_quota;
+
+    error_t err;
+    err = rm_activity_properties (activity,
+				  ACTIVITY_PROPERTIES_ALL_SET,
+				  2, 3, 10000,
+				  &priority, &weight, &storage_quota);
+    assert (err == 0);
+			    
+    err = rm_activity_properties (activity,
+				  0,
+				  0, 0, 0,
+				  &priority, &weight, &storage_quota);
+    assert (err == 0);
+
+    assert (priority == 2);
+    assert (weight == 3);
+    assert (storage_quota == 10000);
+
+    err = rm_activity_properties (activity,
+				  ACTIVITY_PROPERTIES_ALL_SET,
+				  4, 5, 10001,
+				  &priority, &weight, &storage_quota);
+    assert (err == 0);
+
+    /* We expect the old values.  */
+    assert (priority == 2);
+    assert (weight == 3);
+    assert (storage_quota == 10000);
+  }
+
+  {
     addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
     assert (! ADDR_IS_VOID (addr));
 

@@ -1,3 +1,7 @@
+2007-11-29  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Add test for activity_properties.
+
 2007-11-28  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c: Include <hurd/activity.h>.

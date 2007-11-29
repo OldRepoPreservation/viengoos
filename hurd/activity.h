@@ -24,10 +24,12 @@
 
 #include <hurd/types.h>
 #include <hurd/startup.h>
+#include <hurd/addr.h>
 
 enum
   {
     RM_activity_create = 700,
+    RM_activity_properties,
   };
 
 #define RPC_STUB_PREFIX rm
@@ -56,6 +58,22 @@ RPC7 (activity_create, addr_t, parent, addr_t, activity,
       l4_word_t, priority, l4_word_t, weight,
       l4_word_t, storage_quota,
       addr_t, activity_out, addr_t, activity_control_out)
+
+enum
+{
+  ACTIVITY_PROPERTIES_PRIORITY_SET = 1 << 0,
+  ACTIVITY_PROPERTIES_WEIGHT_SET = 1 << 1,
+  ACTIVITY_PROPERTIES_STORAGE_QUOTA_SET = 1 << 2,
+
+  ACTIVITY_PROPERTIES_ALL_SET = (ACTIVITY_PROPERTIES_PRIORITY_SET
+				 | ACTIVITY_PROPERTIES_WEIGHT_SET
+				 | ACTIVITY_PROPERTIES_STORAGE_QUOTA_SET),
+};
+
+RPC53 (activity_properties, addr_t, activity, l4_word_t, flags,
+       l4_word_t, priority, l4_word_t, weight, l4_word_t, storage_quota,
+       l4_word_t *, priority_old, l4_word_t *, weight_old,
+       l4_word_t *, storage_quota_old)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

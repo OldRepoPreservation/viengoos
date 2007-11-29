@@ -494,6 +494,36 @@
         RPCSTORE(otype2, oarg2) \
        })
 
+/* RPC with 5 in parameters and 3 out parameters.  */
+#define RPC53(id, type1, arg1, \
+              type2, arg2, \
+              type3, arg3, \
+              type4, arg4, \
+              type5, arg5, \
+              otype1, oarg1, \
+              otype2, oarg2, \
+              otype3, oarg3) \
+  RPCX(id, \
+       (RPC_TARGET_ARG_ type1 arg1, type2 arg2, type3 arg3, \
+        type4 arg4, type5 arg5, \
+        otype1 oarg1, otype2 oarg2, otype3 oarg3), \
+       (l4_msg_t *msg, type1 arg1, type2 arg2, type3 arg3, \
+	type4 arg4, type5 arg5), \
+       (&msg, arg1, arg2, arg3, arg4, arg5), \
+       {RPCLOAD(type1, arg1) \
+        RPCLOAD(type2, arg2) \
+        RPCLOAD(type3, arg3) \
+        RPCLOAD(type4, arg4) \
+        RPCLOAD(type5, arg5) \
+       }, \
+       (l4_msg_t *msg, otype1 oarg1, otype2 oarg2, otype3 oarg3), \
+       (&msg, oarg1, oarg2, oarg3),				  \
+       { \
+        RPCSTORE(otype1, oarg1) \
+        RPCSTORE(otype2, oarg2) \
+        RPCSTORE(otype3, oarg3) \
+       })
+
 /* RPC with 6 in parameters and 3 out parameters.  */
 #define RPC63(id, type1, arg1, \
               type2, arg2, \

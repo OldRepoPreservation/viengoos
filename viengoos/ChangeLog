@@ -1,3 +1,11 @@
+2007-11-29  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (OBJECT_): Just pass REQUIRE_WRITABLE on to CAP_.
+	(server_loop): Save the capability that identifies the principal.
+	Implement the RM_activity_properties method.
+	* rm.h (rm_method_id_string): Handle the RM_activity_properties
+	case.
+
 2007-11-28  Neal H. Walfield  <neal@gnu.org>
 
 	* activity.h (activity_allocate): Rename from this...

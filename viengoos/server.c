@@ -324,19 +324,9 @@ server_loop (void)
 		       struct object **objectp)
 	{
 	  struct cap cap;
-	  bool writable = true;
-	  error_t err = CAP_ (addr, type,
-			      require_writable ? &writable : NULL,
-			      &cap);
+	  error_t err = CAP_ (addr, type, require_writable, &cap);
 	  if (err)
 	    return err;
-
-	  if (require_writable && ! writable)
-	    {
-	      DEBUG (1, "Object at " ADDR_FMT " not writable",
-		     ADDR_PRINTF (addr));
-	      return EPERM;
-	    }
 
 	  *objectp = cap_to_object (principal, &cap);
 	  if (! *objectp)
@@ -392,9 +382,23 @@ server_loop (void)
 
       principal = activity;
       addr_t principal_addr = ARG_ADDR ();
+      struct cap principal_cap;
       if (! ADDR_IS_VOID (principal_addr))
-	principal = (struct activity *) OBJECT (principal_addr,
-						cap_activity, false);
+	{
+	  principal_cap = CAP (principal_addr, cap_activity, false);
+	  principal = cap_to_object (principal, &principal_cap);
+	  if (! principal)
+	    {
+	      DEBUG (4, "Dangling pointer at " ADDR_FMT,
+		     ADDR_PRINTF (principal_addr));
+	      REPLY (ENOENT);
+	    }
+	}
+      else
+	{
+	  principal_cap = thread->activity;
+	  principal = activity;
+	}
 
       struct folio *folio;
       struct object *object;
@@ -693,6 +697,32 @@ server_loop (void)
 	      }
 
 	    REPLYW (err, 0);
+	  }
+
+	case RM_activity_properties:
+	  {
+	    CHECK (4, 0);
+
+	    l4_word_t flags = ARG ();
+	    l4_word_t priority = ARG ();
+	    l4_word_t weight = ARG ();
+	    l4_word_t storage_quota = ARG ();
+
+	    if (flags && principal_cap.type != cap_activity_control)
+	      REPLY (EPERM);
+
+	    l4_msg_put_word (msg, 1, principal->priority);
+	    l4_msg_put_word (msg, 2, principal->weight);
+	    l4_msg_put_word (msg, 3, principal->storage_quota);
+
+	    if ((flags & ACTIVITY_PROPERTIES_PRIORITY_SET))
+	      principal->priority = priority;
+	    if ((flags & ACTIVITY_PROPERTIES_WEIGHT_SET))
+	      principal->weight = weight;
+	    if ((flags & ACTIVITY_PROPERTIES_STORAGE_QUOTA_SET))
+	      principal->storage_quota = storage_quota;
+
+	    REPLYW (0, 3);
 	  }
 
 	default:

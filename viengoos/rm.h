@@ -91,6 +91,8 @@ rm_method_id_string (enum rm_method_id id)
       return "thread_exregs";
     case RM_activity_create:
       return "activity_create";
+    case RM_activity_properties:
+      return "activity_properties";
     default:
       return "unknown method id";
     }
