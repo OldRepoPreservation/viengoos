@@ -75,7 +75,7 @@ exception_handler_loop (void)
   for (;;)
     {
       l4_msg_t msg;
-      rm_exception_collect_marshal (&msg);
+      rm_exception_collect_send_marshal (&msg);
       l4_msg_load (msg);
 
       l4_thread_id_t from;

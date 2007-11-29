@@ -105,9 +105,9 @@
 #include <errno.h>
 
 /* Marshal the in-arguments and return a message buffer.  */
-#define RPC_MARSHAL(id, idescs, loader) \
+#define RPC_SEND_MARSHAL(id, idescs, loader) \
   static inline void \
-  RPC_CONCAT (RPC_STUB_PREFIX_(id), _marshal) idescs \
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal) idescs \
   { \
     l4_msg_tag_t tag; \
     \
@@ -121,9 +121,9 @@
   }
 
 /* Unmarshal the reply.  */
-#define RPC_UNMARSHAL(id, odescs, storer) \
+#define RPC_REPLY_UNMARSHAL(id, odescs, storer) \
   static inline error_t \
-  RPC_CONCAT (RPC_STUB_PREFIX_(id), _unmarshal) odescs \
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_unmarshal) odescs \
   { \
     l4_msg_tag_t tag = l4_msg_msg_tag (*msg); \
     l4_word_t err = l4_msg_word (*msg, 0); \
@@ -143,8 +143,8 @@
    this as the function return value.  If the IPC fails, EHOSTDOWN is
    returned.  */
 #define RPCX(id, args, idescs, iargs, loader, odescs, oargs, storer) \
-  RPC_MARSHAL(id, idescs, loader) \
-  RPC_UNMARSHAL(id, odescs, storer) \
+  RPC_SEND_MARSHAL(id, idescs, loader) \
+  RPC_REPLY_UNMARSHAL(id, odescs, storer) \
   static inline error_t \
   __attribute__((always_inline)) \
   RPC_STUB_PREFIX_(id) args \
@@ -152,7 +152,7 @@
     l4_msg_tag_t tag; \
     l4_msg_t msg; \
     \
-    RPC_CONCAT (RPC_STUB_PREFIX_(id), _marshal) iargs; \
+    RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal) iargs; \
     \
     l4_msg_load (msg); \
     l4_accept (L4_UNTYPED_WORDS_ACCEPTOR); \
@@ -162,7 +162,7 @@
       return EHOSTDOWN; \
     \
     l4_msg_store (tag, msg); \
-    return RPC_CONCAT (RPC_STUB_PREFIX_(id), _unmarshal) oargs; \
+    return RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_unmarshal) oargs; \
   }
 
 /* Load the argument ARG, which is of type TYPE into MR IDX.  */

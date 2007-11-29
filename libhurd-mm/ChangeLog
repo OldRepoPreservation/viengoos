@@ -1,3 +1,9 @@
+2007-11-29  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c (exception_handler_loop): Use
+	rm_exception_collect_send_marshal, not
+	rm_exception_collect_marshal.
+
 2007-11-27  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c: Include <pthread.h>.  Remove dead code.

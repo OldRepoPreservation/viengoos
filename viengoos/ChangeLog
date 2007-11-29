@@ -1,5 +1,10 @@
 2007-11-29  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Use exception_fault_send_marshal, not
+	exception_fault_marshal.
+	
+2007-11-29  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (OBJECT_): Just pass REQUIRE_WRITABLE on to CAP_.
 	(server_loop): Save the capability that identifies the principal.
 	Implement the RM_activity_properties method.

@@ -163,7 +163,8 @@ server_loop (void)
 	      info.type = cap_page;
 
 	      l4_msg_t msg;
-	      exception_fault_marshal (&msg, PTR_TO_ADDR (fault), ip, info);
+	      exception_fault_send_marshal (&msg, PTR_TO_ADDR (fault),
+					    ip, info);
 
 	      l4_msg_load (msg);
 	      l4_msg_tag_t tag = l4_reply (hurd_exception_thread (from));
