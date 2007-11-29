@@ -1,5 +1,14 @@
 2007-11-29  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c [! RM_INTERN] (as_lock): New declaration.
+	(as_slot_ensure_full) [! RM_INTERN]: Take AS_LOCK.
+	(as_insert) [! RM_INTERN]: Likewise.
+	* cap-lookup.c (cap_lookup_rel) [! RM_INTERN]: Likewise.
+	(object_lookup_rel) [! RM_INTERN]: Likewise.
+	(slot_lookup_rel) [! RM_INTERN]: Likewise.
+
+2007-11-29  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Use exception_fault_send_marshal, not
 	exception_fault_marshal.
 	

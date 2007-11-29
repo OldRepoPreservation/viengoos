@@ -1,5 +1,13 @@
 2007-11-29  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h [! RM_INTERN]: Include <pthread.h>.
+	(as_lock) [! RM_INTERN]: New declaration.
+	(cap_lookup_rel): Add comment about locking.
+	(object_lookup_rel): Likewise.
+	(slot_lookup_rel): Likewise.
+
+2007-11-29  Neal H. Walfield  <neal@gnu.org>
+
 	* rpc.h (RPC_MARSHAL): Rename from this...
 	(RPC_SEND_MARSHAL): ... to this.  Update users.
 	(RPC_UNMARSHAL): Rename from this...

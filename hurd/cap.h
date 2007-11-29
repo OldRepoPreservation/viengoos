@@ -25,8 +25,16 @@
 #include <hurd/types.h>
 #include <hurd/stddef.h>
 #include <hurd/addr-trans.h>
-#include <errno.h>
 #include <hurd/rm.h>
+#include <errno.h>
+
+#ifndef RM_INTERN
+#include <pthread.h>
+
+/* When reading or modifying the address space metadata, this
+   lock must be held.  */
+extern pthread_rwlock_t as_lock;
+#endif
 
 /* A capability.  */
 
@@ -412,7 +420,9 @@ cap_copy (activity_t activity,
    TYPE is the required type.  If the type is incompatible
    (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
    TYPE is -1, then any type is acceptable.  May cause paging.  If
-   non-NULL, returns whether the slot is writable in *WRITABLE.  */
+   non-NULL, returns whether the slot is writable in *WRITABLE.
+
+   This function locks (and unlocks) as_lock.  */
 extern struct cap cap_lookup_rel (activity_t activity,
 				  struct cap *root, addr_t addr,
 				  enum cap_type type, bool *writable);
@@ -425,7 +435,9 @@ extern struct cap cap_lookup_rel (activity_t activity,
    TYPE is the required type.  If the type is incompatible
    (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
    TYPE is -1, then any type is acceptable.  May cause paging.  If
-   non-NULL, returns whether the slot is writable in *WRITABLE.  */
+   non-NULL, returns whether the slot is writable in *WRITABLE.
+
+   This function locks (and unlocks) as_lock.  */
 extern struct cap object_lookup_rel (activity_t activity,
 				     struct cap *root, addr_t addr,
 				     enum cap_type type, bool *writable);
@@ -436,7 +448,9 @@ extern struct cap object_lookup_rel (activity_t activity,
    TYPE is the required type.  If the type is incompatible
    (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
    TYPE is -1, then any type is acceptable.  May cause paging.  If
-   non-NULL, returns whether the slot is writable in *WRITABLE.  */
+   non-NULL, returns whether the slot is writable in *WRITABLE.
+
+   This function locks (and unlocks) as_lock.  */
 extern struct cap *slot_lookup_rel (activity_t activity,
 				    struct cap *root, addr_t addr,
 				    enum cap_type type, bool *writable);

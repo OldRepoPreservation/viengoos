@@ -291,7 +291,17 @@ cap_lookup_rel (activity_t activity,
 {
   union rt rt;
 
-  if (! lookup (activity, root, address, type, writable, want_cap, &rt))
+#ifndef RM_INTERN
+  pthread_rwlock_rdlock (&as_lock);
+#endif
+
+  bool ret = lookup (activity, root, address, type, writable, want_cap, &rt);
+
+#ifndef RM_INTERN
+  pthread_rwlock_unlock (&as_lock);
+#endif
+
+  if (! ret)
     return (struct cap) { .type = cap_void };
   return rt.cap;
 }
@@ -303,7 +313,17 @@ object_lookup_rel (activity_t activity,
 {
   union rt rt;
 
-  if (! lookup (activity, root, address, type, writable, want_object, &rt))
+#ifndef RM_INTERN
+  pthread_rwlock_rdlock (&as_lock);
+#endif
+
+  bool ret = lookup (activity, root, address, type, writable, want_object, &rt);
+
+#ifndef RM_INTERN
+  pthread_rwlock_unlock (&as_lock);
+#endif
+
+  if (! ret)
     return (struct cap) { .type = cap_void };
   return rt.cap;
 }
@@ -315,7 +335,17 @@ slot_lookup_rel (activity_t activity,
 {
   union rt rt;
 
-  if (! lookup (activity, root, address, type, writable, want_slot, &rt))
+#ifndef RM_INTERN
+  pthread_rwlock_rdlock (&as_lock);
+#endif
+
+  bool ret = lookup (activity, root, address, type, writable, want_slot, &rt);
+
+#ifndef RM_INTERN
+  pthread_rwlock_unlock (&as_lock);
+#endif
+
+  if (! ret)
     return NULL;
   return rt.capp;
 }

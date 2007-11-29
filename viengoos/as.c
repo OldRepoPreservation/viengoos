@@ -33,6 +33,10 @@
 #include "object.h"
 #endif
 
+#ifndef RM_INTERN
+pthread_rwlock_t as_lock = __PTHREAD_RWLOCK_INITIALIZER;
+#endif
+
 /* Build the address space such that A designates a capability slot.
    If MAY_OVERWRITE is true, may overwrite an existing capability.
    Otherwise, the capability slot is expected to contain a void
@@ -414,7 +418,18 @@ as_slot_ensure_full (activity_t activity,
 		     struct as_insert_rt
 		     (*allocate_object) (enum cap_type type, addr_t addr))
 {
-  return as_build_internal (activity, root, a, allocate_object, true);
+#ifndef RM_INTERN
+  pthread_rwlock_wrlock (&as_lock);
+#endif
+
+  struct cap *cap = as_build_internal (activity, root, a,
+				       allocate_object, true);
+
+#ifndef RM_INTERN
+  pthread_rwlock_unlock (&as_lock);
+#endif
+
+  return cap;
 }
 
 void
@@ -423,9 +438,17 @@ as_insert (activity_t activity,
 	   struct as_insert_rt (*allocate_object) (enum cap_type type,
 						   addr_t addr))
 {
+#ifndef RM_INTERN
+  pthread_rwlock_wrlock (&as_lock);
+#endif
+
   struct cap *slot = as_build_internal (activity, root, addr, allocate_object,
 					false);
   cap_copy (activity, slot, addr, entry, entry_addr);
+
+#ifndef RM_INTERN
+  pthread_rwlock_unlock (&as_lock);
+#endif
 }
 
 static void
@@ -544,6 +567,7 @@ do_walk (activity_t activity, int index, struct cap *root, addr_t addr,
     }
 }
 
+/* Caller must ensure that AS_LOCK is held.  */
 void
 as_dump_from (activity_t activity, struct cap *root, const char *prefix)
 {
