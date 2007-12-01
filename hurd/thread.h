@@ -78,15 +78,15 @@ enum
 #include <hurd/rpc.h>
 
 /* l4_exregs wrapper.  */
-RPC13_4 (thread_exregs, addr_t, principal, addr_t, thread,
-	 l4_word_t, control,
-	 addr_t, aspace, l4_word_t, flags, struct cap_addr_trans, aspace_trans,
-	 addr_t, activity,
-	 l4_word_t, sp, l4_word_t, ip, l4_word_t, eflags,
-	 l4_word_t, user_handler, 
-	 addr_t, aspace_out, addr_t, activity_out,
-	 l4_word_t *, sp_out, l4_word_t *, ip_out, l4_word_t *, eflags_out,
-	 l4_word_t *, user_handler_out)
+RPC (thread_exregs, 13, 4, addr_t, principal, addr_t, thread,
+     l4_word_t, control,
+     addr_t, aspace, l4_word_t, flags, struct cap_addr_trans, aspace_trans,
+     addr_t, activity,
+     l4_word_t, sp, l4_word_t, ip, l4_word_t, eflags,
+     l4_word_t, user_handler, 
+     addr_t, aspace_out, addr_t, activity_out,
+     l4_word_t *, sp_out, l4_word_t *, ip_out, l4_word_t *, eflags_out,
+     l4_word_t *, user_handler_out)
      
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

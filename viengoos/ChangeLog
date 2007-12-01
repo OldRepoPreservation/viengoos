@@ -1,3 +1,7 @@
+2007-12-01  Neal H. Walfield  <neal@gnu.org>
+
+	* rm.h: Update to use new RPC stub generation interface.
+
 2007-11-29  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c [! RM_INTERN] (as_lock): New declaration.

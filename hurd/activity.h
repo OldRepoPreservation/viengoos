@@ -54,10 +54,10 @@ enum
    If not ADDR_VOID, an activity capability is saved in the capability
    slot designated by ACTIVITY_OUT and a control activity in the slot
    designated by ACTIVITY_CONTROL_OUT.  */
-RPC7 (activity_create, addr_t, parent, addr_t, activity, 
-      l4_word_t, priority, l4_word_t, weight,
-      l4_word_t, storage_quota,
-      addr_t, activity_out, addr_t, activity_control_out)
+RPC (activity_create, 7, 0, addr_t, parent, addr_t, activity, 
+     l4_word_t, priority, l4_word_t, weight,
+     l4_word_t, storage_quota,
+     addr_t, activity_out, addr_t, activity_control_out)
 
 enum
 {
@@ -70,10 +70,10 @@ enum
 				 | ACTIVITY_PROPERTIES_STORAGE_QUOTA_SET),
 };
 
-RPC53 (activity_properties, addr_t, activity, l4_word_t, flags,
-       l4_word_t, priority, l4_word_t, weight, l4_word_t, storage_quota,
-       l4_word_t *, priority_old, l4_word_t *, weight_old,
-       l4_word_t *, storage_quota_old)
+RPC (activity_properties, 5, 3, addr_t, activity, l4_word_t, flags,
+     l4_word_t, priority, l4_word_t, weight, l4_word_t, storage_quota,
+     l4_word_t *, priority_old, l4_word_t *, weight_old,
+     l4_word_t *, storage_quota_old)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

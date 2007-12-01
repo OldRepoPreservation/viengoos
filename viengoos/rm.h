@@ -121,16 +121,16 @@ rm_putchar (int chr)
 
 /* Allocate a folio against PRINCIPAL.  Store a capability in
    the caller's cspace in slot FOLIO.  */
-RPC2(folio_alloc, addr_t, principal, addr_t, folio)
+RPC(folio_alloc, 2, 0, addr_t, principal, addr_t, folio)
   
 /* Free the folio designated by FOLIO.  PRINCIPAL pays.  */
-RPC2(folio_free, addr_t, principal, addr_t, folio)
+RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
 
 /* Allocate INDEXth object in folio FOLIO as an object of type TYPE.
    PRINCIPAL is charged.  If OBJECT_SLOT is not ADDR_VOID, then stores
    a capability to the allocated object in OBJECT_SLOT.  */
-RPC5(folio_object_alloc, addr_t, principal,
-     addr_t, folio, l4_word_t, index, l4_word_t, type, addr_t, object_slot)
+RPC(folio_object_alloc, 5, 0, addr_t, principal,
+    addr_t, folio, l4_word_t, index, l4_word_t, type, addr_t, object_slot)
 
 enum
 {
@@ -151,34 +151,34 @@ enum
    the guard descriptor is copied from SOURCE.  If CAP_COPY_SUBPAGE is
    set, the subpage descriptor in CAP_ADDR_TRANS is used, otherwise,
    the subpage descriptor is copied from SOURCE.  */
-RPC5(cap_copy, addr_t, principal, addr_t, target, addr_t, source,
-     l4_word_t, addr_trans_flags, struct cap_addr_trans, cap_addr_trans)
+RPC(cap_copy, 5, 0, addr_t, principal, addr_t, target, addr_t, source,
+    l4_word_t, addr_trans_flags, struct cap_addr_trans, cap_addr_trans)
 
 /* Store the public bits of the capability CAP in *TYPE and
    *CAP_ADDR_TRANS.  */
-RPC22(cap_read, addr_t, principal, addr_t, cap,
-      l4_word_t *, type, struct cap_addr_trans *, cap_addr_trans)
+RPC(cap_read, 2, 2, addr_t, principal, addr_t, cap,
+    l4_word_t *, type, struct cap_addr_trans *, cap_addr_trans)
 
 /* Copy the capability from slot SLOT of the object OBJECT (relative
    to the start of the object's subpage) to slot TARGET.  */
-RPC6(object_slot_copy_out, addr_t, principal,
-     addr_t, object, l4_word_t, slot, addr_t, target,
-     l4_word_t, flags, struct cap_addr_trans, cap_addr_trans)
+RPC(object_slot_copy_out, 6, 0, addr_t, principal,
+    addr_t, object, l4_word_t, slot, addr_t, target,
+    l4_word_t, flags, struct cap_addr_trans, cap_addr_trans)
 
 /* Copy the capability from slot SOURCE to slot INDEX of the object
    OBJECT (relative to the start of the object's subpage).  */
-RPC6(object_slot_copy_in, addr_t, principal,
-     addr_t, object, l4_word_t, index, addr_t, source,
-     l4_word_t, flags, struct cap_addr_trans, cap_addr_trans)
+RPC(object_slot_copy_in, 6, 0, addr_t, principal,
+    addr_t, object, l4_word_t, index, addr_t, source,
+    l4_word_t, flags, struct cap_addr_trans, cap_addr_trans)
 
 /* Store the public bits of the capability slot SLOT of object
    OBJECT in *TYPE and *CAP_ADDR.  */
-RPC32(object_slot_read, addr_t, principal,
-      addr_t, object, l4_word_t, slot,
-      l4_word_t *, type, struct cap_addr_trans *, cap_addr_trans)
+RPC(object_slot_read, 3, 2, addr_t, principal,
+    addr_t, object, l4_word_t, slot,
+    l4_word_t *, type, struct cap_addr_trans *, cap_addr_trans)
 
 /* Wait for an exception.  (Called by the exception thread.)  */
-RPC00(exception_collect)
+RPC(exception_collect, 0, 0)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

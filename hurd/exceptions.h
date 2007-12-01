@@ -131,8 +131,8 @@ struct exception_info
 /* Raise a fault at address FAULT_ADDRESS.  If IP is not 0, then IP is
    the value of the IP of the faulting thread at the time of the
    fault.  */
-RPC3 (fault, addr_t, fault_address, uintptr_t, ip,
-      struct exception_info, exception_info)
+RPC (fault, 3, 0, addr_t, fault_address, uintptr_t, ip,
+     struct exception_info, exception_info)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
