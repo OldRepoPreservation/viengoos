@@ -103,6 +103,7 @@
 
 #include <l4/ipc.h>
 #include <errno.h>
+#include <string.h>
 
 /* First we define some cpp help macros.  */
 #define CPP_IFTHEN_0(when, whennot) whennot
@@ -210,46 +211,68 @@
   CPP_IFTHEN(y, CPP_APPLY##y(CPP_SUCC, x), x)
 
 /* Load the argument ARG, which is of type TYPE into MR IDX.  */
-#define RPCLOADARG(type, arg) \
-  { \
-    assert ((sizeof (arg) & (sizeof (l4_word_t) - 1)) == 0); \
-    union \
-      { \
-        type arg_value_; \
-        l4_word_t raw[sizeof (type) / sizeof (l4_word_t)]; \
-      } arg_union_ = { (arg) }; \
+#define RPCLOADARG(deref, type, arg)				     \
+  {								     \
+    assert ((sizeof (arg) & (sizeof (l4_word_t) - 1)) == 0);	     \
+    l4_word_t raw[sizeof (deref arg) / sizeof (l4_word_t)];	     \
+    memcpy (&raw[0], deref &arg, sizeof (raw));			     \
     for (int i_ = 0; i_ < sizeof (type) / sizeof (l4_word_t); i_ ++) \
-      l4_msg_append_word (*msg, arg_union_.raw[i_]); \
+      l4_msg_append_word (*msg, raw[i_]);			     \
   }
 
-#define RPCLOAD0(...)
-#define RPCLOAD1(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD0(__VA_ARGS__)
-#define RPCLOAD2(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD1(__VA_ARGS__)
-#define RPCLOAD3(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD2(__VA_ARGS__)
-#define RPCLOAD4(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD3(__VA_ARGS__)
-#define RPCLOAD5(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD4(__VA_ARGS__)
-#define RPCLOAD6(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD5(__VA_ARGS__)
-#define RPCLOAD7(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD6(__VA_ARGS__)
-#define RPCLOAD8(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD7(__VA_ARGS__)
-#define RPCLOAD9(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD8(__VA_ARGS__)
-#define RPCLOAD10(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD9(__VA_ARGS__)
-#define RPCLOAD11(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD10(__VA_ARGS__)
-#define RPCLOAD12(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD11(__VA_ARGS__)
-#define RPCLOAD13(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD12(__VA_ARGS__)
-#define RPCLOAD14(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD13(__VA_ARGS__)
-#define RPCLOAD15(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD14(__VA_ARGS__)
-#define RPCLOAD16(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD15(__VA_ARGS__)
-#define RPCLOAD17(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD16(__VA_ARGS__)
-#define RPCLOAD18(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD17(__VA_ARGS__)
-#define RPCLOAD19(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD18(__VA_ARGS__)
-#define RPCLOAD20(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD19(__VA_ARGS__)
-#define RPCLOAD21(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD20(__VA_ARGS__)
-#define RPCLOAD22(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD21(__VA_ARGS__)
-#define RPCLOAD23(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD22(__VA_ARGS__)
-#define RPCLOAD24(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD23(__VA_ARGS__)
-#define RPCLOAD25(type, arg, ...) RPCLOADARG(type, arg) RPCLOAD24(__VA_ARGS__)
-#define RPCLOAD_(count, ...) RPCLOAD##count (__VA_ARGS__)
-#define RPCLOAD(count, ...) RPCLOAD_ (count, ##__VA_ARGS__)
+#define RPCLOAD0(deref, ...)
+#define RPCLOAD1(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD0(deref, __VA_ARGS__)
+#define RPCLOAD2(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD1(deref, __VA_ARGS__)
+#define RPCLOAD3(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD2(deref, __VA_ARGS__)
+#define RPCLOAD4(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD3(deref, __VA_ARGS__)
+#define RPCLOAD5(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD4(deref, __VA_ARGS__)
+#define RPCLOAD6(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD5(deref, __VA_ARGS__)
+#define RPCLOAD7(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD6(deref, __VA_ARGS__)
+#define RPCLOAD8(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD7(deref, __VA_ARGS__)
+#define RPCLOAD9(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD8(deref, __VA_ARGS__)
+#define RPCLOAD10(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD9(deref, __VA_ARGS__)
+#define RPCLOAD11(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD10(deref, __VA_ARGS__)
+#define RPCLOAD12(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD11(deref, __VA_ARGS__)
+#define RPCLOAD13(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD12(deref, __VA_ARGS__)
+#define RPCLOAD14(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD13(deref, __VA_ARGS__)
+#define RPCLOAD15(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD14(deref, __VA_ARGS__)
+#define RPCLOAD16(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD15(deref, __VA_ARGS__)
+#define RPCLOAD17(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD16(deref, __VA_ARGS__)
+#define RPCLOAD18(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD17(deref, __VA_ARGS__)
+#define RPCLOAD19(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD18(deref, __VA_ARGS__)
+#define RPCLOAD20(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD19(deref, __VA_ARGS__)
+#define RPCLOAD21(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD20(deref, __VA_ARGS__)
+#define RPCLOAD22(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD21(deref, __VA_ARGS__)
+#define RPCLOAD23(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD22(deref, __VA_ARGS__)
+#define RPCLOAD24(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD23(deref, __VA_ARGS__)
+#define RPCLOAD25(deref, type, arg, ...) \
+  RPCLOADARG(deref, type, arg) RPCLOAD24(deref, __VA_ARGS__)
+#define RPCLOAD_(deref, count, ...) RPCLOAD##count (deref, __VA_ARGS__)
+#define RPCLOAD(deref, count, ...) RPCLOAD_ (deref, count, __VA_ARGS__)
 
 /* Store the contents of MR IDX+1 into *ARG, which is of type TYPE.
    NB: IDX is thus the return parameter number, not the message
@@ -266,56 +289,69 @@
       arg_union_.raw[i_] = l4_msg_word (*msg, idx ++); \
   }
 
-#define RPCSTORE0(...) 
-#define RPCSTORE1(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE0(__VA_ARGS__)
-#define RPCSTORE2(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE1(__VA_ARGS__)
-#define RPCSTORE3(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE2(__VA_ARGS__)
-#define RPCSTORE4(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE3(__VA_ARGS__)
-#define RPCSTORE5(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE4(__VA_ARGS__)
-#define RPCSTORE6(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE5(__VA_ARGS__)
-#define RPCSTORE7(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE6(__VA_ARGS__)
-#define RPCSTORE8(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE7(__VA_ARGS__)
-#define RPCSTORE9(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE8(__VA_ARGS__)
-#define RPCSTORE10(type, arg, ...) RPCSTOREARG(type, arg) RPCSTORE9(__VA_ARGS__)
-#define RPCSTORE11(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE10(__VA_ARGS__)
-#define RPCSTORE12(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE11(__VA_ARGS__)
-#define RPCSTORE13(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE12(__VA_ARGS__)
-#define RPCSTORE14(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE13(__VA_ARGS__)
-#define RPCSTORE15(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE14(__VA_ARGS__)
-#define RPCSTORE16(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE15(__VA_ARGS__)
-#define RPCSTORE17(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE16(__VA_ARGS__)
-#define RPCSTORE18(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE17(__VA_ARGS__)
-#define RPCSTORE19(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE18(__VA_ARGS__)
-#define RPCSTORE20(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE19(__VA_ARGS__)
-#define RPCSTORE21(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE20(__VA_ARGS__)
-#define RPCSTORE22(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE21(__VA_ARGS__)
-#define RPCSTORE23(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE22(__VA_ARGS__)
-#define RPCSTORE24(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE23(__VA_ARGS__)
-#define RPCSTORE25(type, arg, ...)			\
-  RPCSTOREARG(type, arg) RPCSTORE24(__VA_ARGS__)
-#define RPCSTORE_(count, ...) RPCSTORE##count (__VA_ARGS__)
-#define RPCSTORE(count, ...) RPCSTORE_ (count, ##__VA_ARGS__)
+#define RPCSTORE0(type_suffix, ...)
+#define RPCSTORE1(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE0(type_suffix, __VA_ARGS__)
+#define RPCSTORE2(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE1(type_suffix, __VA_ARGS__)
+#define RPCSTORE3(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE2(type_suffix, __VA_ARGS__)
+#define RPCSTORE4(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE3(type_suffix, __VA_ARGS__)
+#define RPCSTORE5(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE4(type_suffix, __VA_ARGS__)
+#define RPCSTORE6(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE5(type_suffix, __VA_ARGS__)
+#define RPCSTORE7(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE6(type_suffix, __VA_ARGS__)
+#define RPCSTORE8(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE7(type_suffix, __VA_ARGS__)
+#define RPCSTORE9(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE8(type_suffix, __VA_ARGS__)
+#define RPCSTORE10(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE9(type_suffix, __VA_ARGS__)
+#define RPCSTORE11(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE10(type_suffix, __VA_ARGS__)
+#define RPCSTORE12(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE11(type_suffix, __VA_ARGS__)
+#define RPCSTORE13(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE12(type_suffix, __VA_ARGS__)
+#define RPCSTORE14(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE13(type_suffix, __VA_ARGS__)
+#define RPCSTORE15(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE14(type_suffix, __VA_ARGS__)
+#define RPCSTORE16(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE15(type_suffix, __VA_ARGS__)
+#define RPCSTORE17(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE16(type_suffix, __VA_ARGS__)
+#define RPCSTORE18(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE17(type_suffix, __VA_ARGS__)
+#define RPCSTORE19(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE18(type_suffix, __VA_ARGS__)
+#define RPCSTORE20(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE19(type_suffix, __VA_ARGS__)
+#define RPCSTORE21(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE20(type_suffix, __VA_ARGS__)
+#define RPCSTORE22(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE21(type_suffix, __VA_ARGS__)
+#define RPCSTORE23(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE22(type_suffix, __VA_ARGS__)
+#define RPCSTORE24(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE23(type_suffix, __VA_ARGS__)
+#define RPCSTORE25(type_suffix, type, arg, ...) \
+  RPCSTOREARG(type type_suffix, arg) RPCSTORE24(type_suffix, __VA_ARGS__)
 
-/* Marshal the in-arguments and return a message buffer.  */
+#define RPCSTORE_(typesuffix, count, ...)	\
+  RPCSTORE##count (typesuffix, __VA_ARGS__)
+#define RPCSTORE(typesuffix, count, ...)	\
+  RPCSTORE_ (typesuffix, count, __VA_ARGS__)
+
+/* Marshal the in-arguments into the provided message buffer.  */
 #define RPC_SEND_MARSHAL(id, icount, ...)				\
   static inline void							\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal)			\
     CPP_IFTHEN (icount,							\
-		(l4_msg_t *msg, RPC_GRAB (icount, ##__VA_ARGS__)),	\
+		(l4_msg_t *msg, RPC_GRAB (, icount, ##__VA_ARGS__)),	\
 		(l4_msg_t *msg))					\
   {									\
     l4_msg_tag_t tag;							\
@@ -326,7 +362,61 @@
     l4_msg_clear (*msg);						\
     l4_msg_set_msg_tag (*msg, tag);					\
     									\
-    RPCLOAD (icount, ##__VA_ARGS__);					\
+    RPCLOAD (, icount, ##__VA_ARGS__);					\
+  }
+
+/* Unmarshal the in-arguments from the provided message buffer.  */
+#define RPC_SEND_UNMARSHAL(id, icount, ...)				\
+  static inline error_t							\
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_unmarshal)			\
+    CPP_IFTHEN (icount,							\
+		(l4_msg_t *msg, RPC_GRAB (*, icount, ##__VA_ARGS__)),	\
+		(l4_msg_t *msg))					\
+  {									\
+    l4_msg_tag_t tag = l4_msg_msg_tag (*msg);				\
+									\
+    l4_word_t label;							\
+    label = l4_label (tag);						\
+    if (label != RPC_ID_PREFIX_(id))					\
+      {									\
+	debug (1, #id " has bad method id, %d, excepted %d",		\
+	       label, RPC_ID_PREFIX_(id));				\
+	return EINVAL;							\
+      }									\
+    									\
+    error_t err = 0;							\
+    int idx __attribute__ ((unused));					\
+    idx = 0;								\
+    RPCSTORE (*, icount, ##__VA_ARGS__);				\
+    if (err == 0 && idx != l4_untyped_words (tag))			\
+      {									\
+	debug (1, #id " has wrong number of arguments: %d, expected %d", \
+	       l4_untyped_words (tag), idx);				\
+	return EINVAL;							\
+      }									\
+    return 0;								\
+  }
+
+/* Marshal the reply.  */
+#define RPC_REPLY_MARSHAL(id, ocount, ...)				\
+  static inline void							\
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_marshal)			\
+    CPP_IFTHEN (ocount,							\
+		(l4_msg_t *msg, RPC_GRAB (, ocount, ##__VA_ARGS__)),	\
+		(l4_msg_t *msg))					\
+  {									\
+    l4_msg_tag_t tag;							\
+    									\
+    tag = l4_niltag;							\
+    l4_msg_tag_set_label (&tag, RPC_ID_PREFIX_(id));			\
+    									\
+    l4_msg_clear (*msg);						\
+    l4_msg_set_msg_tag (*msg, tag);					\
+									\
+    /* No error.  */							\
+    l4_msg_append_word (*msg, 0);					\
+    									\
+    RPCLOAD (*, ocount, ##__VA_ARGS__);					\
   }
 
 /* Unmarshal the reply.  */
@@ -334,7 +424,7 @@
   static inline error_t							\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_unmarshal)			\
     CPP_IFTHEN (ocount,							\
-		(l4_msg_t *msg, RPC_GRAB(ocount, ##__VA_ARGS__)),	\
+		(l4_msg_t *msg, RPC_GRAB(, ocount, ##__VA_ARGS__)),	\
 		(l4_msg_t *msg))					\
   {									\
     l4_msg_tag_t tag = l4_msg_msg_tag (*msg);				\
@@ -342,9 +432,16 @@
     									\
     int idx __attribute__ ((unused));					\
     idx = 1;								\
-    RPCSTORE (ocount, ##__VA_ARGS__);					\
+    RPCSTORE (, ocount, ##__VA_ARGS__);					\
     if (err == 0)							\
-      assert (idx == l4_untyped_words (tag));				\
+      {									\
+	if (idx != l4_untyped_words (tag))				\
+	  {								\
+	    debug (1, "Got %d words, expected %d",			\
+		   idx, l4_untyped_words (tag));			\
+	    return EINVAL;						\
+	  }								\
+      }									\
     return err;								\
   }
 
@@ -373,7 +470,7 @@
 #define RPC_ARGUMENTS19(type, arg, ...) arg, RPC_ARGUMENTS18(__VA_ARGS__)
 #define RPC_ARGUMENTS20(type, arg, ...) arg, RPC_ARGUMENTS19(__VA_ARGS__)
 #define RPC_ARGUMENTS_(count, ...) RPC_ARGUMENTS##count(__VA_ARGS__)
-#define RPC_ARGUMENTS(count, ...) RPC_ARGUMENTS_(count, ##__VA_ARGS__)
+#define RPC_ARGUMENTS(count, ...) RPC_ARGUMENTS_(count, __VA_ARGS__)
 
 /* Given a list of arguments, returns the arguments minus the first
    COUNT **pairs** of arguments.  For example:
@@ -412,47 +509,48 @@
 #define RPC_CHOP24(a, b, ...) RPC_CHOP23(__VA_ARGS__)
 #define RPC_CHOP25(a, b, ...) RPC_CHOP24(__VA_ARGS__)
 #define RPC_CHOP_(count, ...) RPC_CHOP##count (__VA_ARGS__)
-#define RPC_CHOP(count, ...) RPC_CHOP_(count, ##__VA_ARGS__)
+#define RPC_CHOP(count, ...) RPC_CHOP_(count, __VA_ARGS__)
 
 /* Given a list of arguments, returns the first COUNT **pairs** of
-   arguments, each pair separated by a comma.  For example:
+   arguments, the elements of each pair separated by SEP and each pair
+   separated by a comma.  For example:
 
   For example:
 
-     RPC_GRAB(2, int, i, int, j, double, d)
+     RPC_GRAB(, 2, int, i, int, j, double, d)
 
    =>
 
      int i, int j
 */
-#define RPC_GRAB0(...) 
-#define RPC_GRAB1(a, b, ...) a b RPC_GRAB0(__VA_ARGS__)
-#define RPC_GRAB2(a, b, ...) a b, RPC_GRAB1(__VA_ARGS__)
-#define RPC_GRAB3(a, b, ...) a b, RPC_GRAB2(__VA_ARGS__)
-#define RPC_GRAB4(a, b, ...) a b, RPC_GRAB3(__VA_ARGS__)
-#define RPC_GRAB5(a, b, ...) a b, RPC_GRAB4(__VA_ARGS__)
-#define RPC_GRAB6(a, b, ...) a b, RPC_GRAB5(__VA_ARGS__)
-#define RPC_GRAB7(a, b, ...) a b, RPC_GRAB6(__VA_ARGS__)
-#define RPC_GRAB8(a, b, ...) a b, RPC_GRAB7(__VA_ARGS__)
-#define RPC_GRAB9(a, b, ...) a b, RPC_GRAB8(__VA_ARGS__)
-#define RPC_GRAB10(a, b, ...) a b, RPC_GRAB9(__VA_ARGS__)
-#define RPC_GRAB11(a, b, ...) a b, RPC_GRAB10(__VA_ARGS__)
-#define RPC_GRAB12(a, b, ...) a b, RPC_GRAB11(__VA_ARGS__)
-#define RPC_GRAB13(a, b, ...) a b, RPC_GRAB12(__VA_ARGS__)
-#define RPC_GRAB14(a, b, ...) a b, RPC_GRAB13(__VA_ARGS__)
-#define RPC_GRAB15(a, b, ...) a b, RPC_GRAB14(__VA_ARGS__)
-#define RPC_GRAB16(a, b, ...) a b, RPC_GRAB15(__VA_ARGS__)
-#define RPC_GRAB17(a, b, ...) a b, RPC_GRAB16(__VA_ARGS__)
-#define RPC_GRAB18(a, b, ...) a b, RPC_GRAB17(__VA_ARGS__)
-#define RPC_GRAB19(a, b, ...) a b, RPC_GRAB18(__VA_ARGS__)
-#define RPC_GRAB20(a, b, ...) a b, RPC_GRAB19(__VA_ARGS__)
-#define RPC_GRAB21(a, b, ...) a b, RPC_GRAB20(__VA_ARGS__)
-#define RPC_GRAB22(a, b, ...) a b, RPC_GRAB21(__VA_ARGS__)
-#define RPC_GRAB23(a, b, ...) a b, RPC_GRAB22(__VA_ARGS__)
-#define RPC_GRAB24(a, b, ...) a b, RPC_GRAB23(__VA_ARGS__)
-#define RPC_GRAB25(a, b, ...) a b, RPC_GRAB24(__VA_ARGS__)
-#define RPC_GRAB_(count, ...) RPC_GRAB##count (__VA_ARGS__)
-#define RPC_GRAB(count, ...) RPC_GRAB_(count, ##__VA_ARGS__)
+#define RPC_GRAB0(sep, ...) 
+#define RPC_GRAB1(sep, a, b, ...) a sep b RPC_GRAB0(sep, __VA_ARGS__)
+#define RPC_GRAB2(sep, a, b, ...) a sep b, RPC_GRAB1(sep, __VA_ARGS__)
+#define RPC_GRAB3(sep, a, b, ...) a sep b, RPC_GRAB2(sep, __VA_ARGS__)
+#define RPC_GRAB4(sep, a, b, ...) a sep b, RPC_GRAB3(sep, __VA_ARGS__)
+#define RPC_GRAB5(sep, a, b, ...) a sep b, RPC_GRAB4(sep, __VA_ARGS__)
+#define RPC_GRAB6(sep, a, b, ...) a sep b, RPC_GRAB5(sep, __VA_ARGS__)
+#define RPC_GRAB7(sep, a, b, ...) a sep b, RPC_GRAB6(sep, __VA_ARGS__)
+#define RPC_GRAB8(sep, a, b, ...) a sep b, RPC_GRAB7(sep, __VA_ARGS__)
+#define RPC_GRAB9(sep, a, b, ...) a sep b, RPC_GRAB8(sep, __VA_ARGS__)
+#define RPC_GRAB10(sep, a, b, ...) a sep b, RPC_GRAB9(sep, __VA_ARGS__)
+#define RPC_GRAB11(sep, a, b, ...) a sep b, RPC_GRAB10(sep, __VA_ARGS__)
+#define RPC_GRAB12(sep, a, b, ...) a sep b, RPC_GRAB11(sep, __VA_ARGS__)
+#define RPC_GRAB13(sep, a, b, ...) a sep b, RPC_GRAB12(sep, __VA_ARGS__)
+#define RPC_GRAB14(sep, a, b, ...) a sep b, RPC_GRAB13(sep, __VA_ARGS__)
+#define RPC_GRAB15(sep, a, b, ...) a sep b, RPC_GRAB14(sep, __VA_ARGS__)
+#define RPC_GRAB16(sep, a, b, ...) a sep b, RPC_GRAB15(sep, __VA_ARGS__)
+#define RPC_GRAB17(sep, a, b, ...) a sep b, RPC_GRAB16(sep, __VA_ARGS__)
+#define RPC_GRAB18(sep, a, b, ...) a sep b, RPC_GRAB17(sep, __VA_ARGS__)
+#define RPC_GRAB19(sep, a, b, ...) a sep b, RPC_GRAB18(sep, __VA_ARGS__)
+#define RPC_GRAB20(sep, a, b, ...) a sep b, RPC_GRAB19(sep, __VA_ARGS__)
+#define RPC_GRAB21(sep, a, b, ...) a sep b, RPC_GRAB20(sep, __VA_ARGS__)
+#define RPC_GRAB22(sep, a, b, ...) a sep b, RPC_GRAB21(sep, __VA_ARGS__)
+#define RPC_GRAB23(sep, a, b, ...) a sep b, RPC_GRAB22(sep, __VA_ARGS__)
+#define RPC_GRAB24(sep, a, b, ...) a sep b, RPC_GRAB23(sep, __VA_ARGS__)
+#define RPC_GRAB25(sep, a, b, ...) a sep b, RPC_GRAB24(sep, __VA_ARGS__)
+#define RPC_GRAB_(sep, count, ...) RPC_GRAB##count (sep, __VA_ARGS__)
+#define RPC_GRAB(sep, count, ...) RPC_GRAB_(sep, count, __VA_ARGS__)
 
 /* Ensure that there are X pairs of arguments.  */
 #define RPC_INVALID_NUMBER_OF_ARGUMENTS_
@@ -470,12 +568,14 @@
 #define RPC(id, icount, ocount, ...)					\
   RPC_ENSURE_ARGS(ADD (icount, ocount), ##__VA_ARGS__)			\
   RPC_SEND_MARSHAL(id, icount, ##__VA_ARGS__)				\
+  RPC_SEND_UNMARSHAL(id, icount, ##__VA_ARGS__)				\
+  RPC_REPLY_MARSHAL(id, ocount, RPC_CHOP (icount, ##__VA_ARGS__))	\
   RPC_REPLY_UNMARSHAL(id, ocount, RPC_CHOP (icount, ##__VA_ARGS__))	\
 									\
   static inline error_t							\
   __attribute__((always_inline))					\
   RPC_STUB_PREFIX_(id) (RPC_TARGET_ARG_					\
-			RPC_GRAB (ADD (icount, ocount), ##__VA_ARGS__))	\
+			RPC_GRAB (, ADD (icount, ocount), ##__VA_ARGS__)) \
   {									\
     l4_msg_tag_t tag;							\
     l4_msg_t msg;							\

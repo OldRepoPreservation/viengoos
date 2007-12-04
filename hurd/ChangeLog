@@ -1,3 +1,26 @@
+2007-12-04  Neal H. Walfield  <neal@gnu.org>
+
+	* rpc.h: Include <string.h>.
+	(RPCLOAD): Take additional argument, deref.  Pass to RPCLOADARG.
+	(RPCLOADARG): Take additional argument, deref.  Apply to ARG when
+	copying data.
+	(RPCSTORE): Take additional argument, typesuffix.  Pass to
+	RPCSTOREARG.
+	(RPCSTOREARG): Take additional argument, typesuffix.  Apply to
+	TYPE.
+	(RPC_GRAB): Take additional argument sep.  Use SEP as the
+	separator between argument pairs.  Update users.
+	(RPC_SEND_UNMARSHAL): New macro.
+	(RPC_REPLY_MARSHAL): New macro.
+	(RPC): Generate send unmarshalling stubs and reply marshalling
+	stubs.
+
+	(RPC_ARGUMENTS): Don't apply ## to __VA_ARGS__.
+	(RPC_CHOP): Likewise.
+
+	(RPC_REPLY_UNMARSHAL): Don't assert that the format is correct,
+	just return EINVAL if it isn't.
+
 2007-12-01  Neal H. Walfield  <neal@gnu.org>
 
 	* rpc.h: Rewrite to more elegantly generate stubs.
