@@ -34,7 +34,7 @@ struct activity;
    structure.  */
 enum
   {
-    THREAD_SLOTS = 2,
+    THREAD_SLOTS = 3,
   };
 
 struct thread
@@ -45,6 +45,9 @@ struct thread
   /* The current associated activity.  (Not the activity out of which
      this thread's storage is allocated!)  */
   struct cap activity;
+
+  /* Capability identifying a page to use to store exceptions.  */
+  struct cap exception_page;
 
   /* Allocated thread id.  */
   l4_thread_id_t tid;
@@ -59,10 +62,6 @@ struct thread
   l4_word_t init : 1;
   /* Whether the thread has been commissioned (a tid allocated).  */
   l4_word_t commissioned : 1;
-
-  bool have_exception;
-  /* 64 words (256/512 bytes).  */
-  l4_msg_t exception;
 };
 
 /* The hardwired base of the UTCB (2.5GB).  */
@@ -97,10 +96,17 @@ extern error_t thread_exregs (struct activity *principal,
 			      struct cap *aspace,
 			      l4_word_t flags, struct cap_addr_trans addr_trans,
 			      struct cap *activity,
+			      struct cap *exception_page,
 			      l4_word_t *sp, l4_word_t *ip,
 			      l4_word_t *eflags, l4_word_t *user_handle,
 			      struct cap *aspace_out,
-			      struct cap *activity_out);
+			      struct cap *activity_out,
+			      struct cap *exception_page_out);
+
+/* Send thread THREAD an exception.  */
+extern void thread_raise_exception (struct activity *activity,
+				    struct thread *thread,
+				    l4_msg_t *msg);
 
 /* Given the L4 thread id THREADID, find the associated thread.  */
 extern struct thread *thread_lookup (l4_thread_id_t threadid);

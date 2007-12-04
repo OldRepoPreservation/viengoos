@@ -33,67 +33,6 @@
 #define RPC_TARGET(x) (x)
 #include <hurd/rpc.h>
 
-/* Each thread object actually consists of two L4 threads.  The first
-   is the main thread and the second is the exception thread.
-   Exceptions raised by the first thread are forwarded to the
-   exception thread.  Signals may also be sent to the exception
-   thread.  If the exception thread faults, the game is over.  So, the
-   exception thread should do its best to get the main thread into a
-   consistent state and then hand off any message.
-
-   The exception thread should sit in the following loop:
-
-     while (1)
-       {
-         l4_call (rm);
-
-         // Handle exception.
-       }
-
-   The server will only respond when there is a messages waiting.
-   This allows the thread to pick up any messages it may have missed.  */
-
-
-#define HURD_THREAD_MAIN_VERSION	2
-#define HURD_THREAD_EXCEPTION_VERSION	3
-
-/* Return whether TID is an exception thread.  */
-static inline bool
-hurd_thread_is_exception_thread (l4_thread_id_t tid)
-{
-  return l4_version (tid) == HURD_THREAD_EXCEPTION_VERSION;
-}
-
-/* Return whether TID is a main thread.  */
-static inline bool
-hurd_thread_is_main_thread (l4_thread_id_t tid)
-{
-  return l4_version (tid) == HURD_THREAD_MAIN_VERSION;
-}
-
-/* Return the thread id of the exception thread associated with thread
-   THREAD.  */
-static inline l4_thread_id_t
-hurd_exception_thread (l4_thread_id_t tid)
-{
-  if (hurd_thread_is_main_thread (tid))
-    return l4_global_id (l4_thread_no (tid) + 1,
-			 HURD_THREAD_EXCEPTION_VERSION);
-  else
-    return tid;
-}
-
-/* Return the thread id of the exception thread associated with thread
-   THREAD.  */
-static inline l4_thread_id_t
-hurd_main_thread (l4_thread_id_t tid)
-{
-  if (hurd_thread_is_exception_thread (tid))
-    return l4_global_id (l4_thread_no (tid) - 1, HURD_THREAD_MAIN_VERSION);
-  else
-    return tid;
-}
-
 /* Exception message ids.  */
 enum
   {
@@ -143,7 +82,15 @@ RPC (fault, 3, 0, addr_t, fault_address, uintptr_t, ip,
 /* Initialize the exception handler.  */
 extern void exception_handler_init (void);
 
-/* The exception handler loop.  */
-extern void exception_handler_loop (void);
+/* Handle an exception.  EXCEPTION_PAGE is the thread's exception
+   page.  */
+extern void exception_handler (struct exception_page *exception_page);
+
+
+/* The first instruction of exception handler dispatcher.  */
+extern char exception_handler_entry;
+/* The instruction immediately following the last instruction of the
+   exception handler dispatcher.  */
+extern char exception_handler_end;
 
 #endif

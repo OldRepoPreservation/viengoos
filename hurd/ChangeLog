@@ -1,5 +1,31 @@
 2007-12-04  Neal H. Walfield  <neal@gnu.org>
 
+	Remove exception threads.  Replace with support for activations.
+	* thread.h: Include <l4/ipc.h>.
+	(struct exception_page): New structure.
+	(THREAD_EXCEPTION_PAGE_SLOT): Define.
+	(HURD_EXREGS_EXCEPTION_THREAD): Don't define.
+	(HURD_EXREGS_SET_EXCEPTION_PAGE): Define.
+	(HURD_EXREGS_SET_REGS): Update.
+	(hurd_exception_handler_t): New definition.
+	(struct hurd_thread_exregs_in): New structure.
+	(struct hurd_thread_exregs_out): New structure.
+	(thread_exregs): Replace the bulk of the arguments with struct
+	hurd_thread_exregs_in and struct hurd_thread_exregs_out.  Update
+	users.
+	* exceptions.h (HURD_THREAD_MAIN_VERSION): Remove macro.
+	(HURD_THREAD_EXCEPTION_VERSION): Likewise.
+	(hurd_thread_is_exception_thread): Remove function.
+	(hurd_thread_is_main_thread): Likewise.
+	(hurd_exception_thread): Likewise.
+	(hurd_main_thread): Likewise.
+	(exception_handler_loop): Remove declaration.
+	(exception_handler): New declaration.
+	(exception_handler_entry): Likewise.
+	(exception_handler_end): Likewise.
+
+2007-12-04  Neal H. Walfield  <neal@gnu.org>
+
 	* rpc.h: Include <string.h>.
 	(RPCLOAD): Take additional argument, deref.  Pass to RPCLOADARG.
 	(RPCLOADARG): Take additional argument, deref.  Apply to ARG when

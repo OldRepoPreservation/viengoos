@@ -32,6 +32,8 @@
 #include "thread.h"
 #include "activity.h"
 
+#define THREAD_VERSION 2
+
 /* Number of user thread ids.  */
 #ifndef THREAD_IDS_MAX
 # define THREAD_IDS_MAX 1 << 16
@@ -87,9 +89,9 @@ thread_init (struct thread *thread)
   if (tid == -1)
     panic ("No thread ids left!");
   thread_id_next = (tid + 1) % THREAD_IDS_MAX;
-  tid = tid * 2 + THREAD_ID_BASE;
+  tid = tid + THREAD_ID_BASE;
 
-  thread->tid = l4_global_id (tid, HURD_THREAD_MAIN_VERSION);
+  thread->tid = l4_global_id (tid, THREAD_VERSION);
   debug (4, "Allocated thread 0x%x.%x (%llx/%p)",
 	 l4_thread_no (thread->tid), l4_version (thread->tid),
 	 object_to_object_desc ((struct object *) thread)->oid, thread);
@@ -117,7 +119,7 @@ thread_deinit (struct activity *activity, struct thread *thread)
 
   /* Free the thread id.  */
   bit_dealloc (thread_ids,
-	       (l4_thread_no (thread->tid) - THREAD_ID_BASE) / 2);
+	       l4_thread_no (thread->tid) - THREAD_ID_BASE);
 
   int removed = hurd_ihash_remove (&tid_to_thread,
 				   l4_thread_no (thread->tid));
@@ -186,31 +188,6 @@ thread_commission (struct thread *thread)
 	     l4_strerror (err), err);
     }
 
-  ret = l4_thread_control (hurd_exception_thread (thread->tid), thread->tid,
-			   l4_myself (),
-			   l4_myself (),
-			   (void *) UTCB_AREA_BASE + l4_utcb_area_size ());
-  if (! ret)
-    {
-      l4_thread_id_t tid = hurd_exception_thread (thread->tid);
-      int err = l4_error_code ();
-      panic ("Failed to create exception thread %x.%x: %s (%d)",
-	     l4_thread_no (tid), l4_version (tid),
-	     l4_strerror (err), err);
-    }
-
-  /* By default, a new active thread follows the thread start up
-     protocol.  If the main thread causes an exception before the
-     exception thread is properly running, then it starts running with
-     the exception code.  To avoid this,we break the thread out of the
-     receive phase.  */
-  l4_thread_id_t targ = hurd_exception_thread (thread->tid);
-  l4_word_t c = _L4_XCHG_REGS_CANCEL_RECV
-    | _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_HALT;
-  l4_word_t dummy = 0;
-  _L4_exchange_registers (&targ, &c, &dummy, &dummy, &dummy,
-			  &dummy, &dummy);
-
   /* XXX: Restore the register state!  (See comment above for the
      plan.)  */
 
@@ -235,16 +212,6 @@ thread_decommission (struct thread *thread)
   if (! ret)
     panic ("Failed to delete main thread %x.%x",
 	   l4_thread_no (tid), l4_version (tid));
-
-  tid = l4_global_id (l4_thread_no (thread->tid) + 1,
-		      HURD_THREAD_EXCEPTION_VERSION);
-
-  /* Free the thread.  */
-  ret = l4_thread_control (tid, l4_nilthread,
-			   l4_nilthread, l4_nilthread, (void *) -1);
-  if (! ret)
-    panic ("Failed to delete exception thread %d",
-	   l4_thread_no (tid));
 
   thread->commissioned = 0;
 }
@@ -272,12 +239,13 @@ thread_exregs (struct activity *principal,
 	       struct cap *aspace,
 	       l4_word_t flags, struct cap_addr_trans addr_trans,
 	       struct cap *activity,
+	       struct cap *exception_page,
 	       l4_word_t *sp, l4_word_t *ip,
 	       l4_word_t *eflags, l4_word_t *user_handle,
-	       struct cap *aspace_out, struct cap *activity_out)
+	       struct cap *aspace_out, struct cap *activity_out,
+	       struct cap *exception_page_out)
 {
-  if ((control & ~(HURD_EXREGS_EXCEPTION_THREAD
-		   | HURD_EXREGS_SET_REGS
+  if ((control & ~(HURD_EXREGS_SET_REGS
 		   | HURD_EXREGS_GET_REGS
 		   | HURD_EXREGS_START
 		   | HURD_EXREGS_STOP
@@ -300,15 +268,20 @@ thread_exregs (struct activity *principal,
   if ((control & HURD_EXREGS_SET_ACTIVITY))
     cap_copy (principal, &thread->activity, ADDR_VOID, *activity, ADDR_VOID);
 
+  if ((control & HURD_EXREGS_GET_REGS) && exception_page_out)
+    cap_copy (principal, exception_page_out, ADDR_VOID,
+	      thread->exception_page, ADDR_VOID);
+
+  if ((control & HURD_EXREGS_SET_EXCEPTION_PAGE))
+    cap_copy (principal, &thread->exception_page, ADDR_VOID,
+	      *exception_page, ADDR_VOID);
+
   if (thread->commissioned)
     {
       l4_thread_id_t tid = thread->tid;
-      if ((control & HURD_EXREGS_EXCEPTION_THREAD))
-	tid = hurd_exception_thread (thread->tid);
 
       /* Clear hurd specific bits so that l4_exchange_registers works.  */
-      control = control & ~(HURD_EXREGS_SET_ACTIVITY | HURD_EXREGS_SET_ASPACE
-			    | HURD_EXREGS_EXCEPTION_THREAD);
+      control = control & ~(HURD_EXREGS_SET_ACTIVITY | HURD_EXREGS_SET_ASPACE);
 
       do_debug (4)
 	{
@@ -392,8 +365,6 @@ thread_exregs (struct activity *principal,
 		 l4_thread_no (thread->tid), l4_version (thread->tid));
 
 	  l4_thread_id_t tid = thread->tid;
-	  if ((control & HURD_EXREGS_EXCEPTION_THREAD))
-	    tid = hurd_exception_thread (thread->tid);
 
 	  l4_word_t c = _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP
 	    | _L4_XCHG_REGS_SET_FLAGS | _L4_XCHG_REGS_SET_USER_HANDLE
@@ -447,4 +418,138 @@ thread_exregs (struct activity *principal,
     }
 
   return 0;
+}
+
+void
+thread_raise_exception (struct activity *activity,
+			struct thread *thread,
+			l4_msg_t *msg)
+{
+  struct object *page = cap_to_object (activity, &thread->exception_page);
+  if (! page)
+    {
+      debug (1, "Malformed thread: no exception page");
+      return;
+    }
+
+  if (object_type (page) != cap_page)
+    {
+      debug (1, "Malformed thread: exception page slot contains a %s, "
+	     "not a cap_page",
+	     cap_type_string (object_type (page)));
+      return;
+    }
+
+  struct exception_page *exception_page = (struct exception_page *) page;
+
+  if (exception_page->activated_mode)
+    {
+      l4_word_t c = _L4_XCHG_REGS_DELIVER;
+      l4_thread_id_t targ = thread->tid;
+      l4_word_t sp = 0;
+      l4_word_t ip = 0;
+      l4_word_t dummy = 0;
+      _L4_exchange_registers (&targ, &c,
+			      &sp, &ip, &dummy, &dummy, &dummy);
+
+      debug (1, "Deferring exception delivery: thread in activated mode!"
+	     "(sp: %x, ip: %x)", sp, ip);
+
+      /* XXX: Sure, we could note that an exception is pending but we
+	 need to queue the event.  */
+      // exception_page->pending_message = 1;
+
+      return;
+    }
+
+  /* Copy the message.  */
+  memcpy (&exception_page->exception, msg,
+	  (1 + l4_untyped_words (l4_msg_msg_tag (*msg))) * sizeof (l4_word_t));
+
+  l4_word_t c = HURD_EXREGS_STOP | _L4_XCHG_REGS_DELIVER
+    | _L4_XCHG_REGS_CANCEL_SEND | _L4_XCHG_REGS_CANCEL_RECV;
+  do_debug (4)
+    {
+      char string[33];
+      control_to_string (c, string);
+      debug (0, "Calling exregs on %x.%x with control: %s (%x)",
+	     l4_thread_no (thread->tid), l4_version (thread->tid),
+	     string, c);
+    }
+  l4_thread_id_t targ = thread->tid;
+  l4_word_t sp = 0;
+  l4_word_t ip = 0;
+  l4_word_t dummy = 0;
+  _L4_exchange_registers (&targ, &c,
+			  &sp, &ip, &dummy, &dummy, &dummy);
+  if (targ == l4_nilthread)
+    /* XXX: This can happen if the user changes a thread's
+       pager.  We could change it back.  */
+    {
+      int err = l4_error_code ();
+      debug (1, "Failed to exregs %x.%x: %s (%d)",
+	     l4_thread_no (thread->tid), l4_version (thread->tid),
+	     l4_strerror (err), err);
+      return;
+    }
+  do_debug (4)
+    {
+      char string[33];
+      control_to_string (c, string);
+      debug (0, "exregs on %x.%x returned control: %s (%x)",
+	     l4_thread_no (thread->tid), l4_version (thread->tid),
+	     string, c);
+    }
+
+  exception_page->saved_thread_state = c;
+
+  exception_page->activated_mode = 1;
+
+  if (exception_page->exception_handler_ip <= ip
+      && ip < exception_page->exception_handler_end)
+    /* Thread is transitioning.  Don't save sp and ip.  */
+    {
+      debug (1, "Fault while interrupt in transition!");
+      exception_page->interrupt_in_transition = 1;
+    }
+  else
+    {
+      exception_page->interrupt_in_transition = 0;
+      exception_page->saved_sp = sp;
+      exception_page->saved_ip = ip;
+    }
+
+  c = HURD_EXREGS_START | _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP;
+  sp = exception_page->exception_handler_sp;
+  ip = exception_page->exception_handler_ip;
+  targ = thread->tid;
+  do_debug (4)
+    {
+      char string[33];
+      control_to_string (c, string);
+      debug (0, "Calling exregs on %x.%x with control: %s (%x)",
+	     l4_thread_no (thread->tid), l4_version (thread->tid),
+	     string, c);
+    }
+  _L4_exchange_registers (&targ, &c,
+			  &sp, &ip,
+			  &dummy, &dummy, &dummy);
+  if (targ == l4_nilthread)
+    /* XXX: This can happen if the user changes a thread's
+       pager.  We could change it back.  */
+    {
+      int err = l4_error_code ();
+      debug (1, "Failed to exregs %x.%x: %s (%d)",
+	     l4_thread_no (thread->tid), l4_version (thread->tid),
+	     l4_strerror (err), err);
+      return;
+    }
+  do_debug (4)
+    {
+      char string[33];
+      control_to_string (c, string);
+      debug (0, "exregs on %x.%x returned control: %s (%x)",
+	     l4_thread_no (thread->tid), l4_version (thread->tid),
+	     string, c);
+    }
 }

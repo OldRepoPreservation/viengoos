@@ -222,6 +222,12 @@ object_to_cap (struct object *object)
   return object_desc_to_cap (object_to_object_desc (object));
 }
 
+static inline enum cap_type
+object_type (struct object *object)
+{
+  return object_to_object_desc (object)->type;
+}
+
 /* Allocate a folio to activity ACTIVITY.  Returns NULL if not
    possible.  Otherwise a pointer to the in-memory folio.  */
 extern struct folio *folio_alloc (struct activity *activity);

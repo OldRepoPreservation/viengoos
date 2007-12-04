@@ -75,12 +75,7 @@ server_loop (void)
       do_reply = 0;
 
       /* Find the sender.  */
-      struct thread *thread;
-      if (! hurd_thread_is_exception_thread (from))
-	thread = thread_lookup (from);
-      else
-	thread = thread_lookup (l4_global_id (l4_thread_no (from) - 1,
-					      HURD_THREAD_MAIN_VERSION));
+      struct thread *thread = thread_lookup (from);
       assert (thread);
 
       /* XXX: We can't charge THREAD's activity until we have the
@@ -143,21 +138,6 @@ server_loop (void)
 
 	  if (raise_fault)
 	    {
-	      if (hurd_thread_is_exception_thread (from))
-		{
-		  DEBUG (1, "Exception thread %x.%x raised fault at "
-			 "(ip: %x; fault: %x.%c)!",
-			 l4_thread_no (from), l4_version (from), ip,
-			 fault, w ? 'w' : 'r');
-		  continue;
-		}
-
-	      if (thread->have_exception)
-		{
-		  DEBUG (1, "Double fault!");
-		  continue;
-		}
-
 	      struct exception_info info;
 	      info.access = access;
 	      info.type = cap_page;
@@ -166,22 +146,7 @@ server_loop (void)
 	      exception_fault_send_marshal (&msg, PTR_TO_ADDR (fault),
 					    ip, info);
 
-	      l4_msg_load (msg);
-	      l4_msg_tag_t tag = l4_reply (hurd_exception_thread (from));
-	      if (l4_ipc_failed (tag))
-		/* The receiver was not ready.  Store the message.  */
-		{
-		  debug (4, "Failed to send exception to %x.%x at "
-			 ADDR_FMT " (ip=%x).  Storing.",
-			 l4_thread_no (hurd_exception_thread (from)),
-			 l4_version (hurd_exception_thread (from)),
-			 ADDR_PRINTF (PTR_TO_ADDR (fault)), ip);
-
-		  memcpy (thread->exception, msg,
-			  sizeof (l4_word_t)
-			  * (1 + l4_untyped_words (l4_msg_msg_tag (msg))));
-		  thread->have_exception = true;
-		}
+	      thread_raise_exception (activity, thread, &msg);
 
 	      continue;
 	    }
@@ -225,6 +190,7 @@ server_loop (void)
       if (! (err_)) \
         /* No error: we should have read all the arguments.  */ \
         assert (args_read == expected_words); \
+      l4_msg_clear (msg); \
       l4_msg_put_word (msg, 0, (err_)); \
       l4_msg_set_untyped_words (msg, 1 + (words_)); \
       do_reply = 1; \
@@ -352,7 +318,6 @@ server_loop (void)
 	 appropriately.  */
       int expected_words = ARG64_WORDS;
 
-      l4_msg_clear (msg);
       if (label == RM_putchar)
 	{
 	  /* We don't expect a principal.  */
@@ -364,22 +329,6 @@ server_loop (void)
 	  /* No reply needed.  */
 	  continue;
 	}
-      else if (label == RM_exception_collect)
-	{
-	  /* We don't expect a principal.  */
-	  CHECK (0, -1);
-
-	  debug (4, "Collecting exception: %x.%x",
-		 l4_thread_no (from), l4_version (from));
-
-	  if (thread->have_exception)
-	    {
-	      do_reply = true;
-	      l4_msg_load (thread->exception);
-	      thread->have_exception = false;
-	    }
-	  continue;
-	}
 
       principal = activity;
       addr_t principal_addr = ARG_ADDR ();
@@ -387,7 +336,8 @@ server_loop (void)
       if (! ADDR_IS_VOID (principal_addr))
 	{
 	  principal_cap = CAP (principal_addr, cap_activity, false);
-	  principal = cap_to_object (principal, &principal_cap);
+	  principal = (struct activity *) cap_to_object (principal,
+							 &principal_cap);
 	  if (! principal)
 	    {
 	      DEBUG (4, "Dangling pointer at " ADDR_FMT,
@@ -401,6 +351,7 @@ server_loop (void)
 	  principal = activity;
 	}
 
+      error_t err;
       struct folio *folio;
       struct object *object;
       l4_word_t idx;
@@ -603,64 +554,84 @@ server_loop (void)
 	  REPLYW (0, 2);
 
 	case RM_thread_exregs:
-	  CHECK (7, 5);
-
-	  struct thread *t
-	    = (struct thread *) OBJECT (ARG_ADDR (), cap_thread, true);
-
-	  l4_word_t control = ARG ();
-
-	  addr_t aspace_addr = ARG_ADDR ();
-	  struct cap *aspace = NULL;
-	  if ((HURD_EXREGS_SET_ASPACE & control))
-	    aspace = SLOT (aspace_addr);
-
-	  l4_word_t addr_trans_flags = ARG ();
-
-	  struct cap_addr_trans addr_trans;
-	  addr_trans.raw = ARG ();
+	  {
+	    struct hurd_thread_exregs_in in;
+	    addr_t target;
+	    l4_word_t control;
+	    err = rm_thread_exregs_send_unmarshal (&msg,
+						   &principal_addr, &target,
+						   &control, &in);
+	    if (err)
+	      REPLY (err);
 
 
-	  addr_t activity_addr = ARG_ADDR ();
-	  struct cap *a = NULL;
-	  if ((HURD_EXREGS_SET_ACTIVITY & control))
-	    {
-	      if (ADDR_IS_VOID (activity_addr))
-		a = &thread->activity;
-	      else
-		a = SLOT (activity_addr);
-	    }
+	    struct thread *t
+	      = (struct thread *) OBJECT (target, cap_thread, true);
 
-	  l4_word_t sp = ARG ();
-	  l4_word_t ip = ARG ();
-	  l4_word_t eflags = ARG ();
-	  l4_word_t user_handler = ARG ();
+	    struct cap *aspace = NULL;
+	    struct cap aspace_cap;
+	    if ((HURD_EXREGS_SET_ASPACE & control))
+	      {
+		aspace_cap = CAP (in.aspace, -1, false);
+		aspace = &aspace_cap;
+	      }
 
-	  addr_t aspace_out_addr = ARG_ADDR ();
-	  struct cap *aspace_out = NULL;
-	  if ((HURD_EXREGS_GET_REGS & control)
-	      && ! ADDR_IS_VOID (aspace_out_addr))
-	    aspace_out = SLOT (aspace_out_addr);
+	    struct cap *a = NULL;
+	    struct cap a_cap;
+	    if ((HURD_EXREGS_SET_ACTIVITY & control))
+	      {
+		if (ADDR_IS_VOID (in.activity))
+		  a = &thread->activity;
+		else
+		  {
+		    a_cap = CAP (in.activity, cap_activity, false);
+		    a = &a_cap;
+		  }
+	      }
 
-	  addr_t activity_out_addr = ARG_ADDR ();
-	  struct cap *activity_out = NULL;
-	  if ((HURD_EXREGS_GET_REGS & control)
-	      && ! ADDR_IS_VOID (activity_out_addr))
-	    activity_out = SLOT (activity_out_addr);
+	    struct cap *exception_page = NULL;
+	    struct cap exception_page_cap;
+	    if ((HURD_EXREGS_SET_EXCEPTION_PAGE & control))
+	      {
+		exception_page_cap = CAP (in.exception_page, cap_page, true);
+		exception_page = &exception_page_cap;
+	      }
 
-	  error_t err = thread_exregs (principal, t, control,
-				       aspace, addr_trans_flags, addr_trans, a,
-				       &sp, &ip, &eflags, &user_handler,
-				       aspace_out, activity_out);
-	  if (err)
-	    REPLY (err);
+	    struct cap *aspace_out = NULL;
+	    if ((HURD_EXREGS_GET_REGS & control)
+		&& ! ADDR_IS_VOID (in.aspace_out))
+	      aspace_out = SLOT (in.aspace_out);
 
-	  l4_msg_put_word (msg, 1, sp);
-	  l4_msg_put_word (msg, 2, ip);
-	  l4_msg_put_word (msg, 3, eflags);
-	  l4_msg_put_word (msg, 4, user_handler);
+	    struct cap *activity_out = NULL;
+	    if ((HURD_EXREGS_GET_REGS & control)
+		&& ! ADDR_IS_VOID (in.activity_out))
+	      activity_out = SLOT (in.activity_out);
 
-	  REPLYW (0, 4);
+	    struct cap *exception_page_out = NULL;
+	    if ((HURD_EXREGS_GET_REGS & control)
+		&& ! ADDR_IS_VOID (in.exception_page_out))
+	      exception_page_out = SLOT (in.exception_page_out);
+
+	    struct hurd_thread_exregs_out out;
+	    out.sp = in.sp;
+	    out.ip = in.ip;
+	    out.eflags = in.eflags;
+	    out.user_handle = in.user_handle;
+
+	    err = thread_exregs (principal, t, control,
+				 aspace, in.aspace_addr_trans_flags,
+				 in.aspace_addr_trans, a, exception_page,
+				 &out.sp, &out.ip,
+				 &out.eflags, &out.user_handle,
+				 aspace_out, activity_out,
+				 exception_page_out);
+	    if (err)
+	      REPLY (err);
+
+	    rm_thread_exregs_reply_marshal (&msg, &out);
+
+	    REPLYW (0, sizeof (struct hurd_thread_exregs_out) / 4);
+	  }
 
 	case RM_activity_create:
 	  {
@@ -724,6 +695,19 @@ server_loop (void)
 	      principal->storage_quota = storage_quota;
 
 	    REPLYW (0, 3);
+	  }
+
+	case RM_exception_collect:
+	  {
+	    /* We don't expect a principal.  */
+	    CHECK (0, 0);
+
+	    debug (4, "Collecting exception: %x.%x",
+		   l4_thread_no (from), l4_version (from));
+
+	    /* XXX: Implement me.  */
+
+	    break;
 	  }
 
 	default:

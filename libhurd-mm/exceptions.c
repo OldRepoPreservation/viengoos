@@ -22,130 +22,102 @@
 #include <hurd/startup.h>
 #include <hurd/stddef.h>
 #include <hurd/exceptions.h>
+#include <hurd/storage.h>
+#include <hurd/thread.h>
 #include <l4/thread.h>
 
 #include "pager.h"
 
 extern struct hurd_startup_data *__hurd_startup_data;
 
-/* Return the next word.  */
-#define ARG() \
-  ({ \
-    assert (args_read < expected_words); \
-    l4_msg_word (msg, args_read ++); \
-  })
-
-  /* Return word WORD_.  */
-#if L4_WORDSIZE == 32
-#define ARG64() \
-  ({ \
-    union { l4_uint64_t raw; struct { l4_uint32_t word[2]; }; } value_; \
-    value_.word[0] = ARG (); \
-    value_.word[1] = ARG (); \
-    value_.raw; \
-  })
-#define ARG64_WORDS 2
-#else
-#define ARG64(word_) ARG(word_)
-#define ARG64_WORDS 1
-#endif
-
-#define ARG_ADDR() ((addr_t) { ARG64() })
-
-/* Check that the received message contains WORDS untyped words.  */
-#define CHECK(words, words64) \
-  ({ \
-    expected_words = (words) + (words64) * ARG64_WORDS; \
-    if (l4_untyped_words (msg_tag) != expected_words \
-        || l4_typed_words (msg_tag) != 0) \
-      { \
-        debug (1, "Invalid format for %s: expected %d words, got %d", \
-	       exception_method_id_string (label), \
-               expected_words, l4_untyped_words (msg_tag)); \
-        continue; \
-      } \
-  })
-
+/* Fetch an exception.  */
 void
-exception_handler_loop (void)
+exception_fetch_exception (void)
 {
-  debug (5, "Exception thread launched (0x%x.%x)",
-	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()));
+  l4_msg_t msg;
+  rm_exception_collect_send_marshal (&msg, ADDR_VOID);
+  l4_msg_load (msg);
 
-  for (;;)
-    {
-      l4_msg_t msg;
-      rm_exception_collect_send_marshal (&msg);
-      l4_msg_load (msg);
-
-      l4_thread_id_t from;
-      l4_msg_tag_t msg_tag = l4_reply_wait (__hurd_startup_data->rm, &from);
-      if (l4_ipc_failed (msg_tag))
-	panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
-
-      l4_msg_store (msg_tag, msg);
-      l4_word_t label;
-      label = l4_label (msg_tag);
-
-      int args_read = 0;
-      int expected_words;
-      switch (label)
-	{
-	case EXCEPTION_fault:
-	  CHECK (2, 1);
-
-	  addr_t fault = ARG_ADDR ();
-	  uintptr_t ip = ARG ();
-	  struct exception_info info;
-	  info.raw = ARG ();
-
-	  bool r = pager_fault (fault, ip, info);
-	  if (r)
-	    /* The appears to have been resolved.  Resume the
-	       thread.  */
-	    l4_start (hurd_main_thread (l4_myself ()));
-	  else
-	    {
-	      debug (1, "Failed to handle fault at " ADDR_FMT " (ip=%x)",
-		     ADDR_PRINTF (fault), ip);
-	      /* XXX: Should raise SIGSEGV.  */
-	    }
-
-	  /* Resume the main thread.  */
-	  
-	  break;
-
-	default:
-	  debug (1, "Unknown message id: %d", label);
-	}
-    }
+  l4_thread_id_t from;
+  l4_msg_tag_t msg_tag = l4_reply_wait (__hurd_startup_data->rm, &from);
+  if (l4_ipc_failed (msg_tag))
+    panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
 }
 
-#define STACK_SIZE (2 * PAGESIZE)
-static char stack[STACK_SIZE] __attribute__ ((aligned(PAGESIZE)));
+/* This function is invoked by the monitor when the thread raises an
+   exception.  The exception is saved in the exception page.  */
+void
+exception_handler (struct exception_page *exception_page)
+{
+  debug (5, "Exception handler called (0x%x.%x, exception_page: %p)",
+	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
+	 exception_page);
+
+  l4_msg_tag_t msg_tag = l4_msg_msg_tag (exception_page->exception);
+  l4_word_t label;
+  label = l4_label (msg_tag);
+
+  int args_read = 0;
+  int expected_words;
+  switch (label)
+    {
+    case EXCEPTION_fault:
+      {
+	addr_t fault;
+	uintptr_t ip;
+	struct exception_info info;
+
+	error_t err;
+	err = exception_fault_send_unmarshal (exception_page->exception,
+					      &fault, &ip, &info);
+	if (err)
+	  panic ("Failed to unmarshalling exception: %d", err);
+
+	bool r = pager_fault (fault, ip, info);
+	if (! r)
+	  {
+	    debug (1, "Failed to handle fault at " ADDR_FMT " (ip=%x)",
+		   ADDR_PRINTF (fault), ip);
+	    /* XXX: Should raise SIGSEGV.  */
+	    for (;;)
+	      l4_yield ();
+	  }
+      }
+      break;
+
+    default:
+      debug (1, "Unknown message id: %d", label);
+    }
+}
 
 void
 exception_handler_init (void)
 {
-  /* XXX: This only works for architectures on which the stack grows
-     downward.  */
-  char *sp = (char *) stack + STACK_SIZE;
+  extern struct hurd_startup_data *__hurd_startup_data;
 
-  debug (5, "Starting exception thread");
+  struct storage storage = storage_alloc (ADDR_VOID, cap_page,
+					  STORAGE_LONG_LIVED, ADDR_VOID);
 
-  l4_thread_id_t tid = hurd_exception_thread (l4_myself ());
-  l4_word_t control = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_SET_SP
-    | _L4_XCHG_REGS_SET_IP | _L4_XCHG_REGS_CANCEL_IPC;
-  l4_word_t dummy = 0;
-  l4_word_t ip = exception_handler_loop;
-  _L4_exchange_registers (&tid, &control, &sp, &ip,
-			  &dummy, &dummy, &dummy);
-  if (tid == l4_nilthread)
-    {
-      int err = l4_error_code ();
-      panic ("Error starting exception thread %x.%x: %s (%d)",
-	     l4_thread_no (hurd_exception_thread (l4_myself ())),
-	     l4_version (hurd_exception_thread (l4_myself ())),
-	     l4_strerror (err), err);
-    }
+  if (ADDR_IS_VOID (storage.addr))
+    panic ("Failed to allocate page for exception state");
+
+  struct exception_page *exception_page 
+    = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+
+  /* XXX: We assume the stack grows down!  SP is set to the end of the
+     exception page.  */
+  exception_page->exception_handler_sp = (l4_word_t) exception_page + PAGESIZE;
+
+  exception_page->exception_handler_ip = (l4_word_t) &exception_handler_entry;
+  exception_page->exception_handler_end = (l4_word_t) &exception_handler_end;
+
+  struct hurd_thread_exregs_in in;
+  in.exception_page = storage.addr;
+
+  struct hurd_thread_exregs_out out;
+  error_t err = rm_thread_exregs (ADDR_VOID, __hurd_startup_data->thread,
+				  HURD_EXREGS_SET_EXCEPTION_PAGE,
+				  in, &out);
+  if (err)
+    panic ("Failed to install exception page");
 }

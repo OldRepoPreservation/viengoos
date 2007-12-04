@@ -416,8 +416,8 @@ system_task_load (void)
 		       HURD_EXREGS_SET_SP_IP
 		       | HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC,
 		       NULL, 0, (struct cap_addr_trans) CAP_ADDR_TRANS_VOID,
-		       NULL, &thread->sp, &thread->ip, NULL, NULL,
-		       NULL, NULL);
+		       NULL, NULL, &thread->sp, &thread->ip, NULL, NULL,
+		       NULL, NULL, NULL);
   if (err)
     panic ("Failed to start initial thread: %d", err);
 

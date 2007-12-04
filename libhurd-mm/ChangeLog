@@ -1,3 +1,22 @@
+2007-12-04  Neal H. Walfield  <neal@gnu.org>
+
+	Remove exception threads.  Replace with support for activations.
+	* Makefile.am (ARCH_SOURCES): New variable.
+	[ARCH_IA32]: Add ia32-exception-entry.S.
+	(libhurd_mm_a_SOURCES): Add $(ARCH_SOURCES).
+	* ia32-exception-entry.S: New file.
+	* exceptions.c: Include <hurd/storage.h> and <hurd/thread.h>.
+	(ARG): Don't define.
+	(ARG64): Likewise.
+	(ARG_ADDR): Likewise.
+	(CHECK): Likewise.
+	(exception_handler_loop): Remove function.
+	(exception_fetch_exception): New function.
+	(exception_handler): New function.
+	(STACK_SIZE): Don't define.
+	(stack): Don't declare.
+	(exception_handler_init): Set up the thread's exception page.
+
 2007-11-29  Neal H. Walfield  <neal@gnu.org>
 
 	* exceptions.c (exception_handler_loop): Use

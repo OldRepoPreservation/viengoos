@@ -1,3 +1,34 @@
+2007-12-04  Neal H. Walfield  <neal@gnu.org>
+
+	Remove exception threads.  Replace with support for activations.
+	* thread.h (THREAD_SLOTS): Bump to 3.
+	(struct thread): Add field exception_page.  Remove fields
+	have_exception and exception.
+	(thread_exregs): Take additional arguments exception_page and
+	exception_page_out.  Update users.
+	(thread_raise_exception): New declaration.
+	* thread.c (THREAD_VERSION): Define.
+	(thread_init): Remove code related to the exception thread.
+	(thread_commission): Likewise.
+	(thread_decommission): Likewise.
+	(thread_exregs): Likewise.  Take additional arguments
+	EXCEPTION_PAGE and EXCEPTION_PAGE_OUT.  If CONTROL contains
+	HURD_EXREGS_GET_REGS and EXCEPTION_PAGE_OUT is not NULL, return a
+	capability to THREAD's exception page in *EXCEPTION_PAGE_OUT.  If
+	CONTROL contains HURD_EXREGS_SET_EXCEPTION_PAGE, then set THREAD's
+	exception page to EXCEPTION_PAGE.
+	(thread_raise_exception): New function.
+	* server.c (server_loop): Remove code related to handling the
+	exception thread.  Call thread_raise_exception to propagate
+	exception.  Reimplement the exception_collect method.  Update
+	implementation of the thread_exregs method to support the new
+	argument passing scheme.  Add support for setting and retrieving
+	the exception page.
+	(REPLYW): Only clear MSG here.
+	* rm.h (exception_collect): Take an additional argument, the
+	principal.
+	* object.h (object_type): New function.
+
 2007-12-01  Neal H. Walfield  <neal@gnu.org>
 
 	* rm.h: Update to use new RPC stub generation interface.

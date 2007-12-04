@@ -19,6 +19,10 @@
 # Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 # 02111-1307 USA.
 
+if ARCH_IA32
+  ARCH_SOURCES = ia32-exception-entry.S
+endif
+
 lib_LIBRARIES = libhurd-mm.a
 
 includehurddir = $(includedir)/hurd
@@ -35,4 +39,5 @@ libhurd_mm_a_SOURCES = mm.h			\
 	pager.h pager.c				\
 	anonymous.h anonymous.c			\
 	mmap.c					\
-	mm-init.c
+	mm-init.c				\
+	$(ARCH_SOURCES)

@@ -298,18 +298,24 @@ main (int argc, char *argv[])
     addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
 				    thread).addr;
 
-    struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
-    l4_word_t dummy;
+    struct hurd_thread_exregs_in in;
+
+    in.aspace = ADDR (0, 0);
+    in.aspace_addr_trans = CAP_ADDR_TRANS_VOID;
+    in.aspace_addr_trans_flags = CAP_COPY_COPY_SOURCE_GUARD;
+
+    in.activity = activity;
+
+    in.sp = (l4_word_t) ((void *) stack + sizeof (stack));
+    in.ip = (l4_word_t) &start;
+
+    struct hurd_thread_exregs_out out;
+
     rm_thread_exregs (activity, thread,
 		      HURD_EXREGS_SET_ASPACE | HURD_EXREGS_SET_ACTIVITY
 		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START
 		      | HURD_EXREGS_ABORT_IPC,
-		      ADDR (0, 0), CAP_COPY_COPY_SOURCE_GUARD, addr_trans,
-		      activity,
-		      (l4_word_t) ((void *) stack + sizeof (stack)),
-		      (l4_word_t) &start, 0, 0,
-		      ADDR_VOID, ADDR_VOID,
-		      &dummy, &dummy, &dummy, &dummy);
+		      in, &out);
 
     debug (5, "Waiting for thread");
     while (done == 0)
