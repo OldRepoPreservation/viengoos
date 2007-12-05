@@ -68,9 +68,9 @@ struct exception_info
 };
 
 /* Raise a fault at address FAULT_ADDRESS.  If IP is not 0, then IP is
-   the value of the IP of the faulting thread at the time of the
-   fault.  */
-RPC (fault, 3, 0, addr_t, fault_address, uintptr_t, ip,
+   the value of the IP of the faulting thread at the time of the fault
+   and SP the value of the stack pointer at the time of the fault.  */
+RPC (fault, 4, 0, addr_t, fault_address, uintptr_t, sp, uintptr_t, ip,
      struct exception_info, exception_info)
 
 #undef RPC_STUB_PREFIX
@@ -82,9 +82,27 @@ RPC (fault, 3, 0, addr_t, fault_address, uintptr_t, ip,
 /* Initialize the exception handler.  */
 extern void exception_handler_init (void);
 
-/* Handle an exception.  EXCEPTION_PAGE is the thread's exception
-   page.  */
-extern void exception_handler (struct exception_page *exception_page);
+
+/* When a thread causes an exception, the kernel invokes the thread's
+   exception handler.  This points to the low-level exception handler,
+   which invokes exception_handler_activated.  (It is passed a pointer
+   to the exception page.)
+
+   This function must determine how to continue.  It may, but need
+   not, immediately handle the fault.  The problem with handling the
+   fault immediately is that this function runs on the exception
+   handler's tiny stack (~3kb) and it runs in activated mode.  The
+   latter means that it may not fault (which generally precludes
+   accessing any dynamically allocated storage).  To allow an easy
+   transition to another function in normal-mode, if the function
+   returns an exception_frame, then the exception handler will call
+   exception_handler_normal passing it that argument.  This function
+   runs in normal mode and on the normal stack.  When this function
+   returns, the interrupted state is restored.  */
+extern struct exception_frame *
+  exception_handler_activated (struct exception_page *exception_page);
+
+extern void exception_handler_normal (struct exception_frame *exception_frame);
 
 
 /* The first instruction of exception handler dispatcher.  */

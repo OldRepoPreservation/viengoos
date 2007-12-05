@@ -138,13 +138,20 @@ server_loop (void)
 
 	  if (raise_fault)
 	    {
+	      l4_word_t c = _L4_XCHG_REGS_DELIVER;
+	      l4_thread_id_t targ = thread->tid;
+	      l4_word_t sp = 0;
+	      l4_word_t dummy = 0;
+	      _L4_exchange_registers (&targ, &c,
+				      &sp, &dummy, &dummy, &dummy, &dummy);
+
 	      struct exception_info info;
 	      info.access = access;
 	      info.type = cap_page;
 
 	      l4_msg_t msg;
 	      exception_fault_send_marshal (&msg, PTR_TO_ADDR (fault),
-					    ip, info);
+					    sp, ip, info);
 
 	      thread_raise_exception (activity, thread, &msg);
 

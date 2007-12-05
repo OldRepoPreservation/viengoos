@@ -1,3 +1,13 @@
+2007-12-05  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h (struct exception_page): Add fields exception_stack and
+	exception_stack_bottom.
+	(hurd_exception_handler_t): Don't define.
+	* exceptions.h (fault): Add argument, sp.
+	(exception_handler): Remove declaration.
+	(exception_handler_activated): New declaration.
+	(exception_handler_normal): Likewise.
+
 2007-12-04  Neal H. Walfield  <neal@gnu.org>
 
 	Remove exception threads.  Replace with support for activations.

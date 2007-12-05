@@ -1,3 +1,30 @@
+2007-12-05  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c: Include <hurd/slab.h> and "as.h".
+	(exception_frame_slab): New local variable.
+	(exception_frame_slab_alloc): New function.
+	(exception_frame_slab_dealloc): Likewise.
+	(exception_frame_alloc): Likewise.
+	(exception_handler): Rename from this...
+	(exception_handler_activated): ... to this.  Update callers.  Only
+	handle the fault if the fault corresponds to the page the stack
+	pointer references at the time of the fault or the next stack
+	page.
+	(exception_handler_normal): New function.
+	(exception_handler_init): Initialize exception_frame_slab.
+	* ia32-exception-entry.S (EXCEPTION_STACK): New macro.
+	(SAVED_EDX): Likewise.
+	(EF_SAVED_EAX): Likewise.
+	(EF_SAVED_ECX): Likewise.
+	(EF_SAVED_EDX): Likewise.
+	(EF_SAVED_FLAGS): Likewise.
+	(EF_SAVED_IP): Likewise.
+	(EF_STACK_START): Likewise.
+	(EF_NEXT): Likewise.
+	(exception_handler_entry): After calling
+	exception_handler_activated, check if the return result is
+	non-zero.  If so, call exception_handler_normal.
+
 2007-12-04  Neal H. Walfield  <neal@gnu.org>
 
 	Remove exception threads.  Replace with support for activations.

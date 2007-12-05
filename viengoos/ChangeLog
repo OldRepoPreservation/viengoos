@@ -1,3 +1,8 @@
+2007-12-05  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): When marshalling the fault, return the
+	current stack pointer, consistent with the updated interface.
+
 2007-12-04  Neal H. Walfield  <neal@gnu.org>
 
 	Remove exception threads.  Replace with support for activations.

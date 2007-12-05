@@ -22,14 +22,28 @@
 
 #define PAGESIZE 0x1000
 
+/* Offsets into a struct exception_page.  */
 #define MODE (0*4)
 #define SAVED_IP (1*4)
 #define SAVED_SP (2*4)
 #define SAVED_THREAD_STATE (3*4)
+
+#define EXCEPTION_STACK (4*4)
+
 #define ORIG_FLAGS (PAGESIZE-1*4)
 #define SAVED_EAX (PAGESIZE-2*4)
 #define SAVED_ECX (PAGESIZE-3*4)
 #define SAVED_FLAGS (PAGESIZE-4*4)
+#define SAVED_EDX (PAGESIZE-5*4)
+
+/* Offsets into a struct exception_fault.  */
+#define EF_SAVED_EAX (EF_SAVED_ECX-4)
+#define EF_SAVED_ECX (EF_SAVED_EDX-4)
+#define EF_SAVED_EDX (EF_SAVED_FLAGS-4)
+#define EF_SAVED_FLAGS (EF_SAVED_IP-4)
+#define EF_SAVED_IP (EF_STACK_START-4)
+#define EF_STACK_START (5*4)
+#define EF_NEXT (5*4)
 
 	/* Handle an exception.  */
 	.globl	exception_handler_entry, _exception_handler_entry
@@ -37,8 +51,10 @@ exception_handler_entry:
 _exception_handler_entry:
 	/* Save the eflags before we do anything.  */
 	pushf
-	/* Adjust the stack: our saved state may be there. */
-	sub $12, %esp
+	
+	/* Adjust the stack: our saved EAX, ECX, EDX and FLAGS may be
+	there.  */
+	sub $16, %esp
 	
 	/* %ESP points to the top of the exception page.  If the
 	interrupt in transition flag is not set, then we need to save
@@ -47,11 +63,9 @@ _exception_handler_entry:
 	our registers, reflects the real user state (see big comment
 	below for more information).  */
 
-	/* Whatever the case, EDX reflects the user's state.  Save it. */
 	pushl %edx
-
-	/* %EDX is the only register which we can touch.  Make it a
-	pointer to the exception page.  */
+	/* %EDX is now the only register which we can touch.  Make it
+	a pointer to the exception page.  */
 	mov %esp, %edx
 	and $0xfffff000, %edx
 
@@ -59,22 +73,47 @@ _exception_handler_entry:
 	bt $0x2, MODE(%edx)
 	jc after_save
 
-	/* Nope; we need to save the current EAX and ECX and eflags.  */
+	/* Nope; we need to save the current EAX, ECX and eflags.  */
 	mov %eax, SAVED_EAX(%edx)
 	mov %ecx, SAVED_ECX(%edx)
 	mov ORIG_FLAGS(%edx), %ecx
 	mov %ecx, SAVED_FLAGS(%edx)
-after_save:	
+	popl %ecx
+	mov %ecx, SAVED_EDX(%edx)
+	jmp after_adjust
+	
+after_save:
+	
+	/* Adjust the stack: we saved %edx there.  */
+	add $4, %esp
+	
+after_adjust:
 
-	/* The exception function takes a single argument: the
-	exception page.  */
+	/* We are going to call the exception handler.  But first save
+	our pointer to the exception page on the stack.  */
 	pushl %edx
-	/* Call the exception handler.  */
-	call exception_handler
-	/* Clear the arguments.  */
-	add $0x4, %esp
 
-	/* Transition back to normal mode.
+	/* The exception handler function takes a single arguments:
+	the exception page.  */
+
+	/* Push the exception page.  */
+	pushl %edx
+	/* Clear the direction flag as per the calling conventions.  */
+	cld
+	call exception_handler_activated
+	/* The exception frame, if any, is in EAX.  */
+	/* Clear the arguments.  */
+	add $4, %esp
+
+	/* Restore exception page pointer.  */
+	popl %edx
+
+	/* Check if there is an exception frame.  */
+	test %eax, %eax
+	jnz exception_frame_run
+
+	/* There is no exception frame, transition immediately back to
+	normal mode.
 	
 	To return to normal mode, we need to restore the saved
 	registers, including the saved EAX, saved ESP and saved EIP.
@@ -103,56 +142,132 @@ after_save:
 	invokes the exception handler with the interrupt_in_transition
 	flag set.  */
 
-	/* Restore the caller saved registers.  */
-	popl %edx
-
-	/* Point EAX at the exception page.  */
-	mov %esp, %eax
-	and $0xfffff000, %eax
-
 	/* Reset the activation bit.  */
-	and $0xfffffffe, MODE(%eax)
+	and $0xfffffffe, MODE(%edx)
 
 	/* Check for pending messages.  This does not need to be
 	   atomic as if we get interrupted here, we automatically
 	   transition back to activated mode.  */
-	bt $0x1, MODE(%eax)
+	bt $0x1, MODE(%edx)
 	jc process_pending
 
 	/* Restore the user stack.  */
-	mov SAVED_SP(%eax), %esp
+	mov SAVED_SP(%edx), %esp
 	/* Copy the saved EIP, EAX and eflags to the stack.  */
-	mov SAVED_IP(%eax), %ecx
+	mov SAVED_IP(%edx), %ecx
 	pushl %ecx
-	mov SAVED_EAX(%eax), %ecx
-	pushl %ecx
-	mov SAVED_FLAGS(%eax), %ecx
+	mov SAVED_FLAGS(%edx), %ecx
 	pushl %ecx
 
-	/* Restore ECX.  */
-	mov SAVED_ECX(%eax), %ecx
+	mov SAVED_EAX(%edx), %eax
+	mov SAVED_ECX(%edx), %ecx
+	mov SAVED_EDX(%edx), %edx
 	
-	/* Restore the saved eflags and EAX.  */
+	/* Restore the saved eflags.  */
 	popf
-	popl %eax
 	/* Restore the saved EIP and in doing so the saved ESP.  */
 	ret
+
 process_pending:	
 	/* This code is called if after leaving activated mode, we
- 	detect a pending message.  %EAX points to the exception page.  */
+ 	detect a pending message.  %EDX points to the exception page.  */
 
 	/* Set activated mode and interrupt in transition.  */
-	or $0x5, MODE(%eax)
+	or $0x5, MODE(%edx)
 
 	/* Set the ESP to the top of the stack.  */
-	lea PAGESIZE(%eax), %esp
+	lea PAGESIZE(%edx), %esp
 
 	/* Get the pending exception.  */
 	call exception_fetch_exception
 
 	jmp exception_handler_entry
 
+
+exception_frame_run:
+	/* EAX contains the exception frame, EDX the exception page,
+	and ESP points into the exception page.  */
+
+	/* Change our stack to that of the exception frame.  */
+	lea EF_STACK_START(%eax), %esp
+	
+	/* Copy all relevant register state from the exception page to
+	the exception frame.  */
+	mov SAVED_IP(%edx), %ecx
+	pushl %ecx
+
+	mov SAVED_FLAGS(%edx), %ecx
+	pushl %ecx
+	
+	mov SAVED_EDX(%edx), %ecx
+	pushl %ecx
+	
+	mov SAVED_ECX(%edx), %ecx
+	pushl %ecx
+	
+	mov SAVED_EAX(%edx), %ecx
+	pushl %ecx
+
+	/* Restore the user ESP.  */
+	mov SAVED_SP(%edx), %esp
+
+	/* We've now stashed away all the state we need to restore to
+	the interrupted state.  */
+
+	/* Reset the activation bit.  */
+	and $0xfffffffe, MODE(%edx)
+
+	/* XXX: Check for pending message.  */
+
 	.global exception_handler_end, _exception_handler_end
 exception_handler_end:
 _exception_handler_end:
-	nop
+
+	/* We have now left the protected mode.  We've saved all the
+	state we need to return to the interrupted state in the
+	exception frame and ESP points to the normal stack.  If a
+	fault now occurs, nothing bad can happend.  */
+
+	/* Save the exception page pointer.  */
+	pushl %edx
+	/* Save the exception frame pointer.  */
+	pushl %eax
+
+	/* Call the continuation (single argument: exception frame
+	pointer).  */
+	
+	pushl %eax
+	cld
+	call exception_handler_normal
+	
+	/* Remove the argument.  */
+	add $4, %esp
+
+	/* Restore the exception page pointer and the exception frame
+	pointer.  */
+	popl %eax
+	popl %edx
+
+	/* Restore the user state.  */
+	mov EF_SAVED_IP(%eax), %ecx
+	pushl %ecx
+	mov EF_SAVED_FLAGS(%eax), %ecx
+	pushl %ecx
+	mov EF_SAVED_EDX(%eax), %ecx
+	pushl %ecx
+	mov EF_SAVED_ECX(%eax), %ecx
+	pushl %ecx
+	mov EF_SAVED_EAX(%eax), %ecx
+	pushl %ecx
+
+	/* Remove our exception frame, which is at the top
+	of the exception frame stack.  */
+	mov EF_NEXT(%edx), %ecx
+	lock mov %ecx, EXCEPTION_STACK(%eax)
+
+	popl %eax
+	popl %ecx
+	popl %edx
+	popf
+	/* And return.  */
+	ret

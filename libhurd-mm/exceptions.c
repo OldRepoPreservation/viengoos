@@ -23,13 +23,82 @@
 #include <hurd/stddef.h>
 #include <hurd/exceptions.h>
 #include <hurd/storage.h>
+#include <hurd/slab.h>
 #include <hurd/thread.h>
 #include <l4/thread.h>
 
 #include "pager.h"
+#include "as.h"
 
 extern struct hurd_startup_data *__hurd_startup_data;
+
+static struct hurd_slab_space exception_frame_slab;
 
+static error_t
+exception_frame_slab_alloc (void *hook, size_t size, void **ptr)
+{
+  assert (size == PAGESIZE);
+
+  struct storage storage  = storage_alloc (meta_data_activity,
+					   cap_page, STORAGE_EPHEMERAL,
+					   ADDR_VOID);
+  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+
+  return 0;
+}
+
+static error_t
+exception_frame_slab_dealloc (void *hook, void *buffer, size_t size)
+{
+  assert (size == PAGESIZE);
+
+  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  storage_free (addr, false);
+
+  return 0;
+}
+
+static struct exception_frame *
+exception_frame_alloc (struct exception_page *exception_page)
+{
+  struct exception_frame *exception_frame;
+  if (! exception_page->exception_stack
+      && exception_page->exception_stack_bottom)
+    /* The stack is empty but we have an available frame.  */
+    {
+      exception_frame = exception_page->exception_stack_bottom;
+      exception_page->exception_stack = exception_frame;
+    }
+  else if (exception_page->exception_stack
+	   && exception_page->exception_stack->prev)
+    /* The stack is not empty and we have an available frame.  */
+    {
+      exception_frame = exception_page->exception_stack->prev;
+      exception_page->exception_stack = exception_frame;
+    }
+  else
+    /* The stack is empty and we do not ave an available frame.  */
+    {
+      void *buffer;
+      error_t err = hurd_slab_alloc (&exception_frame_slab, &buffer);
+      if (err)
+	panic ("Out of memory!");
+
+      exception_frame = buffer;
+      if (! exception_frame)
+	panic ("Failed to allocate an exception frame.");
+
+      exception_frame->prev = NULL;
+      exception_frame->next = exception_page->exception_stack;
+      if (exception_frame->next)
+	exception_frame->next->prev = exception_frame;
+
+      exception_page->exception_stack = exception_frame->next;
+    }
+
+  return exception_frame;
+}
+
 /* Fetch an exception.  */
 void
 exception_fetch_exception (void)
@@ -44,34 +113,32 @@ exception_fetch_exception (void)
     panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
 }
 
-/* This function is invoked by the monitor when the thread raises an
-   exception.  The exception is saved in the exception page.  */
 void
-exception_handler (struct exception_page *exception_page)
+exception_handler_normal (struct exception_frame *exception_frame)
 {
-  debug (5, "Exception handler called (0x%x.%x, exception_page: %p)",
+  debug (5, "Exception handler called (0x%x.%x, exception_frame: %p)",
 	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
-	 exception_page);
+	 exception_frame);
 
-  l4_msg_tag_t msg_tag = l4_msg_msg_tag (exception_page->exception);
+  l4_msg_t *msg = &exception_frame->exception;
+
+  l4_msg_tag_t msg_tag = l4_msg_msg_tag (*msg);
   l4_word_t label;
   label = l4_label (msg_tag);
 
-  int args_read = 0;
-  int expected_words;
   switch (label)
     {
     case EXCEPTION_fault:
       {
 	addr_t fault;
 	uintptr_t ip;
+	uintptr_t sp;
 	struct exception_info info;
 
 	error_t err;
-	err = exception_fault_send_unmarshal (exception_page->exception,
-					      &fault, &ip, &info);
+	err = exception_fault_send_unmarshal (msg, &fault, &sp, &ip, &info);
 	if (err)
-	  panic ("Failed to unmarshalling exception: %d", err);
+	  panic ("Failed to unmarshal exception: %d", err);
 
 	bool r = pager_fault (fault, ip, info);
 	if (! r)
@@ -82,17 +149,93 @@ exception_handler (struct exception_page *exception_page)
 	    for (;;)
 	      l4_yield ();
 	  }
+
+	break;
       }
-      break;
 
     default:
-      debug (1, "Unknown message id: %d", label);
+      panic ("Unknown message id: %d", label);
     }
+}
+
+struct exception_frame *
+exception_handler_activated (struct exception_page *exception_page)
+{
+  debug (5, "Exception handler called (0x%x.%x, exception_page: %p)",
+	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
+	 exception_page);
+
+  l4_msg_t *msg = &exception_page->exception;
+
+  l4_msg_tag_t msg_tag = l4_msg_msg_tag (*msg);
+  l4_word_t label;
+  label = l4_label (msg_tag);
+
+  switch (label)
+    {
+    case EXCEPTION_fault:
+      {
+	addr_t fault;
+	uintptr_t ip;
+	uintptr_t sp;
+	struct exception_info info;
+
+	error_t err;
+	err = exception_fault_send_unmarshal (msg, &fault, &sp, &ip, &info);
+	if (err)
+	  panic ("Failed to unmarshal exception: %d", err);
+
+	/* XXX: We assume that the stack grows down here.  */
+	uintptr_t f = (uintptr_t) ADDR_TO_PTR (fault);
+	if ((f & ~(PAGESIZE - 1)) == ((sp - 1) & ~(PAGESIZE - 1))
+	    || (f & ~(PAGESIZE - 1)) == (sp & ~(PAGESIZE - 1)))
+	  /* The fault occurs on the same page as the last byte of the
+	     interrupted SP.  It has got to be a stack fault.  Handle
+	     it here.  */
+	  {
+	    bool r = pager_fault (fault, ip, info);
+	    if (! r)
+	      {
+		debug (1, "Failed to handle fault at " ADDR_FMT " (ip=%x)",
+		       ADDR_PRINTF (fault), ip);
+		/* XXX: Should raise SIGSEGV.  */
+		for (;;)
+		  l4_yield ();
+	      }
+
+	    return NULL;
+	  }
+
+	break;
+      }
+
+    default:
+      panic ("Unknown message id: %d", label);
+    }
+
+  /* Handle the fault in normal mode.  */
+
+  /* Allocate an exception frame.  */
+  struct exception_frame *exception_frame
+    = exception_frame_alloc (exception_page);
+
+  /* Copy the relevant bits.  */
+  memcpy (&exception_frame->exception, msg,
+	  (1 + l4_untyped_words (msg_tag)) * sizeof (l4_word_t));
+
+  return exception_frame;
 }
 
 void
 exception_handler_init (void)
 {
+  error_t err = hurd_slab_init (&exception_frame_slab,
+				sizeof (struct exception_frame), 0,
+				exception_frame_slab_alloc,
+				exception_frame_slab_dealloc,
+				NULL, NULL, NULL);
+  assert (! err);
+
   extern struct hurd_startup_data *__hurd_startup_data;
 
   struct storage storage = storage_alloc (ADDR_VOID, cap_page,
@@ -115,9 +258,9 @@ exception_handler_init (void)
   in.exception_page = storage.addr;
 
   struct hurd_thread_exregs_out out;
-  error_t err = rm_thread_exregs (ADDR_VOID, __hurd_startup_data->thread,
-				  HURD_EXREGS_SET_EXCEPTION_PAGE,
-				  in, &out);
+  err = rm_thread_exregs (ADDR_VOID, __hurd_startup_data->thread,
+			  HURD_EXREGS_SET_EXCEPTION_PAGE,
+			  in, &out);
   if (err)
     panic ("Failed to install exception page");
 }

@@ -33,6 +33,18 @@ enum
     RM_thread_exregs = 600,
   };
 
+struct exception_frame
+{
+#if i386
+  l4_word_t regs[5];
+#else
+# error Not ported to this architecture!
+#endif
+  struct exception_frame *next;
+  struct exception_frame *prev;
+  l4_msg_t exception;
+};
+
 struct exception_page
 {
   union
@@ -58,6 +70,11 @@ struct exception_page
       l4_word_t saved_sp;
       /* The state of the thread (as returned by _L4_exchange_regs)  */
       l4_word_t saved_thread_state;
+
+      /* Top of the exception frame stack.  */
+      struct exception_frame *exception_stack;
+      /* Bottom of the exception frame stack.  */
+      struct exception_frame *exception_stack_bottom;
 
       l4_word_t exception_handler_sp;
       l4_word_t exception_handler_ip;
@@ -108,8 +125,6 @@ enum
   HURD_EXREGS_ABORT_RECEIVE = _L4_XCHG_REGS_CANCEL_RECV,
   HURD_EXREGS_ABORT_IPC = HURD_EXREGS_ABORT_SEND | _L4_XCHG_REGS_CANCEL_RECV,
 };
-
-typedef void (*hurd_exception_handler_t) (struct exception_page *);
 
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
