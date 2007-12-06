@@ -57,11 +57,12 @@ exception_frame_slab_dealloc (void *hook, void *buffer, size_t size)
 
   return 0;
 }
-
+
 static struct exception_frame *
 exception_frame_alloc (struct exception_page *exception_page)
 {
   struct exception_frame *exception_frame;
+
   if (! exception_page->exception_stack
       && exception_page->exception_stack_bottom)
     /* The stack is empty but we have an available frame.  */
@@ -77,7 +78,7 @@ exception_frame_alloc (struct exception_page *exception_page)
       exception_page->exception_stack = exception_frame;
     }
   else
-    /* The stack is empty and we do not ave an available frame.  */
+    /* We do not have an available frame.  */
     {
       void *buffer;
       error_t err = hurd_slab_alloc (&exception_frame_slab, &buffer);
@@ -85,18 +86,46 @@ exception_frame_alloc (struct exception_page *exception_page)
 	panic ("Out of memory!");
 
       exception_frame = buffer;
-      if (! exception_frame)
-	panic ("Failed to allocate an exception frame.");
 
       exception_frame->prev = NULL;
       exception_frame->next = exception_page->exception_stack;
       if (exception_frame->next)
 	exception_frame->next->prev = exception_frame;
 
-      exception_page->exception_stack = exception_frame->next;
+      exception_page->exception_stack = exception_frame;
     }
 
   return exception_frame;
+}
+
+static void
+utcb_state_save (struct exception_frame *exception_frame)
+{
+  l4_word_t *utcb = _L4_utcb ();
+
+  exception_frame->saved_sender = utcb[_L4_UTCB_SENDER];
+  exception_frame->saved_receiver = utcb[_L4_UTCB_RECEIVER];
+  exception_frame->saved_timeout = utcb[_L4_UTCB_TIMEOUT];
+  exception_frame->saved_error_code = utcb[_L4_UTCB_ERROR_CODE];
+  exception_frame->saved_flags = utcb[_L4_UTCB_FLAGS];
+  exception_frame->saved_br0 = utcb[_L4_UTCB_BR0];
+  memcpy (&exception_frame->saved_message,
+	  utcb, L4_NUM_MRS * sizeof (l4_word_t));
+}
+
+static void
+utcb_state_restore (struct exception_frame *exception_frame)
+{
+  l4_word_t *utcb = _L4_utcb ();
+
+  utcb[_L4_UTCB_SENDER] = exception_frame->saved_sender;
+  utcb[_L4_UTCB_RECEIVER] = exception_frame->saved_receiver;
+  utcb[_L4_UTCB_TIMEOUT] = exception_frame->saved_timeout;
+  utcb[_L4_UTCB_ERROR_CODE] = exception_frame->saved_error_code;
+  utcb[_L4_UTCB_FLAGS] = exception_frame->saved_flags;
+  utcb[_L4_UTCB_BR0] = exception_frame->saved_br0;
+  memcpy (utcb, &exception_frame->saved_message,
+	  L4_NUM_MRS * sizeof (l4_word_t));
 }
 
 /* Fetch an exception.  */
@@ -112,6 +141,15 @@ exception_fetch_exception (void)
   if (l4_ipc_failed (msg_tag))
     panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
 }
+
+/* XXX: Before returning from either exception_handler_normal or
+   exception_handler_activated, we need to examine the thread's
+   control state and if the IPC was interrupt, set the error code
+   appropriately.  This also requires changing all invocations of IPCs
+   to loop on interrupt.  Currently, this is not a problem as the only
+   exception that we get is a page fault, which can only occur when
+   the thread is not in an IPC.  (Sure, there are string buffers, but
+   we don't use them.)  */
 
 void
 exception_handler_normal (struct exception_frame *exception_frame)
@@ -156,6 +194,8 @@ exception_handler_normal (struct exception_frame *exception_frame)
     default:
       panic ("Unknown message id: %d", label);
     }
+
+  utcb_state_restore (exception_frame);
 }
 
 struct exception_frame *
@@ -164,6 +204,12 @@ exception_handler_activated (struct exception_page *exception_page)
   debug (5, "Exception handler called (0x%x.%x, exception_page: %p)",
 	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
 	 exception_page);
+
+  /* Allocate an exception frame.  */
+  struct exception_frame *exception_frame
+    = exception_frame_alloc (exception_page);
+
+  utcb_state_save (exception_frame);
 
   l4_msg_t *msg = &exception_page->exception;
 
@@ -203,6 +249,10 @@ exception_handler_activated (struct exception_page *exception_page)
 		  l4_yield ();
 	      }
 
+	    utcb_state_restore (exception_frame);
+	    assert (exception_page->exception_stack == exception_frame);
+	    exception_page->exception_stack
+	      = exception_page->exception_stack->next;
 	    return NULL;
 	  }
 
@@ -214,10 +264,6 @@ exception_handler_activated (struct exception_page *exception_page)
     }
 
   /* Handle the fault in normal mode.  */
-
-  /* Allocate an exception frame.  */
-  struct exception_frame *exception_frame
-    = exception_frame_alloc (exception_page);
 
   /* Copy the relevant bits.  */
   memcpy (&exception_frame->exception, msg,

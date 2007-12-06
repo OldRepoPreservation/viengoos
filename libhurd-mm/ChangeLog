@@ -1,3 +1,15 @@
+2007-12-06  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c (exception_frame_alloc): Correctly set the
+	EXCEPTION_PAGE->EXCEPTION_STACK to the allocated frame.
+	(utcb_state_save): New function.
+	(utcb_state_restore): Likewise.
+	(exception_handler_normal): Call utcb_state_restore before
+	returning.
+	(exception_handler_activated): Save the UTCB state.  If returning
+	without requiring a call to exception_handler_normal, then restore
+	the UTCB state.
+
 2007-12-05  Neal H. Walfield  <neal@gnu.org>
 
 	* exceptions.c: Include <hurd/slab.h> and "as.h".

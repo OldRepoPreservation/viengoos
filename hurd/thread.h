@@ -43,6 +43,15 @@ struct exception_frame
   struct exception_frame *next;
   struct exception_frame *prev;
   l4_msg_t exception;
+
+  /* We need to save parts of the UTCB.  */
+  l4_word_t saved_sender;
+  l4_word_t saved_receiver;
+  l4_word_t saved_timeout;
+  l4_word_t saved_error_code;
+  l4_word_t saved_flags;
+  l4_word_t saved_br0;
+  l4_msg_t saved_message;
 };
 
 struct exception_page

@@ -1,3 +1,9 @@
+2007-12-06  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h (struct exception_frame): Add fields saved_sender,
+	saved_receiver, saved_timeout, saved_error_code, saved_flags,
+	saved_br0 and saved_message.
+
 2007-12-05  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (struct exception_page): Add fields exception_stack and
