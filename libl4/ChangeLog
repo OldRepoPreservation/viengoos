@@ -1,3 +1,7 @@
+2007-12-08  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32/l4/bits/vregs.h (_L4_utcb_base): New function.
+
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/thread-start.h (_L4_thread_start): Don't send, reply.

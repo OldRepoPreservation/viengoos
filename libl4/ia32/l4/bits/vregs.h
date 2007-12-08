@@ -58,6 +58,13 @@ _L4_utcb (void)
 #define _L4_UTCB_MY_GLOBAL_ID	-15
 #define _L4_UTCB_BR0		-16
 
+static inline _L4_word_t *
+_L4_attribute_always_inline
+_L4_utcb_base (void)
+{
+  /* 256 is a magic number, which unfortunately is not exported.  */
+  return ((void *) _L4_utcb () - 256);
+}
 
 /* Get the local thread ID.  */
 static inline _L4_thread_id_t
