@@ -73,7 +73,6 @@ ss_mutex_trylock (ss_mutex_t *lock)
   if (owner == l4_nilthread)
     return true;
 
-  assert (owner != l4_myself ());
   return false;
 }
 
