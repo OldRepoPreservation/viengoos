@@ -119,6 +119,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
     }
 
   /* Disown all allocated memory objects.  */
+  ss_mutex_lock (&lru_lock);
   struct object_desc *desc;
   int count = 0;
   while ((desc = victim->active))
@@ -136,6 +137,8 @@ activity_destroy (struct activity *activity, struct activity *victim)
       object_desc_disown_simple (desc);
       count ++;
     }
+  ss_mutex_unlock (&lru_lock);
+
   activity_charge (victim, -count);
 
   do_debug (1)
@@ -147,8 +150,10 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	activity_dump (root_activity);
 
 	struct object_desc *desc;
+	ss_mutex_lock (&lru_lock);
 	for (desc = victim->active; desc; desc = desc->activity_lru.next)
 	  debug (0, " %llx: %s", desc->oid, cap_type_string (desc->type));
+	ss_mutex_unlock (&lru_lock);
       }
   assert (victim->frames == 0);
   assert (victim->folio_count == 0);
@@ -217,7 +222,11 @@ do_activity_dump (struct activity *activity, int indent)
 void
 activity_dump (struct activity *activity)
 {
+  ss_mutex_lock (&lru_lock);
+
   do_activity_dump (activity, 0);
+
+  ss_mutex_unlock (&lru_lock);
 }
 
 
@@ -227,6 +236,8 @@ activity_consistency_check_ (const char *func, int line,
 {
   /* The number of objects on the active and inactive lists plus the
      objects owned by the descendents must equal activity->frames.  */
+
+  assert (! ss_mutex_trylock (&lru_lock));
 
   int active = 0;
   struct object_desc *d;

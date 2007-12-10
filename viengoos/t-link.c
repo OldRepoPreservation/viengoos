@@ -1,18 +1,23 @@
+#define _L4_TEST_MAIN
+#include "t-environment.h"
+
 #include <hurd/stddef.h>
 #include "object.h"
 #include "output.h"
 
-const char program_name[] = "t-link";
+ss_mutex_t lru_lock;
 
 #define N 10
-int
-main (int argc, char *argv[])
+void
+test (void)
 {
   struct object_desc descs[N];
 
   struct object_desc *head = NULL;
   struct object_desc *p;
   int i;
+
+  ss_mutex_lock (&lru_lock);
 
   /* Add items with value 0 to N-1.  (Recall: items are added to the
      head of the list!)  */
@@ -81,5 +86,5 @@ main (int argc, char *argv[])
       assert (! p);
     }
 
-  return 0;
+  ss_mutex_unlock (&lru_lock);
 }

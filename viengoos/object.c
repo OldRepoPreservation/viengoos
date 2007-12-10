@@ -30,6 +30,8 @@
 
 struct object_desc *object_descs;
 
+ss_mutex_t lru_lock;
+
 struct object_desc *global_active;
 struct object_desc *global_inactive_dirty;
 struct object_desc *global_inactive_clean;
@@ -121,6 +123,8 @@ memory_object_alloc (struct activity *activity,
      Normally, the page will be immediately referenced.  */
   odesc->age = 1;
 
+  ss_mutex_lock (&lru_lock);
+
   object_global_lru_link (&global_active, odesc);
   /* object_desc_claim wants to first unlink the descriptor.  To make
      it happy, we initially connect the descriptor to the disowned
@@ -133,6 +137,8 @@ memory_object_alloc (struct activity *activity,
   else
     /* Account the memory to the activity ACTIVITY.  */
     object_desc_claim (activity, odesc);
+
+  ss_mutex_unlock (&lru_lock);
 
   return object;
 }
@@ -153,10 +159,12 @@ memory_object_destroy (struct activity *activity, struct object *object)
   struct cap cap = object_desc_to_cap (odesc);
   cap_shootdown (activity, &cap);
 
+  ss_mutex_lock (&lru_lock);
   object_desc_disown (odesc);
 
   object_activity_lru_unlink (odesc);
   object_global_lru_unlink (odesc);
+  ss_mutex_unlock (&lru_lock);
 
   if (odesc->type == cap_activity_control)
     {
@@ -195,7 +203,11 @@ object_find_soft (struct activity *activity, oid_t oid)
   if (! odesc->activity || odesc->age == 0)
     /* Either the object is unowned or it is inactive.  Claim
        ownership.  */
-    object_desc_claim (activity, odesc);
+    {
+      ss_mutex_lock (&lru_lock);
+      object_desc_claim (activity, odesc);
+      ss_mutex_unlock (&lru_lock);
+    }
 
   return object;
 }
@@ -420,7 +432,9 @@ folio_free (struct activity *activity, struct folio *folio)
   folio->prev.type = cap_void;
 
   /* Disown the frame.  */
+  ss_mutex_lock (&lru_lock);
   object_disown ((struct object *) folio);
+  ss_mutex_unlock (&lru_lock);
 
   /* And free the folio.  */
   folio->folio_version = fdesc->version ++;
@@ -493,7 +507,10 @@ folio_object_alloc (struct activity *activity,
 	  struct cap cap = object_desc_to_cap (odesc);
 	  assert (activity);
 	  cap_shootdown (activity, &cap);
+
+	  ss_mutex_lock (&lru_lock);
 	  object_desc_claim (activity, odesc);
+	  ss_mutex_unlock (&lru_lock);
 	}
 
       odesc->type = type;

@@ -1,5 +1,50 @@
 2007-12-10  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (lru_lock): New declaration.
+	(LINK_TEMPLATE): Assert that LRU_LOCK is held.
+	(object_desc_disown_simple): Likewise.
+	(object_disown_simple): Likewise.
+	(object_desc_disown): Likewise.
+	(object_disown): Likewise.
+	(object_desc_claim): Likewise.
+	(object_claim): Likewise.
+	* object.c (lru_lock): Define.
+	(memory_object_alloc): Lock LRU_LOCK when manipulating
+	the LRU lists.
+	(memory_object_destroy): Likewise.
+	(object_find_soft): Likewise.
+	(folio_free): Likewise.
+	(folio_object_alloc): Likewise.
+	* activity.c (activity_destroy): Lock LRU_LOCK when manipulating
+	the LRU lists.
+	(activity_destroy): Likewise.
+	(activity_dump): Likewise.
+	(activity_consistency_check_): Assert that LRU_LOCK is held.
+	* ager.c (ager_loop): Lock LRU_LOCK when manipulating the LRU
+	lists.
+	* Makefile.am (t_link_CPPFLAGS): Include
+	$(srcdir)/t-environment.h.
+	(t_link_SOURCES): Add output.h, output.c and output-stdio.c.
+	* t-environment.h: Move includes down.
+	(environment_kip) [! _L4_TEST_MAIN]: Don't define, only declare.
+	Remove static qualifier.
+	(environment_api_version) [! _L4_TEST_MAIN]: Likewise.
+	(environment_api_flags) [! _L4_TEST_MAIN]: Likewise.
+	(environment_kernel_id) [! _L4_TEST_MAIN]: Likewise.
+	(environment_utcb) [! _L4_TEST_MAIN]: Likewise.
+	(environment_utcb_address) [! _L4_TEST_MAIN]: Likewise.
+	(environment_init): Initialize
+	ENVIRONMENT_UTCB_ADDRESS[_L4_UTCB_MY_GLOBAL_ID] to a non-NULL
+	value.
+	* t-link.c: Include "t-environment.h".
+	(_L4_TEST_MAIN): Define.
+	(program_name): Don't define.
+	(lru_lock): Define.
+	(main): Rename from this...
+	(test): ... to this.  Lock LRU_LOCK on entry and unlock on exit.
+
+2007-12-10  Neal H. Walfield  <neal@gnu.org>
+
 	* t-link.c: Include "object.h".
 	(program_name): Remove static qualifier.
 	(struct object_desc): Don't define.  Replace all uses of foo with

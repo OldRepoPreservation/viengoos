@@ -75,6 +75,11 @@ ager_loop (l4_thread_id_t main_thread)
       int retired = 0;
       int revived = 0;
 
+      /* XXX: This lock could be held for a while.  It would be much
+	 better to grab it and release it as required.  This
+	 complicates the code a bit and requires some thought.  */
+      ss_mutex_lock (&lru_lock);
+
 #if !UNMAP_INACTIVE
       /* We are going to move inactive items on the global active to
 	 the appropriate inactive list.  Then we scan the inactive
@@ -263,6 +268,8 @@ ager_loop (l4_thread_id_t main_thread)
       object_global_lru_join (&global_inactive_clean, &old_inactive_clean);
       object_global_lru_join (&global_inactive_dirty, &old_inactive_dirty);
 #endif
+
+      ss_mutex_unlock (&lru_lock);
 
 #if UNMAP_PERIODICALLY
       if (iterations == 8 * 5)

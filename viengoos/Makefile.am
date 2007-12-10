@@ -94,8 +94,9 @@ t_activity_SOURCES = t-activity.c		\
 	debug.h debug.c
 t_activity_LDADD = $(viengoos_LDADD)
 
-t_link_CPPFLAGS = $(viengoos_CPPFLAGS)
-t_link_SOURCES = t-link.c object.h
+t_link_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
+t_link_SOURCES = t-link.c object.h		\
+	output.h output.c output-stdio.c
 
 lib_LIBRARIES = libhurd-cap.a
 libhurd_cap_a_CPPFLAGS = $(COMMON_CPPFLAGS)

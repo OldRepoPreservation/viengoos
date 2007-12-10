@@ -135,7 +135,8 @@ struct object_desc
   struct activity *activity;
 
   /* Each allocated object is attached to the activity that pays for
-     it.  If ACTIVITY is NULL, then attached to DISOWNED.  */
+     it.  If ACTIVITY is NULL, then attached to DISOWNED.  Protected
+     by LRU_LOCK.  */
   struct
   {
     struct object_desc *next;
@@ -157,6 +158,10 @@ struct object_desc
    memory map.  */
 extern struct object_desc *object_descs;
 
+/* Lock protecting the following lists and each object descriptor's
+   activity_lru and global_lru fields.  */
+extern ss_mutex_t lru_lock;
+
 /* The global LRU lists.  Every allocated frame is on one of these
    two.  */
 extern struct object_desc *global_active;
@@ -238,6 +243,8 @@ object_type (struct object *object)
   static inline void							\
   object_##field##_link (struct object_desc **list, struct object_desc *e) \
   {									\
+    assert (! ss_mutex_trylock (&lru_lock));				\
+									\
     e->field.next = *list;						\
     if (e->field.next)							\
       e->field.next->field.prevp = &e->field.next;			\
@@ -248,6 +255,8 @@ object_type (struct object *object)
   static inline void							\
   object_##field##_unlink (struct object_desc *e)			\
   {									\
+    assert (! ss_mutex_trylock (&lru_lock));				\
+									\
     assert (e->field.prevp);						\
     									\
     *e->field.prevp = e->field.next;					\
@@ -264,6 +273,8 @@ object_type (struct object *object)
   object_##field##_move (struct object_desc **target,			\
 			 struct object_desc **source)			\
   {									\
+    assert (! ss_mutex_trylock (&lru_lock));				\
+									\
     *target = *source;							\
     if (*target)							\
       (*target)->field.prevp = target;					\
@@ -275,6 +286,8 @@ object_type (struct object *object)
   object_##field##_join (struct object_desc **target,			\
 			 struct object_desc **source)			\
   {									\
+    assert (! ss_mutex_trylock (&lru_lock));				\
+									\
     if (! *source)							\
       return;								\
 									\
@@ -298,6 +311,7 @@ LINK_TEMPLATE(global_lru)
 static inline void
 object_desc_disown_simple (struct object_desc *desc)
 {
+  assert (! ss_mutex_trylock (&lru_lock));
   assert (desc->activity);
 
   object_activity_lru_unlink (desc);
@@ -309,6 +323,8 @@ object_desc_disown_simple (struct object_desc *desc)
 static inline void
 object_disown_simple (struct object *object)
 {
+  assert (! ss_mutex_trylock (&lru_lock));
+
   object_desc_disown_simple (object_to_object_desc (object));
 }
 
@@ -327,6 +343,7 @@ object_desc_disown_ (struct object_desc *desc)
 #define object_desc_disown(d)						\
   ({ debug (5, "object_desc_disown: %p (%d)",				\
 	    d->activity, d->activity->frames);				\
+    assert (! ss_mutex_trylock (&lru_lock));				\
     object_desc_disown_ (d); })
 
 /* The activity to which OBJECT is accounted should no longer be
@@ -336,8 +353,12 @@ object_disown_ (struct object *object)
 {
   object_desc_disown_ (object_to_object_desc (object));
 }
-#define object_disown(o) \
-  ({ debug (5, "object_disown: "); object_disown_ (o); })
+#define object_disown(o)						\
+  ({									\
+    debug (5, "object_disown: ");					\
+    assert (! ss_mutex_trylock (&lru_lock));				\
+    object_disown_ (o);							\
+  })
 
 /* Transfer ownership of DESC to the activity ACTIVITY.  */
 static inline void
@@ -359,9 +380,11 @@ object_desc_claim_ (struct activity *activity, struct object_desc *desc)
 
   activity_consistency_check (desc->activity);
 }
-#define object_desc_claim(a, o)					\
-  ({ debug (5, "object_desc_claim: %p (%d)", a, a->frames);	\
-    object_desc_claim_ (a, o);					\
+#define object_desc_claim(a, o)						\
+  ({									\
+    debug (5, "object_desc_claim: %p (%d)", a, a->frames);		\
+    assert (! ss_mutex_trylock (&lru_lock));				\
+    object_desc_claim_ (a, o);						\
   })
 
 /* Transfer ownership of OBJECT to the activity ACTIVITY.  */
@@ -371,8 +394,11 @@ object_claim_ (struct activity *activity, struct object *object)
   object_desc_claim_ (activity, object_to_object_desc (object));
 }
 #define object_claim(a, o)						\
-  ({ debug (5, "object_claim: %p (%d)", a, a->frames);			\
-    object_claim_ (a, o); })
+  ({									\
+    debug (5, "object_claim: %p (%d)", a, a->frames);			\
+    assert (! ss_mutex_trylock (&lru_lock));				\
+    object_claim_ (a, o);						\
+  })
 
 /* Allocate a folio to activity ACTIVITY.  Returns NULL if not
    possible.  Otherwise a pointer to the in-memory folio.  */
