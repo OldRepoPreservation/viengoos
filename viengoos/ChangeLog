@@ -1,5 +1,18 @@
 2007-12-10  Neal H. Walfield  <neal@gnu.org>
 
+	Add a page ager.
+	* viengoos.c: Include "zalloc.h" and "ager.h".
+	(ager_start): New function.
+	(main): Call ager_start.
+	* ager.h: New file.
+	* ager.c: Likewise.
+	* Makefile.am (viengoos_SOURCES): Add ager.h and ager.c.
+	* object.h: Include <hurd/mutex.h>.
+	(struct object_desc): Add field lock.
+	* object.c (memory_object_alloc): Initialize ODESC->LOCK.
+	
+2007-12-10  Neal H. Walfield  <neal@gnu.org>
+
 	Properly account memory and folios.
 	* activity.h (struct activity): Remove field objects.  New fields
 	parent_ptr, active, inactive_clean, inactive_dirty and dying.

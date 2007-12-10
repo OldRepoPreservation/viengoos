@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <hurd/cap.h>
 #include <hurd/folio.h>
+#include <hurd/mutex.h>
 #include <stdint.h>
 
 #include "memory.h"
@@ -115,6 +116,8 @@ struct object_desc
 {
   /* Every in-memory object lives in a hash hashed on its OID.  */
   void *locp;
+
+  ss_mutex_t lock;
 
   /* The version and OID of the object.  */
   oid_t oid;

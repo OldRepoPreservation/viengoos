@@ -103,6 +103,7 @@ memory_object_alloc (struct activity *activity,
   odesc->oid = oid;
 
   odesc->dirty = 0;
+  odesc->lock = l4_nilthread;
 
   assert (! odesc->activity);
 

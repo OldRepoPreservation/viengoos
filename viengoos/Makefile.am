@@ -46,6 +46,7 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	cap.h cap.c cap-lookup.c		\
 	activity.h activity.c			\
 	thread.h thread.c			\
+	ager.h ager.c				\
 	as.h as.c				\
 	bits.h					\
 	elf.h loader.h loader.c			\

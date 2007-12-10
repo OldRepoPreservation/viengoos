@@ -46,6 +46,8 @@
 #include "server.h"
 #include "shutdown.h"
 #include "output.h"
+#include "zalloc.h"
+#include "ager.h"
 
 
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
@@ -423,6 +425,52 @@ system_task_load (void)
 	 l4_thread_no (thread->tid), l4_version (thread->tid), thread->ip);
 }
 
+void
+ager_start (void)
+{
+  /* 16k stack.  */
+  const int stack_size = PAGESIZE * 4;
+  void *stack = (void *) zalloc (stack_size);
+  /* XXX: We assume the stack grows down.  */
+  void *sp = stack + stack_size;
+
+  /* Push the argument and return address onto the stack.  */
+  /* XXX: We assume the stack grows down and we assume that the stack
+     has the normal x86 layout.  */
+  sp -= sizeof (l4_word_t);
+  * (l4_word_t *) sp = l4_myself ();
+  sp -= sizeof (l4_word_t);
+  * (l4_word_t *) sp = 0;
+
+  l4_thread_id_t tid = l4_global_id (l4_thread_no (l4_myself ()) + 1,
+				     l4_version (l4_myself ()));
+
+  int ret = l4_thread_control (tid, l4_myself (),
+			       l4_myself (),
+			       l4_pager (),
+			       (void *) _L4_utcb_base () + l4_utcb_size ());
+  if (! ret)
+    panic ("Could not create ager thread (id=%x.%x): %s",
+	   l4_thread_no (tid), l4_version (tid),
+	   l4_strerror (l4_error_code ()));
+
+  debug (1, "Created ager: %x", tid);
+
+  l4_thread_id_t targ = tid;
+  l4_word_t control = _L4_XCHG_REGS_CANCEL_IPC
+    | _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP;
+  l4_word_t dummy = 0;
+  l4_word_t sp_arg = (l4_word_t) sp;
+  l4_word_t ip = (l4_word_t) ager_loop;
+  _L4_exchange_registers (&targ, &control, &sp_arg, &ip,
+			  &dummy, &dummy, &dummy);
+  if (targ == l4_nilthread)
+    panic ("Failed to start ager thread (id=%x.%x): %s",
+	   l4_thread_no (tid), l4_version (tid),
+	   l4_strerror (l4_error_code ()));
+}
+
+
 int
 main (int argc, char *argv[])
 {
@@ -447,6 +495,8 @@ main (int argc, char *argv[])
 
   /* Load the system task.  */
   system_task_load ();
+
+  ager_start ();
 
   /* And, start serving requests.  */
   server_loop ();
