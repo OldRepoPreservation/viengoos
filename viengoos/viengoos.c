@@ -50,8 +50,6 @@
 
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
 
-struct activity *root_activity;
-
 /* The program name.  */
 const char program_name[] = "viengoos";
 
@@ -313,7 +311,7 @@ system_task_load (void)
   struct cap cap = allocate_object (cap_activity_control,
 				    startup_data->activity).cap;
   root_activity = (struct activity *) cap_to_object (root_activity, &cap);
-  folio_reparent (root_activity, folio, root_activity);
+  folio_parent (root_activity, folio);
 
   startup_data->thread = csalloc ();
   cap = allocate_object (cap_thread, startup_data->thread).cap;

@@ -26,10 +26,16 @@
 
 #include "object.h"
 #include "activity.h"
-
+#include "thread.h"
 
 struct object_desc *object_descs;
 
+struct object_desc *global_active;
+struct object_desc *global_inactive_dirty;
+struct object_desc *global_inactive_clean;
+
+struct object_desc *disowned;
+
 /* XXX: The number of in memory folios.  (Recall: one folio => 512kb
    storage.)  */
 #define FOLIOS_CORE 256
@@ -37,8 +43,8 @@ static unsigned char folios[FOLIOS_CORE / 8];
 
 /* Given an OID, we need a way to find 1) whether the object is
    memory, and 2) if so, where.  We achieve this using a hash.  The
-   hash maps object OIDs to union object *s.  */
-/* XXX: Although the current implementation of the has function
+   hash maps object OIDs to struct object_desc *s.  */
+/* XXX: Although the current implementation of the hash function
    dynamically allocates memory according to demand, the maximum
    amount of required memory can be calculated at startup.  */
 /* XXX: A hash is key'd by a machine word, however, an oid is
@@ -52,57 +58,13 @@ static unsigned char folios[FOLIOS_CORE / 8];
    problematic.  */
 static struct hurd_ihash objects;
 
-/* The object OBJECT was just brought into memory.  Set it up.  */
-static void
-memory_object_setup (struct object *object)
-{
-  struct object_desc *odesc = object_to_object_desc (object);
-
-  debug (5, "Setting up 0x%llx (object %d)", odesc->oid,
-	 ((uintptr_t) odesc - (uintptr_t) object_descs)
-	 / sizeof (*odesc));
-
-  bool had_value;
-  hurd_ihash_value_t old_value;
-  error_t err = hurd_ihash_replace (&objects, odesc->oid, odesc,
-				    &had_value, &old_value);
-  assert (err == 0);
-  /* If there was an old value, it better have the same value as what
-     we just added.  */
-  assert (! had_value || old_value == odesc);
-}
-
-/* Release the object.  */
-static void
-memory_object_destroy (struct activity *activity, struct object *object)
-{
-  struct object_desc *odesc = object_to_object_desc (object);
-
-  debug (5, "Destroy 0x%llx (object %d)", odesc->oid,
-	 ((uintptr_t) odesc - (uintptr_t) object_descs)
-	 / sizeof (*odesc));
-
-  struct cap cap = object_desc_to_cap (odesc);
-  cap_shootdown (activity, &cap);
-
-  hurd_ihash_locp_remove (&objects, odesc->locp);
-  assert (! hurd_ihash_find (&objects, odesc->oid));
-
-  /* XXX: Remove from linked lists!  */
-
-
-#ifdef NDEBUG
-  memset (odesc, 0xde, sizeof (struct object_desc));
-#endif
-
-  /* Return the frame to the free pool.  */
-  memory_frame_free ((l4_word_t) object);
-}
-
 void
 object_init (void)
 {
   assert (sizeof (struct folio) <= PAGESIZE);
+  assert (sizeof (struct activity) <= PAGESIZE);
+  assert (sizeof (struct object) <= PAGESIZE);
+  assert (sizeof (struct thread) <= PAGESIZE);
 
   hurd_ihash_init (&objects, (int) (&((struct object_desc *)0)->locp));
 
@@ -112,26 +74,130 @@ object_init (void)
   if (! object_descs)
     panic ("Failed to allocate object descriptor array!\n");
 }
+
+/* Allocate and set up a memory object.  TYPE, OID and VERSION must
+   correspond to the values storage on disk.  */
+static struct object *
+memory_object_alloc (struct activity *activity,
+		     enum cap_type type,
+		     oid_t oid, l4_word_t version)
+{
+  debug (5, "Allocating %llx(%d), %s", oid, version, cap_type_string (type));
 
+  assert (type != cap_void);
+  assert ((type == cap_folio) == ((oid % (FOLIO_OBJECTS + 1)) == 0));
+
+  struct object *object = (struct object *) memory_frame_allocate ();
+  if (! object)
+    {
+      /* XXX: Do some garbage collection.  */
+
+      return NULL;
+    }
+
+  /* Fill in the object descriptor.  */
+
+  struct object_desc *odesc = object_to_object_desc (object);
+  odesc->type = type;
+  odesc->version = version;
+  odesc->oid = oid;
+
+  odesc->dirty = 0;
+
+  assert (! odesc->activity);
+
+  /* Add to OBJECTS.  */
+  bool had_value;
+  hurd_ihash_value_t old_value;
+  error_t err = hurd_ihash_replace (&objects, odesc->oid, odesc,
+				    &had_value, &old_value);
+  assert (err == 0);
+  assert (! had_value);
+
+  /* Connect to object lists.  */
+
+  /* Give it a nominal age so that it is not immediately paged out.
+     Normally, the page will be immediately referenced.  */
+  odesc->age = 1;
+
+  object_global_lru_link (&global_active, odesc);
+  /* object_desc_claim wants to first unlink the descriptor.  To make
+     it happy, we initially connect the descriptor to the disowned
+     list.  */
+  object_activity_lru_link (&disowned, odesc);
+
+  if (! activity)
+    /* This may only happen if we are initializing.  */
+    assert (! root_activity);
+  else
+    /* Account the memory to the activity ACTIVITY.  */
+    object_desc_claim (activity, odesc);
+
+  return object;
+}
+
+/* Release the object.  */
+static void
+memory_object_destroy (struct activity *activity, struct object *object)
+{
+  assert (activity);
+
+  struct object_desc *odesc = object_to_object_desc (object);
+
+  debug (5, "Destroy %s at 0x%llx (object %d)",
+	 cap_type_string (odesc->type), odesc->oid,
+	 ((uintptr_t) odesc - (uintptr_t) object_descs)
+	 / sizeof (*odesc));
+
+  struct cap cap = object_desc_to_cap (odesc);
+  cap_shootdown (activity, &cap);
+
+  object_desc_disown (odesc);
+
+  object_activity_lru_unlink (odesc);
+  object_global_lru_unlink (odesc);
+
+  if (odesc->type == cap_activity_control)
+    {
+      struct activity *a = (struct activity *) object;
+      if (a->frames)
+	panic ("Attempt to page-out activity with allocated frames");
+    }
+
+  hurd_ihash_locp_remove (&objects, odesc->locp);
+  assert (! hurd_ihash_find (&objects, odesc->oid));
+
+#ifdef NDEBUG
+  memset (odesc, 0xde, sizeof (struct object_desc));
+#endif
+
+  /* Return the frame to the free pool.  */
+  memory_frame_free ((l4_word_t) object);
+}
+
 struct object *
 object_find_soft (struct activity *activity, oid_t oid)
 {
   struct object_desc *odesc = hurd_ihash_find (&objects, oid);
   if (! odesc)
     return NULL;
-  else
+
+  struct object *object = object_desc_to_object (odesc);
+  assert (oid == odesc->oid);
+
+  if (! activity)
     {
-      struct object *object = object_desc_to_object (odesc);
-      if (oid != odesc->oid)
-	{
-	  debug (1, "oid (%llx) != desc oid (%llx)",
-		 oid, odesc->oid);
-	}
-      assert (oid == odesc->oid);
+      assert (! root_activity);
       return object;
     }
-}
 
+  if (! odesc->activity || odesc->age == 0)
+    /* Either the object is unowned or it is inactive.  Claim
+       ownership.  */
+    object_desc_claim (activity, odesc);
+
+  return object;
+}
 
 struct object *
 object_find (struct activity *activity, oid_t oid)
@@ -151,15 +217,7 @@ object_find (struct activity *activity, oid_t oid)
 	{
 	  assert (bit_test (folios, oid / (FOLIO_OBJECTS + 1)));
 
-	  obj = (struct object *) memory_frame_allocate ();
-	  folio = (struct folio *) obj;
-	  if (! folio)
-	    {
-	      /* XXX: Out of memory.  Do some garbage collection.  */
-	      return NULL;
-	    }
-
-	  goto setup_desc;
+	  return memory_object_alloc (activity, cap_folio, oid, 0);
 	}
 
       /* It's not an in-memory folio.  We read it from disk below.  */
@@ -170,93 +228,111 @@ object_find (struct activity *activity, oid_t oid)
       folio = (struct folio *) object_find (activity, oid - page - 1);
       assert (folio);
 
+      if (folio->objects[page].type == cap_void)
+	return NULL;
+
       if (! folio->objects[page].content)
 	/* The object is a zero page.  No need to read anything from
 	   backing store: just allocate a page and zero it.  */
-	{
-	  obj = (struct object *) memory_frame_allocate ();
-	  if (! obj)
-	    {
-	      /* XXX: Out of memory.  Do some garbage collection.  */
-	      return NULL;
-	    }
-
-	  goto setup_desc;
-	}
+	return memory_object_alloc (activity, folio->objects[page].type,
+				    oid, folio->objects[page].version);
     }
   
   /* Read the object from backing store.  */
 
   /* XXX: Do it.  */
   return NULL;
-
- setup_desc:;
-  /* OBJ points to the in-memory copy of the object.  Set up its
-     corresponding descriptor.  */
-  struct object_desc *odesc = object_to_object_desc (obj);
-
-  if (page == -1)
-    /* It's a folio.  */
-    {
-      odesc->type = cap_folio;
-      odesc->version = folio->folio_version;
-    }
-  else
-    {
-      odesc->type = folio->objects[page].type;
-      odesc->version = folio->objects[page].version;
-    }
-  odesc->oid = oid;
-  memory_object_setup (obj);
-
-  return obj;
 }
-
+
 void
-folio_reparent (struct activity *principal, struct folio *folio,
-		struct activity *parent)
+folio_parent (struct activity *activity, struct folio *folio)
 {
-  /* XXX: Implement this for the real "reparent" case (and not just
-     the parent case).  */
+  /* Some sanity checks.  */
+  assert (({
+	struct object_desc *desc;
+	desc = object_to_object_desc ((struct object *) folio);
+	assert (desc->oid % (FOLIO_OBJECTS + 1) == 0);
+	true;
+      }));
+  assert (! cap_to_object (activity, &folio->activity));
+  assert (! cap_to_object (activity, &folio->next));
+  assert (! cap_to_object (activity, &folio->prev));
+  assert (({
+	struct object_desc *desc;
+	desc = object_to_object_desc ((struct object *) folio);
+	if (desc->oid != 0)
+	  /* Only the very first folio may have objects allocated out
+	     of it before it is parented.  */
+	  {
+	    int i;
+	    for (i = 0; i < FOLIO_OBJECTS; i ++)
+	      assert (! object_find_soft (activity, desc->oid + 1 + i));
+	  }
+	true;
+      }));
 
   /* Record the owner.  */
-  folio->activity = object_to_cap ((struct object *) parent);
+  folio->activity = object_to_cap ((struct object *) activity);
 
-  folio->next = parent->folios;
+  /* Add FOLIO to ACTIVITY's folio list.  */
 
-  struct object *n = cap_to_object (principal, &folio->next);
-  if (n)
+  /* Update the old head's previous pointer.  */
+  struct object *head = cap_to_object (activity, &activity->folios);
+  if (head)
     {
-      struct folio *next = (struct folio *) n;
-
-      struct object *prev = cap_to_object (principal, &next->prev);
+      /* It shouldn't have a previous pointer.  */
+      struct object *prev = cap_to_object (activity,
+					   &((struct folio *) head)->prev);
       assert (! prev);
 
-      next->prev = object_to_cap ((struct object *) folio);
+      ((struct folio *) head)->prev = object_to_cap ((struct object *) folio);
     }
 
-  parent->folios = object_to_cap ((struct object *) folio);
+  /* Point FOLIO->NEXT to the old head.  */
+  folio->next = activity->folios;
+
+  /* Ensure FOLIO's PREV pointer is void.  */
+  folio->prev.type = cap_void;
+
+  /* Finally, set ACTIVITY->FOLIOS to the new head.  */
+  activity->folios = object_to_cap ((struct object *) folio);
+  assert (cap_to_object (activity, &activity->folios)
+	  == (struct object *) folio);
 }
 
 struct folio *
 folio_alloc (struct activity *activity)
 {
-  if (activity)
-    {
-      /* Check that the activity does not exceed its quota.  */
-      /* XXX: Charge not only the activity but also its ancestors.  */
-      if (activity->storage_quota
-	  && activity->folio_count < activity->storage_quota)
-	activity->folio_count ++;
-    }
-#ifndef NDEBUG
+  if (! activity)
+    assert (! root_activity);
   else
+    /* Check that ACTIVITY won't exceed its quota.  */
     {
-      static int once;
-      assert (! once);
-      once = 1;
+      struct activity *a = activity;
+      activity_for_each_ancestor (a,
+				  ({
+				    if (a->storage_quota
+					&& a->folio_count >= a->storage_quota)
+				      break;
+
+				    a->folio_count ++;
+				  }));
+
+      if (a)
+	/* Exceeded A's quota.  Readjust the folio count of the
+	   activities from ACTIVITY to A and bail.  */
+	{
+	  struct activity *b = activity;
+	  activity_for_each_ancestor (b,
+				      ({
+					if (b == a)
+					  break;
+					b->folio_count ++;
+				      }));
+
+	  return NULL;
+	}
     }
-#endif
 
   /* XXX: We only do in-memory folios right now.  */
   int f = bit_alloc (folios, sizeof (folios), 0);
@@ -269,7 +345,7 @@ folio_alloc (struct activity *activity)
   struct folio *folio = (struct folio *) object_find (activity, foid);
 
   if (activity)
-    folio_reparent (activity, folio, activity);
+    folio_parent (activity, folio);
 
   return folio;
 }
@@ -277,9 +353,27 @@ folio_alloc (struct activity *activity)
 void
 folio_free (struct activity *activity, struct folio *folio)
 {
+  /* Make sure that FOLIO appears on its owner's folio list.  */
+  assert (({
+	struct activity *owner
+	  = (struct activity *) cap_to_object (activity, &folio->activity);
+	assert (owner);
+	assert (object_type ((struct object *) owner) == cap_activity_control);
+	struct folio *f;
+	for (f = (struct folio *) cap_to_object (activity, &owner->folios);
+	     f; f = (struct folio *) cap_to_object (activity, &f->next))
+	  {
+	    assert (object_type ((struct object *) folio) == cap_folio);
+	    if (f == folio)
+	      break;
+	  }
+	assert (f);
+	true;
+      }));
+
   /* NB: The activity freeing FOLIO may not be the one who paid for
-     the storage for it.  Nevertheless, the paging activity, etc., is
-     paid for by the caller.  */
+     the storage for it.  We use it as the entity who should pay for
+     the paging activity, etc.  */
 
   struct object_desc *fdesc = object_to_object_desc ((struct object *) folio);
   assert (fdesc->type == cap_folio);
@@ -296,12 +390,18 @@ folio_free (struct activity *activity, struct folio *folio)
   for (i = 0; i < FOLIO_OBJECTS; i ++)
     folio_object_free (activity, folio, i);
 
-  /* Update the allocation information.  Namely, remove folio from the
-     activity's linked list.  */
-  struct activity *storage_activity
+  struct activity *owner
     = (struct activity *) cap_to_object (activity, &folio->activity);
-  assert (storage_activity);
-  
+  assert (owner);
+
+  /* Update the allocation information.  */
+  struct activity *a = owner;
+  activity_for_each_ancestor (a, ({ a->folio_count --; }));
+
+  /* Clear the owner.  */
+  folio->activity.type = cap_void;
+
+  /* Remove FOLIO from its owner's folio list.  */
   struct folio *next = (struct folio *) cap_to_object (activity, &folio->next);
   struct folio *prev = (struct folio *) cap_to_object (activity, &folio->prev);
 
@@ -310,18 +410,20 @@ folio_free (struct activity *activity, struct folio *folio)
   else
     /* If there is no previous pointer, then FOLIO is the start of the
        list and we need to update the head.  */
-    storage_activity->folios = folio->next;
+    owner->folios = folio->next;
 
   if (next)
     next->prev = folio->prev;
 
-  /* XXX: Update accounting data.  */
+  folio->next.type = cap_void;
+  folio->prev.type = cap_void;
 
+  /* Disown the frame.  */
+  object_disown ((struct object *) folio);
 
   /* And free the folio.  */
-  bit_dealloc (folios, fdesc->oid / (FOLIO_OBJECTS + 1));
-
   folio->folio_version = fdesc->version ++;
+  bit_dealloc (folios, fdesc->oid / (FOLIO_OBJECTS + 1));
 }
 
 void
@@ -388,7 +490,9 @@ folio_object_alloc (struct activity *activity,
       else
 	{
 	  struct cap cap = object_desc_to_cap (odesc);
+	  assert (activity);
 	  cap_shootdown (activity, &cap);
+	  object_desc_claim (activity, odesc);
 	}
 
       odesc->type = type;
@@ -411,6 +515,21 @@ folio_object_alloc (struct activity *activity,
   folio->objects[idx].type = type;
   /* Mark it as being empty.  */
   folio->objects[idx].content = 0;
+
+  switch (type)
+    {
+    case cap_activity_control:
+      {
+	if (! object)
+	  object = object_find (activity, oid);
+
+	activity_create (activity, (struct activity *) object);
+	break;
+      }
+
+    default:
+      ;
+    }
 
   if (objectp)
     /* Caller wants to use the object.  */

@@ -1,3 +1,8 @@
+2007-12-10  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h (RM_activity_create): Don't define.
+	(activity_create): Remove method.
+
 2007-12-06  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (struct exception_frame): Add fields saved_sender,

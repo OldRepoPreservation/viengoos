@@ -1,3 +1,101 @@
+2007-12-10  Neal H. Walfield  <neal@gnu.org>
+
+	Properly account memory and folios.
+	* activity.h (struct activity): Remove field objects.  New fields
+	parent_ptr, active, inactive_clean, inactive_dirty and dying.
+	(root_activity): New declaration.
+	(activity_create): Return void.  Don't take priority, weight and
+	storage_quota arguments.  Update callers.
+	(activity_for_each_ancestor): New macro.
+	(activity_charge): New function.
+	(activity_for_each_child): New macro.
+	(activity_dump): New declaration.
+	(activity_consistency_check_): Likewise.
+	(activity_consistency_check): New macro.
+	* activity.c (root_activity): Define.
+	(activity_create): Return void.  Don't take priority, weight and
+	storage_quota arguments.  Remove relevant functionality.  Set
+	CHILD->PARENT_PTR appropriately.  Be careful when bootstrapping.
+	(activity_destroy): Check that VICTIM->DYING is not set.  If so,
+	panic.  Otherwise, set it.  When recursively destroying an
+	activity, call object_free, not activity_destroy, to clean up.
+	Abandon all own frames.  Assert that VICTIM->FRAMES and
+	VICTIM_FOLIO_COUNT are 0.  Set PARENT->CHILDREN to
+	VICTIM->SIBLING_NEXT if VICTIM is the head of the list.
+	(do_activity_dump): New function.
+	(activity_dump): New function.
+	(activity_consistency_check_): New function.
+	* object.h: Don't include "thread.h".
+	(struct object_desc): Remove field activity.  Rename field alru to
+	activity_lru.  Rename field GLRU to global_lru.  New fields dirty,
+	age and activity.
+	(LINK_TEMPLATE): New macro.  Use it.
+	(dirty): Remove declaration.
+	(clean): Likewise.
+	(global_active): New declaration.
+	(global_inactive_dirty): Likewise.
+	(global_inactive_clean): Likewise.
+	(disowned): Likewise.
+	(object_desc_disown_simple): New function.
+	(object_disown_simple): Likewise.
+	(object_desc_disown_): Likewise.
+	(object_disown_): Likewise.
+	(object_desc_disown): New macro.
+	(object_disown): Likewise.
+	(object_desc_claim_): New function.
+	(object_claim_): Likewise.
+	(object_desc_claim): New macro.
+	(object_claim): Likewise.
+	(folio_parent): Remove parameter principal.  Update callers.
+	(object_free): Improve parentheses.
+	* object.c: Include "thread.h".
+	(global_active): Define.
+	(global_inactive_dirty): Likewise.
+	(global_inactive_clean): Likewise.
+	(disowned): Likewise.
+	(object_init): Add asserts.
+	(memory_object_setup): Rename from this...
+	(memory_object_alloc): ... to this.  Take additional parameters,
+	the type, oid and version.  Also set up the object's descriptor.
+	Update callers.
+	(memory_object_destroy): Add asserts.  Remove object from the
+	various linked lists.  If OBJECT is an activity, assert that there
+	are no frames allocated against it.
+	(object_find_soft): If OBJECT is not accounted or inactive, assign
+	to ACTIVITY.
+	(folio_reparent): Rename from this...
+	(folio_parent): ... to this.  Remove the parameter PRINCIPAL.  Use
+	ACTIVITY where PRINCIPAL was previous used.  Add asserts.
+	Correctly add FOLIO to ACTIVITY's folio list.
+	(folio_alloc): Check if the activity's storage quota allows the
+	allocation of another folio.  Account the allocation of the folio.
+	(folio_free): Add asserts.  Correctly account the folio.  Clear
+	FOLIO->NEXT and FOLIO->PREV.  Disown FOLIO's frame.
+	(folio_object_alloc): Assign OBJECT to ACTIVITY.  When creating an
+	activity, call activity_create.
+	* cap.h (cap_set): Take additional parameter, a struct activity *.
+	Pass it to cap copy.
+	* cap.c Include "thread.h".
+	(cap_set_object): Remove dead function.
+	(cap_to_object): Clear CAP->TYPE if object_find returns NULL.
+	(cap_shootdown): Asser that ACTIVITY is not NULL.
+	* viengoos.c (root_activity): Don't define here.
+	* t-as.c (root_activity): Remove static qualifier.
+	* t-link.c: New file.
+	* t-activity.c: New file.
+	* Makefile.am (TESTS): Add t-activity and t-link.
+	(t_activity_CPPFLAGS): New variable.
+	(t_activity_SOURCES): Likewise.
+	(t_activity_LDADD): Likewise.
+	(t_link_CPPFLAGS): Likewise.
+	(t_link_SOURCES): Likewise.
+
+	* rm.h (RM_as_dump): Define.
+	(rm_method_id_string): Remove case for RM_activity_create.
+	(as_dump): New method.
+	* server.c (server_loop): Add support for method as_dump.  Remove
+	support for method activity_create.
+
 2007-12-05  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): When marshalling the fault, return the

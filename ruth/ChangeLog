@@ -1,3 +1,7 @@
+2007-12-10  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Don't call rm_activity_create.
+
 2007-12-04  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update to use new rm_thread_exregs interface.

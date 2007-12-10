@@ -25,18 +25,12 @@
 #include "activity.h"
 #include "object.h"
 
-error_t
+struct activity *root_activity;
+
+void
 activity_create (struct activity *parent,
-		 struct activity *child,
-		 l4_word_t priority, l4_word_t weight,
-		 l4_word_t storage_quota)
+		 struct activity *child)
 {
-  struct object_desc *desc = object_to_object_desc ((struct object *) parent);
-  assert (desc->type == cap_activity_control);
-
-  desc = object_to_object_desc ((struct object *) child);
-  assert (desc->type == cap_activity_control);
-
   struct object *old_parent = cap_to_object (parent, &child->parent);
   if (old_parent)
     /* CHILD is live.  Destroy it first.  */
@@ -47,7 +41,17 @@ activity_create (struct activity *parent,
       activity_destroy (parent, child);
     }
 
+  if (! parent)
+    {
+      assert (! root_activity);
+      return;
+    }
+
+  struct object_desc *child_desc;
+  child_desc = object_to_object_desc ((struct object *) child);
+
   child->parent = object_to_cap ((struct object *) parent);
+  child->parent_ptr = parent;
 
   child->sibling_next = parent->children;
   child->sibling_prev.type = cap_void;
@@ -56,6 +60,7 @@ activity_create (struct activity *parent,
   struct object *next = cap_to_object (parent, &child->sibling_next);
   if (next)
     {
+      struct object_desc *desc;
       desc = object_to_object_desc (next);
       assert (desc->type == cap_activity_control);
 
@@ -67,26 +72,21 @@ activity_create (struct activity *parent,
       ((struct activity *) n)->sibling_prev
 	= object_to_cap ((struct object *) child);
     }
-
-  child->priority = priority;
-  child->weight = weight;
-  child->storage_quota = storage_quota;
-
-  return 0;
 }
 
 void
 activity_destroy (struct activity *activity, struct activity *victim)
 {
-  struct object_desc *desc = object_to_object_desc ((struct object *) activity);
-  assert (desc->type == cap_activity_control);
-
-  desc = object_to_object_desc ((struct object *) victim);
-  assert (desc->type == cap_activity_control);
+  assert (object_type ((struct object *) activity) == cap_activity_control);
+  assert (object_type ((struct object *) victim) == cap_activity_control);
 
   /* We should never destroy the root activity.  */
-  if (victim->parent.type == cap_void)
+  if (! victim->parent_ptr)
     panic ("Request to destroy root activity");
+
+  if (victim->dying)
+    panic ("Recursive destroy!");
+  victim->dying = 1;
 
   /* XXX: Rewrite this to avoid recusion!!!  */
 
@@ -115,15 +115,46 @@ activity_destroy (struct activity *activity, struct activity *victim)
       struct object_desc *desc = object_to_object_desc (o);
       assert (desc->type == cap_activity_control);
 
-      activity_destroy (activity, (struct activity *) o);
+      object_free (activity, o);
     }
 
+  /* Disown all allocated memory objects.  */
+  struct object_desc *desc;
+  int count = 0;
+  while ((desc = victim->active))
+    {
+      object_desc_disown_simple (desc);
+      count ++;
+    }
+  while ((desc = victim->inactive_clean))
+    {
+      object_desc_disown_simple (desc);
+      count ++;
+    }
+  while ((desc = victim->inactive_dirty))
+    {
+      object_desc_disown_simple (desc);
+      count ++;
+    }
+  activity_charge (victim, -count);
+
+  do_debug (1)
+    if (victim->frames != 0)
+      {
+	debug (0, "activity (%llx)->frame = %d",
+	       object_to_object_desc ((struct object *) victim)->oid,
+	       victim->frames);
+	activity_dump (root_activity);
+
+	struct object_desc *desc;
+	for (desc = victim->active; desc; desc = desc->activity_lru.next)
+	  debug (0, " %llx: %s", desc->oid, cap_type_string (desc->type));
+      }
+  assert (victim->frames == 0);
+  assert (victim->folio_count == 0);
+
   /* Remove from parent's activity list.  */
-  struct object *parent_object = cap_to_object (activity, &victim->parent);
-  assert (parent_object);
-  struct object_desc *pdesc = object_to_object_desc (parent_object);
-  assert (pdesc->type == cap_activity_control);
-  struct activity *parent = (struct activity *) parent_object;
+  struct activity *parent = victim->parent_ptr;
 
   struct object *prev_object = cap_to_object (activity, &victim->sibling_prev);
   assert (! prev_object
@@ -145,13 +176,80 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
       assert (parent->children.oid == desc->oid);
       assert (parent->children.version == desc->version);
+
+      parent->children = victim->sibling_next;
     }
 
   if (next)
-    {
-      next->sibling_prev = victim->sibling_prev;
-      if (! prev)
-	/* NEXT is new head.  */
-	parent->children = victim->sibling_next;
-    }
+    next->sibling_prev = victim->sibling_prev;
+}
+
+static void
+do_activity_dump (struct activity *activity, int indent)
+{
+  char indent_string[indent + 1];
+  memset (indent_string, ' ', indent);
+  indent_string[indent] = 0;
+
+  int active = 0;
+  struct object_desc *desc;
+  for (desc = activity->active; desc; desc = desc->activity_lru.next)
+    active ++;
+
+  int dirty = 0;
+  for (desc = activity->inactive_dirty; desc; desc = desc->activity_lru.next)
+    dirty ++;
+
+  int clean = 0;
+  for (desc = activity->inactive_clean; desc; desc = desc->activity_lru.next)
+    clean ++;
+
+  printf ("%s %llx: %d frames (active: %d, dirty: %d, clean: %d)\n",
+	  indent_string,
+	  object_to_object_desc ((struct object *) activity)->oid,
+	  activity->frames, active, dirty, clean);
+
+  struct activity *child;
+  activity_for_each_child (activity, child,
+			   ({ do_activity_dump (child, indent + 1); }));
+}
+
+void
+activity_dump (struct activity *activity)
+{
+  do_activity_dump (activity, 0);
+}
+
+
+void
+activity_consistency_check_ (const char *func, int line,
+			     struct activity *activity)
+{
+  /* The number of objects on the active and inactive lists plus the
+     objects owned by the descendents must equal activity->frames.  */
+
+  int active = 0;
+  struct object_desc *d;
+  for (d = activity->active; d; d = d->activity_lru.next)
+    active ++;
+
+  int dirty = 0;
+  for (d = activity->inactive_dirty; d; d = d->activity_lru.next)
+    dirty ++;
+
+  int clean = 0;
+  for (d = activity->inactive_clean; d; d = d->activity_lru.next)
+    clean ++;
+
+  int children = 0;
+  struct activity *child;
+  activity_for_each_child (activity, child,
+			   ({ children += child->frames; }));
+
+  if (active + dirty + clean + children != activity->frames)
+    debug (0, "at %s:%d: frames (%d) "
+	   "!= active (%d) + dirty (%d) + clean (%d) + children (%d)",
+	   func, line,
+	   activity->frames, active, dirty, clean, children);
+  assert (active + dirty + clean + children == activity->frames);
 }

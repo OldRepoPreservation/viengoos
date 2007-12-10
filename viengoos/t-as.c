@@ -10,7 +10,7 @@
 #include "activity.h"
 #include "as.h"
 
-static struct activity *root_activity;
+struct activity *root_activity;
 
 /* Current working folio.  */
 static struct folio *folio;
@@ -73,6 +73,9 @@ try (struct alloc *allocs, int count, bool dump)
 	    {
 	      struct object *object = cap_to_object (root_activity, cap);
 	      assert (! object);
+	      /* This assertion relies on the fact that the
+		 implementation will clear the type field on a failed
+		 lookup.  */
 	      assert (cap->type == cap_void);
 	    }
 	}
@@ -221,7 +224,7 @@ test (void)
   struct cap c = allocate_object (cap_activity_control, ADDR_VOID).cap;
   root_activity = (struct activity *) cap_to_object (root_activity, &c);
     
-  folio_reparent (root_activity, folio, root_activity);
+  folio_parent (root_activity, folio);
 
   {
     printf ("Checking slot_lookup_rel... ");

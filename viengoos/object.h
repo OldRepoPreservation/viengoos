@@ -32,7 +32,6 @@
 #include "memory.h"
 #include "cap.h"
 #include "activity.h"
-#include "thread.h"
 
 /* Objects
    -------
@@ -118,34 +117,35 @@ struct object_desc
   void *locp;
 
   /* The version and OID of the object.  */
+  oid_t oid;
+
   l4_word_t version : CAP_VERSION_BITS;
   l4_word_t type : CAP_TYPE_BITS;
 
-  oid_t oid;
+  l4_word_t dirty: 1;
 
-  /* Each activity contains a list of the in-memory objects it is
-     currently allocated.  */
+  /* The object's age.  */
+  unsigned short age;
+
+  /* The activity to which the *memory* (not the storage) is
+     attributed.  If none, then NULL.  */
+  struct activity *activity;
+
+  /* Each allocated object is attached to the activity that pays for
+     it.  If ACTIVITY is NULL, then attached to DISOWNED.  */
   struct
   {
     struct object_desc *next;
     struct object_desc **prevp;
-  } activity;
+  } activity_lru;
 
-  /* Each allocated object is attached to either the global clean or
-     the global dirty list.  */
+  /* Each allocated object is attached to either the global active or
+     the global inactive list.  */
   struct
   {
     struct object_desc *next;
     struct object_desc **prevp;
-  } glru;
-
-  /* Each allocated object is also kept on either its activity's clean
-     or its activity's dirty list.  */
-  struct
-  {
-    struct object_desc *next;
-    struct object_desc **prevp;
-  } alru;
+  } global_lru;
 };
 
 /* We keep an array of object descriptors.  There is a linear mapping
@@ -156,8 +156,11 @@ extern struct object_desc *object_descs;
 
 /* The global LRU lists.  Every allocated frame is on one of these
    two.  */
-extern struct object_desc *dirty;
-extern struct object_desc *clean;
+extern struct object_desc *global_active;
+extern struct object_desc *global_inactive_dirty;
+extern struct object_desc *global_inactive_clean;
+/* Objects that are not accounted to any activity.  */
+extern struct object_desc *disowned;
 
 /* Initialize the object sub-system.  Must be called after grabbing
    all of the memory.  */
@@ -170,7 +173,7 @@ extern struct object *object_find (struct activity *activity, oid_t oid);
 /* If the object corresponding to object OID is in-memory, return it.
    Otherwise, return NULL.  Does not go to disk.  */
 extern struct object *object_find_soft (struct activity *activity,
-					  oid_t oid);
+					oid_t oid);
 
 /* Return the object corresponding to the object descriptor DESC.  */
 #define object_desc_to_object(desc_) \
@@ -228,14 +231,152 @@ object_type (struct object *object)
   return object_to_object_desc (object)->type;
 }
 
+#define LINK_TEMPLATE(field)						\
+  static inline void							\
+  object_##field##_link (struct object_desc **list, struct object_desc *e) \
+  {									\
+    e->field.next = *list;						\
+    if (e->field.next)							\
+      e->field.next->field.prevp = &e->field.next;			\
+    e->field.prevp = list;						\
+    *list = e;								\
+  }									\
+  									\
+  static inline void							\
+  object_##field##_unlink (struct object_desc *e)			\
+  {									\
+    assert (e->field.prevp);						\
+    									\
+    *e->field.prevp = e->field.next;					\
+    if (e->field.next)							\
+      e->field.next->field.prevp = e->field.prevp;			\
+    									\
+    /* Try to detect multiple unlink.  */				\
+    e->field.next = NULL;						\
+    e->field.prevp = NULL;						\
+  }									\
+									\
+  /* Move the list designated by SOURCE to be designated by TARGET.  */ \
+  static inline void							\
+  object_##field##_move (struct object_desc **target,			\
+			 struct object_desc **source)			\
+  {									\
+    *target = *source;							\
+    if (*target)							\
+      (*target)->field.prevp = target;					\
+    *source = NULL;							\
+  }									\
+									\
+  /* Add list SOURCE to the end of the list TARGET.  */			\
+  static inline void							\
+  object_##field##_join (struct object_desc **target,			\
+			 struct object_desc **source)			\
+  {									\
+    if (! *source)							\
+      return;								\
+									\
+    if (! *target)							\
+      return object_##field##_move (target, source);			\
+									\
+    struct object_desc *tail = *target;					\
+    while (tail->field.next)						\
+      tail = tail->field.next;						\
+									\
+    tail->field.next = *source;						\
+    tail->field.next->field.prevp = &tail->field.next;			\
+    *source = NULL;							\
+  }
+
+LINK_TEMPLATE(activity_lru)
+LINK_TEMPLATE(global_lru)
+
+/* Like object_disown but does not adjust DESC->ACTIVITY->FRAMES.
+   (This is useful when removing multiple frames at once.)  */
+static inline void
+object_desc_disown_simple (struct object_desc *desc)
+{
+  assert (desc->activity);
+
+  object_activity_lru_unlink (desc);
+  object_activity_lru_link (&disowned, desc);
+
+  desc->activity = NULL;
+}
+
+static inline void
+object_disown_simple (struct object *object)
+{
+  object_desc_disown_simple (object_to_object_desc (object));
+}
+
+static inline void
+object_desc_disown_ (struct object_desc *desc)
+{
+  struct activity *activity = desc->activity;
+
+  activity_consistency_check (activity);
+
+  activity_charge (desc->activity, -1);
+  object_desc_disown_simple (desc);
+
+  activity_consistency_check (activity);
+}
+#define object_desc_disown(d)						\
+  ({ debug (5, "object_desc_disown: %p (%d)",				\
+	    d->activity, d->activity->frames);				\
+    object_desc_disown_ (d); })
+
+/* The activity to which OBJECT is accounted should no longer be
+   accounted OJBECT.  Attaches object to the DISOWNED list.  */
+static inline void
+object_disown_ (struct object *object)
+{
+  object_desc_disown_ (object_to_object_desc (object));
+}
+#define object_disown(o) \
+  ({ debug (5, "object_disown: "); object_disown_ (o); })
+
+/* Transfer ownership of DESC to the activity ACTIVITY.  */
+static inline void
+object_desc_claim_ (struct activity *activity, struct object_desc *desc)
+{
+  activity_consistency_check (activity);
+
+  if (desc->activity == activity)
+    return;
+
+  if (desc->activity)
+    /* Already claimed by another activity; first disown it.  */
+    object_desc_disown (desc);
+
+  desc->activity = activity;
+  activity_charge (activity, 1);
+  object_activity_lru_unlink (desc);
+  object_activity_lru_link (&activity->active, desc);
+
+  activity_consistency_check (desc->activity);
+}
+#define object_desc_claim(a, o)					\
+  ({ debug (5, "object_desc_claim: %p (%d)", a, a->frames);	\
+    object_desc_claim_ (a, o);					\
+  })
+
+/* Transfer ownership of OBJECT to the activity ACTIVITY.  */
+static inline void
+object_claim_ (struct activity *activity, struct object *object)
+{
+  object_desc_claim_ (activity, object_to_object_desc (object));
+}
+#define object_claim(a, o)						\
+  ({ debug (5, "object_claim: %p (%d)", a, a->frames);			\
+    object_claim_ (a, o); })
+
 /* Allocate a folio to activity ACTIVITY.  Returns NULL if not
    possible.  Otherwise a pointer to the in-memory folio.  */
 extern struct folio *folio_alloc (struct activity *activity);
 
-/* Reassign the storage designated by FOLIO to the principal
-   NEW_PARENT.  */
-extern void folio_reparent (struct activity *principal, struct folio *folio,
-			    struct activity *new_parent);
+/* Assign the storage designated by FOLIO to the activity ACTIVITY.  */
+extern void folio_parent (struct activity *activity, struct folio *folio);
 
 /* Destroy the folio FOLIO.  */
 extern void folio_free (struct activity *activity, struct folio *folio);
@@ -264,7 +405,7 @@ object_free (struct activity *activity, struct object *object)
 {
   struct object_desc *odesc = object_to_object_desc (object);
 
-  int page = odesc->oid % (1 + FOLIO_OBJECTS) - 1;
+  int page = (odesc->oid % (1 + FOLIO_OBJECTS)) - 1;
   oid_t foid = odesc->oid - page - 1;
 
   struct folio *folio = (struct folio *) object_find (activity, foid);

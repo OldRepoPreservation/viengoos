@@ -47,6 +47,7 @@
 enum rm_method_id
   {
     RM_putchar = 100,
+    RM_as_dump,
 
     RM_folio_alloc = 200,
     RM_folio_free,
@@ -69,6 +70,8 @@ rm_method_id_string (enum rm_method_id id)
     {
     case RM_putchar:
       return "putchar";
+    case RM_as_dump:
+      return "as_dump";
     case RM_folio_alloc:
       return "folio_alloc";
     case RM_folio_free:
@@ -89,8 +92,6 @@ rm_method_id_string (enum rm_method_id id)
       return "exception_collect";
     case RM_thread_exregs:
       return "thread_exregs";
-    case RM_activity_create:
-      return "activity_create";
     case RM_activity_properties:
       return "activity_properties";
     default:
@@ -179,6 +180,9 @@ RPC(object_slot_read, 3, 2, addr_t, principal,
 
 /* Cause the delivery of a pending event, if any.  */
 RPC(exception_collect, 1, 0, addr_t, principal)
+
+/* Dump THREAD's address space.  */
+RPC(as_dump, 2, 0, addr_t, principal, addr_t, thread)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

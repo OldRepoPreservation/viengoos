@@ -382,7 +382,8 @@ server_loop (void)
 	  if (! folio)
 	    REPLY (ENOMEM);
 
-	  r = cap_set (folio_slot, object_to_cap ((struct object *) folio));
+	  r = cap_set (principal,
+		       folio_slot, object_to_cap ((struct object *) folio));
 	  assert (r);
 	  REPLY (0);
 
@@ -423,7 +424,7 @@ server_loop (void)
 
 	  if (type != cap_void && object_slot)
 	    {
-	      r = cap_set (object_slot, object_to_cap (object));
+	      r = cap_set (principal, object_slot, object_to_cap (object));
 	      assert (r);
 	    }
 
@@ -640,44 +641,6 @@ server_loop (void)
 	    REPLYW (0, sizeof (struct hurd_thread_exregs_out) / 4);
 	  }
 
-	case RM_activity_create:
-	  {
-	    CHECK (3, 3);
-
-	    struct object *child = OBJECT (ARG_ADDR (), cap_activity_control,
-					   true);
-	    l4_word_t priority = ARG ();
-	    l4_word_t weight = ARG ();
-	    l4_word_t storage_quota = ARG ();
-
-	    addr_t activity_out_addr = ARG_ADDR ();
-	    struct cap *activity_out_slot = NULL;
-	    if (! ADDR_IS_VOID (activity_out_addr))
-	      activity_out_slot = SLOT (activity_out_addr);
-
-	    addr_t activity_control_out_addr = ARG_ADDR ();
-	    struct cap *activity_control_out_slot = NULL;
-	    if (! ADDR_IS_VOID (activity_control_out_addr))
-	      activity_control_out_slot = SLOT (activity_control_out_addr);
-
-	    err = activity_create (principal, (struct activity *) child,
-				   priority, weight, storage_quota);
-
-	    if (activity_out_slot)
-	      {
-		r = cap_set (activity_out_slot, object_to_cap (child));
-		assert (r);
-		activity_out_slot->type = cap_activity;
-	      }
-	    if (activity_control_out_slot)
-	      {
-		r = cap_set (activity_control_out_slot, object_to_cap (child));
-		assert (r);
-	      }
-
-	    REPLYW (err, 0);
-	  }
-
 	case RM_activity_properties:
 	  {
 	    CHECK (4, 0);
@@ -713,6 +676,28 @@ server_loop (void)
 		   l4_thread_no (from), l4_version (from));
 
 	    /* XXX: Implement me.  */
+
+	    break;
+	  }
+
+	case RM_as_dump:
+	  {
+	    addr_t thread_addr;
+	    err = rm_as_dump_send_unmarshal (&msg, &principal_addr,
+					     &thread_addr);
+	    if (err)
+	      REPLY (err);
+
+	    struct thread *t;
+
+	    if (ADDR_IS_VOID (thread_addr))
+	      t = thread;
+	    else
+	      t = (struct thread *) OBJECT (thread_addr, cap_thread, true);
+
+	    as_dump_from (principal, &t->aspace, "");
+
+	    REPLY (0);
 
 	    break;
 	  }

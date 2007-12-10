@@ -28,8 +28,7 @@
 
 enum
   {
-    RM_activity_create = 700,
-    RM_activity_properties,
+    RM_activity_properties = 700,
   };
 
 #define RPC_STUB_PREFIX rm
@@ -42,22 +41,6 @@ enum
   })
 
 #include <hurd/rpc.h>
-
-/* Create an activity at the activity denoted by ACTIVITY (ACTIVITY
-   must be an activity control cap).  The new activity will be a child
-   of PARENT.  It will be in the priority class PRIORITY (0 = highest
-   priority) and have weight WEIGHT (= proportion of resources
-   available to the child activities in this priority class).  Its
-   storage quota indicates the number of folios available to this
-   activity (0 = no limit).
-
-   If not ADDR_VOID, an activity capability is saved in the capability
-   slot designated by ACTIVITY_OUT and a control activity in the slot
-   designated by ACTIVITY_CONTROL_OUT.  */
-RPC (activity_create, 7, 0, addr_t, parent, addr_t, activity, 
-     l4_word_t, priority, l4_word_t, weight,
-     l4_word_t, storage_quota,
-     addr_t, activity_out, addr_t, activity_control_out)
 
 enum
 {

@@ -32,10 +32,10 @@ extern const int cap_type_num_slots[];
 /* Set's the capability TARGET to point to the same object as the
    capability SOURCE, however, preserves the guard in TARGET.  */
 static inline bool
-cap_set (struct cap *target, struct cap source)
+cap_set (struct activity *activity, struct cap *target, struct cap source)
 {
   /* This is kosher as we know the implementation of CAP_COPY.  */
-  return cap_copy (0, target, ADDR_VOID, source, ADDR_VOID);
+  return cap_copy (activity, target, ADDR_VOID, source, ADDR_VOID);
 }
 
 /* Invalidate all mappings that may depend on this object.  */

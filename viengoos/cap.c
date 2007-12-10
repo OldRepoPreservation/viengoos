@@ -24,6 +24,7 @@
 #include "cap.h"
 #include "object.h"
 #include "activity.h"
+#include "thread.h"
 
 const int cap_type_num_slots[] = { [cap_void] = 0,
 				   [cap_page] = 0,
@@ -35,14 +36,6 @@ const int cap_type_num_slots[] = { [cap_void] = 0,
 				   [cap_activity_control] = 0,
 				   [cap_thread] = THREAD_SLOTS };
 
-void
-cap_set_object (struct cap *cap,
-		struct object *object, enum cap_type type)
-{
-  *cap = object_to_cap (object);
-  assert (cap->type == type);
-}
-
 struct object *
 cap_to_object (struct activity *activity, struct cap *cap)
 {
@@ -51,7 +44,12 @@ cap_to_object (struct activity *activity, struct cap *cap)
 
   struct object *object = object_find (activity, cap->oid);
   if (! object)
-    return NULL;
+    {
+      /* Clear the capability to save the effort of looking up the
+	 object in the future.  */
+      cap->type = cap_void;
+      return NULL;
+    }
 
   struct object_desc *desc = object_to_object_desc (object);
   if (desc->version != cap->version)
@@ -72,6 +70,8 @@ cap_to_object (struct activity *activity, struct cap *cap)
 void
 cap_shootdown (struct activity *activity, struct cap *cap)
 {
+  assert (activity);
+
   /* XXX: A recursive function may not be the best idea here.  We are
      guaranteed, however, at most 63 nested calls.  */
   void doit (struct cap *cap, int remaining)

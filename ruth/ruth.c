@@ -337,6 +337,7 @@ main (int argc, char *argv[])
     static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 #define FACTOR 10
     static volatile int shared_resource;
+    shared_resource = 0;
 
     void *start (void *arg)
     {
@@ -360,6 +361,9 @@ main (int argc, char *argv[])
 	    l4_yield ();
 
 	  shared_resource ++;
+
+	  if (c == FACTOR - 1)
+	    debug (5, "Exiting with shared_resource = %d", shared_resource);
 
 	  pthread_mutex_unlock (&mutex);
 	}
@@ -392,7 +396,7 @@ main (int argc, char *argv[])
   }
 
   {
-    printf ("Checking activity_create... ");
+    printf ("Checking activity creation... ");
 
 #define N 10
     void test (addr_t activity, addr_t folio, int depth)
@@ -414,10 +418,6 @@ main (int argc, char *argv[])
 	  a[i].child = capalloc ();
 	  err = rm_folio_object_alloc (activity, folio, obj ++,
 				       cap_activity_control, a[i].child);
-	  assert (err == 0);
-
-	  err = rm_activity_create (activity, a[i].child, 1, 1, 0,
-				    ADDR_VOID, ADDR_VOID);
 	  assert (err == 0);
 
 	  /* Allocate a folio against the activity and use it.  */
@@ -515,6 +515,8 @@ main (int argc, char *argv[])
     assert (priority == 2);
     assert (weight == 3);
     assert (storage_quota == 10000);
+
+    printf ("ok.\n");
   }
 
   {

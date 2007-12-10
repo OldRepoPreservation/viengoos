@@ -60,7 +60,7 @@ viengoos_LDADD = -lgcc ../libc-parts/libc-parts.a \
 viengoos_LDFLAGS = -u_start -e_start -N -nostdlib \
 	-Ttext=@HURD_RM_LOAD_ADDRESS@
 
-TESTS = t-as
+TESTS = t-as t-activity t-link
 check_PROGRAMS = $(TESTS)
 
 t_as_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
@@ -77,6 +77,24 @@ t_as_SOURCES = t-as.c				\
 	panic.h panic.c				\
 	debug.h debug.c
 t_as_LDADD = $(viengoos_LDADD)
+
+t_activity_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
+t_activity_SOURCES = t-activity.c		\
+	zalloc.h zalloc.c			\
+	memory.h memory.c			\
+	cap.h cap.c cap-lookup.c		\
+	object.h object.c			\
+	activity.h activity.c			\
+	thread.h thread.c			\
+	as.h as.c				\
+	output.h output.c output-stdio.c	\
+	shutdown.h shutdown.c			\
+	panic.h panic.c				\
+	debug.h debug.c
+t_activity_LDADD = $(viengoos_LDADD)
+
+t_link_CPPFLAGS = $(viengoos_CPPFLAGS) -imacros $(srcdir)/object.h
+t_link_SOURCES = t-link.c object.h
 
 lib_LIBRARIES = libhurd-cap.a
 libhurd_cap_a_CPPFLAGS = $(COMMON_CPPFLAGS)

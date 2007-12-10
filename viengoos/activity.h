@@ -62,15 +62,27 @@ struct activity
 
   /* The remainder of the elements are in-memory only.  */
 
-  /* Head of list of objects owned by this activity.  */
-  struct object_desc *objects;
+  /* Cached location of the in-memory parent activity.  This must be
+     set on page-in.  It is only NULL for the root activity.  */
+  struct activity *parent_ptr;
 
-  /* Number of frames allocated to this activity (including
-     children).  */
+  /* Objects owned by this activity.  */
+  struct object_desc *active;
+  struct object_desc *inactive_clean;
+  struct object_desc *inactive_dirty;
+
+  /* Number of frames allocated to this activity (including children).
+     This is the sum of the number of objects on DIRTY plus the number
+     of objects on CLEAN.  */
   int frames;
+
+  int dying;
 };
 
-/* Allocate a new activity.  Charge to activity PARENT, which is the
+/* The root activity.  */
+extern struct activity *root_activity;
+
+/* Initialize an activity.  Charge to activity PARENT, which is the
    parent.  FOLIO specifies the capability slot in CALLER's address
    space that contains the folio to use to allocate the storage and
    INDEX specifies which in the folio to use.  ACTIVITY and CONTROL
@@ -78,13 +90,76 @@ struct activity
    activity and the activity's control capability, respectively.
    PRIORITY, WEIGHT and STORAGE_QUOTA are the initial priority and
    weight of the activity.  */
-extern error_t activity_create (struct activity *parent,
-				struct activity *child,
-				l4_word_t priority, l4_word_t weight,
-				l4_word_t storage_quota);
+extern void activity_create (struct activity *parent,
+			     struct activity *child);
 
 /* The ACTIVITY activity destroys the activity VICTIM.  */
 extern void activity_destroy (struct activity *activity,
 			      struct activity *victim);
+
+/* Starting with ACTIVITY and for each direct ancestor execute CODE.
+   Modifies ACTIVITY.  */
+#define activity_for_each_ancestor(__fea_activity, __fea_code)		\
+  do {									\
+    assert (__fea_activity);						\
+    do									\
+      {									\
+	__fea_code;							\
+									\
+	if (! __fea_activity->parent_ptr)				\
+	  assert (__fea_activity == root_activity);			\
+									\
+	__fea_activity = __fea_activity->parent_ptr;			\
+      }									\
+    while (__fea_activity);						\
+  } while (0)
+
+/* Charge activity ACTIVITY for OBJECTS objects.  OBJECTS may be
+   negative, in which case the charge is a credit.  */
+static inline void
+activity_charge (struct activity *activity, int objects)
+{
+  assert (activity);
+  activity_for_each_ancestor (activity,
+			      ({
+				assert (activity->frames >= 0);
+				activity->frames += objects;
+				assert (activity->frames >= 0);
+			      }));
+}
+
+/* For each child of ACTIVITY, set to CHILD and execute code.  The
+   caller may destroy CHILD, however, it may not destroy any
+   siblings.  */
+#define activity_for_each_child(__fec_activity, __fec_child, __fec_code) \
+  do {									\
+    __fec_child								\
+      = (struct activity *) cap_to_object ((__fec_activity),		\
+					   &(__fec_activity)->children); \
+    while (__fec_child)							\
+      {									\
+	/* Grab the next child incase this child is destroyed.  */	\
+	struct cap __fec_next = __fec_child->sibling_next;		\
+									\
+	__fec_code;							\
+									\
+	/* Fetch the next child.  */					\
+	__fec_child = (struct activity *) cap_to_object ((__fec_activity), \
+							 &__fec_next);	\
+	if (! __fec_child)						\
+	  break;							\
+      }									\
+  } while (0)
+
+
+/* Dump the activity ACTIVITY and its children to the screen.  */
+extern void activity_dump (struct activity *activity);
+
+
+/* Perform a consistency checl on the activity ACTIVITY.  */
+extern void activity_consistency_check_ (const char *func, int line,
+					 struct activity *activity);
+#define activity_consistency_check(a)		\
+  activity_consistency_check_ (__func__, __LINE__, (a))
 
 #endif
