@@ -26,10 +26,10 @@
 #include <hurd/cap.h>
 #include <hurd/btree.h>
 #include <hurd/slab.h>
+#include <hurd/mutex.h>
 #include <l4/types.h>
 
 #include <string.h>
-#include <pthread.h>
 
 extern struct hurd_startup_data *__hurd_startup_data;
 
@@ -81,8 +81,8 @@ BTREE_CLASS (free_space, struct free_space, struct region, region, node,
 	     region_compare)
 
 /* The list of free regions.  */
-pthread_mutex_t free_spaces_lock = PTHREAD_MUTEX_INITIALIZER;
-hurd_btree_free_space_t free_spaces;
+static ss_mutex_t free_spaces_lock;
+static hurd_btree_free_space_t free_spaces;
 
 static struct hurd_slab_space free_space_desc_slab;
 
@@ -132,7 +132,7 @@ free_space_desc_free (struct free_space *free_space)
 static void
 free_space_split (struct free_space *f, l4_uint64_t start, l4_uint64_t end)
 {
-  assert (pthread_mutex_trylock (&free_spaces_lock) == EBUSY);
+  assert (! ss_mutex_trylock (&free_spaces_lock));
 
   /* START and END must be inside F.  */
   assert (f->region.start <= start);
@@ -191,7 +191,7 @@ as_alloc (int width, l4_uint64_t count, bool data_mappable)
   l4_uint64_t align = 1ULL << w;
   l4_uint64_t length = align * count;
 
-  pthread_mutex_lock (&free_spaces_lock);
+  ss_mutex_lock (&free_spaces_lock);
 
   addr_t addr = ADDR_VOID;
 
@@ -218,7 +218,7 @@ as_alloc (int width, l4_uint64_t count, bool data_mappable)
 	}
     }
 
-  pthread_mutex_unlock (&free_spaces_lock);
+  ss_mutex_unlock (&free_spaces_lock);
 
   return addr;
 }
@@ -234,7 +234,7 @@ as_alloc_at (addr_t addr, l4_uint64_t count)
   struct free_space *f;
 
   bool ret = false;
-  pthread_mutex_lock (&free_spaces_lock);
+  ss_mutex_lock (&free_spaces_lock);
 
   f = hurd_btree_free_space_find (&free_spaces, &region);
   if (f && (f->region.start <= start && end <= f->region.end))
@@ -243,7 +243,7 @@ as_alloc_at (addr_t addr, l4_uint64_t count)
       ret = true;
     }
 
-  pthread_mutex_unlock (&free_spaces_lock);
+  ss_mutex_unlock (&free_spaces_lock);
 
   return ret;
 }
@@ -261,7 +261,7 @@ as_free (addr_t addr, l4_uint64_t count)
   space->region.start = start == 0 ? 0 : start - 1;
   space->region.end = end == -1ULL ? -1ULL : end + 1;
 
-  pthread_mutex_lock (&free_spaces_lock);
+  ss_mutex_lock (&free_spaces_lock);
 
   struct free_space *f = hurd_btree_free_space_insert (&free_spaces, space);
   if (f)
@@ -309,7 +309,7 @@ as_free (addr_t addr, l4_uint64_t count)
       space->region.end = end;
     }
 
-  pthread_mutex_unlock (&free_spaces_lock);
+  ss_mutex_unlock (&free_spaces_lock);
 }
 
 static struct as_insert_rt
@@ -725,7 +725,7 @@ as_init (void)
 void
 as_alloced_dump (const char *prefix)
 {
-  pthread_mutex_lock (&free_spaces_lock);
+  ss_mutex_lock (&free_spaces_lock);
 
   struct free_space *free_space;
   for (free_space = hurd_btree_free_space_first (&free_spaces);
@@ -735,7 +735,7 @@ as_alloced_dump (const char *prefix)
 	    prefix ?: "", prefix ? ": " : "",
 	    free_space->region.start, free_space->region.end);
 
-  pthread_mutex_unlock (&free_spaces_lock);
+  ss_mutex_unlock (&free_spaces_lock);
 }
 
 struct cap

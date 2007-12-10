@@ -25,9 +25,9 @@
 #include <hurd/btree.h>
 #include <hurd/addr.h>
 #include <hurd/exceptions.h>
+#include <hurd/mutex.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <pthread.h>
 
 /* Forward.  */
 struct pager;
@@ -77,12 +77,12 @@ struct pager
 
   /* Protects everything but NODE and REGION.  This lock may be taken
      if PAGERS_LOCK is held.  */
-  pthread_mutex_t lock;
+  ss_mutex_t lock;
 };
 
 /* Protects PAGERS and all pager's NODE.  This lock may not be taken
    if a pager's LOCK is held by the caller.  */
-extern pthread_mutex_t pagers_lock;
+extern ss_mutex_t pagers_lock;
 
 /* Compare two regions.  Two regions are considered equal if there is
    any overlap at all.  */

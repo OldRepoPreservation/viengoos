@@ -27,13 +27,13 @@
 
 /* Protects PAGERS and all pager's NODE.  This lock may not be taken
    if a pager's LOCK is held by the caller.  */
-pthread_mutex_t pagers_lock = PTHREAD_MUTEX_INITIALIZER;
+ss_mutex_t pagers_lock;
 static hurd_btree_pager_t pagers;
 
 bool
 pager_install (struct pager *pager)
 {
-  assert (pthread_mutex_trylock (&pagers_lock) == EBUSY);
+  assert (! ss_mutex_trylock (&pagers_lock));
 
   assert (pager->fault);
   assert (pager->region.count);
@@ -57,7 +57,7 @@ pager_install (struct pager *pager)
 bool
 pager_relocate (struct pager *pager, struct pager_region region)
 {
-  assert (pthread_mutex_trylock (&pagers_lock) == EBUSY);
+  assert (! ss_mutex_trylock (&pagers_lock));
 
   /* XXX: Grows could be a bit smarter.  We could check the next and
      previous pointers, for instance.  */
@@ -85,7 +85,7 @@ pager_relocate (struct pager *pager, struct pager_region region)
 void
 pager_deinstall (struct pager *pager)
 {
-  assert (pthread_mutex_trylock (&pagers_lock) == EBUSY);
+  assert (! ss_mutex_trylock (&pagers_lock));
 
   hurd_btree_pager_detach (&pagers, pager);
 }
@@ -98,25 +98,25 @@ pager_fault (addr_t addr, uintptr_t ip, struct exception_info info)
   region.start = addr;
   region.count = 1;
 
-  pthread_mutex_lock (&pagers_lock);
+  ss_mutex_lock (&pagers_lock);
 
   struct pager *pager = hurd_btree_pager_find (&pagers, &region);
   if (! pager)
     {
       debug (3, "No pager covers " ADDR_FMT, ADDR_PRINTF (addr));
-      pthread_mutex_unlock (&pagers_lock);
+      ss_mutex_unlock (&pagers_lock);
       return false;
     }
 
-  pthread_mutex_lock (&pager->lock);
-  pthread_mutex_unlock (&pagers_lock);
+  ss_mutex_lock (&pager->lock);
+  ss_mutex_unlock (&pagers_lock);
 
   /* Propagate the fault.  */
   bool r = pager->fault (pager, addr, ip, info);
   if (! r)
     debug (3, "Pager did not fault " ADDR_FMT, ADDR_PRINTF (addr));
 
-  pthread_mutex_unlock (&pager->lock);
+  ss_mutex_unlock (&pager->lock);
 
   return r;
 }

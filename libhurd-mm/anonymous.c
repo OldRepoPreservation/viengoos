@@ -132,7 +132,7 @@ static bool
 fault (struct pager *pager,
        addr_t addr, uintptr_t ip, struct exception_info info)
 {
-  assert (pthread_mutex_trylock (&pager->lock) == EBUSY);
+  assert (! ss_mutex_trylock (&pager->lock));
 
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
 
@@ -212,9 +212,9 @@ anonymous_pager_alloc (addr_t activity,
   anon->pager.region.start = addr_chop (PTR_TO_ADDR (addr), PAGESIZE_LOG2);
   anon->pager.region.count = size >> PAGESIZE_LOG2;
 
-  pthread_mutex_lock (&pagers_lock);
+  ss_mutex_lock (&pagers_lock);
   bool r = pager_install (&anon->pager);
-  pthread_mutex_unlock (&pagers_lock);
+  ss_mutex_unlock (&pagers_lock);
   if (! r)
     /* Ooops!  There is a region conflict.  */
     {
@@ -228,14 +228,14 @@ anonymous_pager_alloc (addr_t activity,
 void
 anonymous_pager_destroy (struct anonymous_pager *anon)
 {
-  pthread_mutex_lock (&pagers_lock);
+  ss_mutex_lock (&pagers_lock);
 
   /* Deinstall the pager.  */
   pager_deinstall (&anon->pager);
 
-  pthread_mutex_unlock (&pagers_lock);
+  ss_mutex_unlock (&pagers_lock);
 
-  pthread_mutex_lock (&anon->pager.lock);
+  ss_mutex_lock (&anon->pager.lock);
 
   /* Free the allocated storage.  */
   hurd_btree_storage_desc_t *storage_descs;

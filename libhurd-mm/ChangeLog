@@ -1,3 +1,17 @@
+2007-12-10  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c: Don't include <pthread.h>.  Include <hurd/mutex.h>.
+	(free_spaces_lock): Make an ss_mutex_t, not a pthread_mutex_t.
+	Update users.
+	* storage.c: Don't include <pthread.h>.  Include <hurd/mutex.h>.
+	(struct storage_desc): Make lock an ss_mutex_t, not a
+	pthread_mutex_t.  Update users.
+	(storage_descs_lock): Likewise.
+	* pager.h: Don't include <pthread.h>.  Include <hurd/mutex.h>.
+	(struct pager): Make lock an ss_mutex_t, not a pthread_mutex_t.
+	Update users.
+	(pagers_lock): Likewise.
+
 2007-12-06  Neal H. Walfield  <neal@gnu.org>
 
 	* exceptions.c (exception_frame_alloc): Correctly set the

@@ -28,12 +28,12 @@
 #include <hurd/folio.h>
 #include <hurd/startup.h>
 #include <hurd/rm.h>
+#include <hurd/mutex.h>
 
 #include <bit-array.h>
 
 #include <stddef.h>
 #include <string.h>
-#include <pthread.h>
 #include <atomic.h>
 
 #include "as.h"
@@ -66,7 +66,7 @@ struct storage_desc
 
   /* Protects all members above here.  This lock may be taken if
      STORAGE_DESCS_LOCK is held.  */
-  pthread_mutex_t lock;
+  ss_mutex_t lock;
 
 
   /* Each storage area is stored in a btree keyed by the address of
@@ -79,13 +79,13 @@ struct storage_desc
 
 /* Protects the node, next and prevp field in each storage descriptor.
    Do not take this lock if the thread holds any DESC->LOCK!  */
-static pthread_mutex_t storage_descs_lock = PTHREAD_MUTEX_INITIALIZER;
+static ss_mutex_t storage_descs_lock;
 
 static void
 link (struct storage_desc **list, struct storage_desc *e)
 {
   /* Better be locked.  */
-  assert (pthread_mutex_trylock (&storage_descs_lock) == EBUSY);
+  assert (! ss_mutex_trylock (&storage_descs_lock));
 
   e->next = *list;
   if (e->next)
@@ -104,7 +104,7 @@ static void
 unlink (struct storage_desc *e)
 {
   /* Better be locked.  */
-  assert (pthread_mutex_trylock (&storage_descs_lock) == EBUSY);
+  assert (! ss_mutex_trylock (&storage_descs_lock));
 
   assert (e->prevp);
 
@@ -213,7 +213,7 @@ storage_desc_alloc (void)
 static void
 storage_desc_free (struct storage_desc *storage)
 {
-  assert (pthread_mutex_trylock (&storage->lock) != 0);
+  assert (! ss_mutex_trylock (&storage->lock));
 
   hurd_slab_dealloc (&storage_desc_slab, storage);
 }
@@ -329,7 +329,7 @@ storage_alloc (addr_t activity,
       /* Allocate and fill a descriptor.  */
       struct storage_desc *s = storage_desc_alloc ();
 
-      s->lock = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
+      s->lock = (ss_mutex_t) 0;
       s->folio = addr;
       memset (&s->alloced, 0, sizeof (s->alloced));
       s->free = FOLIO_OBJECTS;
@@ -337,7 +337,7 @@ storage_alloc (addr_t activity,
       shadow_setup (cap, s);
 
       /* S is setup.  Make it available.  */
-      pthread_mutex_lock (&storage_descs_lock);
+      ss_mutex_lock (&storage_descs_lock);
 
       if (expectancy == STORAGE_EPHEMERAL)
 	{
@@ -352,7 +352,7 @@ storage_alloc (addr_t activity,
 
       hurd_btree_storage_desc_insert (&storage_descs, s);
 
-      pthread_mutex_unlock (&storage_descs_lock);
+      ss_mutex_unlock (&storage_descs_lock);
 
       /* Having added the storage, we now check if we need to allocate
 	 a new reserve slab buffer.  */
@@ -369,7 +369,7 @@ storage_alloc (addr_t activity,
 	   well allocate from another storage descriptor.  This may
 	   lead to allocating additional storage areas, however, this
 	   should be proportional to the contention.  */
-	if (pthread_mutex_trylock (&list->lock) == 0)
+	if (ss_mutex_trylock (&list->lock))
 	  return list;
 
 	list = list->next;
@@ -378,7 +378,7 @@ storage_alloc (addr_t activity,
     return NULL;
   }
 
-  pthread_mutex_lock (&storage_descs_lock);
+  ss_mutex_lock (&storage_descs_lock);
 
   struct storage_desc *desc;
   if (expectancy == STORAGE_EPHEMERAL)
@@ -406,7 +406,7 @@ storage_alloc (addr_t activity,
 	}
     }
 
-  pthread_mutex_unlock (&storage_descs_lock);
+  ss_mutex_unlock (&storage_descs_lock);
 
   if (! desc)
     /* There are no unlock storage areas available.  Allocate one.  */
@@ -466,21 +466,21 @@ storage_alloc (addr_t activity,
   assert (! err);
 
   /* We drop DESC->LOCK.  */
-  pthread_mutex_unlock (&desc->lock);
+  ss_mutex_unlock (&desc->lock);
 
   if (need_unlink)
     /* We noted that the folio was full.  Unlink it now.  */
     {
-      pthread_mutex_lock (&storage_descs_lock);
-      pthread_mutex_lock (&desc->lock);
+      ss_mutex_lock (&storage_descs_lock);
+      ss_mutex_lock (&desc->lock);
 
       /* DESC->FREE may be zero if someone came along and deallocated
 	 a page between our dropping and retaking the lock.  */
       if (desc->free == 0)
 	unlink (desc);
 
-      pthread_mutex_unlock (&desc->lock);
-      pthread_mutex_unlock (&storage_descs_lock);
+      ss_mutex_unlock (&desc->lock);
+      ss_mutex_unlock (&storage_descs_lock);
     }
 
   if (! ADDR_IS_VOID (addr))
@@ -508,14 +508,14 @@ storage_free (addr_t object, bool unmap_now)
 
   atomic_increment (&free_count);
 
-  pthread_mutex_lock (&storage_descs_lock);
+  ss_mutex_lock (&storage_descs_lock);
 
   /* Find the storage descriptor.  */
   struct storage_desc *storage;
   storage = hurd_btree_storage_desc_find (&storage_descs, &folio);
   assert (storage);
 
-  pthread_mutex_lock (&storage->lock);
+  ss_mutex_lock (&storage->lock);
 
   storage->free ++;
 
@@ -539,7 +539,7 @@ storage_free (addr_t object, bool unmap_now)
 	  unlink (storage);
 	  hurd_btree_storage_desc_detach (&storage_descs, storage);
 
-	  pthread_mutex_unlock (&storage_descs_lock);
+	  ss_mutex_unlock (&storage_descs_lock);
 
 
 	  cap_set_shadow (storage->cap, NULL);
@@ -588,7 +588,7 @@ storage_free (addr_t object, bool unmap_now)
       link (&long_lived_freeing, storage);
     }
 
-  pthread_mutex_unlock (&storage_descs_lock);
+  ss_mutex_unlock (&storage_descs_lock);
 
   int idx = addr_extract (object, FOLIO_OBJECTS_LOG2);
   bit_dealloc (storage->alloced, idx);
@@ -605,7 +605,7 @@ storage_free (addr_t object, bool unmap_now)
   else
     assert (! as_init_done);
 
-  pthread_mutex_unlock (&storage->lock);
+  ss_mutex_unlock (&storage->lock);
 }
 
 void
@@ -625,7 +625,7 @@ storage_init (void)
 
   /* We are single threaded, however, several functions assert that
      this lock is held.  */
-  pthread_mutex_lock (&storage_descs_lock);
+  ss_mutex_lock (&storage_descs_lock);
 
   for (i = 0, odesc = &__hurd_startup_data->descs[0];
        i < __hurd_startup_data->desc_count;
@@ -643,7 +643,7 @@ storage_init (void)
 	/* Haven't seen this folio yet.  */
 	{
 	  sdesc = storage_desc_alloc ();
-	  sdesc->lock = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
+	  sdesc->lock = (ss_mutex_t) 0;
 	  sdesc->folio = folio;
 	  sdesc->free = FOLIO_OBJECTS;
 	  sdesc->mode = LONG_LIVED_ALLOCING;
@@ -677,7 +677,7 @@ storage_init (void)
 
     }
 
-  pthread_mutex_unlock (&storage_descs_lock);
+  ss_mutex_unlock (&storage_descs_lock);
 
   debug (1, "Have %d initial free objects", free_count);
   /* XXX: We can only call this after initialization is complete.
