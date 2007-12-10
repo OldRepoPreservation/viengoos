@@ -36,16 +36,18 @@ extern int output_debug;
 
 #define do_debug(level) if (DEBUG_COND(level))
 
+#include <l4/thread.h>
+
 /* Print a debug message if DEBUG_COND is true.  */
-#define debug(level, fmt, ...)				\
-  do							\
-    {							\
-      extern const char program_name[];			\
-      do_debug (level)					\
-        printf ("%s:%s:%d: " fmt "\n",			\
-		program_name, __func__, __LINE__,	\
-	        ##__VA_ARGS__);				\
-    }							\
+#define debug(level, fmt, ...)					\
+  do								\
+    {								\
+      extern const char program_name[];				\
+      do_debug (level)						\
+        printf ("%s (%x):%s:%d: " fmt "\n",			\
+		program_name, l4_myself (), __func__, __LINE__,	\
+	        ##__VA_ARGS__);					\
+    }								\
   while (0)
 #else
 #define do_debug(level) do {} while (0)

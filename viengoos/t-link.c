@@ -1,19 +1,8 @@
 #include <hurd/stddef.h>
+#include "object.h"
 #include "output.h"
 
-static const char program_name[] = "t-link";
-
-struct object_desc
-{
-  struct
-  {
-    struct object_desc *next;
-    struct object_desc **prevp;
-  } foo;
-  int value;
-};
-
-LINK_TEMPLATE(foo)
+const char program_name[] = "t-link";
 
 #define N 10
 int
@@ -29,12 +18,12 @@ main (int argc, char *argv[])
      head of the list!)  */
   for (i = 0; i < N; i ++)
     {
-      descs[i].value = i;
-      object_foo_link (&head, &descs[i]);
+      descs[i].age = i;
+      object_activity_lru_link (&head, &descs[i]);
 
       int j;
-      for (j = i, p = head; p; p = p->foo.next)
-	assert (p->value == j --);
+      for (j = i, p = head; p; p = p->activity_lru.next)
+	assert (p->age == j --);
       assert (j == -1);
     }
 
@@ -42,12 +31,12 @@ main (int argc, char *argv[])
      -> 1.)  */
   for (i = 0; i < N; i += 2)
     {
-      object_foo_unlink (&descs[i]);
+      object_activity_lru_unlink (&descs[i]);
 
       int j;
-      for (j = N-1, p = head; p; p = p->foo.next)
+      for (j = N-1, p = head; p; p = p->activity_lru.next)
 	{
-	  assert (p->value == j --);
+	  assert (p->age == j --);
 	  if (j <= i)
 	    j --;
 	}
@@ -56,38 +45,39 @@ main (int argc, char *argv[])
 
   /* A: 1 -> 2 -> 3.  */
   struct object_desc *a = NULL;
-  object_foo_link (&a, &descs[3]);
-  object_foo_link (&a, &descs[2]);
-  object_foo_link (&a, &descs[1]);
+  object_activity_lru_link (&a, &descs[3]);
+  object_activity_lru_link (&a, &descs[2]);
+  object_activity_lru_link (&a, &descs[1]);
   /* B: 4 -> 5 -> 6.  */
   struct object_desc *b = NULL;
-  object_foo_link (&b, &descs[6]);
-  object_foo_link (&b, &descs[5]);
-  object_foo_link (&b, &descs[4]);
+  object_activity_lru_link (&b, &descs[6]);
+  object_activity_lru_link (&b, &descs[5]);
+  object_activity_lru_link (&b, &descs[4]);
 
   /* Join 'em.  */
-  object_foo_join (&a, &b);
+  object_activity_lru_join (&a, &b);
   assert (! b);
-  for (i = 1, p = a; i < 7; i ++, p = p->foo.next)
-    assert (p && p->value == i);
+  for (i = 1, p = a; i < 7; i ++, p = p->activity_lru.next)
+    assert (p && p->age == i);
   assert (! p);
 
   /* Move a to b.  */
-  object_foo_move (&b, &a);
+  object_activity_lru_move (&b, &a);
   assert (! a);
-  for (i = 1, p = b; i < 7; i ++, p = p->foo.next)
-    assert (p && p->value == i);
+  for (i = 1, p = b; i < 7; i ++, p = p->activity_lru.next)
+    assert (p && p->age == i);
   assert (! p);
 
   /* Remove some elements.  */
   for (i = 2; i < 7; i ++)
     {
-      object_foo_unlink (&descs[i]);
+      object_activity_lru_unlink (&descs[i]);
 
-      assert (b->value == 1);
+      assert (b->age == 1);
       int j;
-      for (j = i + 1, p = b->foo.next; j < 7; j ++, p = p->foo.next)
-	assert (p && p->value == j);
+      for (j = i + 1, p = b->activity_lru.next; j < 7;
+	   j ++, p = p->activity_lru.next)
+	assert (p && p->age == j);
       assert (! p);
     }
 

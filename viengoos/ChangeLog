@@ -1,5 +1,14 @@
 2007-12-10  Neal H. Walfield  <neal@gnu.org>
 
+	* t-link.c: Include "object.h".
+	(program_name): Remove static qualifier.
+	(struct object_desc): Don't define.  Replace all uses of foo with
+	lru_activity and value with age.
+	* Makefile.am (t_link_CPPFLAGS): Don't include the macro
+	definitions from object.h.
+
+2007-12-10  Neal H. Walfield  <neal@gnu.org>
+
 	Add a page ager.
 	* viengoos.c: Include "zalloc.h" and "ager.h".
 	(ager_start): New function.

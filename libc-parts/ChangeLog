@@ -1,3 +1,8 @@
+2007-12-10  Neal H. Walfield  <neal@gnu.org>
+
+	* assert.h [! NDEBUG]: Include <l4/thread.h>.
+	[! NDEBUG] (assert): Also print the caller's thread id.
+
 2007-11-16  Neal H. Walfield  <neal@gnu.org>
 
 	* assert.h (assert): Print program_name and EXPR as a string.

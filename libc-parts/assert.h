@@ -29,13 +29,15 @@ int printf (const char *fmt, ...);
 #else
 
 # ifndef NDEBUG
+#include <l4/thread.h>
+
 #  define assert(expr)					\
 	do {						\
 	  extern const char program_name[];		\
 	  if (! (expr))					\
 	    {						\
-	      printf ("%s:%s:%s:%d: %s failed\n",	\
-		      program_name,			\
+	      printf ("%s (%x):%s:%s:%d: %s failed\n",	\
+		      program_name, l4_myself (),	\
 		      __FILE__, __func__, __LINE__,	\
 		      #expr);				\
 	      for (;;);					\
