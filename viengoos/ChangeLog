@@ -1,5 +1,18 @@
 2007-12-11  Neal H. Walfield  <neal@gnu.org>
 
+	* t-as.c (test) [0]: Add test case to demonstrate failure mode.
+	* as.c (as_build_internal): Move the guard and cappage sizing from
+	here...
+	* as.h (as_compute_gbits_cappage): ... to this new function.
+	Change allocation strategy to better support a mix of folios and
+	pages.
+	* t-guard.c: New file.
+	* Makefile.am (TESTS): Add t-guard.
+	(t_guard_CPPFLAGS): New variable.
+	(t_guard_SOURCES): Likewise.
+
+2007-12-11  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (AS_LOCK): New macro.
 	(AS_UNLOCK): Likewise.
 	(AS_DUMP): Likewise.

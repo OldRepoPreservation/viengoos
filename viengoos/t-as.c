@@ -321,5 +321,37 @@ test (void)
     try (allocs, sizeof (allocs) / sizeof (allocs[0]), false);
   }
 
+#warning Uncorrect failure mode
+#if 0
+  {
+    /* We do our best to not have to rearrange cappages.  However,
+       consider the following scenario: we insert a number of adjacent
+       cappages starting at 0.5 MB.  This requires cappage immediately
+       above them.  Currently, we'd place a cappage at 0/44.  If we
+       then try to insert a folio at 0/43, for which there is
+       technically space, it will fail as there is no slot.
+
+          0                    <- /43
+          [ | | |...| | | ]
+                     P P P     <- /51
+
+       We can only insert at 0/44 if we first reduce the size of the
+       cappage and introduce a 2 element page, the first slot of which
+       would be used to point to the folio and the second to the
+       smaller cappage.  */
+    struct alloc allocs[] =
+      { { ADDR (0x80000, 51), cap_page },
+	{ ADDR (0x81000, 51), cap_page },
+	{ ADDR (0x82000, 51), cap_page },
+	{ ADDR (0x83000, 51), cap_page },
+	{ ADDR (0x84000, 51), cap_page },
+	{ ADDR (0x85000, 51), cap_page },
+	{ ADDR (0x0, 44), cap_folio }
+      };
+
+    try (allocs, sizeof (allocs) / sizeof (allocs[0]), false);
+  }
+#endif
+
   printf ("ok.\n");
 }

@@ -202,12 +202,14 @@ as_build_internal (activity_t activity,
                                ^         o     o
                           just insert */
 	{
-	  /* For convenience, we prefer that the remaining bits be
-	     multiple of 8.  This is useful as when we insert another
+	  /* For convenience, we prefer that cappages occur at /44,
+	     /36, /28, etc.  This is useful as when we insert another
 	     page that conflicts with the guard, we can trivially make
-	     use of a full cappage rather than a subppage, moreover,
-	     it ensures that as paths are decompressed, the tree
-	     remains shallow.
+	     use of either 7- or 8-bit cappages rather than smaller
+	     subppages.  Moreover, it ensures that as paths are
+	     decompressed, the tree remains relatively shallow.  The
+	     reason we don't choose /43 is that folios are 19-bits
+	     wide, while cappages are 8-bits and data pages 12.
 
 	     Consider an AS with a single page, the root having a
 	     20-bit guard:
@@ -287,44 +289,28 @@ as_build_internal (activity_t activity,
 	    gbits = (gbits - firstset) + CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS;
 
 	  /* We want to choose the guard length such that the cappage
-	     that we insert occurs at a natural positions so as to
-	     avoid partial cappages or painful rearrangements of the
-	     tree.  Thus, we want the total remaining bits to
-	     translate after the guard be equal to PAGESIZE_LOG2 + i *
-	     CAPPAGE_SLOTS_LOG2 where i > 0.  As GBITS is maximal, we
-	     have to remove guard bits to achieve this.  */
+	     that we insert occurs at certain positions so as minimize
+	     small partial cappages and painful rearrangements of the
+	     tree.  In particular, we want the total remaining bits to
+	     translate after accounting the guard to be equal to
+	     FOLIO_OBJECTS_LOG2 + i * CAPPAGE_SLOTS_LOG2 where i >= 0.
+	     As GBITS is maximal, we may have to remove guard bits to
+	     achieve this.  */
 	  int untranslated_bits = remaining + ADDR_BITS - addr_depth (a);
-	  if (untranslated_bits > PAGESIZE_LOG2)
-	    /* There are more bits than a data page's worth of
-	       translation bits.  */
-	    {
-	      int to_remove = -1;
-	      if (untranslated_bits - gbits >= PAGESIZE_LOG2)
-		{
-		  to_remove = CAPPAGE_SLOTS_LOG2
-		    - ((untranslated_bits - gbits - PAGESIZE_LOG2)
-		       % CAPPAGE_SLOTS_LOG2);
 
-		  if (to_remove <= gbits)
-		    gbits -= to_remove;
-		  else
-		    gbits = 0;
-		}
-	      else
-		/* Insert a cappage at /ADDR_BITS-PAGESIZE_LOG2.  */
-		gbits = untranslated_bits - PAGESIZE_LOG2;
-	    }
+	  struct as_guard_cappage gc
+	    = as_compute_gbits_cappage (untranslated_bits,
+					tilobject, gbits);
+	  assert (gc.gbits <= gbits);
+	  assert (gc.gbits + gc.cappage_width <= tilobject);
+	  gbits = gc.gbits;
 
 	  /* Account the bits translated by the guard.  */
 	  remaining -= gbits;
 
-	  /* Log of the size of the required subpage (number of bits a
-	     subpage translates).  */
-	  int subpage_bits = tilobject - gbits;
-	  if (subpage_bits > CAPPAGE_SLOTS_LOG2)
-	    /* A cappage translates maximally CAPPAGE_SLOTS_LOG2-bits.  */
-	    subpage_bits = CAPPAGE_SLOTS_LOG2;
-	  assert (subpage_bits > 0);
+	  int subpage_bits = gc.cappage_width;
+	  assert (subpage_bits >= 0);
+	  assert (subpage_bits <= CAPPAGE_SLOTS_LOG2);
 
 	  /* Allocate new cappage and rearrange the tree.  */
 	  /* XXX: If we use a subpage, we just ignore the rest of the
