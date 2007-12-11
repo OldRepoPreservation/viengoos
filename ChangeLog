@@ -1,3 +1,7 @@
+2007-12-11  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Update email address.
+
 2007-11-23  Neal H. Walfield  <neal@gnu.org>
 
 	* README: Add note that Pistachio must be compiled with the Pager

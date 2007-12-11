@@ -21,7 +21,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(hurd, 0.0, marcus@gnu.org)
+AC_INIT(hurd, 0.0, l4-hurd@gnu.org)
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR([laden/laden.c])
