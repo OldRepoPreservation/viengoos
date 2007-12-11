@@ -128,8 +128,6 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
 
   gc.gbits = gbits;
 
-  debug (0, "-> %d, %d", gc.gbits, gc.cappage_width);
-
   return gc;
 }
 

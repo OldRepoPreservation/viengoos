@@ -1,5 +1,9 @@
 2007-12-11  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (as_compute_gbits_cappage): Remove debugging code.
+
+2007-12-11  Neal H. Walfield  <neal@gnu.org>
+
 	* t-as.c (test) [0]: Add test case to demonstrate failure mode.
 	* as.c (as_build_internal): Move the guard and cappage sizing from
 	here...
