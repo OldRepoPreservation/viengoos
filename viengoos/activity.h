@@ -156,7 +156,8 @@ activity_charge (struct activity *activity, int objects)
 extern void activity_dump (struct activity *activity);
 
 
-/* Perform a consistency checl on the activity ACTIVITY.  */
+/* Perform a consistency checl on the activity ACTIVITY.  Will take
+   LRU_LOCK.  */
 extern void activity_consistency_check_ (const char *func, int line,
 					 struct activity *activity);
 #define activity_consistency_check(a)		\

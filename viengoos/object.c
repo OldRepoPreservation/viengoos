@@ -140,6 +140,9 @@ memory_object_alloc (struct activity *activity,
 
   ss_mutex_unlock (&lru_lock);
 
+  if (activity)
+    activity_consistency_check (activity);
+
   return object;
 }
 
@@ -159,12 +162,16 @@ memory_object_destroy (struct activity *activity, struct object *object)
   struct cap cap = object_desc_to_cap (odesc);
   cap_shootdown (activity, &cap);
 
+  struct activity *owner = odesc->activity;
+
   ss_mutex_lock (&lru_lock);
   object_desc_disown (odesc);
 
   object_activity_lru_unlink (odesc);
   object_global_lru_unlink (odesc);
   ss_mutex_unlock (&lru_lock);
+
+  activity_consistency_check (owner);
 
   if (odesc->type == cap_activity_control)
     {
@@ -207,6 +214,8 @@ object_find_soft (struct activity *activity, oid_t oid)
       ss_mutex_lock (&lru_lock);
       object_desc_claim (activity, odesc);
       ss_mutex_unlock (&lru_lock);
+
+      activity_consistency_check (activity);
     }
 
   return object;
@@ -432,9 +441,13 @@ folio_free (struct activity *activity, struct folio *folio)
   folio->prev.type = cap_void;
 
   /* Disown the frame.  */
+  owner = fdesc->activity;
+
   ss_mutex_lock (&lru_lock);
   object_disown ((struct object *) folio);
   ss_mutex_unlock (&lru_lock);
+
+  activity_consistency_check (owner);
 
   /* And free the folio.  */
   folio->folio_version = fdesc->version ++;
@@ -511,6 +524,8 @@ folio_object_alloc (struct activity *activity,
 	  ss_mutex_lock (&lru_lock);
 	  object_desc_claim (activity, odesc);
 	  ss_mutex_unlock (&lru_lock);
+
+	  activity_consistency_check (activity);
 	}
 
       odesc->type = type;

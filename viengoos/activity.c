@@ -233,8 +233,6 @@ activity_consistency_check_ (const char *func, int line,
   /* The number of objects on the active and inactive lists plus the
      objects owned by the descendents must equal activity->frames.  */
 
-  assert (! ss_mutex_trylock (&lru_lock));
-
   int active = 0;
   struct object_desc *d;
   for (d = activity->active; d; d = d->activity_lru.next)

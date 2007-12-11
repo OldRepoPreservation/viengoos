@@ -323,22 +323,14 @@ object_desc_disown_simple (struct object_desc *desc)
 static inline void
 object_disown_simple (struct object *object)
 {
-  assert (! ss_mutex_trylock (&lru_lock));
-
   object_desc_disown_simple (object_to_object_desc (object));
 }
 
 static inline void
 object_desc_disown_ (struct object_desc *desc)
 {
-  struct activity *activity = desc->activity;
-
-  activity_consistency_check (activity);
-
   activity_charge (desc->activity, -1);
   object_desc_disown_simple (desc);
-
-  activity_consistency_check (activity);
 }
 #define object_desc_disown(d)						\
   ({ debug (5, "object_desc_disown: %p (%d)",				\
@@ -364,8 +356,6 @@ object_disown_ (struct object *object)
 static inline void
 object_desc_claim_ (struct activity *activity, struct object_desc *desc)
 {
-  activity_consistency_check (activity);
-
   if (desc->activity == activity)
     return;
 
@@ -377,8 +367,6 @@ object_desc_claim_ (struct activity *activity, struct object_desc *desc)
   activity_charge (activity, 1);
   object_activity_lru_unlink (desc);
   object_activity_lru_link (&activity->active, desc);
-
-  activity_consistency_check (desc->activity);
 }
 #define object_desc_claim(a, o)						\
   ({									\

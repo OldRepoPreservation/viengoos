@@ -1,3 +1,19 @@
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h: Update comment.
+	* activity.c (activity_consistency_check_): Don't assert that
+	LRU_LOCK is held.
+	* object.h (object_disown_simple): Don't call
+	activity_consistency_check here.
+	(object_desc_disown_): Likewise.
+	(object_desc_claim_): Likewise.
+	(object_desc_claim_): Likewise.
+	* object.c (memory_object_alloc): Call activity_consistency_check.
+	(memory_object_destroy): Likewise.
+	(object_find_soft): Likewise.
+	(folio_free): Likewise.
+	(folio_object_alloc): Likewise.
+
 2007-12-11  Neal H. Walfield  <neal@gnu.org>
 
 	* as.h (as_compute_gbits_cappage): Remove debugging code.
