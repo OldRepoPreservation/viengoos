@@ -35,9 +35,7 @@ activity_create (struct activity *parent,
   if (old_parent)
     /* CHILD is live.  Destroy it first.  */
     {
-      struct object_desc *desc = object_to_object_desc (old_parent);
-      assert (desc->type == cap_activity_control);
-
+      assert (object_type (old_parent) == cap_activity_control);
       activity_destroy (parent, child);
     }
 
@@ -47,29 +45,24 @@ activity_create (struct activity *parent,
       return;
     }
 
-  struct object_desc *child_desc;
-  child_desc = object_to_object_desc ((struct object *) child);
-
+  /* Set child's parent pointer.  */
   child->parent = object_to_cap ((struct object *) parent);
   child->parent_ptr = parent;
 
+  /* Connect to PARENT's activity list.  */
   child->sibling_next = parent->children;
   child->sibling_prev.type = cap_void;
   parent->children = object_to_cap ((struct object *) child);
 
-  struct object *next = cap_to_object (parent, &child->sibling_next);
-  if (next)
+  struct object *old_head = cap_to_object (parent, &child->sibling_next);
+  if (old_head)
     {
-      struct object_desc *desc;
-      desc = object_to_object_desc (next);
-      assert (desc->type == cap_activity_control);
+      assert (object_type (old_head) == cap_activity_control);
+      /* The old head's previous pointer should be NULL.  */
+      assert (! cap_to_object (parent,
+			       &((struct activity *) old_head)->sibling_prev));
 
-      struct activity *n = (struct activity *) next;
-
-      struct object *prev = cap_to_object (parent, &n->sibling_prev);
-      assert (! prev);
-
-      ((struct activity *) n)->sibling_prev
+      ((struct activity *) old_head)->sibling_prev
 	= object_to_cap ((struct object *) child);
     }
 }
@@ -82,10 +75,12 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
   /* We should never destroy the root activity.  */
   if (! victim->parent_ptr)
-    panic ("Request to destroy root activity");
+    {
+      assert (victim == root_activity);
+      panic ("Request to destroy root activity");
+    }
 
-  if (victim->dying)
-    panic ("Recursive destroy!");
+  assert (! victim->dying);
   victim->dying = 1;
 
   /* XXX: Rewrite this to avoid recusion!!!  */
@@ -160,6 +155,8 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
   /* Remove from parent's activity list.  */
   struct activity *parent = victim->parent_ptr;
+  assert ((struct object *) parent
+	  == cap_to_object (activity, &victim->parent));
 
   struct object *prev_object = cap_to_object (activity, &victim->sibling_prev);
   assert (! prev_object
@@ -174,19 +171,18 @@ activity_destroy (struct activity *activity, struct activity *victim)
   if (prev)
     prev->sibling_next = victim->sibling_next;
   else
-    /* VICTIM better be the head of PARENT's child list.  */
+    /* VICTIM is the head of PARENT's child list.  */
     {
-      struct object_desc *desc
-	= object_to_object_desc ((struct object *) victim);
-
-      assert (parent->children.oid == desc->oid);
-      assert (parent->children.version == desc->version);
-
+      assert (cap_to_object (activity, &parent->children)
+	      == (struct object *) victim);
       parent->children = victim->sibling_next;
     }
 
   if (next)
     next->sibling_prev = victim->sibling_prev;
+
+  victim->sibling_next.type = cap_void;
+  victim->sibling_prev.type = cap_void;
 }
 
 static void

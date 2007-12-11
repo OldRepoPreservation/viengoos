@@ -1,3 +1,8 @@
+2007-12-11  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.c (activity_destroy): Clear VICTIM->SIBLING_NEXT.TYPE
+	and VICTIM->SIBLING_PREV.TYPE.  Add additional asserts.
+
 2007-12-10  Neal H. Walfield  <neal@gnu.org>
 
 	* object.h (lru_lock): New declaration.
