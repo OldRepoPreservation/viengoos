@@ -208,10 +208,12 @@ lookup (activity_t activity,
 
 	default:
 	  /* We designate a non-address bit translating object but we
-	     have no bits left to translate.  */
+	     have no bits left to translate.  This is not an unusual
+	     error: it will occur when the application faults in an
+	     area for which it has a pager.  */
 	  do_debug (4)
 	    as_dump_from (activity, start, NULL);
-	  debug (1, "Translating " ADDR_FMT ", encountered a %s at "
+	  debug (4, "Translating " ADDR_FMT ", encountered a %s at "
 		 ADDR_FMT " but expected a cappage or a folio",
 		 ADDR_PRINTF (address),
 		 cap_type_string (root->type),

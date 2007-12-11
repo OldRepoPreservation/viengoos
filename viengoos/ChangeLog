@@ -1,5 +1,10 @@
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-lookup.c (lookup): Reduce verbosity of debugging output for
+	common scenarios.
+
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h: Update comment.
 	* activity.c (activity_consistency_check_): Don't assert that
 	LRU_LOCK is held.
