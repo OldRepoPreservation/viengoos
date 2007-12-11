@@ -1,5 +1,17 @@
 2007-12-11  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (AS_LOCK): New macro.
+	(AS_UNLOCK): Likewise.
+	(AS_DUMP): Likewise.
+	(as_build_internal): Use the above macros.  Unlock before dumping
+	the address space.
+	(as_slot_ensure_full): Use the above macros.
+	(as_dump_from): Update comment.
+
+	(do_walk): Don't display dead capabilities.
+
+2007-12-11  Neal H. Walfield  <neal@gnu.org>
+
 	* t-link.c (output_debug): New declaration.
 
 2007-12-11  Neal H. Walfield  <neal@gnu.org>

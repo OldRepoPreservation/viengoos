@@ -35,6 +35,16 @@
 
 #ifndef RM_INTERN
 pthread_rwlock_t as_lock = __PTHREAD_RWLOCK_INITIALIZER;
+# define AS_LOCK pthread_rwlock_wrlock (&as_lock)
+# define AS_UNLOCK pthread_rwlock_unlock (&as_lock)
+# define AS_DUMP rm_as_dump (ADDR_VOID, ADDR_VOID)
+
+#else
+
+# define AS_LOCK do { } while (0)
+# define AS_UNLOCK do { } while (0)
+# define AS_DUMP as_dump_from (activity, start, __func__);
+
 #endif
 
 /* Build the address space such that A designates a capability slot.
@@ -87,7 +97,7 @@ as_build_internal (activity_t activity,
 	       object at ADDR.  This is a problem: we want to insert a
 	       capability at ADDR.  */
 	    {
-	      as_dump_from (activity, start, __func__);
+	      AS_DUMP;
 	      panic ("There is already a %s object at %llx/%d!",
 		     cap_type_string (root->type),
 		     addr_prefix (a), addr_depth (a));
@@ -106,7 +116,7 @@ as_build_internal (activity_t activity,
 		{
 		  /* The type should now have been set to cap_void.  */
 		  assert (root->type == cap_void);
-		  as_dump_from (activity, root, __func__);
+		  AS_DUMP;
 		  panic ("Lost object at %llx/%d",
 			 addr_prefix (a), addr_depth (a) - remaining);
 		}
@@ -163,7 +173,7 @@ as_build_internal (activity_t activity,
 	      }
 
 	    default:
-	      as_dump_from (activity, start, __func__);
+	      AS_DUMP;
 	      panic ("Can't insert object at %llx/%d: "
 		     "%s at 0x%llx/%d does not translate address bits",
 		     addr_prefix (a), addr_depth (a),
@@ -379,9 +389,10 @@ as_build_internal (activity_t activity,
       /* That should not be more than we have left to translate.  */
       if (width > remaining)
 	{
-	  as_dump_from (activity, start, __func__);
-	  panic ("Can't index %d-bit cappage: not enough bits (%d)",
-		 width, remaining);
+	  AS_DUMP;
+	  panic ("Translating " ADDR_FMT ": can't index %d-bit cappage; "
+		 "not enough bits (%d)",
+		 ADDR_PRINTF (a), width, remaining);
 	}
       int idx = extract_bits64_inv (addr, remaining - 1, width);
       root = &cappage->caps[CAP_SUBPAGE_OFFSET (root) + idx];
@@ -418,16 +429,12 @@ as_slot_ensure_full (activity_t activity,
 		     struct as_insert_rt
 		     (*allocate_object) (enum cap_type type, addr_t addr))
 {
-#ifndef RM_INTERN
-  pthread_rwlock_wrlock (&as_lock);
-#endif
+  AS_LOCK;
 
   struct cap *cap = as_build_internal (activity, root, a,
 				       allocate_object, true);
 
-#ifndef RM_INTERN
-  pthread_rwlock_unlock (&as_lock);
-#endif
+  AS_UNLOCK;
 
   return cap;
 }
@@ -492,6 +499,10 @@ do_walk (activity_t activity, int index, struct cap *root, addr_t addr,
   if (cap.type == cap_void)
     return;
 
+  if (! cap_to_object (activity, &cap))
+    /* Cap is there but the object has been deallocated.  */
+    return;
+
   if (output_prefix)
     printf ("%s: ", output_prefix);
   for (i = 0; i < indent; i ++)
@@ -523,12 +534,6 @@ do_walk (activity_t activity, int index, struct cap *root, addr_t addr,
   printf ("@%llx ", cap.oid);
 #endif
   printf ("%s", cap_type_string (cap.type));
-
-  if (! cap_to_object (activity, &cap))
-    {
-      printf (" <- LOST (likely deallocated)\n");
-      return;
-    }
 
   printf ("\n");
 
@@ -567,7 +572,7 @@ do_walk (activity_t activity, int index, struct cap *root, addr_t addr,
     }
 }
 
-/* Caller must ensure that AS_LOCK is held.  */
+/* AS_LOCK must not be held.  */
 void
 as_dump_from (activity_t activity, struct cap *root, const char *prefix)
 {
