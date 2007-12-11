@@ -6,6 +6,7 @@
 #include "output.h"
 
 ss_mutex_t lru_lock;
+int output_debug = 0;
 
 #define N 10
 void

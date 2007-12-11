@@ -1,5 +1,9 @@
 2007-12-11  Neal H. Walfield  <neal@gnu.org>
 
+	* t-link.c (output_debug): New declaration.
+
+2007-12-11  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (ager_loop): When checking for overflow, be careful to
 	correctly cast the results.
 
