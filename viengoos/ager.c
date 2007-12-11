@@ -192,7 +192,7 @@ ager_loop (l4_thread_id_t main_thread)
 	      else
 		{
 		  /* Be careful with wrap around.  */
-		  if (desc->age + AGE_DELTA > desc->age)
+		  if ((typeof (desc->age)) (desc->age + AGE_DELTA) > desc->age)
 		    desc->age += AGE_DELTA;
 		}
 

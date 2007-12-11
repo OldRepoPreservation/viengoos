@@ -1,5 +1,10 @@
 2007-12-11  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c (ager_loop): When checking for overflow, be careful to
+	correctly cast the results.
+
+2007-12-11  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.c (activity_destroy): Clear VICTIM->SIBLING_NEXT.TYPE
 	and VICTIM->SIBLING_PREV.TYPE.  Add additional asserts.
 
