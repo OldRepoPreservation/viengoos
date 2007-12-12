@@ -321,18 +321,10 @@ exception_page_cleanup (struct exception_page *exception_page)
   struct exception_frame *f;
   struct exception_frame *prev = exception_page->exception_stack_bottom;
 
-  int count = 0;
   while ((f = prev))
     {
       prev = f->prev;
       hurd_slab_dealloc (&exception_frame_slab, f);
-      count ++;
     }
-
-  assertx (count == exception_page->frame_count,
-	   "count: %d, exception_page->frame_count: %d",
-	   count, exception_page->frame_count);
-
-  debug (0, "Freed %d frames", count);
 }
 
