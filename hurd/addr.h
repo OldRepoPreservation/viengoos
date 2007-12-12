@@ -93,29 +93,33 @@ addr_prefix (addr_t addr)
 
 /* Extend the address ADDR by concatenating the lowest DEPTH bits of
    PREFIX.  */
-#if 1
+#if 0
 static inline addr_t
 addr_extend (addr_t addr, l4_uint64_t prefix, int depth)
 {
-  assert (depth >= 0);
-  assert (addr_depth (addr) + depth <= ADDR_BITS);
-  assert (prefix < (1ULL << depth));
+  assertx (depth >= 0, "depth: %d", depth);
+  assertx (addr_depth (addr) + depth <= ADDR_BITS,
+	   "addr: " ADDR_FMT "; depth: %d", ADDR_PRINTF (addr), depth);
+  assertx (prefix < (1ULL << depth),
+	   "prefix: %llx; depth: %lld", prefix, 1ULL << depth);
   return ADDR (addr_prefix (addr)
 	       | (prefix << (ADDR_BITS - addr_depth (addr) - depth)),
 	       addr_depth (addr) + depth);
 }
 #else
-#define addr_extend(addr_, prefix_, depth_) \
-  ({ \
-    addr_t a__ = (addr_); \
-    l4_uint64_t p__ = (prefix_); \
-    int d__ = (depth_); \
-    assert ((d__) >= 0); \
-    assert (addr_depth ((a__)) + (d__) <= ADDR_BITS); \
-    assert ((p__) < (1ULL << (d__))); \
-    ADDR (addr_prefix ((a__)) \
-	         | ((p__) << (ADDR_BITS - addr_depth ((a__)) - (d__))), \
-	         addr_depth ((a__)) + (d__)); \
+#define addr_extend(addr_, prefix_, depth_)				\
+  ({									\
+    addr_t a__ = (addr_);						\
+    l4_uint64_t p__ = (prefix_);					\
+    int d__ = (depth_);							\
+    assertx (d__ >= 0, "depth: %d", d__);				\
+    assertx (addr_depth ((a__)) + (d__) <= ADDR_BITS,			\
+	     "addr: " ADDR_FMT "; depth: %d", ADDR_PRINTF (a__), d__);	\
+    assertx (p__ < (1ULL << d__),					\
+	     "prefix: %llx; depth: %lld", p__, 1ULL << d__);		\
+    ADDR (addr_prefix ((a__))						\
+	  | ((p__) << (ADDR_BITS - addr_depth ((a__)) - (d__))),	\
+	  addr_depth ((a__)) + (d__));					\
   })
 #endif
 

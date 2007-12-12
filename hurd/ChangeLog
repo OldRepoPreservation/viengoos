@@ -1,5 +1,9 @@
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
+	* addr.h (addr_extend): Use assertx instead of assert.
+
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
 	* mutex.h [! NDEBUG]: Include <hurd/stddef.h>.
 	(struct ss_lock_trace) [! NDEBUG]: New structure.
 	(SS_LOCK_TRACE_COUNT) [! NDEBUG]: New define.
