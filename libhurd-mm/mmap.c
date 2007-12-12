@@ -113,6 +113,7 @@ munmap (void *addr, size_t length)
 
       ss_mutex_lock (&pager->lock);
 
+      struct pager_region region = pager->region;
       l4_uint64_t pager_start = addr_prefix (pager->region.start);
       l4_uint64_t pager_end = pager_start
 	+ (pager->region.count
@@ -131,6 +132,8 @@ munmap (void *addr, size_t length)
       ss_mutex_unlock (&pagers_lock);
 
       pager->destroy (pager);
+
+      as_free (region.start, region.count);
     }
 
   return 0;

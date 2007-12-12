@@ -1,5 +1,9 @@
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
+	* mmap.c (munmap): Free the virtual addresses.
+
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (ss_lock_trace) [! NDEBUG]: New definition.
 	(ss_lock_trace_count) [! NDEBUG]: Likewise.
 
