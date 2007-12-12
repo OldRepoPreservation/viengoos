@@ -454,6 +454,7 @@ ager_start (void)
 	   l4_thread_no (tid), l4_version (tid),
 	   l4_strerror (l4_error_code ()));
 
+  
   debug (1, "Created ager: %x", tid);
 
   l4_thread_id_t targ = tid;
@@ -490,6 +491,14 @@ main (int argc, char *argv[])
   find_components ();
 
   memory_configure ();
+
+  /* Ensure that the whole binary is faulted in.  memory configure
+     should have done this, however, it seems that there may be a bug
+     in Pistachio such that the second thread nevertheless raises
+     page faults.  */
+  l4_word_t p;
+  for (p = (l4_word_t) &_start; p < (l4_word_t) &_end; p += PAGESIZE)
+    * (volatile l4_word_t *) p = *(l4_word_t *)p;
 
   object_init ();
 

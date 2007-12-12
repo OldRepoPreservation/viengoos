@@ -1,5 +1,9 @@
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (main): Ensure that the binary is mapped.
+
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.c (thread_lookup): Assert that THREAD is not NULL.
 
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
