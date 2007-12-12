@@ -43,6 +43,11 @@ typedef bool (*pager_fault_t) (struct pager *pager,
 /* If not NULL, then the pager is able to free memory.  */
 typedef int (*pager_evict_t) (struct pager *pager);
 
+/* Call requesting that the pager destroy itself.  pager_deinstall
+   will already have been called.  Will be called with PAGER->LOCK
+   held.  */
+typedef void (*pager_destroy_t) (struct pager *pager);
+
 struct pager_region
 {
   addr_t start;
@@ -68,6 +73,9 @@ struct pager
   /* Region's fault handler.  */
   pager_fault_t fault;
 
+  /* Destructor.  */
+  pager_destroy_t destroy;
+
   /* Callback (possibly NULL) to evict memory.  */
   pager_evict_t evict;
   /* The effort required to reconstruct a freed page.  */
@@ -79,10 +87,6 @@ struct pager
      if PAGERS_LOCK is held.  */
   ss_mutex_t lock;
 };
-
-/* Protects PAGERS and all pager's NODE.  This lock may not be taken
-   if a pager's LOCK is held by the caller.  */
-extern ss_mutex_t pagers_lock;
 
 /* Compare two regions.  Two regions are considered equal if there is
    any overlap at all.  */
@@ -105,6 +109,11 @@ pager_region_compare (const struct pager_region *a,
 
 BTREE_CLASS (pager, struct pager, struct pager_region, region, node,
 	     pager_region_compare)
+
+/* Protects PAGERS and all pager's NODE.  This lock may not be taken
+   if a pager's LOCK is held by the caller.  */
+extern ss_mutex_t pagers_lock;
+extern hurd_btree_pager_t pagers;
 
 /* Install the pager PAGER.  Pagers may not overlap.  Returns true on
    success, false otherwise.  PAGERS_LOCK must be held.  */

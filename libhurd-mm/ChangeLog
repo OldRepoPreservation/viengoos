@@ -1,3 +1,15 @@
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	* mmap.c (munmap): Implement.
+	* pager.h (pager_destroy_t): New type.
+	(struct pager): New field, destory.
+	(pagers): New declaration.
+	* pager.c (pagers): Remove static qualifier.
+	* anonymous.c (destroy): New function.
+	(anonymous_pager_alloc): Set ANON->PAGER.DESTROY to it.
+	(anonymous_pager_destroy): Call destroy to do the bulk of the
+	work.
+
 2007-12-10  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c: Don't include <pthread.h>.  Include <hurd/mutex.h>.

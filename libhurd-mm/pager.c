@@ -28,7 +28,7 @@
 /* Protects PAGERS and all pager's NODE.  This lock may not be taken
    if a pager's LOCK is held by the caller.  */
 ss_mutex_t pagers_lock;
-static hurd_btree_pager_t pagers;
+hurd_btree_pager_t pagers;
 
 bool
 pager_install (struct pager *pager)

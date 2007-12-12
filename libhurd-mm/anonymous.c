@@ -185,6 +185,30 @@ fault (struct pager *pager,
   return true;
 }
 
+static void
+destroy (struct pager *pager)
+{
+  struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+
+  /* Free the allocated storage.  */
+  hurd_btree_storage_desc_t *storage_descs;
+  storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
+
+  struct storage_desc *node, *next;
+  for (node = hurd_btree_storage_desc_first (storage_descs); node; node = next)
+    {
+      next = hurd_btree_storage_desc_next (node);
+
+      storage_free (node->storage, false);
+      storage_desc_free (node);
+    }
+
+  /* There is no need to unlock &anon->pager.lock: we free it.  */
+
+  /* And free its storage.  */
+  hurd_slab_dealloc (&anonymous_pager_slab, anon);
+}
+
 struct anonymous_pager *
 anonymous_pager_alloc (addr_t activity,
 		       uintptr_t addr, size_t size,
@@ -201,6 +225,7 @@ anonymous_pager_alloc (addr_t activity,
 
   memset (anon, 0, sizeof (*anon));
   anon->pager.fault = fault;
+  anon->pager.destroy = destroy;
 
   anon->activity = activity;
   anon->flags = flags;
@@ -229,29 +254,9 @@ void
 anonymous_pager_destroy (struct anonymous_pager *anon)
 {
   ss_mutex_lock (&pagers_lock);
-
-  /* Deinstall the pager.  */
   pager_deinstall (&anon->pager);
-
   ss_mutex_unlock (&pagers_lock);
 
   ss_mutex_lock (&anon->pager.lock);
-
-  /* Free the allocated storage.  */
-  hurd_btree_storage_desc_t *storage_descs;
-  storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
-
-  struct storage_desc *node, *next;
-  for (node = hurd_btree_storage_desc_first (storage_descs); node; node = next)
-    {
-      next = hurd_btree_storage_desc_next (node);
-
-      storage_free (node->storage, false);
-      storage_desc_free (node);
-    }
-
-  /* There is no need to unlock &anon->pager.lock: we free it.  */
-
-  /* And free its storage.  */
-  hurd_slab_dealloc (&anonymous_pager_slab, anon);
+  destroy (&anon->pager);
 }

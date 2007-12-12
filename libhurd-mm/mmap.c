@@ -91,5 +91,47 @@ mmap (void *addr, size_t length, int protect, int flags,
 int
 munmap (void *addr, size_t length)
 {
+  l4_word_t start = (l4_word_t) addr;
+  l4_word_t end = start + length - 1;
+
+  struct pager_region region;
+  region.start = PTR_TO_ADDR (addr);
+  region.count = length;
+
+  /* We need to keep calling hurd_btree_pager_find rather than
+     iterating as the destroy function may call munmap.  */
+  for (;;)
+    {
+      ss_mutex_lock (&pagers_lock);
+
+      struct pager *pager = hurd_btree_pager_find (&pagers, &region);
+      if (! pager)
+	{
+	  ss_mutex_unlock (&pagers_lock);
+	  break;
+	}
+
+      ss_mutex_lock (&pager->lock);
+
+      l4_uint64_t pager_start = addr_prefix (pager->region.start);
+      l4_uint64_t pager_end = pager_start
+	+ (pager->region.count
+	   << (ADDR_BITS - addr_depth (pager->region.start))) - 1;
+
+      debug (0, "Pager %llx-%llx between %x-%x",
+	     pager_start, pager_end, start, end);
+
+      if (pager_start < start)
+	panic ("Attempt to partially unmap pager");
+      if (end < pager_end)
+	panic ("Attempt to partially unmap pager");
+
+      pager_deinstall (pager);
+      
+      ss_mutex_unlock (&pagers_lock);
+
+      pager->destroy (pager);
+    }
+
   return 0;
 }
