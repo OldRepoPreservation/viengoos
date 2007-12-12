@@ -64,8 +64,8 @@ thread_lookup (l4_thread_id_t threadid)
   struct thread *thread = hurd_ihash_find (&tid_to_thread,
 					   l4_thread_no (threadid));
   if (! thread)
-    debug (1, "(%x.%x) => NULL",
-	   l4_thread_no (threadid), l4_version (threadid));
+    debug (1, "(%x) => NULL", threadid);
+  assert (thread);
 
   /* Sanity check.  */
   if (thread->tid != threadid)
