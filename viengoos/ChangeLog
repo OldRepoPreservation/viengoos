@@ -1,5 +1,16 @@
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (as_build_internal): If the required capability slot is not
+	cap_void but MAY_OVERWRITE is true, return that slot.
+
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c (as_build_internal): If REMAINING is less than or equal to
+	the guard of the current capability and MAY_OVERWRITE is true, use
+	that capability rather than erroring out.
+
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c: Include <hurd/mutex.h>.
 	(ss_lock_trace) [! NDEBUG]: New definition.
 	(ss_lock_trace_count) [! NDEBUG]: Likewise.

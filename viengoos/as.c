@@ -80,6 +80,7 @@ as_build_internal (activity_t activity,
 
       l4_uint64_t root_guard = CAP_GUARD (root);
       int root_gbits = CAP_GUARD_BITS (root);
+
       if (root->type != cap_void
 	  && remaining >= root_gbits
 	  && root_guard == extract_bits64_inv (addr,
@@ -87,14 +88,28 @@ as_build_internal (activity_t activity,
 	/* ROOT's (possibly zero-width) guard matches and thus
 	   translates part of the address.  */
 	{
+	  if (remaining == root_gbits && may_overwrite)
+	    {
+	      debug (0, "Overwriting " ADDR_FMT " with " ADDR_FMT
+		     " (at " ADDR_FMT ")",
+		     ADDR_PRINTF (addr_extend (addr_chop (a, remaining),
+					       root_guard, root_gbits)),
+		     ADDR_PRINTF (a),
+		     ADDR_PRINTF (addr_chop (a, remaining)));
+	      /* XXX: Free any data associated with the capability
+		 (e.g., shadow pages).  */
+	      break;
+	    }
+
 	  /* Subtract the number of bits the guard translates.  */
 	  remaining -= root_gbits;
 	  assert (remaining >= 0);
 
 	  if (remaining == 0)
 	    /* ROOT is not a void capability yet the guard translates
-	       all of the bits.  This means that ROOT references an
-	       object at ADDR.  This is a problem: we want to insert a
+	       all of the bits and we may not overwrite the
+	       capability.  This means that ROOT references an object
+	       at ADDR.  This is a problem: we want to insert a
 	       capability at ADDR.  */
 	    {
 	      AS_DUMP;
