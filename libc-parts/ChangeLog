@@ -1,3 +1,7 @@
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	* assert.h (assertx): New macro.
+
 2007-12-10  Neal H. Walfield  <neal@gnu.org>
 
 	* assert.h [! NDEBUG]: Include <l4/thread.h>.

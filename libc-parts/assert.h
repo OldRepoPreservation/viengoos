@@ -26,25 +26,44 @@ int printf (const char *fmt, ...);
 
 #ifdef _L4_TEST_ENVIRONMENT
 # include_next <assert.h>
+# define assertx(__ax_expr, __ax_fmt, ...) \
+  do					   \
+    {					   \
+      if (! (__ax_expr))		   \
+	printf (__ax_fmt, ##__VA_ARGS__);  \
+      assert (__ax_expr);		   \
+    }					   \
+  while (0)
+
 #else
 
 # ifndef NDEBUG
 #include <l4/thread.h>
 
-#  define assert(expr)					\
-	do {						\
-	  extern const char program_name[];		\
-	  if (! (expr))					\
-	    {						\
-	      printf ("%s (%x):%s:%s:%d: %s failed\n",	\
-		      program_name, l4_myself (),	\
-		      __FILE__, __func__, __LINE__,	\
-		      #expr);				\
-	      for (;;);					\
-	    }						\
-	} while (0)
+#  define assertx(__ax_expr, __ax_fmt, ...)			\
+  do {								\
+    extern const char program_name[];				\
+    if (! (__ax_expr))						\
+      {								\
+	printf ("%s (%x):%s:%s:%d: %s failed",			\
+		program_name, l4_myself (),			\
+		__FILE__, __func__, __LINE__,			\
+		#__ax_expr);					\
+	if ((__ax_fmt) && *(__ax_fmt))				\
+	  {							\
+	    printf (": " __ax_fmt, ##__VA_ARGS__);		\
+	  }							\
+	printf ("\n");						\
+	for (;;);						\
+      }								\
+  } while (0)
+
+#  define assert(__a_expr)				\
+  assertx (__a_expr, "")
+
 # else
 #  define assert(expr) do { } while (0)
+#  define assertx(expr, fmt, ...) do { } while (0)
 # endif
 # define assert_perror(err) assert(err == 0)
 
