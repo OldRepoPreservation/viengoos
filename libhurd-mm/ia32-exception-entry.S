@@ -116,9 +116,9 @@ after_adjust:
 	normal mode.
 	
 	To return to normal mode, we need to restore the saved
-	registers, including the saved EAX, saved ESP and saved EIP.
-	On x86, there is no way to atomically restore ESP and EIP from
-	user code.  The solution we use is:
+	registers, including the saved general registers, saved ESP
+	and saved EIP.  On x86, there is no way to atomically restore
+	ESP and EIP from user code.  The solution we use is:
 
 	  - save the saved EIP on the user stack
 	  - restore the saved ESP minus 4
@@ -132,15 +132,15 @@ after_adjust:
 	kernel can transition us back to activated mode.
 
 	But this raises another problem: the IP and SP that the kernel
-	see are not those that return us to user code.  As this code
+	sees are not those that return us to user code.  As this code
 	relies on the exception stack, a nested stack will leave us in
 	an inconsistent state.  (This can also happen if we receive a
 	message before returning to user code.)  To avoid this, we
 	register our restore to normal mode function with the kernel.
-	If the kernel transitions us back to activated while the EIP
-	is in this range, then it does not save the EIP and ESP and
-	invokes the exception handler with the interrupt_in_transition
-	flag set.  */
+	If the kernel transitions us back to activated mode while the
+	EIP is in this range, then it does not save the EIP and ESP
+	and invokes the exception handler with the
+	interrupt_in_transition flag set.  */
 
 	/* Reset the activation bit.  */
 	and $0xfffffffe, MODE(%edx)
@@ -262,8 +262,8 @@ _exception_handler_end:
 
 	/* Remove our exception frame, which is at the top
 	of the exception frame stack.  */
-	mov EF_NEXT(%edx), %ecx
-	lock mov %ecx, EXCEPTION_STACK(%eax)
+	mov EF_NEXT(%eax), %ecx
+	lock mov %ecx, EXCEPTION_STACK(%edx)
 
 	popl %eax
 	popl %ecx

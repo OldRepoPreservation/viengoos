@@ -1,3 +1,7 @@
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.h (exception_page_cleanup): New declaration.
+
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* addr.h (addr_extend): Use assertx instead of assert.

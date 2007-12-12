@@ -1,3 +1,12 @@
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c (exception_frame_alloc): When allocating the first
+	frame, set EXCEPTION_PAGE->EXCEPTION_STACK_BOTTOM.
+	(exception_page_cleanup): New function.
+
+	* ia32-exception-entry.S (_exception_handler_end): Correctly
+	adjust the exception page's exception stack.
+
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* mmap.c (munmap): Free the virtual addresses.

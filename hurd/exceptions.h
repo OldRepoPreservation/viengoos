@@ -104,6 +104,9 @@ extern struct exception_frame *
 
 extern void exception_handler_normal (struct exception_frame *exception_frame);
 
+/* Should be called before destroyed the exception page associated
+   with a thread.  */
+extern void exception_page_cleanup (struct exception_page *exception_page);
 
 /* The first instruction of exception handler dispatcher.  */
 extern char exception_handler_entry;
