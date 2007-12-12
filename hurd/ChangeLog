@@ -1,3 +1,22 @@
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	* mutex.h [! NDEBUG]: Include <hurd/stddef.h>.
+	(struct ss_lock_trace) [! NDEBUG]: New structure.
+	(SS_LOCK_TRACE_COUNT) [! NDEBUG]: New define.
+	(ss_lock_trace) [! NDEBUG]: New declaration.
+	(ss_lock_trace_count) [! NDEBUG]: Likewise.
+	(SS_MUTEX_LOCK) [! NDEBUG]: New macro.
+	(SS_MUTEX_LOCK_WAIT) [! NDEBUG]: Likewise.
+	(SS_MUTEX_UNLOCK) [! NDEBUG]: Likewise.
+	(SS_MUTEX_TRYLOCK) [! NDEBUG]: Likewise.
+	(SS_MUTEX_TRYLOCK_BLOCKED) [! NDEBUG]: Likewise.
+	(ss_lock_trace_dump): New function.
+	(ss_mutex_trace_add): Likewise.
+	(ss_mutex_lock): Call tracing functions.  Check for IPC failure.
+	(ss_mutex_unlock): Call tracing functions.  Use l4_send instead of
+	l4_wait.  Load an empty message.
+	(ss_mutex_trylock): Call tracing functions.
+
 2007-12-10  Neal H. Walfield  <neal@gnu.org>
 
 	* stddef.h [! DEBUG_ELIDE]: Include <l4/thread.h>.

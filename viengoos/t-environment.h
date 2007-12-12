@@ -178,6 +178,9 @@ static int opt_keep_going;
 /* True if a check failed.  */
 static int failed;
 
+#include <hurd/mutex.h>
+struct ss_lock_trace ss_lock_trace[SS_LOCK_TRACE_COUNT];
+int ss_lock_trace_count;
 
 /* Initialize the fake environment.  */
 static inline void

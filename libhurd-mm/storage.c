@@ -30,6 +30,11 @@
 #include <hurd/rm.h>
 #include <hurd/mutex.h>
 
+#ifndef NDEBUG
+struct ss_lock_trace ss_lock_trace[SS_LOCK_TRACE_COUNT];
+int ss_lock_trace_count;
+#endif
+
 #include <bit-array.h>
 
 #include <stddef.h>

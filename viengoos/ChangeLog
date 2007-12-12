@@ -1,5 +1,14 @@
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c: Include <hurd/mutex.h>.
+	(ss_lock_trace) [! NDEBUG]: New definition.
+	(ss_lock_trace_count) [! NDEBUG]: Likewise.
+	* t-environment.h: Include <hurd/mutex.h>.
+	(ss_lock_trace): New definition.
+	(ss_lock_trace_count): Likewise.
+
+2007-12-12  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (main): Ensure that the binary is mapped.
 
 2007-12-12  Neal H. Walfield  <neal@gnu.org>

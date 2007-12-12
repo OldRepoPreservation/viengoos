@@ -22,6 +22,13 @@
 #include <config.h>
 #endif
 
+#include <hurd/mutex.h>
+
+#ifndef NDEBUG
+struct ss_lock_trace ss_lock_trace[SS_LOCK_TRACE_COUNT];
+int ss_lock_trace_count;
+#endif
+
 #include <assert.h>
 #include <unistd.h>
 #include <alloca.h>
