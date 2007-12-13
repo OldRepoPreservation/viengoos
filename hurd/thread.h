@@ -182,7 +182,8 @@ RPC (thread_exregs, 4, 1,
      addr_t, thread,
      l4_word_t, control,
      struct hurd_thread_exregs_in, in,
-     struct hurd_thread_exregs_out *, out)
+     /* Out: */
+     struct hurd_thread_exregs_out, out)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

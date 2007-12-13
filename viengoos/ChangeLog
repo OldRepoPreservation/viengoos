@@ -1,3 +1,11 @@
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
+	* rm.h (cap_read): Change out arguments to the actual types and
+	not references.
+	(object_slot_read): Likewise.
+	* server.c (server_loop): Update calls to reply marshal functions
+	to pass values, not references.
+
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c (as_build_internal): If the required capability slot is not

@@ -1,5 +1,20 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* rpc.h (RPCSTOREARG): Remove type_suffix argument.  Update
+	callers.
+	(RPCSTOREARG): Make a__ a TYPE *, not a TYPE.
+	(RPCLOAD): Remove deref argument.  Update callers.
+	(RPCLOADARG): Remove deref argument, don't apply it to ARG.
+	Update callers.
+	(RPC_GRAB): Rename from this...
+	(RPC_GRAB2): ... to this.  Update callers.
+	(RPC_GRAB): New macro.
+	(RPC): Require that the formal out arguments take values not
+	references.  Change the reply marshal function arguments to take
+	values, not references.
+
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.h (exception_page_cleanup): New declaration.
 
 2007-12-12  Neal H. Walfield  <neal@gnu.org>

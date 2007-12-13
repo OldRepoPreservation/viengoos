@@ -158,7 +158,8 @@ RPC(cap_copy, 5, 0, addr_t, principal, addr_t, target, addr_t, source,
 /* Store the public bits of the capability CAP in *TYPE and
    *CAP_ADDR_TRANS.  */
 RPC(cap_read, 2, 2, addr_t, principal, addr_t, cap,
-    l4_word_t *, type, struct cap_addr_trans *, cap_addr_trans)
+    /* Out: */
+    l4_word_t, type, struct cap_addr_trans, cap_addr_trans)
 
 /* Copy the capability from slot SLOT of the object OBJECT (relative
    to the start of the object's subpage) to slot TARGET.  */
@@ -176,7 +177,8 @@ RPC(object_slot_copy_in, 6, 0, addr_t, principal,
    OBJECT in *TYPE and *CAP_ADDR.  */
 RPC(object_slot_read, 3, 2, addr_t, principal,
     addr_t, object, l4_word_t, slot,
-    l4_word_t *, type, struct cap_addr_trans *, cap_addr_trans)
+    /* Out: */
+    l4_word_t, type, struct cap_addr_trans, cap_addr_trans)
 
 /* Cause the delivery of a pending event, if any.  */
 RPC(exception_collect, 1, 0, addr_t, principal)

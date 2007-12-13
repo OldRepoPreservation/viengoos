@@ -241,12 +241,14 @@ server_loop (void)
 	    {
 	      DEBUG (1, "No capability slot at 0x%llx/%d",
 		     addr_prefix (addr), addr_depth (addr));
+	      as_dump_from (activity, &thread->aspace, "");
 	      return ENOENT;
 	    }
 	  if (! writable)
 	    {
 	      DEBUG (1, "Capability slot at 0x%llx/%d not writable",
 		     addr_prefix (addr), addr_depth (addr));
+	      as_dump_from (activity, &thread->aspace, "");
 	      return EPERM;
 	    }
 
@@ -636,26 +638,33 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    rm_thread_exregs_reply_marshal (&msg, &out);
+	    rm_thread_exregs_reply_marshal (&msg, out);
 
 	    REPLYW (0, sizeof (struct hurd_thread_exregs_out) / 4);
 	  }
 
 	case RM_activity_properties:
 	  {
-	    CHECK (4, 0);
+	    l4_word_t flags;
+	    l4_word_t priority;
+	    l4_word_t weight;
+	    l4_word_t storage_quota;
 
-	    l4_word_t flags = ARG ();
-	    l4_word_t priority = ARG ();
-	    l4_word_t weight = ARG ();
-	    l4_word_t storage_quota = ARG ();
+	    err = rm_activity_properties_send_unmarshal (&msg,
+							 &principal_addr,
+							 &flags,
+							 &priority, &weight,
+							 &storage_quota);
+	    if (err)
+	      REPLY (err);
 
 	    if (flags && principal_cap.type != cap_activity_control)
 	      REPLY (EPERM);
 
-	    l4_msg_put_word (msg, 1, principal->priority);
-	    l4_msg_put_word (msg, 2, principal->weight);
-	    l4_msg_put_word (msg, 3, principal->storage_quota);
+	    rm_activity_properties_reply_marshal (&msg,
+						  principal->priority,
+						  principal->weight,
+						  principal->storage_quota);
 
 	    if ((flags & ACTIVITY_PROPERTIES_PRIORITY_SET))
 	      principal->priority = priority;

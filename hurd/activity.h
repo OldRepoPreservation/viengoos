@@ -55,8 +55,9 @@ enum
 
 RPC (activity_properties, 5, 3, addr_t, activity, l4_word_t, flags,
      l4_word_t, priority, l4_word_t, weight, l4_word_t, storage_quota,
-     l4_word_t *, priority_old, l4_word_t *, weight_old,
-     l4_word_t *, storage_quota_old)
+     /* Out: */
+     l4_word_t, priority_old, l4_word_t, weight_old,
+     l4_word_t, storage_quota_old)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
