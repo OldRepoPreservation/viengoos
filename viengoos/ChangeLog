@@ -1,5 +1,19 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Load MSG before replying.  Use
+	l4_pagefault_reply_formulate_in rather than
+	l4_pagefault_reply_formulate.  Change method implementations to
+	use marshaling and unmarshaling functions.
+	(CHECK): Remove macro.
+	(REPLYW): Remove macro.
+	(REPLY): If ERR_ is non-zero, create an error reply in MSG.
+	Either way, finish processing RPC.
+	(ARG): Accept an argument, the word to return.
+	(ARG64): Likewise.
+	(ARG_ADDR): Likewise.
+
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h (rm_putchar): Remove function.
 	(putchar): Generate method stubs using RPC_SIMPLE.
 

@@ -46,8 +46,11 @@
 void
 server_loop (void)
 {
+  error_t err;
+
   int do_reply = 0;
   l4_thread_id_t to = l4_nilthread;
+  l4_msg_t msg;
 
   for (;;)
     {
@@ -57,14 +60,18 @@ server_loop (void)
       /* Only accept untyped items--no strings, no mappings.  */
       l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
       if (do_reply)
-	msg_tag = l4_reply_wait (to, &from);
+	{
+	  l4_msg_load (msg);
+	  msg_tag = l4_reply_wait (to, &from);
+	}
       else
 	msg_tag = l4_wait (&from);
 
       if (l4_ipc_failed (msg_tag))
-	panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
+	panic ("%s message failed: %u", 
+	       l4_error_code () & 1 ? "Receiving" : "Sending",
+	       (l4_error_code () >> 1) & 0x7);
 
-      l4_msg_t msg;
       l4_msg_store (msg_tag, msg);
       l4_word_t label;
       label = l4_label (msg_tag);
@@ -166,70 +173,28 @@ server_loop (void)
 			   page_addr);
 
 	  /* Formulate the reply message.  */
-	  l4_pagefault_reply_formulate (&map_item);
-
+	  l4_pagefault_reply_formulate_in (msg, &map_item);
 	  do_reply = 1;
 	  continue;
 	}
 
       struct activity *principal;
 
-  /* Check that the received message contains WORDS untyped words (not
-     including the principal!).  */
-#define CHECK(words, words64) \
-  ({ \
-    expected_words = (words) + ((words64) + 1) * ARG64_WORDS; \
-    if (l4_untyped_words (msg_tag) != expected_words \
-        || l4_typed_words (msg_tag) != 0) \
-      { \
-        DEBUG (1, "Invalid format for %s: expected %d words, got %d", \
-	       rm_method_id_string (label), \
-               expected_words, l4_untyped_words (msg_tag)); \
-        REPLY (EINVAL); \
-      } \
-  })
-
-  /* Reply with the error code ERR_ and set the number of untyped
-     words *in addition* to the return code to return to WORDS_.  */
-#define REPLYW(err_, words_) \
-  do \
-    { \
-      if (! (err_)) \
-        /* No error: we should have read all the arguments.  */ \
-        assert (args_read == expected_words); \
-      l4_msg_clear (msg); \
-      l4_msg_put_word (msg, 0, (err_)); \
-      l4_msg_set_untyped_words (msg, 1 + (words_)); \
-      do_reply = 1; \
-      goto out; \
-    } \
-  while (0)
-
-#define REPLY(err_) REPLYW((err_), 0)
-
-  /* Return the next word.  */
-#define ARG() \
-  ({ \
-    assert (args_read < expected_words); \
-    l4_msg_word (msg, args_read ++); \
-  })
-
-  /* Return word WORD_.  */
-#if L4_WORDSIZE == 32
-#define ARG64() \
-  ({ \
-    union { l4_uint64_t raw; struct { l4_uint32_t word[2]; }; } value_; \
-    value_.word[0] = ARG (); \
-    value_.word[1] = ARG (); \
-    value_.raw; \
-  })
-#define ARG64_WORDS 2
-#else
-#define ARG64(word_) ARG(word_)
-#define ARG64_WORDS 1
-#endif
-
-#define ARG_ADDR() ((addr_t) { ARG64() })
+  /* If ERR_ is not 0, create a message indicating an error with the
+     error code ERR_.  Go to the start of the server loop.  */
+#define REPLY(err_)						\
+      do							\
+	{							\
+	  if (err_)						\
+	    {							\
+	      l4_msg_clear (msg);				\
+	      l4_msg_put_word (msg, 0, (err_));			\
+	      l4_msg_set_untyped_words (msg, 1);		\
+	      do_reply = 1;					\
+	    }							\
+	  goto out;						\
+	}							\
+      while (0)
 
   /* Return the capability slot corresponding to address ADDR.  */
       error_t SLOT_ (addr_t addr, struct cap **capp)
@@ -322,25 +287,42 @@ server_loop (void)
      OBJECT_ret; \
   })
 
-      int args_read = 0;
-      /* We set this to WORD64_WORDS; CHECK will set it
-	 appropriately.  */
-      int expected_words = ARG64_WORDS;
-
       if (label == RM_putchar)
 	{
-	  /* We don't expect a principal.  */
-	  CHECK (1, -1);
-
-	  int chr = l4_msg_word (msg, 0);
-	  putchar (chr);
+	  int chr;
+	  err = rm_putchar_send_unmarshal (&msg, &chr);
+	  if (! err)
+	    putchar (chr);
 
 	  /* No reply needed.  */
+	  do_reply = 0;
 	  continue;
 	}
 
+      do_reply = 1;
+
+  /* Return the next word.  */
+#define ARG(word_) l4_msg_word (msg, word_);
+
+  /* Return word WORD_.  */
+#if L4_WORDSIZE == 32
+#define ARG64(word_) \
+  ({ \
+    union { l4_uint64_t raw; struct { l4_uint32_t word[2]; }; } value_; \
+    value_.word[0] = ARG (word_); \
+    value_.word[1] = ARG (word_ + 1); \
+    value_.raw; \
+  })
+#define ARG64_WORDS 2
+#else
+#define ARG64(word_) ARG(word_)
+#define ARG64_WORDS 1
+#endif
+
+#define ARG_ADDR(word_) ((addr_t) { ARG64(word_) })
+
       principal = activity;
-      addr_t principal_addr = ARG_ADDR ();
+      addr_t principal_addr = ARG_ADDR (0);
       struct cap principal_cap;
       if (! ADDR_IS_VOID (principal_addr))
 	{
@@ -360,25 +342,33 @@ server_loop (void)
 	  principal = activity;
 	}
 
-      error_t err;
+      addr_t folio_addr;
       struct folio *folio;
+      addr_t object_addr;
+      struct cap object_cap;
+      struct cap *object_slot;
       struct object *object;
       l4_word_t idx;
       l4_word_t type;
       bool r;
-      struct cap source;
       addr_t source_addr;
-      struct cap *target;
+      struct cap source;
       addr_t target_addr;
+      struct cap *target;
+      l4_word_t flags;
       struct cap_addr_trans addr_trans;
 
       DEBUG (5, "");
 
       switch (label)
 	{
-	case RM_folio_alloc:;
-	  CHECK (0, 1);
-	  struct cap *folio_slot = SLOT (ARG_ADDR ());
+	case RM_folio_alloc:
+	  err = rm_folio_alloc_send_unmarshal (&msg, &principal_addr,
+					       &folio_addr);
+	  if (err)
+	    REPLY (err);
+
+	  struct cap *folio_slot = SLOT (folio_addr);
 
 	  folio = folio_alloc (principal);
 	  if (! folio)
@@ -387,32 +377,38 @@ server_loop (void)
 	  r = cap_set (principal,
 		       folio_slot, object_to_cap ((struct object *) folio));
 	  assert (r);
-	  REPLY (0);
 
-	case RM_folio_free:;
-	  CHECK (0, 1);
+	  rm_folio_alloc_reply_marshal (&msg);
+	  break;
 
-	  folio = (struct folio *) OBJECT (ARG_ADDR (), cap_folio, true);
+	case RM_folio_free:
+	  err = rm_folio_free_send_unmarshal (&msg, &principal_addr,
+					      &folio_addr);
+	  if (err)
+	    REPLY (err);
+
+	  folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
 	  folio_free (principal, folio);
 
-	  REPLY (0);
+	  rm_folio_free_reply_marshal (&msg);
+	  break;
 
-	case RM_folio_object_alloc:;
-	  CHECK (2, 2);
+	case RM_folio_object_alloc:
+	  err = rm_folio_object_alloc_send_unmarshal (&msg, &principal_addr,
+						      &folio_addr, &idx,
+						      &type, &object_addr);
+	  if (err)
+	    REPLY (err);
 
-	  addr_t folio_addr = ARG_ADDR ();
 	  folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
 
-	  idx = ARG ();
 	  if (idx >= FOLIO_OBJECTS)
 	    REPLY (EINVAL);
 
-	  type = ARG ();
 	  if (! (CAP_TYPE_MIN <= type && type <= CAP_TYPE_MAX))
 	    REPLY (EINVAL);
 
-	  addr_t object_addr = ARG_ADDR ();
-	  struct cap *object_slot = NULL;
+	  object_slot = NULL;
 	  if (! ADDR_IS_VOID (object_addr))
 	    object_slot = SLOT (object_addr);
 
@@ -430,78 +426,87 @@ server_loop (void)
 	      assert (r);
 	    }
 
-	  REPLY (0);
+	  rm_folio_object_alloc_reply_marshal (&msg);
+	  break;
 
-	case RM_object_slot_copy_out:;
-	case RM_object_slot_copy_in:;
-	  CHECK (3, 2);
+	case RM_object_slot_copy_out:
+	  err = rm_object_slot_copy_out_send_unmarshal
+	    (&msg, &principal_addr,
+	     &source_addr, &idx, &target_addr, &flags, &addr_trans);
+	  if (err)
+	    REPLY (err);
 
-	  addr_t addr = ARG_ADDR ();
-	  source = CAP (addr, -1, false);
-	  idx = ARG ();
+	  object_cap = CAP (source_addr, -1, false);
 
-	  if (idx >= cap_type_num_slots[source.type])
+	  /* Fall through.  */
+
+	case RM_object_slot_copy_in:
+	  if (label == RM_object_slot_copy_in)
+	    {
+	      err = rm_object_slot_copy_in_send_unmarshal
+		(&msg, &principal_addr,
+		 &target_addr, &idx, &source_addr, &flags, &addr_trans);
+	      if (err)
+		REPLY (err);
+
+	      object_cap = CAP (target_addr, -1, true);
+	    }
+
+	  if (idx >= cap_type_num_slots[object_cap.type])
 	    REPLY (EINVAL);
 
-	  if (source.type == cap_cappage || source.type == cap_rcappage)
-	    /* Ensure that idx falls within the subpage.  */
+	  if (object_cap.type == cap_cappage || object_cap.type == cap_rcappage)
+	    /* Ensure that IDX falls within the subpage.  */
 	    {
-	      if (idx >= CAP_SUBPAGE_SIZE (&source))
+	      if (idx >= CAP_SUBPAGE_SIZE (&object_cap))
 		{
 		  DEBUG (1, "index (%d) >= subpage size (%d)",
-			 idx, CAP_SUBPAGE_SIZE (&source));
+			 idx, CAP_SUBPAGE_SIZE (&object_cap));
 		  REPLY (EINVAL);
 		}
 
-	      idx += CAP_SUBPAGE_OFFSET (&source);
+	      idx += CAP_SUBPAGE_OFFSET (&object_cap);
 	    }
 
-	  object = cap_to_object (principal, &source);
+	  object = cap_to_object (principal, &object_cap);
 	  if (! object)
 	    {
-	      DEBUG (1, CAP_FMT " maps to void", CAP_PRINTF (&source));
+	      DEBUG (1, CAP_FMT " maps to void", CAP_PRINTF (&object_cap));
 	      REPLY (EINVAL);
 	    }
 
 	  if (label == RM_object_slot_copy_out)
 	    {
-	      source_addr = addr;
-
 	      source = ((struct cap *) object)[idx];
-	      target_addr = ARG_ADDR ();
 	      target = SLOT (target_addr);
 	    }
 	  else
 	    {
-	      target_addr = addr;
-
-	      source_addr = ARG_ADDR ();
 	      source = CAP (source_addr, -1, false);
 	      target = &((struct cap *) object)[idx];
 	    }
 
 	  goto cap_copy_body;
 
-	case RM_cap_copy:;
-	  CHECK (2, 2);
+	case RM_cap_copy:
+	  err = rm_cap_copy_send_unmarshal (&msg, &principal_addr,
+					    &target_addr, &source_addr,
+					    &flags, &addr_trans);
+	  if (err)
+	    REPLY (err);
 
-	  target_addr = ARG_ADDR ();
 	  target = SLOT (target_addr);
-
-	  source_addr = ARG_ADDR ();
 	  source = CAP (source_addr, -1, false);
 
 	cap_copy_body:;
 
-	  l4_word_t flags = ARG ();
 	  if ((flags & ~(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			 | CAP_COPY_COPY_ADDR_TRANS_GUARD
 			 | CAP_COPY_COPY_SOURCE_GUARD)))
 	    REPLY (EINVAL);
 
-	  addr_trans.raw = ARG ();
-
-	  DEBUG (4, "(%llx/%d, %llx/%d, %s|%s, {%llx/%d %d/%d})",
+	  DEBUG (4, "(target: %llx/%d, source: %llx/%d, "
+		 "%s|%s, {%llx/%d %d/%d})",
 		 addr_prefix (target_addr), addr_depth (target_addr),
 		 addr_prefix (source_addr), addr_depth (source_addr),
 		 flags & CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
@@ -518,18 +523,33 @@ server_loop (void)
 			       target, ADDR_VOID,
 			       source, ADDR_VOID,
 			       flags, addr_trans);
-	  if (r)
-	    REPLY (0);
-	  else
+	  if (! r)
 	    REPLY (EINVAL);
 
+	  switch (label)
+	    {
+	    case RM_object_slot_copy_out:
+	      rm_object_slot_copy_out_reply_marshal (&msg);
+	      break;
+	    case RM_object_slot_copy_in:
+	      rm_object_slot_copy_in_reply_marshal (&msg);
+	      break;
+	    case RM_cap_copy:
+	      rm_cap_copy_reply_marshal (&msg);
+	      break;
+	    }
+	  break;
+
 	case RM_object_slot_read:
-	  CHECK (1, 1);
+	  err = rm_object_slot_read_send_unmarshal (&msg,
+						    &principal_addr,
+						    &source_addr, &idx);
+	  if (err)
+	    REPLY (err);
 
 	  /* We don't look up the argument directly as we need to
 	     respect any subpag specification for cappages.  */
-	  source = CAP (ARG_ADDR (), -1, false);
-	  l4_word_t idx = ARG ();
+	  source = CAP (source_addr, -1, false);
 
 	  object = cap_to_object (activity, &source);
 	  if (! object)
@@ -549,19 +569,20 @@ server_loop (void)
 
 	  source = ((struct cap *) object)[idx];
 
-	  goto cap_read_body;
+	  rm_object_slot_read_reply_marshal (&msg, source.type,
+					     source.addr_trans);
+	  break;
+
 
 	case RM_cap_read:;
-	  CHECK (0, 1);
 
-	  source = CAP (ARG_ADDR (), -1, false);
+	  err = rm_cap_read_send_unmarshal (&msg, &principal_addr,
+					    &source_addr);
 
-	cap_read_body:
+	  source = CAP (source_addr, -1, false);
 
-	  l4_msg_put_word (msg, 1, source.type);
-	  l4_msg_put_word (msg, 2, *(l4_word_t *) &source.addr_trans);
-
-	  REPLYW (0, 2);
+	  rm_cap_read_reply_marshal (&msg, source.type, source.addr_trans);
+	  break;
 
 	case RM_thread_exregs:
 	  {
@@ -573,7 +594,6 @@ server_loop (void)
 						   &control, &in);
 	    if (err)
 	      REPLY (err);
-
 
 	    struct thread *t
 	      = (struct thread *) OBJECT (target, cap_thread, true);
@@ -640,7 +660,7 @@ server_loop (void)
 
 	    rm_thread_exregs_reply_marshal (&msg, out);
 
-	    REPLYW (0, sizeof (struct hurd_thread_exregs_out) / 4);
+	    break;
 	  }
 
 	case RM_activity_properties:
@@ -673,16 +693,18 @@ server_loop (void)
 	    if ((flags & ACTIVITY_PROPERTIES_STORAGE_QUOTA_SET))
 	      principal->storage_quota = storage_quota;
 
-	    REPLYW (0, 3);
+	    break;
 	  }
 
 	case RM_exception_collect:
 	  {
 	    /* We don't expect a principal.  */
-	    CHECK (0, 0);
+	    err = rm_exception_collect_send_unmarshal (&msg, &principal_addr);
+	    if (err)
+	      REPLY (err);
 
-	    debug (4, "Collecting exception: %x.%x",
-		   l4_thread_no (from), l4_version (from));
+	    panic ("Collecting exception: %x.%x", from);
+#warning exception_collect not implemented
 
 	    /* XXX: Implement me.  */
 
@@ -706,7 +728,7 @@ server_loop (void)
 
 	    as_dump_from (principal, &t->aspace, "");
 
-	    REPLY (0);
+	    rm_as_dump_reply_marshal (&msg);
 
 	    break;
 	  }
@@ -716,9 +738,6 @@ server_loop (void)
 	  DEBUG (1, "Didn't handle message from %x.%x with label %d",
 		 l4_thread_no (from), l4_version (from), label);
 	}
-
-    out:
-      if (do_reply)
-	l4_msg_load (msg);
+    out:;
     }
 }
