@@ -1,5 +1,5 @@
 /* l4/ipc.h - Public interface to the L4 IPC primitive.
-   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -906,7 +906,10 @@ _L4_msg_put (_L4_msg_t msg, _L4_word_t label, int untyped_nr,
      __builtin_memcpy, but only for known, small, fixed sizes, so that it is
      optimized away.  We know that sizeof (_L4_word_t) == sizeof (void *).  */
   while (typed_nr--)
-    __builtin_memcpy (mrs++, any_typed++, sizeof (void *));
+    {
+      __builtin_memcpy (mrs++, any_typed, sizeof (void *));
+      any_typed += sizeof (void *);
+    }
 }
 
 
@@ -927,7 +930,10 @@ _L4_msg_get (_L4_msg_t msg, _L4_word_t *untyped, void *any_typed)
      __builtin_memcpy, but only for known, small, fixed sizes, so that it is
      optimized away.  We know that sizeof (_L4_word_t) == sizeof (void *).  */
   while (typed_nr--)
-    __builtin_memcpy (any_typed++, mrs++, sizeof (_L4_word_t));
+    {
+      __builtin_memcpy (any_typed, mrs++, sizeof (_L4_word_t));
+      any_typed += sizeof (_L4_word_t);
+    }
 }
 
 
