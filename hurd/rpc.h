@@ -335,7 +335,7 @@
     l4_msg_clear (*msg);						\
     l4_msg_set_msg_tag (*msg, tag);					\
     									\
-    RPCLOAD (, icount, ##__VA_ARGS__);					\
+    RPCLOAD (icount, ##__VA_ARGS__);					\
   }
 
 /* Unmarshal the in-arguments from the provided message buffer.  */
@@ -363,7 +363,7 @@
     RPCSTORE (icount, ##__VA_ARGS__);					\
     if (err == 0 && idx != l4_untyped_words (tag))			\
       {									\
-	debug (1, #id " has wrong number of arguments: %d, expected %d", \
+	debug (1, #id " has wrong number of arguments: %d, expected %d words", \
 	       l4_untyped_words (tag), idx);				\
 	return EINVAL;							\
       }									\
@@ -389,7 +389,7 @@
     /* No error.  */							\
     l4_msg_append_word (*msg, 0);					\
     									\
-    RPCLOAD (, ocount, ##__VA_ARGS__);					\
+    RPCLOAD (ocount, ##__VA_ARGS__);					\
   }
 
 /* Unmarshal the reply.  */
@@ -410,7 +410,7 @@
       {									\
 	if (idx != l4_untyped_words (tag))				\
 	  {								\
-	    debug (1, "Got %d words, expected %d",			\
+	    debug (1, "Got %d words, expected %d words",		\
 		   idx, l4_untyped_words (tag));			\
 	    return EINVAL;						\
 	  }								\
@@ -561,27 +561,47 @@
 #define RPC_ENSURE_ARGS(count, ...) \
   RPC_EMPTY_LIST (RPC_CHOP (count, __VA_ARGS__))
 
-/* RPC template.  ID is the method name, ARGS is the list of arguments
-   as normally passed to a function, LOADER is code to load the in
-   parameters, and STORER is code to load the out parameters.  The
-   code assumes that the first MR contains the error code and returns
-   this as the function return value.  If the IPC fails, EHOSTDOWN is
-   returned.  */
-#define RPC(id, icount, ocount, ...)					\
+#define RPC_MARSHAL_GEN_(id, icount, ocount, ...)			\
   RPC_ENSURE_ARGS(ADD (icount, ocount), ##__VA_ARGS__)			\
+									\
   RPC_SEND_MARSHAL(id, icount, ##__VA_ARGS__)				\
   RPC_SEND_UNMARSHAL(id, icount, ##__VA_ARGS__)				\
   RPC_REPLY_MARSHAL(id, ocount, RPC_CHOP (icount, ##__VA_ARGS__))	\
-  RPC_REPLY_UNMARSHAL(id, ocount, RPC_CHOP (icount, ##__VA_ARGS__))	\
-									\
+  RPC_REPLY_UNMARSHAL(id, ocount, RPC_CHOP (icount, ##__VA_ARGS__))
+
+#define RPC_SIMPLE_(postfix, id, icount, ocount, ...)			\
+  /* Send, but do not wait for a reply.  */				\
   static inline error_t							\
   __attribute__((always_inline))					\
-  RPC_STUB_PREFIX_(id) (RPC_TARGET_ARG_					\
-			RPC_GRAB (ADD(icount, ocount),			\
-				  RPC_GRAB2 (, icount, __VA_ARGS__),	\
-				  RPC_GRAB2 (*, ocount,			\
-					     RPC_CHOP (icount,		\
-						       __VA_ARGS__))))	\
+  RPC_CONCAT(RPC_STUB_PREFIX_(id), postfix)				\
+    (RPC_TARGET_ARG_ RPC_GRAB2 (, icount, __VA_ARGS__))			\
+  {									\
+    l4_msg_tag_t tag;							\
+    l4_msg_t msg;							\
+									\
+    RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal)			\
+      CPP_IFTHEN (icount,						\
+		  (&msg, RPC_ARGUMENTS(icount, __VA_ARGS__)),		\
+		  (&msg));						\
+									\
+    l4_msg_load (msg);							\
+    l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);				\
+									\
+    tag = l4_send (RPC_TARGET_);					\
+    if (l4_ipc_failed (tag))						\
+      return EHOSTDOWN;							\
+									\
+    return 0;								\
+  }
+
+#define RPC_(postfix, id, icount, ocount, ...)				\
+  static inline error_t							\
+  __attribute__((always_inline))					\
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), postfix)				\
+    (RPC_TARGET_ARG_							\
+     RPC_GRAB (ADD(icount, ocount),					\
+	       RPC_GRAB2 (, icount, __VA_ARGS__),			\
+	       RPC_GRAB2 (*, ocount, RPC_CHOP (icount, __VA_ARGS__))))	\
   {									\
     l4_msg_tag_t tag;							\
     l4_msg_t msg;							\
@@ -605,5 +625,26 @@
 					RPC_CHOP (icount, ##__VA_ARGS__))), \
 		  (&msg));						\
   }
+
+/* RPC template.  ID is the method name, ARGS is the list of arguments
+   as normally passed to a function, LOADER is code to load the in
+   parameters, and STORER is code to load the out parameters.  The
+   code assumes that the first MR contains the error code and returns
+   this as the function return value.  If the IPC fails, EHOSTDOWN is
+   returned.  */
+
+#define RPC_SIMPLE(id, icount, ocount, ...)		\
+  RPC_MARSHAL_GEN_(id, icount, ocount, ##__VA_ARGS__)	\
+  							\
+  RPC_SIMPLE_(, id, icount, ocount, ##__VA_ARGS__)	\
+  RPC_SIMPLE_(_send, id, icount, ocount, ##__VA_ARGS__)	\
+  RPC_(_call, id, icount, ocount, ##__VA_ARGS__)
+
+#define RPC(id, icount, ocount, ...)			\
+  RPC_MARSHAL_GEN_(id, icount, ocount, ##__VA_ARGS__)	\
+  							\
+  RPC_(, id, icount, ocount, ##__VA_ARGS__)		\
+  RPC_SIMPLE_(_send, id, icount, ocount, ##__VA_ARGS__)	\
+  RPC_(_call, id, icount, ocount, ##__VA_ARGS__)
 
 #endif

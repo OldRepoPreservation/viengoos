@@ -1,5 +1,16 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* rpc.h (RPC_MARSHAL_GEN_): New macro.
+	(RPC_SIMPLE_): Likewise.
+	(RPC_): Likewise.
+	(RPC_SIMPLE): Likewise.
+	(RPC): Also generate asynchronous stubs ala MIG's simple RPCs.
+
+	(RPC_SEND_MARSHAL): Correctly invoke RPCLOAD.
+	(RPC_REPLY_MARSHAL): Likewise.
+
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* rpc.h (RPCSTOREARG): Remove type_suffix argument.  Update
 	callers.
 	(RPCSTOREARG): Make a__ a TYPE *, not a TYPE.
