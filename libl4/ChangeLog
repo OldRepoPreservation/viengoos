@@ -1,5 +1,13 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* l4/pagefault.h (_L4_pagefault_reply_formulate_in): New function.
+	(_L4_pagefault_reply_formulate): Reimplement in terms of this new
+	function.
+	* l4/gnu/pagefault.h (l4_pagefault_reply_formulate_in): New
+	function.
+	
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* l4/ipc.h (_L4_msg_put): Correctly advance ANY_TYPED.
 	(_L4_msg_get): Likewise.
 

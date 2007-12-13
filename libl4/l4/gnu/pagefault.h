@@ -53,6 +53,17 @@ l4_pagefault_reply_formulate (void *item)
 }
 
 
+/* Formulate a reply message (in the thread's virtual registers) to a
+   previous pagefault request message with the provided map or grant
+   item.  */
+static inline void
+_L4_attribute_always_inline
+l4_pagefault_reply_formulate_in (l4_msg_t msg, void *item)
+{
+  _L4_pagefault_reply_formulate_in (msg, item);
+}
+
+
 /* Reply to a previous pagefault request message by thread TO with the
    provided map or grant item.  Returns 1 on success and 0 if the Ipc
    system call failed (then l4_error_code provides more information

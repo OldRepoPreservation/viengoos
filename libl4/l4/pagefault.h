@@ -64,6 +64,16 @@ _L4_pagefault (_L4_msg_tag_t tag, _L4_word_t *access, _L4_word_t *ip)
 }
 
 
+/* Formulate a reply message in MSG to a previous pagefault request
+   message with the provided map or grant item.  */
+static inline void
+_L4_attribute_always_inline
+_L4_pagefault_reply_formulate_in (_L4_msg_t msg, void *item)
+{
+  _L4_msg_put (msg, 0, 0, 0, 2, item);
+}
+
+
 /* Formulate a reply message (in the thread's virtual registers) to a
    previous pagefault request message with the provided map or grant
    item.  */
@@ -71,21 +81,9 @@ static inline void
 _L4_attribute_always_inline
 _L4_pagefault_reply_formulate (void *item)
 {
-  __L4_msg_tag_t _tag;
-  _L4_msg_tag_t tag;
-  _L4_word_t msg[2];
-
-  /* We have to use memcpy here to avoid breaking the strict aliasing
-     rules, as we don't know the type of ITEM.  */
-  __builtin_memcpy (msg, item, sizeof (msg));
-
-  _tag.raw = _L4_niltag;
-  _tag.typed = 2;
-  tag = _tag.raw;
-
-  _L4_set_msg_tag (tag);
-  _L4_load_mr (1, msg[0]);
-  _L4_load_mr (2, msg[1]);
+  _L4_msg_t msg;
+  _L4_pagefault_reply_formulate_in (msg, item);
+  _L4_msg_load (msg);
 }
 
 
