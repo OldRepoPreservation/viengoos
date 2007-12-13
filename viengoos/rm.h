@@ -100,25 +100,7 @@ rm_method_id_string (enum rm_method_id id)
 }
 
 /* Echo the character CHR on the manager console.  */
-static inline void
-__attribute__((always_inline))
-rm_putchar (int chr)
-{
-  extern struct hurd_startup_data *__hurd_startup_data;
-
-  l4_msg_tag_t tag;
-
-  l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
-
-  tag = l4_niltag;
-  l4_msg_tag_set_label (&tag, RM_putchar);
-  l4_msg_tag_set_untyped_words (&tag, 1);
-  l4_msg_tag_set_typed_words (&tag, 0);
-  l4_set_msg_tag (tag);
-  l4_load_mr (1, (l4_word_t) chr);
-  /* XXX: We should send data to the log server.  */
-  tag = l4_send (__hurd_startup_data->rm);
-}
+RPC_SIMPLE(putchar, 1, 0, int, chr)
 
 /* Allocate a folio against PRINCIPAL.  Store a capability in
    the caller's cspace in slot FOLIO.  */

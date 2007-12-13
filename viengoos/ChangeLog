@@ -1,5 +1,10 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* rm.h (rm_putchar): Remove function.
+	(putchar): Generate method stubs using RPC_SIMPLE.
+
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h (cap_read): Change out arguments to the actual types and
 	not references.
 	(object_slot_read): Likewise.
