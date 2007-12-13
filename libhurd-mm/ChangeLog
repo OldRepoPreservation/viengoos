@@ -1,5 +1,18 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.h (storage_alloc): Rename from this...
+	(storage_alloc_): ... to this.
+	(storage_free): Rename from this...
+	(storage_free_): ... to this.
+	(storage_alloc): New macro.
+	(storage_free): New macro.
+	* storage.c (storage_alloc): Rename from this...
+	(storage_alloc_): ... to this.
+	(storage_free): Rename from this...
+	(storage_free_): ... to this.
+
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.c (exception_page_cleanup): Remove debugging cruft.
 	
 2007-12-13  Neal H. Walfield  <neal@gnu.org>

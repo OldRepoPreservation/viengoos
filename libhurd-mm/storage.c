@@ -298,9 +298,9 @@ storage_shadow_setup (struct cap *cap, addr_t folio)
 }
 
 struct storage
-storage_alloc (addr_t activity,
-	       enum cap_type type, enum storage_expectancy expectancy,
-	       addr_t addr)
+storage_alloc_ (addr_t activity,
+		enum cap_type type, enum storage_expectancy expectancy,
+		addr_t addr)
 {
   atomic_read_barrier ();
   if (unlikely (free_count <= MIN_FREE_PAGES))
@@ -507,7 +507,7 @@ storage_alloc (addr_t activity,
 }
 
 void
-storage_free (addr_t object, bool unmap_now)
+storage_free_ (addr_t object, bool unmap_now)
 {
   addr_t folio = addr_chop (object, FOLIO_OBJECTS_LOG2);
 

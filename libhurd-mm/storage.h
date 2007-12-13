@@ -61,15 +61,31 @@ struct storage
    caller wants to use the allocated object for address translation,
    the caller must allocate the shadow object.  If not, functions
    including the cap_lookup family will fail.  */
-extern struct storage storage_alloc (addr_t activity,
-				     enum cap_type type,
-				     enum storage_expectancy expectancy,
-				     addr_t addr);
+extern struct storage storage_alloc_ (addr_t activity,
+				      enum cap_type type,
+				      enum storage_expectancy expectancy,
+				      addr_t addr);
+#define storage_alloc(__sa_activity, __sa_type, __sa_expectancy, __sa_addr) \
+  ({									\
+    struct storage __sa_storage;					\
+    __sa_storage = storage_alloc_ (__sa_activity, __sa_type,		\
+				   __sa_expectancy, __sa_addr);		\
+    debug (5, "storage_alloc (%s, " ADDR_FMT " -> " ADDR_FMT,		\
+	   cap_type_string (__sa_type), ADDR_PRINTF (__sa_addr),	\
+	   ADDR_PRINTF (__sa_storage.addr));				\
+    __sa_storage;							\
+  })
+
 
 /* Frees the storage at STORAGE.  STORAGE must be the address returned
    by storage_alloc (NOT the address provided to storage_alloc).  If
    UNMAP_NOW is not true, revoking the storage may be delayed.  */
-extern void storage_free (addr_t storage, bool unmap_now);
+extern void storage_free_ (addr_t storage, bool unmap_now);
+#define storage_free(__sf_storage, __sf_unmap_now)			\
+  ({									\
+    debug (5, "storage_free (" ADDR_FMT ")", ADDR_PRINTF (__sf_storage)); \
+    storage_free_ (__sf_storage, __sf_unmap_now);			\
+  })
 
 /* Initialize the storage sub-system.  */
 extern void storage_init (void);
