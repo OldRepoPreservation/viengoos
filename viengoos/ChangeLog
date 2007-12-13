@@ -1,5 +1,17 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* rm.h (folio_object_alloc): Take additional parameter, a slot to
+	store a weak capability.
+	(CAP_COPY_WEAKEN): Define.
+	* server.c (server_loop): Update implementation of
+	folio_object_alloc to accept the additional parameter.  If not
+	ADDR_VOID, store a weak capability to the created object in the
+	specified slot.  If the CAP_COPY_WEAKEN flag is specified in a
+	object_slot_copy_out, object_slot_copy_in or cap_copy invocation,
+	copy a weakened capability to the target slot.
+
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Load MSG before replying.  Use
 	l4_pagefault_reply_formulate_in rather than
 	l4_pagefault_reply_formulate.  Change method implementations to

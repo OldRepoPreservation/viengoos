@@ -271,7 +271,7 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
 				       storage->folio, idx, cap_page,
-				       ADDR_VOID);
+				       ADDR_VOID, ADDR_VOID);
   assert (err == 0);
   struct object *shadow;
   shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
@@ -467,7 +467,7 @@ storage_alloc_ (addr_t activity,
     assert (! as_init_done);
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
-				       folio, idx, type, addr);
+				       folio, idx, type, addr, ADDR_VOID);
   assert (! err);
 
   /* We drop DESC->LOCK.  */
@@ -599,7 +599,8 @@ storage_free_ (addr_t object, bool unmap_now)
   bit_dealloc (storage->alloced, idx);
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
-				       folio, idx, cap_void, ADDR_VOID);
+				       folio, idx, cap_void,
+				       ADDR_VOID, ADDR_VOID);
   assert (err == 0);
 
   if (likely (!! shadow))

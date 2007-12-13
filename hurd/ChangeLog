@@ -1,5 +1,12 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h (cap_type_weak_p): New function.
+	(cap_type_weaken): Likewise.
+	(cap_copy_x): If CAP_COPY_WEAKEN is set in FLAGS, weaken the
+	capability stored in TARGET.
+
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* rpc.h (RPC_MARSHAL_GEN_): New macro.
 	(RPC_SIMPLE_): Likewise.
 	(RPC_): Likewise.

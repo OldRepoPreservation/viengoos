@@ -168,6 +168,46 @@ cap_types_compatible (enum cap_type a, enum cap_type b)
   return false;
 }
 
+/* Returns weather TYPE corresponds to a weak type.  */
+static inline bool
+cap_type_weak_p (enum cap_type type)
+{
+  switch (type)
+    {
+    case cap_rpage:
+    case cap_rcappage:
+    case cap_activity:
+      return true;
+
+    default:
+      return false;
+    }
+}
+
+/* Returns the weakened type corresponding to TYPE.  If type is
+   already a weak type, returns TYPE.  */
+static inline enum cap_type
+cap_type_weaken (enum cap_type type)
+{
+  switch (type)
+    {
+    case cap_page:
+    case cap_rpage:
+      return cap_rpage;
+
+    case cap_cappage:
+    case cap_rcappage:
+      return cap_rcappage;
+
+    case cap_activity_control:
+    case cap_activity:
+      return cap_activity;
+
+    default:
+      return cap_void;
+    }
+}
+
 static inline const char *
 cap_type_string (enum cap_type type)
 {
@@ -398,6 +438,9 @@ cap_copy_x (activity_t activity,
 
   *target = source;
   target->addr_trans = cap_addr_trans;
+
+  if ((flags & CAP_COPY_WEAKEN))
+    target->type = cap_type_weaken (target->type);
 
   return true;
 }

@@ -132,7 +132,8 @@ main (int argc, char *argv[])
 	if (ADDR_IS_VOID (addr))
 	  panic ("capalloc");
 
-	err = rm_folio_object_alloc (activity, folio, i, cap_page, addr);
+	err = rm_folio_object_alloc (activity, folio, i, cap_page,
+				     addr, ADDR_VOID);
 	assert ((err == 0) == (0 <= i && i < FOLIO_OBJECTS));
 
 	if (0 <= i && i < FOLIO_OBJECTS)
@@ -417,7 +418,8 @@ main (int argc, char *argv[])
 	  /* Allocate a new activity.  */
 	  a[i].child = capalloc ();
 	  err = rm_folio_object_alloc (activity, folio, obj ++,
-				       cap_activity_control, a[i].child);
+				       cap_activity_control,
+				       a[i].child, ADDR_VOID);
 	  assert (err == 0);
 
 	  /* Allocate a folio against the activity and use it.  */
@@ -427,7 +429,7 @@ main (int argc, char *argv[])
 
 	  a[i].page = capalloc ();
 	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 0, cap_page,
-				       a[i].page);
+				       a[i].page, ADDR_VOID);
 	  assert (err == 0);
 
 	  l4_word_t type;
@@ -457,7 +459,7 @@ main (int argc, char *argv[])
 	     use the object.  If this fails, we assume that the folio was
 	     destroyed.  */
 	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 1, cap_page,
-				       a[i].page);
+				       a[i].page, ADDR_VOID);
 	  assert (err);
 
 	  capfree (a[i].page);
@@ -530,6 +532,7 @@ main (int argc, char *argv[])
 				    STORAGE_MEDIUM_LIVED,
 				    addr).addr;
     assert (! ADDR_IS_VOID (storage));
+
 
     debug (1, "Writing before dealloc...");
     int *buffer = ADDR_TO_PTR (addr_extend (addr, 0, PAGESIZE_LOG2));

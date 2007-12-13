@@ -1,5 +1,11 @@
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (storage_alloc_): Update to folio_object_alloc's
+	interface change.
+	(storage_free_): Likewise.
+
+2007-12-13  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.h (storage_alloc): Rename from this...
 	(storage_alloc_): ... to this.
 	(storage_free): Rename from this...

@@ -350,6 +350,8 @@ server_loop (void)
       struct object *object;
       l4_word_t idx;
       l4_word_t type;
+      addr_t object_weak_addr;
+      struct cap *object_weak_slot;
       bool r;
       addr_t source_addr;
       struct cap source;
@@ -396,7 +398,8 @@ server_loop (void)
 	case RM_folio_object_alloc:
 	  err = rm_folio_object_alloc_send_unmarshal (&msg, &principal_addr,
 						      &folio_addr, &idx,
-						      &type, &object_addr);
+						      &type, &object_addr,
+						      &object_weak_addr);
 	  if (err)
 	    REPLY (err);
 
@@ -412,6 +415,10 @@ server_loop (void)
 	  if (! ADDR_IS_VOID (object_addr))
 	    object_slot = SLOT (object_addr);
 
+	  object_weak_slot = NULL;
+	  if (! ADDR_IS_VOID (object_weak_addr))
+	    object_weak_slot = SLOT (object_weak_addr);
+
 	  DEBUG (4, "(folio: %llx/%d, idx: %d, type: %s, target: %llx/%d)",
 		 addr_prefix (folio_addr), addr_depth (folio_addr),
 		 idx, cap_type_string (type),
@@ -420,10 +427,21 @@ server_loop (void)
 	  folio_object_alloc (principal, folio, idx, type,
 			      type == cap_void ? NULL : &object);
 
-	  if (type != cap_void && object_slot)
+	  if (type != cap_void)
 	    {
-	      r = cap_set (principal, object_slot, object_to_cap (object));
-	      assert (r);
+	      if (object_slot)
+		{
+		  r = cap_set (principal, object_slot, object_to_cap (object));
+		  assert (r);
+		}
+	      if (object_weak_slot)
+		{
+		  r = cap_set (principal, object_weak_slot,
+			       object_to_cap (object));
+		  assert (r);
+		  object_weak_slot->type
+		    = cap_type_weaken (object_weak_slot->type);
+		}
 	    }
 
 	  rm_folio_object_alloc_reply_marshal (&msg);
@@ -502,11 +520,12 @@ server_loop (void)
 
 	  if ((flags & ~(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			 | CAP_COPY_COPY_ADDR_TRANS_GUARD
-			 | CAP_COPY_COPY_SOURCE_GUARD)))
+			 | CAP_COPY_COPY_SOURCE_GUARD
+			 | CAP_COPY_WEAKEN)))
 	    REPLY (EINVAL);
 
 	  DEBUG (4, "(target: %llx/%d, source: %llx/%d, "
-		 "%s|%s, {%llx/%d %d/%d})",
+		 "%s|%s, %s, {%llx/%d %d/%d})",
 		 addr_prefix (target_addr), addr_depth (target_addr),
 		 addr_prefix (source_addr), addr_depth (source_addr),
 		 flags & CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
@@ -514,6 +533,7 @@ server_loop (void)
 		    : "preserve"),
 		 flags & CAP_COPY_COPY_ADDR_TRANS_SUBPAGE ? "copy"
 		 : "preserve",
+		 flags & CAP_COPY_WEAKEN ? "weaken" : "no weaken",
 		 CAP_ADDR_TRANS_GUARD (addr_trans),
 		 CAP_ADDR_TRANS_GUARD_BITS (addr_trans),
 		 CAP_ADDR_TRANS_SUBPAGE (addr_trans),
@@ -574,8 +594,7 @@ server_loop (void)
 	  break;
 
 
-	case RM_cap_read:;
-
+	case RM_cap_read:
 	  err = rm_cap_read_send_unmarshal (&msg, &principal_addr,
 					    &source_addr);
 

@@ -111,9 +111,12 @@ RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
 
 /* Allocate INDEXth object in folio FOLIO as an object of type TYPE.
    PRINCIPAL is charged.  If OBJECT_SLOT is not ADDR_VOID, then stores
-   a capability to the allocated object in OBJECT_SLOT.  */
-RPC(folio_object_alloc, 5, 0, addr_t, principal,
-    addr_t, folio, l4_word_t, index, l4_word_t, type, addr_t, object_slot)
+   a capability to the allocated object in OBJECT_SLOT.  If
+   OBJECT_WEAK_SLOT is not ADDR_VOID, stores a weaken reference to the
+   created object.  */
+RPC(folio_object_alloc, 6, 0, addr_t, principal,
+    addr_t, folio, l4_word_t, index, l4_word_t, type,
+    addr_t, object_slot, addr_t, object_weak_slot)
 
 enum
 {
@@ -124,6 +127,9 @@ enum
   CAP_COPY_COPY_ADDR_TRANS_GUARD = 1 << 1,
   /* Use guard in SOURCE.  */
   CAP_COPY_COPY_SOURCE_GUARD = 1 << 2,
+
+  /* When copying the capability copies a weakened reference.  */
+  CAP_COPY_WEAKEN = 1 << 3,
 };
 
 /* Copy capability SOURCE to the capability slot TARGET.
