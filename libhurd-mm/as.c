@@ -343,12 +343,13 @@ allocate_object (enum cap_type type, addr_t addr)
 	  storage_free (storage.addr, false);
 	  return rt;
 	}
-      cap_set_shadow (&rt.cap, ADDR_TO_PTR (addr_extend (shadow.addr,
-							 0, PAGESIZE_LOG2)));
+      cap_set_shadow (storage.cap,
+		      ADDR_TO_PTR (addr_extend (shadow.addr,
+						0, PAGESIZE_LOG2)));
     }
 
   rt.storage = storage.addr;
-  rt.cap.type = type;
+  rt.cap = *storage.cap;
 
   return rt;
 }
