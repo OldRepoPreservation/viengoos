@@ -40,10 +40,10 @@
 extern addr_t as_alloc (int width, l4_uint64_t count,
 			bool data_mappable);
 
-/* Like as_alloc but may be called before as_init is called.  If
-   MAY_ALLOC is false, may be called before storage_init is done.  */
-extern addr_t as_alloc_slow (int width, bool data_mappable,
-			     bool may_alloc);
+/* Like as_alloc but may be called before as_init is called.  Address
+   is returned in the descriptor's object field.  The caller must fill
+   in the rest.  */
+extern struct hurd_object_desc *as_alloc_slow (int width);
 
 /* Allocate the COUNT contiguous addresses strating at address ADDR.
    Returns true on success, false otherwise.  */
@@ -61,9 +61,6 @@ extern bool as_init_done;
 
 /* Initialize the address space manager.  */
 extern void as_init (void);
-
-/* Allocate an area covering of width WIDTH.  */
-extern addr_t as_alloc_slow (int width, bool data_mappable, bool may_alloc);
 
 /* Print the allocated areas.  */
 extern void as_alloced_dump (const char *prefix);

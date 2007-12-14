@@ -70,7 +70,7 @@ extern struct storage storage_alloc_ (addr_t activity,
     struct storage __sa_storage;					\
     __sa_storage = storage_alloc_ (__sa_activity, __sa_type,		\
 				   __sa_expectancy, __sa_addr);		\
-    debug (5, "storage_alloc (%s, " ADDR_FMT " -> " ADDR_FMT,		\
+    debug (0, "storage_alloc (%s, " ADDR_FMT ") -> " ADDR_FMT,		\
 	   cap_type_string (__sa_type), ADDR_PRINTF (__sa_addr),	\
 	   ADDR_PRINTF (__sa_storage.addr));				\
     __sa_storage;							\

@@ -270,37 +270,7 @@ system_task_load (void)
       return rt;
     }
 
-  /* When allocating objects, we allocate them above 4GB.  */
-  l4_uint64_t next_free_page = 1ULL << 32;
-  addr_t capability_cappage = ADDR_VOID;
-  struct object *capability_cappage_object;
-  int capability_cappage_count;
-
-  /* Allocate a capability location.  */
-  addr_t csalloc (void)
-    {
-      if (ADDR_IS_VOID (capability_cappage)
-	  || capability_cappage_count == CAPPAGE_SLOTS)
-	{
-	  capability_cappage = ADDR (next_free_page,
-				     ADDR_BITS - PAGESIZE_LOG2);
-	  next_free_page += PAGESIZE;
-
-	  capability_cappage_count = 0;
-
-	  struct cap cap
-	    = allocate_object (cap_cappage, capability_cappage).cap;
-	  struct object *object = cap_to_object (root_activity, &cap);
-	  if (boot_strapped)
-	    as_insert (root_activity, &thread->aspace, capability_cappage,
-		       object_to_cap (object), ADDR_VOID, allocate_object);
-	  else
-	    capability_cappage_object = object;
-	}
-
-      return addr_extend (capability_cappage, capability_cappage_count ++,
-			  CAPPAGE_SLOTS_LOG2);
-    }
+  struct as_insert_rt rt;
 
   /* XXX: Boostrap problem.  To allocate a folio we need to assign it
      to a principle, however, the representation of a principle
@@ -316,45 +286,22 @@ system_task_load (void)
 
      A way around this problem would be the approach that EROS takes:
      start with a hand-created system image.  */
-  startup_data->activity = csalloc ();
-  struct cap cap = allocate_object (cap_activity_control,
-				    startup_data->activity).cap;
-  root_activity = (struct activity *) cap_to_object (root_activity, &cap);
+  rt = allocate_object (cap_activity_control, startup_data->activity);
+  startup_data->activity = rt.storage;
+  root_activity = (struct activity *) cap_to_object (root_activity, &rt.cap);
   folio_parent (root_activity, folio);
 
-  startup_data->thread = csalloc ();
-  cap = allocate_object (cap_thread, startup_data->thread).cap;
-  thread = (struct thread *) cap_to_object (root_activity, &cap);
+  rt = allocate_object (cap_thread, startup_data->thread);
+  startup_data->thread = rt.storage;
+  thread = (struct thread *) cap_to_object (root_activity, &rt.cap);
   thread->activity = object_to_cap ((struct object *) root_activity);
 
   /* Insert the objects we've allocated so far into TASK's address
      space.  */
   boot_strapped = true;
 
-  as_insert (root_activity, &thread->aspace, capability_cappage,
-	     object_to_cap (capability_cappage_object), ADDR_VOID,
-	     allocate_object);
   as_insert (root_activity, &thread->aspace, folio_addr,
 	     object_to_cap ((struct object *) folio), ADDR_VOID,
-	     allocate_object);
-
-  /* We insert the thread and activity under two difference names: one
-     reference for the hurd object descriptor and one for
-     STARTUP_DATA->NAME. */
-  as_insert (root_activity, &thread->aspace, startup_data->activity,
-	     object_to_cap ((struct object *) root_activity), ADDR_VOID,
-	     allocate_object);
-  startup_data->activity = csalloc ();
-  as_insert (root_activity, &thread->aspace, startup_data->activity,
-	     object_to_cap ((struct object *) root_activity), ADDR_VOID,
-	     allocate_object);
-
-  as_insert (root_activity, &thread->aspace, startup_data->thread,
-	     object_to_cap ((struct object *) thread), ADDR_VOID,
-	     allocate_object);
-  startup_data->thread = csalloc ();
-  as_insert (root_activity, &thread->aspace, startup_data->thread,
-	     object_to_cap ((struct object *) thread), ADDR_VOID,
 	     allocate_object);
 
   /* Allocate the startup data object and copy the data from the
@@ -362,7 +309,7 @@ system_task_load (void)
 #define STARTUP_DATA_ADDR 0x1000
   addr_t startup_data_addr = ADDR (STARTUP_DATA_ADDR,
 				   ADDR_BITS - PAGESIZE_LOG2);
-  cap = allocate_object (cap_page, startup_data_addr).cap;
+  struct cap cap = allocate_object (cap_page, startup_data_addr).cap;
   struct object *startup_data_page = cap_to_object (root_activity, &cap);
   as_insert (root_activity, &thread->aspace, startup_data_addr,
 	     object_to_cap (startup_data_page), ADDR_VOID, allocate_object);

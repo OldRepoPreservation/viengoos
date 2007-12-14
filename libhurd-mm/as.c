@@ -169,7 +169,9 @@ free_space_split (struct free_space *f, l4_uint64_t start, l4_uint64_t end)
 addr_t
 as_alloc (int width, l4_uint64_t count, bool data_mappable)
 {
+  assert (as_init_done);
   assert (count);
+
   int shift = l4_lsb64 (count) - 1;
   int w = width + shift;
   count >>= shift;
@@ -219,6 +221,9 @@ as_alloc (int width, l4_uint64_t count, bool data_mappable)
     }
 
   ss_mutex_unlock (&free_spaces_lock);
+
+  if (ADDR_IS_VOID (addr))
+    debug (0, "No space for object of size 0x%x", 1 << (width - 1));
 
   return addr;
 }
@@ -357,6 +362,8 @@ allocate_object (enum cap_type type, addr_t addr)
 struct cap *
 as_slot_ensure (addr_t addr)
 {
+  assert (as_init_done);
+
   /* The implementation is provided by viengoos.  */
   extern struct cap * as_slot_ensure_full (activity_t activity,
 					   struct cap *root, addr_t a,
@@ -377,113 +384,91 @@ static struct hurd_object_desc __attribute__((aligned(PAGESIZE)))
 static int desc_additional_count;
 
 /* Find an appropriate slot for an object.  */
-addr_t
-as_alloc_slow (int width, bool data_mappable, bool may_alloc)
+struct hurd_object_desc *
+as_alloc_slow (int width)
 {
-  if (as_init_done)
-    {
-      addr_t addr = as_alloc (width, 1, true);
-      as_slot_ensure (addr);
-      return addr;
-    }
+  assert (! as_init_done);
+
+  addr_t slot = ADDR_VOID;
+
+  int find_free_slot (addr_t addr,
+		      l4_word_t type, struct cap_addr_trans addr_trans,
+		      bool writable,
+		      void *cookie)
+  {
+    if (type == cap_folio)
+      /* We avoid allocating out of folios.  */
+      return -1;
+
+    assert (type == cap_void);
+
+    if (ADDR_BITS - addr_depth (addr) < width)
+      return -1;
+
+    if (! writable)
+      return 0;
+
+    l4_uint64_t start = addr_prefix (addr);
+    l4_uint64_t end = start + (1 << width) - 1;
+
+    if (end >= DATA_ADDR_MAX)
+      return 0;
+
+    if (! (end < (uintptr_t) l4_kip ()
+	   || (uintptr_t) l4_kip () + l4_kip_area_size () <= start))
+      /* Overlaps the KIP.  */
+      return 0;
+
+    if (! (end < (uintptr_t) _L4_utcb ()
+	   || ((uintptr_t) _L4_utcb () + l4_utcb_size () <= start)))
+      /* Overlaps the UTCB.  */
+      return 0;
+
+    /* Be sure we haven't already given this addrss out.  */
+    int i;
+    for (i = 0; i < desc_additional_count; i ++)
+      {
+	struct hurd_object_desc *desc = &desc_additional[i];
+	if (ADDR_EQ (addr, addr_chop (desc->object,
+				      CAP_ADDR_TRANS_GUARD_BITS (addr_trans))))
+	  return 0;
+      }
+
+    slot = addr;
+    return 1;
+  }
 
   error_t err;
 
-  static addr_t cappage;
-  static int index;
+  if (! as_walk (find_free_slot, 1 << cap_void | 1 << cap_folio,
+		 (void *) &slot))
+    panic ("Failed to find a free slot!");
+  assert (! ADDR_IS_VOID (slot));
 
-  addr_t alloc_area (l4_word_t width)
-    {
-      addr_t slot;
+  debug (3, "Using slot %llx/%d", addr_prefix (slot), addr_depth (slot));
 
-      int find_free_slot (addr_t cap,
-			  l4_word_t type, struct cap_addr_trans cap_addr_trans,
-			  bool writable,
-			  void *cookie)
-	{
-	  if (! writable)
-	    return 0;
+  /* Set the guard on the slot.  */
+  int gbits = ADDR_BITS - addr_depth (slot) - width;
+  assert (gbits >= 0);
 
-	  if (ADDR_BITS - addr_depth (cap) < width)
-	    /* Not enough depth to map a cappage and then a page.  */
-	    return 0;
+  struct cap_addr_trans cap_addr_trans = CAP_ADDR_TRANS_VOID;
+  CAP_ADDR_TRANS_SET_GUARD (&cap_addr_trans, 0, gbits);
+  err = rm_cap_copy (meta_data_activity, slot, slot,
+		     CAP_COPY_COPY_ADDR_TRANS_GUARD, cap_addr_trans);
+  if (err)
+    panic ("failed to copy capability: %d", err);
 
-	  l4_uint64_t start = addr_prefix (cap);
-	  l4_uint64_t end = start + (1 << width) - 1;
+  slot = addr_extend (slot, 0, gbits);
 
-	  if (data_mappable && end >= DATA_ADDR_MAX)
-	    return 0;
+  /* Fill in a descriptor.  */
+  assertx ((((l4_word_t) &desc_additional[0]) & (PAGESIZE - 1)) == 0,
+	   "%p", &desc_additional[0]);
+  struct hurd_object_desc *desc = &desc_additional[desc_additional_count ++];
+  if (desc_additional_count > DESC_ADDITIONAL)
+    panic ("Out of object descriptors!");
+  desc->object = slot;
 
-	  if (! (end < (uintptr_t) l4_kip ()
-		 || (uintptr_t) l4_kip () + l4_kip_area_size () <= start))
-	    /* Overlaps the KIP.  */
-	    return 0;
-
-	  if (! (end < (uintptr_t) _L4_utcb ()
-		 || ((uintptr_t) _L4_utcb () + l4_utcb_size () <= start)))
-	    /* Overlaps the UTCB.  */
-	    return 0;
-
-	  addr_t *addrp = cookie;
-	  *addrp = cap;
-	  return 1;
-	}
-
-      if (! as_walk (find_free_slot, 1 << cap_void, (void *) &slot))
-	panic ("Failed to find a free slot!");
-
-      debug (3, "Using slot %llx/%d", addr_prefix (slot), addr_depth (slot));
-
-      /* Set the guard on the slot.  */
-      int gbits = ADDR_BITS - addr_depth (slot) - width;
-      assert (gbits >= 0);
-
-      struct cap_addr_trans cap_addr_trans = CAP_ADDR_TRANS_VOID;
-      CAP_ADDR_TRANS_SET_GUARD (&cap_addr_trans, 0, gbits);
-      err = rm_cap_copy (meta_data_activity, slot, slot,
-			 CAP_COPY_COPY_ADDR_TRANS_GUARD, cap_addr_trans);
-      if (err)
-	panic ("failed to copy capability: %d", err);
-
-      return addr_extend (slot, 0, gbits);
-    }
-
-  if (! data_mappable && width < PAGESIZE_LOG2)
-    width = PAGESIZE_LOG2;
-
-  if (width == PAGESIZE_LOG2)
-    {
-      if ((ADDR_IS_VOID (cappage) || index == CAPPAGE_SLOTS) && may_alloc)
-	/* Need a new area.  */
-	{
-	  cappage = alloc_area (CAPPAGE_SLOTS_LOG2 + PAGESIZE_LOG2);
-	  struct storage storage
-	    = storage_alloc (meta_data_activity, cap_cappage,
-			     STORAGE_LONG_LIVED, cappage);
-
-	  if (ADDR_IS_VOID (storage.addr))
-	    cappage = ADDR_VOID;
-	  else
-	    {
-	      /* Reset the index.  */
-	      index = 0;
-
-	      /* Fill in a descriptor.  */
-	      struct hurd_object_desc *desc
-		= &desc_additional[desc_additional_count ++];
-	      if (desc_additional_count == DESC_ADDITIONAL)
-		panic ("Out of object descriptors!");
-	      desc->object = cappage;
-	      desc->storage = storage.addr;
-	      desc->type = cap_cappage;
-	    }
-	}
-
-      if (! ADDR_IS_VOID (cappage))
-	return addr_extend (cappage, index ++, CAPPAGE_SLOTS_LOG2);
-    }
-
-  return alloc_area (width);
+  return desc;
 }
 
 struct cap shadow_root;
@@ -508,42 +493,53 @@ as_init (void)
   /* Then, we create the shadow page tables and mark the allocation
      regions appropriately.  */
 
-  void add (struct hurd_object_desc *desc)
+  void add (struct hurd_object_desc *desc, addr_t addr)
     {
       error_t err;
       int i;
       struct object *shadow;
 
       debug (5, "Adding object %llx/%d",
-	     addr_prefix (desc->object), addr_depth (desc->object));
+	     addr_prefix (addr), addr_depth (addr));
 
       /* We know that the slot that contains the capability that
 	 designates this object is already shadowed as we shadow depth
 	 first.  */
       struct cap *cap = slot_lookup_rel (meta_data_activity,
-					 &shadow_root, desc->object,
+					 &shadow_root, addr,
 					 desc->type, NULL);
       assert (cap->type == desc->type);
+
+      int slots_log2;
 
       switch (desc->type)
 	{
 	case cap_page:
 	case cap_rpage:
-	  as_alloc_at (desc->object, 1);
+	  as_alloc_at (addr, 1);
+	  return;
+
+	case cap_void:
+	  assert (! "void descriptor?");
+	  return;
+
+	default:
+	  /* This object's address was already reserved when its
+	     parent cap page was added.  */
 	  return;
 
 	case cap_cappage:
 	case cap_rcappage:;
 	  /* We shadow the content of cappages.  */
 
-	  if (ADDR_BITS - addr_depth (desc->object)
+	  if (ADDR_BITS - addr_depth (addr)
 	      < CAP_SUBPAGE_SIZE_LOG2 (cap))
 	    /* The cappage is unusable for addressing.  */
 	    return;
 	  else
 	    /* We release the addresses used by ADDR and will fill it
 	       in appropriately.  */
-	    as_free (desc->object, 1);
+	    as_free (addr, 1);
 
 	  struct storage shadow_storage
 	    = storage_alloc (meta_data_activity,
@@ -554,81 +550,58 @@ as_init (void)
 					     0, PAGESIZE_LOG2));
 	  cap_set_shadow (cap, shadow);
 
-	  /* We expect at least one non-void capability per
-	     cappage.  */
-	  bool have_one = false;
+	  slots_log2 = CAP_SUBPAGE_SIZE_LOG2 (cap);
 
-	  /* XXX: Would be nice have syscall bundling here.  */
-	  for (i = 0; i < CAP_SUBPAGE_SIZE (cap); i ++)
+	  break;
+
+	case cap_folio:
+	  if (ADDR_BITS - addr_depth (addr) < FOLIO_OBJECTS_LOG2)
+	    /* The folio is unusable for addressing.  */
+	    return;
+ 
+	  storage_shadow_setup (cap, addr);
+	  shadow = cap_get_shadow (cap);
+
+	  slots_log2 = FOLIO_OBJECTS_LOG2;
+
+	  break;
+	}
+
+      /* We expect at least one non-void capability per
+	 cappage.  */
+      bool have_one = false;
+
+      /* XXX: Would be nice have syscall bundling here.  */
+      for (i = 0; i < (1 << slots_log2); i ++)
+	{
+	  struct cap *slot = &shadow->caps[i];
+
+	  addr_t slot_addr = addr_extend (addr, i, slots_log2);
+	  l4_word_t type;
+	  err = rm_cap_read (meta_data_activity, slot_addr,
+			     &type, &slot->addr_trans);
+	  if (err)
+	    panic ("Error reading cap %d: %d", i, err);
+	  slot->type = type;
+
+	  if (type != cap_void)
+	    /* Mark the slot as free--unless we are in a folio.  */
 	    {
-	      struct cap *slot = &shadow->caps[i];
+	      have_one = true;
 
-	      addr_t slot_addr = addr_extend (desc->object,
-					      i, CAP_SUBPAGE_SIZE_LOG2 (cap));
-	      l4_word_t type;
-	      err = rm_cap_read (meta_data_activity, slot_addr,
-				 &type, &slot->addr_trans);
-	      if (err)
-		panic ("Error reading cap %d: %d", i, err);
-	      slot->type = type;
-
-	      if (type != cap_void)
+	      if (desc->type != cap_folio
+		  && (addr_depth (slot_addr) + CAP_GUARD_BITS (slot)
+		      <= ADDR_BITS))
 		{
-		  have_one = true;
-
 		  addr_t object = addr_extend (slot_addr, CAP_GUARD (slot),
 					       CAP_GUARD_BITS (slot));
 		  as_alloc_at (object, 1);
 		}
 	    }
-
-	  assert (have_one);
-
-	  return;
-
-	case cap_folio:
-	  if (ADDR_BITS - addr_depth (desc->object) < FOLIO_OBJECTS_LOG2)
-	    /* The folio is unusable for addressing.  */
-	    return;
- 
-	  storage_shadow_setup (cap, desc->object);
-	  shadow = cap_get_shadow (cap);
-
-	  for (i = 0; i < FOLIO_OBJECTS_LOG2; i ++)
-	    {
-	      l4_word_t type;
-	      struct cap_addr_trans addr_trans;
-	      err = rm_cap_read (meta_data_activity,
-				 addr_extend (desc->object,
-					      i, FOLIO_OBJECTS_LOG2),
-				 &type, &addr_trans);
-	      if (err)
-		panic ("Error reading cap %d: %d", i, err);
-
-	      /* This is an object in a folio: it can't have a guard
-		 or anything other than a single subpage.  */
-	      assert (CAP_ADDR_TRANS_GUARD_BITS (addr_trans) == 0);
-	      assert (CAP_ADDR_TRANS_SUBPAGES (addr_trans) == 1);
-
-	      shadow->caps[i].type = type;
-	      shadow->caps[i].addr_trans = CAP_ADDR_TRANS_VOID;
-
-	      /* We do not mark folio objects as free: the address
-		 allocator should not allocate addresses out of
-		 them.  */
-	    }
-
-	  return;
-
-	case cap_void:
-	  assert (! "void descriptor?");
-	  return;
-
-	default:;
-	  /* This object's address was already reserved when its
-	     parent cap page was added.  */
-	  return;
 	}
+
+      assert (have_one);
+      return;
     }
 
   /* Shadow the root capability.  */
@@ -659,7 +632,10 @@ as_init (void)
   for (i = 0, desc = &__hurd_startup_data->descs[0];
        i < __hurd_startup_data->desc_count;
        i ++, desc ++)
-    depths |= 1ULL << addr_depth (desc->object);
+    {
+      depths |= 1ULL << addr_depth (desc->object);
+      depths |= 1ULL << addr_depth (desc->storage);
+    }
 
   while (depths)
     {
@@ -669,14 +645,25 @@ as_init (void)
       for (i = 0, desc = &__hurd_startup_data->descs[0];
 	   i < __hurd_startup_data->desc_count;
 	   i ++, desc ++)
-	if (addr_depth (desc->object) == depth)
-	  add (desc);
+	{
+	  if (addr_depth (desc->object) == depth)
+	    add (desc, desc->object);
+	  if (! ADDR_EQ (desc->object, desc->storage)
+	      && addr_depth (desc->storage) == depth)
+	    add (desc, desc->storage);
+	}
     }
 
   /* Now we add any additional descriptors that describe memory that
      we have allocated in the mean time.  */
   for (i = 0; i < desc_additional_count; i ++)
-    add (&desc_additional[i]);
+    {
+      desc = &desc_additional[i];
+
+      if (! ADDR_EQ (desc->object, desc->storage))
+	add (desc, desc->storage);
+      add (desc, desc->object);
+    }
 
   /* Reserve the kip and the utcb.  */
   as_alloc_at (ADDR ((uintptr_t) l4_kip (), ADDR_BITS), l4_kip_area_size ());
@@ -707,7 +694,8 @@ as_init (void)
     {
       struct cap *cap = slot_lookup_rel (meta_data_activity,
 					 &shadow_root, addr, -1, NULL);
-      assert (cap);
+      assertx (cap, "addr: " ADDR_FMT "; type: %s",
+	       ADDR_PRINTF (addr), cap_type_string (type));
 
       assert (cap->type == type);
       assert (cap->addr_trans.raw == addr_trans.raw);
@@ -760,53 +748,209 @@ slot_lookup (activity_t activity,
   return slot_lookup_rel (activity, &shadow_root, address, type, writable);
 }
 
-/* Walk the address space, depth first.  VISIT is called for each slot
-   for which (1 << reported capability type) & TYPES is non-zero.
-   TYPE is the reported type of the capability and CAP_ADDR_TRANS the
-   value of its address translation fields.  WRITABLE is whether the
-   slot is writable.  If VISIT returns a non-zero value, the walk is
+/* Walk the address space, depth first.  VISIT is called for each
+   *slot* for which (1 << reported capability type) & TYPES is
+   non-zero.  TYPE is the reported type of the capability and
+   CAP_ADDR_TRANS the value of its address translation fields.
+   WRITABLE is whether the slot is writable.  If VISIT returns -1, the
+   current sub-tree is exited.  For other non-zero values, the walk is
    aborted and that value is returned.  If the walk is not aborted, 0
    is returned.  */
 int
-as_walk (int (*visit) (addr_t cap,
+as_walk (int (*visit) (addr_t addr,
 		       l4_word_t type, struct cap_addr_trans cap_addr_trans,
 		       bool writable,
 		       void *cookie),
 	 int types,
 	 void *cookie)
 {
+  if (! as_init_done)
+    /* We are running on a tiny stack.  Avoid a recursive
+       function.  */
+    {
+      /* We keep track of the child that we should visit at a
+	 particular depth.  If child[0] is 2, that means traverse the
+	 root's object's child #2.  */
+      unsigned short child[1 + ADDR_BITS];
+      assert (CAPPAGE_SLOTS_LOG2 < sizeof (child[0]) * 8);
+
+      /* Depth is the current level that we are visiting.  If depth is
+	 1, we are visiting the root object's children.  */
+      int depth = 0;
+      child[0] = 0;
+
+      error_t err;
+      struct cap_addr_trans addr_trans;
+      l4_word_t type;
+
+    restart:
+      assert (depth >= 0);
+
+      int slots_log2;
+
+      addr_t addr = ADDR (0, 0);
+
+      bool writable = true;
+      int d;
+      for (d = 0; d < depth; d ++)
+	{
+	  err = rm_cap_read (meta_data_activity,
+			     addr, &type, &addr_trans);
+	  assert (err == 0);
+
+	  addr = addr_extend (addr, CAP_ADDR_TRANS_GUARD (addr_trans),
+			      CAP_ADDR_TRANS_GUARD_BITS (addr_trans));
+
+	  switch (type)
+	    {
+	    case cap_rcappage:
+	      writable = false;
+	      /* Fall through.  */
+	    case cap_cappage:
+	      slots_log2 = CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (addr_trans);
+	      break;
+	    case cap_folio:
+	      slots_log2 = FOLIO_OBJECTS_LOG2;
+	      break;
+	    default:
+	      assert (0 == 1);
+	      break;
+	    }
+
+	  assert (child[d] <= (1 << slots_log2));
+
+	  if (child[d] == (1 << slots_log2))
+	    /* Processed a cappage or a folio.  Proceed to the next one.  */
+	    {
+	      assert (d == depth - 1);
+
+	      /* Pop.  */
+	      depth --;
+
+	      if (depth == 0)
+		/* We have processed all of the root's children.  */
+		return 0;
+
+	      /* Next node.  */
+	      child[depth - 1] ++;
+
+	      goto restart;
+	    }
+
+	  addr = addr_extend (addr, child[d], slots_log2);
+	  err = rm_cap_read (meta_data_activity,
+			     addr, &type, &addr_trans);
+	  assert (err == 0);
+	}
+
+      for (;;)
+	{
+	  err = rm_cap_read (meta_data_activity,
+			     addr, &type, &addr_trans);
+	  if (err)
+	    /* Dangling pointer.  */
+	    {
+	      /* Pop.  */
+	      depth --;
+	      /* Next node.  */
+	      child[depth - 1] ++;
+
+	      goto restart;
+	    }
+
+	  do_debug (5)
+	    {
+	      printf ("Considering " ADDR_FMT "(%s): ",
+		      ADDR_PRINTF (addr), cap_type_string (type));
+	      int i;
+	      for (i = 0; i < depth; i ++)
+		printf ("%s%d", i == 0 ? "" : " -> ", child[i]);
+	      printf (", depth: %d\n", depth);
+	    }
+
+	  if (((1 << type) & types))
+	    {
+	      int r = visit (addr, type, addr_trans, writable, cookie);
+	      if (r == -1)
+		{
+		  /* Pop.  */
+		  depth --;
+
+		  if (depth == 0)
+		    /* We have processed all of the root's children.  */
+		    return 0;
+
+		  /* Next node.  */
+		  child[depth - 1] ++;
+
+		  goto restart;
+		}
+	      if (r)
+		return r;
+	    }
+
+	  if (addr_depth (addr) + CAP_ADDR_TRANS_GUARD_BITS (addr_trans)
+	      > ADDR_BITS)
+	    {
+	      child[depth - 1] ++;
+	      goto restart;
+	    }
+
+	  addr = addr_extend (addr, CAP_ADDR_TRANS_GUARD (addr_trans),
+			      CAP_ADDR_TRANS_GUARD_BITS (addr_trans));
+
+	  switch (type)
+	    {
+	    case cap_rcappage:
+	    case cap_cappage:
+	      slots_log2 = CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (addr_trans);
+	      break;
+	    case cap_folio:
+	      slots_log2 = FOLIO_OBJECTS_LOG2;
+	      break;
+	    default:
+	      if (depth == 0)
+		/* Root is not a cappage or folio.  */
+		return 0;
+
+	      child[depth - 1] ++;
+	      goto restart;
+	    }
+
+	  if (addr_depth (addr) + slots_log2 > ADDR_BITS)
+	    {
+	      child[depth - 1] ++;
+	      goto restart;
+	    }
+
+	  /* Visit the first child.  */
+	  addr = addr_extend (addr, 0, slots_log2);
+	  child[depth] = 0;
+	  depth ++;
+	}
+    }
+  
+  /* We have the shadow page tables and presumably a normal stack.  */
   int do_walk (struct cap *cap, addr_t addr, bool writable)
     {
       l4_word_t type;
       struct cap_addr_trans cap_addr_trans;
 
-      if (as_init_done)
-	{
-	  type = cap->type;
-	  cap_addr_trans = cap->addr_trans;
-	}
-      else
-	{
-	  error_t err = rm_cap_read (meta_data_activity,
-				     addr, &type, &cap_addr_trans);
-	  if (err)
-	    panic ("Failed to cap_read 0x%llx/%d",
-		   addr_prefix (addr), addr_depth (addr));
-	}
+      type = cap->type;
+      cap_addr_trans = cap->addr_trans;
+
+      debug (5, ADDR_FMT " (%s)", ADDR_PRINTF (addr), cap_type_string (type));
 
       int r;
       if (((1 << type) & types))
 	{
 	  r = visit (addr, type, cap_addr_trans, writable, cookie);
+	  if (r == -1)
+	    /* Don't go deeper.  */
+	    return 0;
 	  if (r)
 	    return r;
 	}
-
-      if (type != cap_cappage && type != cap_cappage)
-	return 0;
-
-      if (type == cap_rcappage)
-	writable = false;
 
       if (addr_depth (addr) + CAP_ADDR_TRANS_GUARD_BITS (cap_addr_trans)
 	  > ADDR_BITS)
@@ -815,8 +959,25 @@ as_walk (int (*visit) (addr_t cap,
       addr = addr_extend (addr, CAP_ADDR_TRANS_GUARD (cap_addr_trans),
 			  CAP_ADDR_TRANS_GUARD_BITS (cap_addr_trans));
 
-      if (addr_depth (addr) + CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (cap_addr_trans)
-	  > ADDR_BITS)
+      int slots_log2 = 0;
+      switch (type)
+	{
+	case cap_cappage:
+	case cap_rcappage:
+	  if (type == cap_rcappage)
+	    writable = false;
+
+	  slots_log2 = CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (cap_addr_trans);
+	  break;
+
+	case cap_folio:
+	  slots_log2 = FOLIO_OBJECTS_LOG2;
+	  break;
+	default:
+	  return 0;
+	}
+
+      if (addr_depth (addr) + slots_log2 > ADDR_BITS)
 	return 0;
 
       struct object *shadow = NULL;
@@ -824,17 +985,13 @@ as_walk (int (*visit) (addr_t cap,
 	shadow = cap_to_object (meta_data_activity, cap);
 
       int i;
-      for (i = 0; i < CAP_ADDR_TRANS_SUBPAGE_SIZE (cap_addr_trans); i ++)
+      for (i = 0; i < (1 << slots_log2); i ++)
 	{
 	  struct cap *object = NULL;
 	  if (as_init_done)
 	    object = &shadow->caps[i];
 
-	  r = do_walk (object,
-		       addr_extend (addr, i,
-				    CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2
-				    (cap_addr_trans)),
-		       writable);
+	  r = do_walk (object, addr_extend (addr, i, slots_log2), writable);
 	  if (r)
 	    return r;
 	}

@@ -1,3 +1,8 @@
+2007-12-14  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Only check the objects contained immediately
+	within a folio for shadow objects.
+
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update users of folio_object_alloc to interface

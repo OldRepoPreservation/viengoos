@@ -1,5 +1,31 @@
 2007-12-14  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (shadow_setup): Support the case where the folio is
+	full.
+	(storage_alloc_): If AS_INIT_DONE is false, use as_alloc_slow to
+	allocate an address.  Only call shadow_setup if CAP is not NULL.
+	* as.h (as_alloc_slow): Remove parameter data_mappable and
+	parameter may_alloc.  Return a struct hurd_object_desc *, not an
+	addr_t.
+	* as.c (as_alloc): Assert that AS_INIT_DONE is true.  Improve
+	debugging output.
+	(as_slot_ensure): Assert that AS_INIT_DONE is true.
+	(as_alloc_slow): Remove parameter data_mappable and parameter
+	may_alloc.  Return a struct hurd_object_desc *, not an addr_t.
+	Don't special case page-sized objects, always find a void
+	capability.  Don't return an address twice.  Don't use
+	capability slots in folios.
+	(as_init:add): Take additional argument, addr.  Use this rather
+	than DESC->OBJECT.  Generalize code for iterating over folios and
+	cappages.  Correctly walk folios.
+	(as_init): Call add on both a descriptor object and its storage.
+	(as_walk): Rewrite such that if AS_INIT_DONE is not true, we
+	don't use a recursive function.  If the callback function returns -1,
+	then don't descend.
+	(as_walk:do_walk): Also walk folios.
+
+2007-12-14  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (allocate_object): Correctly save and return the shadow
 	object.
 

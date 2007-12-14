@@ -1,3 +1,10 @@
+2007-12-14  Neal H. Walfield  <neal@gnu.org>
+
+	* viengoos.c (system_task_load:csalloc): Remove function.
+	(system_task_load): Don't allocate additional capability slots for
+	the objects we allocate, just use the address of the storage
+	object.
+
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
 	* rm.h (folio_object_alloc): Take additional parameter, a slot to

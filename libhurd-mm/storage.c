@@ -259,24 +259,38 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
      storage descriptor, which is still unreachable from any other
      thread.  */
 
-  int idx = bit_alloc (storage->alloced, sizeof (storage->alloced), 0);
-  if (idx == -1)
-    panic ("Folio full!  No space for a shadow object.");
+  struct object *shadow;
 
-  storage->free --;
-  atomic_decrement (&free_count);
+  int idx = bit_alloc (storage->alloced, sizeof (storage->alloced), 0);
+  if (likely (idx != -1))
+    {
+      storage->free --;
+      atomic_decrement (&free_count);
+
+      error_t err = rm_folio_object_alloc (meta_data_activity,
+					   storage->folio, idx, cap_page,
+					   ADDR_VOID, ADDR_VOID);
+      assert (err == 0);
+      shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
+						      idx, FOLIO_OBJECTS_LOG2),
+					 0, PAGESIZE_LOG2));
+    }
+  else
+    /* This only happens during startup.  Otherwise, we always
+       allocate a shadow page before we use the storage.  */
+    {
+      assert (! as_init_done);
+
+      struct storage storage = storage_alloc (meta_data_activity, cap_page,
+					      STORAGE_LONG_LIVED, ADDR_VOID);
+      if (ADDR_IS_VOID (storage.addr))
+	panic ("Out of storage.");
+      shadow = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+    }
 
   storage->cap = cap;
   cap->type = cap_folio;
 
-  error_t err = rm_folio_object_alloc (meta_data_activity,
-				       storage->folio, idx, cap_page,
-				       ADDR_VOID, ADDR_VOID);
-  assert (err == 0);
-  struct object *shadow;
-  shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
-						  idx, FOLIO_OBJECTS_LOG2),
-				     0, PAGESIZE_LOG2));
   cap_set_shadow (cap, shadow);
 
   shadow->caps[idx].type = cap_page;
@@ -307,7 +321,7 @@ storage_alloc_ (addr_t activity,
     /* Insufficient storage reserve.  Allocate a new storage area.  */
     {
     do_allocate:
-      debug (3, "Allocate additional folio, free count: %d", free_count);
+      debug (3, "Allocating additional folio, free count: %d", free_count);
 
       /* Although we have not yet allocated the objects, allocating
 	 support structures for the folio may require memory causing
@@ -319,13 +333,28 @@ storage_alloc_ (addr_t activity,
 	 tables to make a slot available.  Moreover, each of those
 	 page tables requires not only a cappage but also a shadow
 	 page table.  */
-      addr_t addr = as_alloc (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2,
-			      1, true);
-      if (ADDR_IS_VOID (addr))
-	panic ("Failed to allocate address space!");
+      addr_t addr;
+      struct cap *cap = NULL;
+      if (likely (as_init_done))
+	{
+	  addr = as_alloc (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2, 1, true);
+	  if (ADDR_IS_VOID (addr))
+	    panic ("Failed to allocate address space!");
 
-      struct cap *cap = as_slot_ensure (addr);
-      assert (cap);
+	  cap = as_slot_ensure (addr);
+	  assert (cap);
+	}
+      else
+	{
+	  struct hurd_object_desc *desc;
+	  desc = as_alloc_slow (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2);
+	  if (! desc || ADDR_IS_VOID (desc->object))
+	    panic ("Failed to allocate address space!");
+
+	  addr = desc->object;
+	  desc->storage = addr;
+	  desc->type = cap_folio;
+	}
 
       /* And then the folio.  */
       error_t err = rm_folio_alloc (activity, addr);
@@ -338,8 +367,10 @@ storage_alloc_ (addr_t activity,
       s->folio = addr;
       memset (&s->alloced, 0, sizeof (s->alloced));
       s->free = FOLIO_OBJECTS;
+      s->cap = cap;
 
-      shadow_setup (cap, s);
+      if (cap)
+	shadow_setup (cap, s);
 
       /* S is setup.  Make it available.  */
       ss_mutex_lock (&storage_descs_lock);

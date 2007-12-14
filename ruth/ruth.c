@@ -95,6 +95,8 @@ main (int argc, char *argv[])
   {
     printf ("Checking shadow page tables... ");
 
+    int processing_folio = -1;
+
     int visit (addr_t addr,
 	       l4_word_t type, struct cap_addr_trans cap_addr_trans,
 	       bool writable,
@@ -105,9 +107,23 @@ main (int argc, char *argv[])
 	assert (slot);
 	assert (type == slot->type);
 	if (type == cap_cappage || type == cap_rcappage || type == cap_folio)
-	  assert (slot->shadow);
+	  assertx (slot->shadow,
+		   ADDR_FMT ", %s",
+		   ADDR_PRINTF (addr), cap_type_string (type));
 	else
 	  assert (! slot->shadow);
+
+	if (type == cap_folio)
+	  {
+	    processing_folio = FOLIO_OBJECTS;
+	    return 0;
+	  }
+
+	if (processing_folio >= 0)
+	  {
+	    processing_folio --;
+	    return -1;
+	  }
 
 	return 0;
       }
