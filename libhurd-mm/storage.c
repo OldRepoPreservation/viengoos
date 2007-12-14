@@ -725,8 +725,10 @@ storage_init (void)
 
 	  sdesc->free --;
 	  free_count --;
-	}
 
+	  if (sdesc->free == 0)
+	    unlink (sdesc);
+	}
     }
 
   ss_mutex_unlock (&storage_descs_lock);
