@@ -1,5 +1,10 @@
 2007-12-14  Neal H. Walfield  <neal@gnu.org>
 
+	* mmap.c (munmap): Rewrite to avoid race.
+	* pager.h (struct pager): Add field, next.
+
+2007-12-14  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (as_walk): Cache the root capability.
 
 2007-12-14  Neal H. Walfield  <neal@gnu.org>

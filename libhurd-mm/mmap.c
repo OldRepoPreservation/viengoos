@@ -98,42 +98,97 @@ munmap (void *addr, size_t length)
   region.start = PTR_TO_ADDR (addr);
   region.count = length;
 
-  /* We need to keep calling hurd_btree_pager_find rather than
-     iterating as the destroy function may call munmap.  */
-  for (;;)
+  debug (5, "(%p, %x (%p))", addr, length, addr + length - 1);
+
+  /* There is a race. We can't hold PAGERS_LOCK when we call
+     PAGER->DESTROY.  In particular, the destroy function may also
+     want to unmap some memory.  We can't grab one, drop the lock,
+     destroy and repeat until all the pagers in the region are gone:
+     another call to mmap could reuse a region we unmaped.  Then
+     we'd unmap that new region.
+
+     To make unmap atomic, we grab the lock, disconnect all pagers in
+     the region, adding each to a list, and then destroy each pager on
+     that list.  */
+  struct pager *list = NULL;
+
+  ss_mutex_lock (&pagers_lock);
+
+  struct pager *pager = hurd_btree_pager_find (&pagers, &region);
+  if (! pager)
     {
-      ss_mutex_lock (&pagers_lock);
+      ss_mutex_unlock (&pagers_lock);
+      return 0;
+    }
 
-      struct pager *pager = hurd_btree_pager_find (&pagers, &region);
-      if (! pager)
-	{
-	  ss_mutex_unlock (&pagers_lock);
-	  break;
-	}
+  struct pager *prev = hurd_btree_pager_prev (pager);
 
-      ss_mutex_lock (&pager->lock);
+  while (pager)
+    {
+      struct pager *next = hurd_btree_pager_next (pager);
 
-      struct pager_region region = pager->region;
       l4_uint64_t pager_start = addr_prefix (pager->region.start);
       l4_uint64_t pager_end = pager_start
 	+ (pager->region.count
 	   << (ADDR_BITS - addr_depth (pager->region.start))) - 1;
 
-      debug (0, "Pager %llx-%llx between %x-%x",
-	     pager_start, pager_end, start, end);
+      if (pager_start > end)
+	break;
 
-      if (pager_start < start)
-	panic ("Attempt to partially unmap pager");
-      if (end < pager_end)
-	panic ("Attempt to partially unmap pager");
+      if (pager_start < start || pager_end > end)
+	panic ("Attempt to partially unmap pager unsupported");
 
       pager_deinstall (pager);
-      
-      ss_mutex_unlock (&pagers_lock);
+      pager->next = list;
+      list = pager;
+
+      pager = next;
+    }
+
+  pager = prev;
+  while (pager)
+    {
+      struct pager *prev = hurd_btree_pager_next (pager);
+
+      l4_uint64_t pager_start = addr_prefix (pager->region.start);
+      l4_uint64_t pager_end = pager_start
+	+ (pager->region.count
+	   << (ADDR_BITS - addr_depth (pager->region.start))) - 1;
+
+      if (pager_end < start)
+	break;
+
+      if (pager_start < start)
+	panic ("Attempt to partially unmap pager unsupported");
+
+      pager_deinstall (pager);
+      pager->next = list;
+      list = pager;
+
+      pager = prev;
+    }
+
+  ss_mutex_unlock (&pagers_lock);
+
+  pager = list;
+  while (pager)
+    {
+      struct pager *next = pager->next;
+
+      struct pager_region region = pager->region;
+
+      l4_uint64_t pager_start = addr_prefix (pager->region.start);
+      l4_uint64_t pager_end = pager_start
+	+ (pager->region.count
+	   << (ADDR_BITS - addr_depth (pager->region.start))) - 1;
+      debug (5, "Detroying pager covering %llx-%llx",
+	     pager_start, pager_end);
 
       pager->destroy (pager);
 
       as_free (region.start, region.count);
+
+      pager = next;
     }
 
   return 0;

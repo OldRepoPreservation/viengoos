@@ -63,7 +63,11 @@ enum
 
 struct pager
 {
-  hurd_btree_node_t node;
+  union
+  {
+    hurd_btree_node_t node;
+    struct pager *next;
+  };
 
   /* The virtual addresses this pager covers.  If this changes (e.g.,
      if it grows or shrinks), then must be changed using the
