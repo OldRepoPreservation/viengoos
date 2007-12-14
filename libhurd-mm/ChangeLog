@@ -1,5 +1,9 @@
 2007-12-14  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (as_walk): Cache the root capability.
+
+2007-12-14  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (storage_init): If a storage descriptor is full,
 	unlink it.
 

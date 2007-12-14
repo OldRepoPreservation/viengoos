@@ -783,6 +783,15 @@ as_walk (int (*visit) (addr_t addr,
       struct cap_addr_trans addr_trans;
       l4_word_t type;
 
+      /* Just caching the root capability cuts the number of RPCs by
+	 about 25%.  */
+      struct cap_addr_trans root_addr_trans;
+      l4_word_t root_type;
+
+      err = rm_cap_read (meta_data_activity,
+			 ADDR (0, 0), &root_type, &root_addr_trans);
+      assert (err == 0);
+
     restart:
       assert (depth >= 0);
 
@@ -794,9 +803,17 @@ as_walk (int (*visit) (addr_t addr,
       int d;
       for (d = 0; d < depth; d ++)
 	{
-	  err = rm_cap_read (meta_data_activity,
-			     addr, &type, &addr_trans);
-	  assert (err == 0);
+	  if (d == 0)
+	    {
+	      type = root_type;
+	      addr_trans = root_addr_trans;
+	    }
+	  else
+	    {
+	      err = rm_cap_read (meta_data_activity,
+				 addr, &type, &addr_trans);
+	      assert (err == 0);
+	    }
 
 	  addr = addr_extend (addr, CAP_ADDR_TRANS_GUARD (addr_trans),
 			      CAP_ADDR_TRANS_GUARD_BITS (addr_trans));
