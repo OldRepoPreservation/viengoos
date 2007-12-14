@@ -1,5 +1,10 @@
 2007-12-14  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (shadow_setup): If we allocate the last frame, unlink
+	the folio.
+
+2007-12-14  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (shadow_setup): Support the case where the folio is
 	full.
 	(storage_alloc_): If AS_INIT_DONE is false, use as_alloc_slow to

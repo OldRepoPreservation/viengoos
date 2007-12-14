@@ -274,6 +274,23 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
       shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
 						      idx, FOLIO_OBJECTS_LOG2),
 					 0, PAGESIZE_LOG2));
+
+      if (storage->free == 0)
+	/* This can happen when starting up.  */
+	{
+	  assert (! as_init_done);
+
+	  ss_mutex_lock (&storage_descs_lock);
+	  ss_mutex_lock (&storage->lock);
+
+	  /* STORAGE->FREE may be zero if someone came along and deallocated
+	     a page between our dropping and retaking the lock.  */
+	  if (storage->free == 0)
+	    unlink (storage);
+
+	  ss_mutex_unlock (&storage->lock);
+	  ss_mutex_unlock (&storage_descs_lock);
+	}
     }
   else
     /* This only happens during startup.  Otherwise, we always
@@ -452,11 +469,9 @@ storage_alloc_ (addr_t activity,
      DESC->LOCK is held.  */
 
   int idx = bit_alloc (desc->alloced, sizeof (desc->alloced), 0);
-  if (idx == -1)
-    {
-      debug (1, "No free bits: desc->free: %d", desc->free);
-    }
-  assert (idx != -1);
+  assertx (idx != -1,
+	   "Folio (" ADDR_FMT ") full (free: %d) but on a list!",
+	   ADDR_PRINTF (desc->folio), desc->free);
 
   addr_t folio = desc->folio;
   addr_t object = addr_extend (folio, idx, FOLIO_OBJECTS_LOG2);
