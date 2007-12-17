@@ -148,9 +148,7 @@ typedef const struct node_t *const_node;
    which is a subset of the latter.  */
 typedef BTREE_(node_t) *node;
 
-#undef DEBUGGING
-#define DEBUGGING
-#ifdef DEBUGGING
+#ifndef NDEBUG
 
 /* Routines to check tree invariants.  */
 
@@ -240,6 +238,12 @@ BTREE_(check_tree_internal) (node root, BTREE_(key_compare_t) compare,
 #else
 
 #define CHECK_TREE(a)
+
+static void
+BTREE_(check_tree_internal) (node root, BTREE_(key_compare_t) compare,
+			     size_t key_offset, bool check_colors)
+{
+}
 
 #endif
 

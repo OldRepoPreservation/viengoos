@@ -240,9 +240,15 @@ BTREE_(tree_init) (BTREE_(t) *btree)
 
    Internal function.  Perform a consistent check on the tree rooted
    at ROOT.  */
+#ifndef NDEBUG
 extern void BTREE_(check_tree_internal) (BTREE_(node_t) *root,
 					 BTREE_(key_compare_t) compare,
 					 size_t key_offset, bool check_colors);
+#define BTREE_check_tree_internal_(r, c, k, cc) \
+  BTREE_(check_tree_internal) (r, c, k, cc)
+#else
+#define BTREE_check_tree_internal_(r, c, k, c) do { } while (0)
+#endif
 
 /* This is a private function do not call it from user code!
 
@@ -432,8 +438,8 @@ BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
        balancing later on.  */
     BTREE_NODE_RED_SET (newnode, false);
 
-  BTREE_(check_tree_internal) (BTREE_NP_CHILD (btree->root),
-			       compare, key_offset, true);
+  BTREE_check_tree_internal_ (BTREE_NP_CHILD (btree->root),
+			      compare, key_offset, true);
 
   return 0;
 }
@@ -637,11 +643,11 @@ BTREE_(name##_detach) (BTREE_(name##_t) *btree, node_type *node)	\
   BTREE_(detach) (&btree->btree, &node->btree_node_field);		\
 									\
   int (*cmp) (const key_type *, const key_type *) = (cmp_function);	\
-  BTREE_(check_tree_internal) (BTREE_NP_CHILD (btree->btree.root),	\
-			       (BTREE_(key_compare_t)) cmp,		\
-			       offsetof (node_type, key_field)		\
-			       - offsetof (node_type, btree_node_field), \
-			       true);					\
+  BTREE_check_tree_internal_ (BTREE_NP_CHILD (btree->btree.root),	\
+			      (BTREE_(key_compare_t)) cmp,		\
+			      offsetof (node_type, key_field)		\
+			      - offsetof (node_type, btree_node_field), \
+			      true);					\
 }									\
 									\
 static inline node_type *						\

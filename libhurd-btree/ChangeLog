@@ -1,5 +1,12 @@
 2007-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* btree.c (DEBUGGING): Don't define.  Use !NDEBUG instead.
+	(BTREE_(check_tree_internal) [NDEBUG]): Define.
+	* btree.h (BTREE_check_tree_internal_): Define.  Update users to
+	use it instead of BTREE_(check_tree_internal).
+
+2007-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* btree.h (struct BTREE_(node_ptr)): New structure.
 	(struct BTREE_(node_pptr)): Likewise.
 	(struct BTREE_(node)): Make parent a struct BTREE_(node_pptr).
