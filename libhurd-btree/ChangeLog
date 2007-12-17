@@ -1,3 +1,13 @@
+2007-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (AM_CPPFLAGS): Add -D_GNU_SOURCE.
+	(TESTS): New variable.
+	(check_PROGRAMS): Likewise.
+	(btree_test_SOURCES): Likewise.
+	(btree_test_LDADD): Likewise.
+	* btree-test.c (program_name): New variable.
+	(print_nodes): Update to insert API change.
+
 2007-11-14  Neal H. Walfield  <neal@gnu.org>
 
 	* btree.h: Include <stddef.h>.

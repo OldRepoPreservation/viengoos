@@ -6,6 +6,8 @@
 
 #include "btree.h"
 
+const char program_name[] = "btree-test";
+
 // #define DEBUG
 #ifdef DEBUG
 #define debug(fmt, ...) printf (fmt, ##__VA_ARGS__)
@@ -32,8 +34,9 @@ int_node_compare (const int *a, const int *b)
 void
 print_node (struct int_node *a)
 {
-  printf ("%d%s(%d)", a->key, a->node.red ? "r" : "b",
-	  a->node.parent ? ((struct int_node *)a->node.parent)->key : -1);
+  printf ("%d%s(%d)", a->key, BTREE_NODE_RED_P (&a->node) ? "r" : "b",
+	  BTREE_NP (a->node.parent)
+	  ? ((struct int_node *) BTREE_NP (a->node.parent))->key : -1);
 }
 
 void
@@ -45,14 +48,15 @@ print_nodes (struct int_node *a, int depth)
     {
       printf ("{%d ", depth);
       if (depth > 0)
-	print_nodes ((struct int_node *) a->node.left, depth - 1);
+	print_nodes ((struct int_node *) BTREE_NP_CHILD (a->node.left),
+		     depth - 1);
       else
 	printf (".");
       printf ("<");
       print_node (a);
       printf (">");
       if (depth > 0)
-	print_nodes ((struct int_node *) hurd_btree_link_internal (a->node.right),
+	print_nodes ((struct int_node *) BTREE_NP_CHILD (a->node.right),
 		     depth - 1);
       else
 	printf (".");
@@ -67,9 +71,9 @@ print_nodes (struct int_node *a, int depth)
 int
 main (int argc, char *argv[])
 {
-  error_t err;
   hurd_btree_int_node_t root;
   struct int_node *node, *b;
+  struct int_node *ret;
   int i, j, k, m;
   int a[] = { 16, 18, 17, 1, 15, 12, 8, 9, 10, 3, 4, 11, 21, 20, 19,
 	      6, 5, 14, 13, 24, 23, 22, 7, 2 };
@@ -89,7 +93,7 @@ main (int argc, char *argv[])
 	  node->key = a[i];
 	  debug ("Inserting %d... ", a[i]);
 	  fflush (stdout);
-	  err = hurd_btree_int_node_insert (&root, node);
+	  ret = hurd_btree_int_node_insert (&root, node);
 
 	  fflush (stdout);
 	  node = hurd_btree_int_node_find (&root, &a[i]);
@@ -158,10 +162,10 @@ main (int argc, char *argv[])
       node->key = i;
       debug ("Inserting %d... ", i);
       fflush (stdout);
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (! err);
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (err);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (! ret);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (ret);
       debug ("done\n");
 
       node = hurd_btree_int_node_first (&root);
@@ -222,10 +226,10 @@ main (int argc, char *argv[])
       node->key = i;
       debug ("Inserting %d... ", i);
       fflush (stdout);
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (! err);
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (err);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (! ret);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (ret);
       debug ("done\n");
 
       node = hurd_btree_int_node_first (&root);
@@ -325,10 +329,10 @@ main (int argc, char *argv[])
       node->key = i;
       debug ("Inserting %d... ", i);
       fflush (stdout);
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (! err);
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (err);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (! ret);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (ret);
       debug ("done\n");
 
       node = hurd_btree_int_node_first (&root);
@@ -352,10 +356,10 @@ main (int argc, char *argv[])
       node->key = i;
       debug ("Inserting %d... ", i);
       fflush (stdout);
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (! err);
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (err);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (! ret);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (ret);
       debug ("done\n");
 
       node = hurd_btree_int_node_first (&root);
@@ -401,16 +405,16 @@ main (int argc, char *argv[])
       assert (node);
 
       node->key = i;
-      err = hurd_btree_int_node_insert (&root, node);
+      ret = hurd_btree_int_node_insert (&root, node);
 
       /* Even are present, odd are not.  */
       if ((i & 1) == (A & 1))
-	assert (err);
+	assert (ret);
       else
-	assert (! err);
+	assert (! ret);
 
-      err = hurd_btree_int_node_insert (&root, node);
-      assert (err);
+      ret = hurd_btree_int_node_insert (&root, node);
+      assert (ret);
       debug ("\n");
     }
 
