@@ -149,7 +149,7 @@ typedef const struct node_t *const_node;
 typedef BTREE_(node_t) *node;
 
 #undef DEBUGGING
-// #define DEBUGGING
+#define DEBUGGING
 #ifdef DEBUGGING
 
 /* Routines to check tree invariants.  */
@@ -160,47 +160,80 @@ typedef BTREE_(node_t) *node;
 
 static void
 check_tree_recurse (node p, BTREE_(key_compare_t) compare, size_t key_offset,
-		    int d_sofar, int d_total)
+		    int d_sofar, int d_total, bool check_colors)
 {
   if (p == NULL)
     {
-      assert (d_sofar == d_total);
+      if (check_colors)
+	assert (d_sofar == d_total);
       return;
     }
 
-  check_tree_recurse (p->left, compare, key_offset,
-		      d_sofar + (p->left && !p->left->red), d_total);
-  check_tree_recurse (BTREE_(link_internal) (p->right), compare, key_offset, 
-		      d_sofar + (BTREE_(link_internal) (p->right)
-				 && !p->right->red), d_total);
-  if (p->left)
+  check_tree_recurse (BTREE_NP_CHILD (p->left), compare, key_offset,
+		      d_sofar
+		      + (BTREE_NP_CHILD (p->left)
+			 && !BTREE_NODE_RED_P (BTREE_NP_CHILD (p->left))),
+		      d_total, check_colors);
+  check_tree_recurse (BTREE_NP_CHILD (p->right), compare, key_offset, 
+		      d_sofar
+		      + (BTREE_NP_CHILD (p->right)
+			 && !BTREE_NODE_RED_P (BTREE_NP_CHILD (p->right))),
+		      d_total, check_colors);
+  if (BTREE_NP_CHILD (p->left))
     {
-      assert (!(p->left->red && p->red));
-      assert (p->left->parent == p);
-      assert (compare ((void *) p->left + key_offset,
-		       (void *) p + key_offset) < 0);
+      assert (!(BTREE_NODE_RED_P (BTREE_NP_CHILD (p->left))
+		&& BTREE_NODE_RED_P (p)));
+      assert (BTREE_NP (BTREE_NP_CHILD (p->left)->parent) == p);
+      if (compare)
+	assert (compare ((void *) BTREE_NP_CHILD (p->left) + key_offset,
+			 (void *) p + key_offset) < 0);
     }
-  if (BTREE_(link_internal) (p->right))
+  if (BTREE_NP_CHILD (p->right))
     {
-      assert (!(p->right->red && p->red));
-      assert (p->right->parent == p);
-      assert (compare ((void *) p->right + key_offset,
-		       (void *) p + key_offset) > 0);
+      assert (!(BTREE_NODE_RED_P (BTREE_NP_CHILD (p->right))
+		&& BTREE_NODE_RED_P (p)));
+      assert (BTREE_NP (BTREE_NP_CHILD (p->right)->parent) == p);
+      if (compare)
+	assert (compare ((void *) BTREE_NP_CHILD (p->right) + key_offset,
+			 (void *) p + key_offset) > 0);
+    }
+  else
+    /* If it doesn't have a child, then it better have a right
+       thread.  */
+    assert (BTREE_NP_THREAD_P (p->right));
+
+  if (BTREE_NP_THREAD_P (p->left))
+    {
+      node orig_prev = BTREE_NP_THREAD (p->left);
+      BTREE_NP_CHILD_SET (&p->left, NULL);
+      node prev = BTREE_(prev_hard) (p);
+      assert (orig_prev == prev);
+      BTREE_NP_THREAD_SET (&p->left, prev);
+    }
+
+  if (BTREE_NP_THREAD_P (p->right))
+    {
+      node orig_next = BTREE_NP_THREAD (p->right);
+      BTREE_NP_CHILD_SET (&p->right, NULL);
+      node next = BTREE_(next_hard) (p);
+      assert (orig_next == next);
+      BTREE_NP_THREAD_SET (&p->right, next);
     }
 }
 
 void
 BTREE_(check_tree_internal) (node root, BTREE_(key_compare_t) compare,
-			     size_t key_offset)
+			     size_t key_offset, bool check_colors)
 {
   int cnt = 0;
   node p;
   if (root == NULL)
     return;
-  root->red = 0;
-  for(p = root->left; p; p = p->left)
-    cnt += !p->red;
-  check_tree_recurse (root, compare, key_offset, 0, cnt);
+  BTREE_NODE_RED_SET (root, 0);
+  if (check_colors)
+    for(p = BTREE_NP_CHILD (root->left); p; p = BTREE_NP_CHILD (p->left))
+      cnt += !BTREE_NODE_RED_P (p);
+  check_tree_recurse (root, compare, key_offset, 0, cnt, check_colors);
 }
 
 
@@ -214,12 +247,12 @@ BTREE_(check_tree_internal) (node root, BTREE_(key_compare_t) compare,
    (i.e. largest) node in the tree.  The tree needs to be sane,
    however, unlike with BTREE_(next), leaf nodes may have right pointers
    which are NULL.  */
-static BTREE_(node_t) *
+BTREE_(node_t) *
 BTREE_(next_hard) (BTREE_(node_t) *node)
 {
-  if (((uintptr_t) node->right & 1) == 1)
+  if (BTREE_NP_THREAD_P (node->right))
     /* We have a right thread, use it.  */
-    return (BTREE_(node_t) *) (((uintptr_t) node->right) & ~1);
+    return BTREE_NP_THREAD (node->right);
 
   /* If NODE has a right child node then the left most child of
      NODE->RIGHT is the next node.
@@ -231,11 +264,11 @@ BTREE_(next_hard) (BTREE_(node_t) *node)
      The node after 2 is 3, the node after 4 is 5, the node after 6 is
      7. */
   /* NODE->RIGHT must be a link.  */
-  if (node->right)
+  if (BTREE_NP_CHILD (node->right))
     {
-      node = node->right;
-      while (node->left)
-	node = node->left;
+      node = BTREE_NP_CHILD (node->right);
+      while (BTREE_NP_CHILD (node->left))
+	node = BTREE_NP_CHILD (node->left);
       return node;
     }
 
@@ -246,31 +279,36 @@ BTREE_(next_hard) (BTREE_(node_t) *node)
                 O
 
      In either case, NODE is the last node.  */
-  if (! node->parent)
+  if (! BTREE_NP (node->parent))
     return NULL;
 
   /* If NODE is the left child node of its parent (and NODE has no
      right nodes) then the parent is the next node.  The node after 1
      is 2, the node after 5 is 6.  */
-  if (node->parent->left == node)
-    return node->parent;
+  if (BTREE_NP_CHILD (BTREE_NP (node->parent)->left) == node)
+    return BTREE_NP (node->parent);
 
   /* If NODE is the right node of its parent (and NODE has no right
      nodes and is not the left not of its parent) then the parent of
      the first ancestor which is a left node of its parent is the next
      node.  The node after 3 is 4.  */
-  assert (node->parent->right == node);
+  assert (BTREE_NP_CHILD (BTREE_NP (node->parent)->right) == node);
 
-  while (node->parent && node == node->parent->right)
-    node = node->parent;
-  return node->parent;
+  while (BTREE_NP (node->parent)
+	 && node == BTREE_NP_CHILD (BTREE_NP (node->parent)->right))
+    node = BTREE_NP (node->parent);
+  return BTREE_NP (node->parent);
 }
 
 /* Return the node preceding node NODE or NULL if NODE is the first
    (i.e. smallest) node in the tree.  */
 BTREE_(node_t) *
-BTREE_(prev) (BTREE_(node_t) *node)
+BTREE_(prev_hard) (BTREE_(node_t) *node)
 {
+  if (BTREE_NP_THREAD_P (node->left))
+    /* We have a left thread, use it.  */
+    return BTREE_NP_THREAD (node->left);
+
   /* If NODE has a left child node then the right most child of it
      (NODE->RIGHT) is the previous node.
 
@@ -279,11 +317,11 @@ BTREE_(prev) (BTREE_(node_t) *node)
                    1   3   5   7
 
      The node before 2 is 1, 4 is 3, 6 is 5. */
-  if (node->left)
+  if (BTREE_NP_CHILD (node->left))
     {
-      node = node->left;
-      while (BTREE_(link_internal) (node->right))
-	node = BTREE_(link_internal) (node->right);
+      node = BTREE_NP_CHILD (node->left);
+      while (BTREE_NP_CHILD (node->right))
+	node = BTREE_NP_CHILD (node->right);
       return node;
     }
 
@@ -294,42 +332,44 @@ BTREE_(prev) (BTREE_(node_t) *node)
                     O
 
      In either case, NODE is the first node.  */
-  if (! node->parent)
+  if (! BTREE_NP (node->parent))
     return NULL;
 
   /* If NODE is the right child node of its parent (and NODE has no
      right nodes) then the parent is the next node.  The node before 3
      is 2, the node before 7 is 6.  */
-  if (node->parent->right == node)
-    return node->parent;
+  if (BTREE_NP_CHILD (BTREE_NP (node->parent)->right) == node)
+    return BTREE_NP (node->parent);
 
   /* If NODE is the left node of its parent (and NODE has no left
      nodes and is not the right not of its parent) then the parent of
      the first ancestor which is a right node of its parent is the
      next node.  The node before 3 is 4.  */
-  assert (node->parent->left == node);
+  assert (BTREE_NP_CHILD (BTREE_NP (node->parent)->left) == node);
 
-  while (node->parent && node == node->parent->left)
-    node = node->parent;
-  return node->parent;
+  while (BTREE_NP (node->parent)
+	 && node == BTREE_NP_CHILD (BTREE_NP (node->parent)->left))
+    node = BTREE_NP (node->parent);
+  return BTREE_NP (node->parent);
 }
 
-static BTREE_(node_t) **
+/* Return the location of the NODE's parent's child pointer that
+   designates NODE, i.e., either &node->parent->left,
+   &node->parent->right, or &root.  */
+static struct BTREE_(node_ptr) *
 selfp (BTREE_(t) *btree, BTREE_(node_t) *node)
 {
-  assert (((uintptr_t) node & 1) == 0);
-
-  if (! node->parent)
+  if (! BTREE_NP (node->parent))
     {
-      assert (btree->root == node);
+      assert (BTREE_NP (btree->root) == node);
       return &btree->root;
     }
-  else if (node->parent->left == node)
-    return &node->parent->left;
+  else if (BTREE_NP_CHILD (BTREE_NP (node->parent)->left) == node)
+    return &BTREE_NP (node->parent)->left;
   else
     {
-      assert (node->parent->right == node);
-      return &node->parent->right;
+      assert (BTREE_NP_CHILD (BTREE_NP (node->parent)->right) == node);
+      return &BTREE_NP (node->parent)->right;
     }
 }
 
@@ -337,59 +377,59 @@ selfp (BTREE_(t) *btree, BTREE_(node_t) *node)
    edges in a row.  ROOTP is a pointer to the lowest node we visited, PARENTP
    and GPARENTP pointers to its parent/grandparent.  P_R and GP_R contain the
    comparison values that determined which way was taken in the tree to reach
-   ROOTP.  MODE is 1 if we need not do the split, but must check for two red
+   ROOTP.  MODE is 0 if we need not do the split, but must check for two red
    edges between GPARENTP and ROOTP.  */
 void
 BTREE_(maybe_split2_internal) (BTREE_(t) *btree, node root, int mode)
 {
-  node *rp, *lp;
+  struct BTREE_(node_ptr) *rp, *lp;
   rp = &root->right;
   lp = &root->left;
 
-  /* Make sure we didn't get a right thread.  */
-  assert (((uintptr_t) root & 1) == 0);
-
   /* See if we have to split this node (both successors red).  */
   if (mode == 1
-      || (BTREE_(link_internal) (*rp) && (*lp) && (*rp)->red && (*lp)->red))
+      || (BTREE_NP_CHILD (*rp) && BTREE_NP_CHILD (*lp)
+	  && BTREE_NODE_RED_P (BTREE_NP_CHILD (*rp))
+	  && BTREE_NODE_RED_P (BTREE_NP_CHILD (*lp))))
     {
       /* This node becomes red, its successors black.  */
-      root->red = 1;
-      if (BTREE_(link_internal) (*rp))
-	(*rp)->red = 0;
-      if (*lp)
-	(*lp)->red = 0;
+      BTREE_NODE_RED_SET (root, 1);
+      if (BTREE_NP_CHILD (*rp))
+	BTREE_NODE_RED_SET (BTREE_NP_CHILD (*rp), 0);
+      if (BTREE_NP_CHILD (*lp))
+	BTREE_NODE_RED_SET (BTREE_NP_CHILD (*lp), 0);
 
       /* If the parent of this node is also red, we have to do
 	 rotations.  */
-      if (root->parent && root->parent->red)
+      if (BTREE_NP (root->parent)
+	  && BTREE_NODE_RED_P (BTREE_NP (root->parent)))
 	{
 	  node gp, p;
-	  node *parentp, *gparentp;
+	  struct BTREE_(node_ptr) *parentp, *gparentp;
 	  int p_r, gp_r;
 
-	  p = root->parent;
+	  p = BTREE_NP (root->parent);
 	  /* P cannot be the root of the tree: it is red and the root
 	     is black.  */
-	  assert (p->parent);
+	  assert (BTREE_NP (p->parent));
 
 	  /* Avoid a branch.  -1 is left, 1 is right.  */
-	  p_r = (p->right == root) * 2 - 1;
+	  p_r = (BTREE_NP_CHILD (p->right) == root) * 2 - 1;
 
-	  if (p->parent->left == p)
+	  if (BTREE_NP_CHILD (BTREE_NP (p->parent)->left) == p)
 	    {
-	      parentp = &p->parent->left;
+	      parentp = &BTREE_NP (p->parent)->left;
 	      gp_r = -1;
 	    }
 	  else
 	    {
-	      assert (p->parent->right == p);
-	      parentp = &p->parent->right;
+	      assert (BTREE_NP_CHILD (BTREE_NP (p->parent)->right) == p);
+	      parentp = &BTREE_NP (p->parent)->right;
 	      gp_r = 1;
 	    }
 
 	  /* P must have a parent since it cannot be the root.  */
-	  gp = p->parent;
+	  gp = BTREE_NP (p->parent);
 	  assert (gp);
 	  gparentp = selfp (btree, gp);
 
@@ -402,12 +442,12 @@ BTREE_(maybe_split2_internal) (BTREE_(t) *btree, node root, int mode)
 	    {
 	      /* Put the child at the top of the tree, with its parent
 		 and grandparent as successors.  */
-	      p->red = 1;
-	      gp->red = 1;
-	      root->red = 0;
+	      BTREE_NODE_RED_SET (p, 1);
+	      BTREE_NODE_RED_SET (gp, 1);
+	      BTREE_NODE_RED_SET (root, 0);
 
-	      *gparentp = root;
-	      root->parent = gp->parent;
+	      BTREE_NP_CHILD_SET (gparentp, root);
+	      BTREE_NP_SET (&root->parent, BTREE_NP (gp->parent));
 
 	      if (p_r < 0)
 		{
@@ -420,24 +460,22 @@ BTREE_(maybe_split2_internal) (BTREE_(t) *btree, node root, int mode)
                      root        l  r
                      /  \
                     l    r */
-		  p->left = BTREE_(link_internal) (*rp);
-		  if (p->left)
-		    p->left->parent = p;
+		  BTREE_NP_CHILD_SET (&p->left, BTREE_NP_CHILD (*rp));
+		  if (BTREE_NP_CHILD (p->left))
+		    BTREE_NP_SET (&BTREE_NP_CHILD (p->left)->parent, p);
 
-		  *rp = p;
-		  p->parent = root;
+		  BTREE_NP_CHILD_SET (rp, p);
+		  BTREE_NP_SET (&p->parent, root);
 
-		  gp->right = *lp;
-		  if (gp->right)
-		    gp->right->parent = gp;
+		  BTREE_NP_CHILD_SET (&gp->right, BTREE_NP_CHILD (*lp));
+		  if (BTREE_NP_CHILD (gp->right))
+		    BTREE_NP_SET (&BTREE_NP_CHILD (gp->right)->parent, gp);
 
-		  *lp = gp;
-		  gp->parent = root;
+		  BTREE_NP_CHILD_SET (lp, gp);
+		  BTREE_NP_SET (&gp->parent, root);
 
-		  if (! gp->right)
-		    gp->right
-		      = (BTREE_(node_t) *) ((uintptr_t ) BTREE_(next_hard) (gp)
-					    | 1);
+		  if (! BTREE_NP_CHILD (gp->right))
+		    BTREE_NP_THREAD_SET (&gp->right, BTREE_(next_hard) (gp));
 		}
 	      else
 		{
@@ -450,35 +488,33 @@ BTREE_(maybe_split2_internal) (BTREE_(t) *btree, node root, int mode)
                      root        l  r
                      /  \
                     l    r */
-		  p->right = *lp;
-		  if (p->right)
-		    p->right->parent = p;
+		  BTREE_NP_CHILD_SET (&p->right, BTREE_NP_CHILD (*lp));
+		  if (BTREE_NP_CHILD (p->right))
+		    BTREE_NP_SET (&BTREE_NP_CHILD (p->right)->parent, p);
 
-		  *lp = p;
-		  p->parent = root;
+		  BTREE_NP_CHILD_SET (lp, p);
+		  BTREE_NP_SET (&p->parent, root);
 
-		  gp->left = BTREE_(link_internal) (*rp);
-		  if (gp->left)
-		    gp->left->parent = gp;
+		  BTREE_NP_CHILD_SET (&gp->left, BTREE_NP_CHILD (*rp));
+		  if (BTREE_NP_CHILD (gp->left))
+		    BTREE_NP_SET (&BTREE_NP_CHILD (gp->left)->parent, gp);
 
-		  *rp = gp;
-		  gp->parent = root;
+		  BTREE_NP_CHILD_SET (rp, gp);
+		  BTREE_NP_SET (&gp->parent, root);
 
-		  if (! p->right)
-		    p->right
-		      = (BTREE_(node_t) *) ((uintptr_t ) BTREE_(next_hard) (p)
-					    | 1);
+		  if (! BTREE_NP_CHILD (p->right))
+		    BTREE_NP_THREAD_SET (&p->right, BTREE_(next_hard) (p));
 		}
 	    }
 	  else
 	    {
 	      /* Parent becomes the top of the tree, grandparent and
 		 child are its successors.  */
-	      p->red = 0;
-	      gp->red = 1;
+	      BTREE_NODE_RED_SET (p, 0);
+	      BTREE_NODE_RED_SET (gp, 1);
 
-	      *gparentp = p;
-	      p->parent = gp->parent;
+	      BTREE_NP_CHILD_SET (gparentp, p);
+	      BTREE_NP_SET (&p->parent, BTREE_NP (gp->parent));
 
 	      if (p_r < 0)
 		{
@@ -491,11 +527,11 @@ BTREE_(maybe_split2_internal) (BTREE_(t) *btree, node root, int mode)
                    root  pr          pr
                    /  \
 		   */
-		  gp->left = BTREE_(link_internal) (p->right);
-		  if (gp->left)
-		    gp->left->parent = gp;
-		  p->right = gp;
-		  gp->parent = p;
+		  BTREE_NP_CHILD_SET (&gp->left, BTREE_NP_CHILD (p->right));
+		  if (BTREE_NP_CHILD (gp->left))
+		    BTREE_NP_SET (&BTREE_NP_CHILD (gp->left)->parent, gp);
+		  BTREE_NP_CHILD_SET (&p->right, gp);
+		  BTREE_NP_SET (&gp->parent, p);
 		}
 	      else
 		{
@@ -508,17 +544,14 @@ BTREE_(maybe_split2_internal) (BTREE_(t) *btree, node root, int mode)
                      pl  root    pl
                          /  \
 		   */
-		  gp->right = p->left;
-		  if (gp->right)
-		    gp->right->parent = gp;
-		  p->left = gp;
-		  gp->parent = p;
+		  BTREE_NP_CHILD_SET (&gp->right, BTREE_NP_CHILD (p->left));
+		  if (BTREE_NP_CHILD (gp->right))
+		    BTREE_NP_SET (&BTREE_NP_CHILD (gp->right)->parent, gp);
+		  BTREE_NP_CHILD_SET (&p->left, gp);
+		  BTREE_NP_SET (&gp->parent, p);
 
-		  if (! gp->right)
-		    gp->right
-		      = (BTREE_(node_t) *) ((uintptr_t) BTREE_(next_hard) (gp)
-					    | 1);
-
+		  if (! BTREE_NP_CHILD (gp->right))
+		    BTREE_NP_THREAD_SET (&gp->right, BTREE_(next_hard) (gp));
 		}
 	    }
 	}
@@ -527,7 +560,7 @@ BTREE_(maybe_split2_internal) (BTREE_(t) *btree, node root, int mode)
 	 Making the root node black never changes the black height of
 	 the tree, however, it does eliminate a bit of work when both
 	 its children are red.  */
-      btree->root->red = 0;
+      BTREE_NODE_RED_SET (BTREE_NP (btree->root), 0);
     }
 }
 
@@ -681,12 +714,12 @@ __tdelete (const void *key, void **vrootp, __compar_fn_t compar)
 }
 #endif
 
-/* Detach node NODE from the tree BTREE.  */
+/* Detach node ROOT from the tree BTREE.  */
 void
 BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
 {
-  node p, q, r;
-  node *rootp;
+  node p, q, child;
+  struct BTREE_(node_ptr) *rootp;
   node unchained;
   int unchained_is_red;
 
@@ -709,11 +742,11 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
      was but what happens to the other branch?  Well the successor
      will always be a node with less than two children.  Replacing the
      node we want to delete with the successor maintains the ordering
-     and means we just have to deal with the successor (the trivial
-     case).
+     and means we just have to deal with its successor (the trivial
+     case--we just move it up).
 
      In this example, the successor, UNCHAINED, would be 4 which has
-     less than two children.  The child, R, is node 5.  We unchain 4
+     less than two children.  The child, CHILD, is node 5.  We unchain 4
      and insert R where it was.  Then we replace ROOT with UNCHAINED.
      The resulting tree is thus:
      
@@ -725,7 +758,7 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
 	   / \   / \
 	  0   2 5   7
 
-     Assume that we want to remove a node one child, for instance,
+     Assume that we want to remove a node with one child, for instance,
      ROOT=4 (from the first figure).  This is trivially detached as it
      need merely be removed from the tree and its one child moved up
      to take its place.  The resulting tree would be:
@@ -742,96 +775,107 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
    */
 
   rootp = selfp (btree, root);
-  r = BTREE_(link_internal) (root->right);
-  q = root->left;
 
-  if (q == NULL || r == NULL)
+  child = BTREE_NP_CHILD (root->right);
+  q = BTREE_NP_CHILD (root->left);
+
+  if (q == NULL || child == NULL)
     unchained = root;
   else
     {
       unchained = BTREE_(next) (root);
-      assert (!unchained->left || ! BTREE_(link_internal) (unchained->right));
+      assert (!BTREE_NP_CHILD (unchained->left)
+	      || !BTREE_NP_CHILD (unchained->right));
     }
 
-  /* We know that at least the left or right successor of UNCHAINED is
-     NULL.  R becomes the other one, it is chained into the parent of
-     UNCHAINED.  */
-  r = unchained->left;
-  if (r == NULL)
-    r = BTREE_(link_internal) (unchained->right);
+  /* We know that at least either, but perhaps both, of the left or
+     right children of UNCHAINED is NULL.  CHILD becomes the other one
+     and is chained into the parent of UNCHAINED.  */
+  child = BTREE_NP_CHILD (unchained->left);
+  if (child == NULL)
+    child = BTREE_NP_CHILD (unchained->right);
   else
-    assert (! BTREE_(link_internal) (unchained->right));
+    assert (! BTREE_NP_CHILD (unchained->right));
 
-  /* Update ROOT's predecessor (if it has a right thread) to point to
-     ROOT's successor.  */
-  q = BTREE_(prev) (root);
-  if (q && ! BTREE_(link_internal) (q->right))
-    q->right = (BTREE_(node_t) *) ((uintptr_t) (unchained == root
-						? BTREE_(next) (root)
-						: unchained) | 1);
+  /* Update ROOT's predecessor's and successor's threads.  This is
+     required to avoid dangling pointers.  */
+  node pred = BTREE_(prev) (root);
+  node succ;
+  if (unchained != root)
+    /* UNCHAINED is the successor.  */
+    succ = unchained;
+  else
+    succ = BTREE_(next) (root);
 
-  /* Cache the parent as we may not be able to recover it if R is
-     NULL and unchained is clobbered.  */
-  if (unchained->parent == root)
+  if (pred && BTREE_NP_THREAD_P (pred->right))
+    BTREE_NP_THREAD_SET (&pred->right, succ);
+  if (succ && BTREE_NP_THREAD_P (succ->left))
+    BTREE_NP_THREAD_SET (&succ->left, pred);
+
+  /* Cache CHILD's parent as we may not be able to recover it if CHILD is
+     NULL and UNCHAINED is clobbered.  */
+  if (BTREE_NP (unchained->parent) == root)
     p = unchained;
   else
-    p = unchained->parent;
+    p = BTREE_NP (unchained->parent);
 
-  /* And get UNCHAINED's parent to point to R.  */
-  if (! unchained->parent)
+  /* And get UNCHAINED's parent to point to CHILD.  */
+  if (! BTREE_NP (unchained->parent))
     {
       /* UNCHAINED is only ever the root when either there is one or
 	 two nodes in the tree.  */
       assert (unchained == root);
-      btree->root = r;
+      BTREE_NP_SET (&btree->root, child);
     }
-  else if (unchained->parent->left == unchained)
+  else if (BTREE_NP_CHILD (BTREE_NP (unchained->parent)->left) == unchained)
     {
       /* UNCHAINED can't be to the immediate left of ROOT as it is
 	 ROOT's successor.  */
-      assert (unchained->parent != root);
-      unchained->parent->left = r;
+      assert (BTREE_NP (unchained->parent) != root);
+      BTREE_NP_CHILD_SET (&BTREE_NP (unchained->parent)->left, child);
     }
   else
     {
-      assert (unchained->parent->right == unchained);
+      assert (BTREE_NP_CHILD (BTREE_NP (unchained->parent)->right)
+	      == unchained);
 
-      if (r)
-	unchained->parent->right = r;
+      if (child)
+	BTREE_NP_SET (&BTREE_NP (unchained->parent)->right, child);
       else
-	/* R is NULL and this is a right leaf.  */
-	unchained->parent->right
-	  = (BTREE_(node_t) *) ((uintptr_t) BTREE_(next_hard) (unchained) | 1);
+	/* CHILD is NULL and this is a right leaf.  */
+	BTREE_NP_THREAD_SET (&BTREE_NP (unchained->parent)->right,
+			     BTREE_(next_hard) (unchained));
     }
 
-  /* Adjust R's parent pointer (we can't do it earlier as the call to
+  /* Adjust CHILD's parent pointer (we could't do this earlier as the call to
      BTREE_(next_hard) would fail because we wouldn't have a proper
      tree).  */
-  if (r)
-    r->parent = p;
+  if (child)
+    BTREE_NP_SET (&child->parent, p);
 
-  unchained_is_red = unchained->red;
+  unchained_is_red = BTREE_NODE_RED_P (unchained);
 
   /* Replace the element to detach with its now unchained
      successor.  */
   if (unchained != root)
     {
-      unchained->left = root->left;
-      if (unchained->left)
-	unchained->left->parent = unchained;
+      BTREE_NP_CHILD_SET (&unchained->left, BTREE_NP_CHILD (root->left));
+      if (BTREE_NP_CHILD (unchained->left))
+	BTREE_NP_SET (&BTREE_NP (unchained->left)->parent, unchained);
 
       /* If ROOT->RIGHT is a right thread then it remains correct.  */
-      if (BTREE_(link_internal) (root->right))
+      if (BTREE_NP_CHILD (root->right))
 	{
-	  unchained->right = root->right;
-	  if (unchained->right)
-	    unchained->right->parent = unchained;
+	  BTREE_NP_CHILD_SET (&unchained->right, BTREE_NP_CHILD (root->right));
+	  if (BTREE_NP_CHILD (unchained->right))
+	    BTREE_NP_SET (&BTREE_NP_CHILD (unchained->right)->parent,
+			  unchained);
 	}
 
-      unchained->parent = root->parent;
-      unchained->red = root->red;
+      BTREE_NP_SET (&unchained->parent, BTREE_NP (root->parent));
+      BTREE_NODE_RED_SET (unchained, BTREE_NODE_RED_P (root));
 
-      *rootp = unchained;
+      BTREE_NP_CHILD_SET (rootp, unchained);
     }
 
   if (!unchained_is_red)
@@ -839,29 +883,33 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
       /* Now we lost a black edge, which means that the number of black
 	 edges on every path is no longer constant.  We must balance the
 	 tree.  */
-      /* P is the parent of R (now that UNCHAINED has been detached).
-	 R is likely to be NULL in the first iteration.  */
+      /* P is the parent of CHILD (now that UNCHAINED has been detached).
+	 CHILD is likely to be NULL in the first iteration.  */
       /* NULL nodes are considered black throughout - this is necessary for
 	 correctness.  */
-      for (; p && (r == NULL || !r->red); p = p->parent)
+      for (; p && (child == NULL || !BTREE_NODE_RED_P (child));
+	   p = BTREE_NP (p->parent))
 	{
-	  node *pp = selfp (btree, p);
+	  BTREE_ (check_tree_internal) (BTREE_NP (btree->root), 0, 0, false);
 
-	  assert (! r || r->parent == p);
+	  struct BTREE_(node_ptr) *pp = selfp (btree, p);
+
+	  assert (! child || BTREE_NP (child->parent) == p);
 
 	  /* Two symmetric cases.  */
-	  if (r == p->left)
+	  if (child == BTREE_NP_CHILD (p->left))
 	    {
-	      /* Q is R's brother, P is R's parent.  The subtree with root
-		 R has one black edge less than the subtree with root Q.
+	      /* Q is CHILD's brother, P is CHILD's parent.  The
+		 subtree with root CHILD has one black edge less than
+		 the subtree with root Q.
 
 		             p
 			    / \
-			   r   q
+		       child   q
 	       */
-	      q = p->right;
-	      assert (BTREE_(link_internal) (q));
-	      if (q->red)
+	      q = BTREE_NP_CHILD (p->right);
+	      assert (q);
+	      if (BTREE_NODE_RED_P (q))
 		{
 		  /* If Q is red, we know that P is black. We rotate P left
 		     so that Q becomes the top node in the tree, with P below
@@ -875,39 +923,38 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
 		               / \
 		      ->      p   pr
 			     / \
-			    r   ql
+		        child   ql
 
 		   */
-		  q->red = 0;
-		  p->red = 1;
+		  BTREE_NODE_RED_SET (q, 0);
+		  BTREE_NODE_RED_SET (p, 1);
 		  /* Left rotate p.  */
-		  q->parent = p->parent;
-		  p->right = q->left;
-		  if (p->right)
-		    p->right->parent = p;
+		  BTREE_NP_SET (&q->parent, BTREE_NP (p->parent));
+		  BTREE_NP_CHILD_SET (&p->right, BTREE_NP_CHILD (q->left));
+		  if (BTREE_NP_CHILD (p->right))
+		    BTREE_NP_SET (&BTREE_NP_CHILD (p->right)->parent, p);
 
-		  q->left = p;
-		  p->parent = q;
+		  BTREE_NP_CHILD_SET (&q->left, p);
+		  BTREE_NP_SET (&p->parent, q);
 		  
-		  *pp = q;
+		  BTREE_NP_CHILD_SET (pp, q);
 		  /* Make sure pp is right if the case below tries to use
 		     it.  */
 		  pp = &q->left;
-		  q = p->right;
-		  assert (BTREE_(link_internal) (q));
+		  q = BTREE_NP_CHILD (p->right);
+		  assert (q);
 
-		  if (! p->right)
-		    p->right
-		      = (BTREE_(node_t) *) ((uintptr_t) BTREE_(next_hard) (p)
-					    | 1);
+		  if (! BTREE_NP_CHILD (p->right))
+		    BTREE_NP_THREAD_SET (&p->right, BTREE_(next_hard) (p));
 		}
 	      /* We know that Q can't be NULL here.  We also know that Q is
 		 black.  */
-	      assert (! q->red);
+	      assert (! BTREE_NODE_RED_P (q));
 
-	      if ((q->left == NULL || !q->left->red)
-		  && (BTREE_(link_internal) (q->right) == NULL
-		      || !q->right->red))
+	      if ((BTREE_NP_CHILD (q->left) == NULL
+		   || !BTREE_NODE_RED_P (BTREE_NP_CHILD (q->left)))
+		  && (BTREE_NP_CHILD (q->right) == NULL
+		      || !BTREE_NODE_RED_P (BTREE_NP_CHILD (q->right))))
 		{
 		  /* Q has two black successors.  We can simply color Q red.
 		     The whole subtree with root P is now missing one black
@@ -917,93 +964,93 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
 		     valid and also makes the black edge count come out
 		     right.  If P is black, we are at least one step closer
 		     to the root and we'll try again the next iteration.  */
-		  q->red = 1;
-		  r = p;
+		  BTREE_NODE_RED_SET (q, 1);
+		  child = p;
 		}
 	      else
 		{
 		  /* Q is black, one of Q's successors is red.  We can
 		     repair the tree with one operation and will exit the
 		     loop afterwards.  */
-		  if (! BTREE_(link_internal) (q->right) || !q->right->red)
+		  if (! BTREE_NP_CHILD (q->right)
+		      || !BTREE_NODE_RED_P (BTREE_NP_CHILD (q->right)))
 		    {
-		      /* The left one is red.  We perform the same action as
-			 in maybe_split_for_insert where two red edges are
-			 adjacent but point in different directions:
-			 Q's left successor (let's call it Q2) becomes the
-			 top of the subtree we are looking at, its parent (Q)
-			 and grandparent (P) become its successors. The former
-			 successors of Q2 are placed below P and Q.
-			 P becomes black, and Q2 gets the color that P had.
-			 This changes the black edge count only for node R and
-			 its successors.
+		      /* The left one is red.  We perform the same
+			 action as in maybe_split_for_insert where two
+			 red edges are adjacent but point in different
+			 directions: Q's left successor (let's call it
+			 Q2) becomes the top of the subtree we are
+			 looking at, its parent (Q) and grandparent
+			 (P) become its successors. The former
+			 successors of Q2 are placed below P and Q.  P
+			 becomes black, and Q2 gets the color that P
+			 had.  This changes the black edge count only
+			 for node CHILD and its successors.
 
 		             p                q2
 			    / \             /    \
-			   r   q    ->     p      q
+		       child   q    ->     p      q
                               / \         / \    / \
-                             q2          r  q2l
+                             q2      child  q2l
 		      */
-		      node q2 = q->left;
-		      q2->red = p->red;
+		      node q2 = BTREE_NP_CHILD (q->left);
+		      BTREE_NODE_RED_SET (q2, BTREE_NODE_RED_P (p));
 
-		      q2->parent = p->parent;
+		      BTREE_NP_SET (&q2->parent, BTREE_NP (p->parent));
 
-		      p->right = q2->left;
-		      if (p->right)
-			p->right->parent = p;
+		      BTREE_NP_CHILD_SET (&p->right, BTREE_NP_CHILD (q2->left));
+		      if (BTREE_NP_CHILD (p->right))
+			BTREE_NP_SET (&BTREE_NP_CHILD (p->right)->parent, p);
 
-		      q->left = BTREE_(link_internal) (q2->right);
-		      if (q->left)
-			q->left->parent = q;
+		      BTREE_NP_CHILD_SET (&q->left, BTREE_NP_CHILD (q2->right));
+		      if (BTREE_NP_CHILD (q->left))
+			BTREE_NP_SET (&BTREE_NP_CHILD (q->left)->parent, q);
 
-		      q2->right = q;
-		      q->parent = q2;
+		      BTREE_NP_CHILD_SET (&q2->right, q);
+		      BTREE_NP_SET (&q->parent, q2);
 
-		      q2->left = p;
-		      p->parent = q2;
+		      BTREE_NP_CHILD_SET (&q2->left, p);
+		      BTREE_NP_SET (&p->parent, q2);
 
-		      *pp = q2;
-		      p->red = 0;
+		      BTREE_NP_CHILD_SET (pp, q2);
+		      BTREE_NODE_RED_SET (p, 0);
 
-		      if (! p->right)
-			p->right = (BTREE_(node_t) *)
-			  ((uintptr_t) BTREE_(next_hard) (p) | 1);
+		      if (! BTREE_NP_CHILD (p->right))
+			BTREE_NP_THREAD_SET (&p->right, BTREE_(next_hard) (p));
 		    }
 		  else
 		    {
 		      /* It's the right one.  Rotate P left. P becomes black,
 			 and Q gets the color that P had.  Q's right successor
 			 also becomes black.  This changes the black edge
-			 count only for node R and its successors.
+			 count only for node CHILD and its successors.
 
 		                q
 		               / \
 		      ->      p   pr
 			     / \
-			    r   ql
+			child   ql
 		       */
 
-		      q->red = p->red;
-		      p->red = 0;
+		      BTREE_NODE_RED_SET (q, BTREE_NODE_RED_P (p));
+		      BTREE_NODE_RED_SET (p, 0);
 
-		      q->parent = p->parent;
+		      BTREE_NP_SET (&q->parent, BTREE_NP (p->parent));
 
-		      q->right->red = 0;
+		      BTREE_NODE_RED_SET (BTREE_NP_CHILD (q->right), 0);
 
 		      /* left rotate p */
-		      p->right = q->left;
-		      if (p->right)
-			p->right->parent = p;
+		      BTREE_NP_CHILD_SET (&p->right, BTREE_NP_CHILD (q->left));
+		      if (BTREE_NP_CHILD (p->right))
+			BTREE_NP_SET (&BTREE_NP_CHILD (p->right)->parent, p);
 
-		      q->left = p;
-		      p->parent = q;
+		      BTREE_NP_CHILD_SET (&q->left, p);
+		      BTREE_NP_SET (&p->parent, q);
 
-		      *pp = q;
+		      BTREE_NP_CHILD_SET (pp, q);
 
-		      if (! p->right)
-			p->right = (BTREE_(node_t) *)
-			  ((uintptr_t) BTREE_(next_hard) (p) | 1);
+		      if (! BTREE_NP_CHILD (p->right))
+			BTREE_NP_THREAD_SET (&p->right, BTREE_(next_hard) (p));
 		    }
 
 		  /* We're done.  */
@@ -1012,75 +1059,75 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
 	    }
 	  else
 	    {
-	      assert (r == BTREE_(link_internal) (p->right));
+	      assert (child == BTREE_NP_CHILD (p->right));
 	      /* Comments: see above.  */
-	      q = p->left;
-	      assert (BTREE_(link_internal) (q));
-	      if (q != NULL && q->red)
+	      q = BTREE_NP_CHILD (p->left);
+	      if (q != NULL && BTREE_NODE_RED_P (q))
 		{
-		  q->red = 0;
-		  p->red = 1;
-		  q->parent = p->parent;
-		  p->left = BTREE_(link_internal) (q->right);
-		  if (p->left)
-		    p->left->parent = p;
-		  q->right = p;
-		  p->parent = q;
-		  *pp = q;
+		  BTREE_NODE_RED_SET (q, 0);
+		  BTREE_NODE_RED_SET (p, 1);
+		  BTREE_NP_SET (&q->parent, BTREE_NP (p->parent));
+		  BTREE_NP_CHILD_SET (&p->left, BTREE_NP_CHILD (q->right));
+		  if (BTREE_NP_CHILD (p->left))
+		    BTREE_NP_SET (&BTREE_NP_CHILD (p->left)->parent, p);
+		  BTREE_NP_CHILD_SET (&q->right, p);
+		  BTREE_NP_SET (&p->parent, q);
+		  BTREE_NP_CHILD_SET (pp, q);
 		  pp = &q->right;
-		  q = p->left;
-		  assert (BTREE_(link_internal) (q));
+		  q = BTREE_NP_CHILD (p->left);
 		}
-	      assert (! q->red);
-	      if ((! BTREE_(link_internal) (q->right) || !q->right->red)
-		       && (q->left == NULL || !q->left->red))
+	      assert (! BTREE_NODE_RED_P (q));
+	      if ((! BTREE_NP_CHILD (q->right)
+		   || ! BTREE_NODE_RED_P (BTREE_NP_CHILD (q->right)))
+		  && (BTREE_NP_CHILD (q->left) == NULL
+		      || ! BTREE_NODE_RED_P (BTREE_NP_CHILD (q->left))))
 		{
-		  q->red = 1;
-		  r = p;
+		  BTREE_NODE_RED_SET (q, 1);
+		  child = p;
 		}
 	      else
 		{
-		  if (q->left == NULL || !q->left->red)
+		  if (!BTREE_NP_CHILD (q->left)
+		      || !BTREE_NODE_RED_P (BTREE_NP_CHILD (q->left)))
 		    {
-		      node q2 = q->right;
-		      q2->red = p->red;
-		      q2->parent = p->parent;
-		      p->left = BTREE_(link_internal) (q2->right);
-		      if (p->left)
-			p->left->parent = p;
-		      q->right = q2->left;
-		      if (q->right)
-			q->right->parent = q;
-		      q2->left = q;
-		      q->parent = q2;
-		      q2->right = p;
-		      p->parent = q2;
-		      *pp = q2;
-		      p->red = 0;
+		      node q2 = BTREE_NP_CHILD (q->right);
+		      BTREE_NODE_RED_SET (q2, BTREE_NODE_RED_P (p));
+		      BTREE_NP_SET (&q2->parent, BTREE_NP (p->parent));
+		      BTREE_NP_CHILD_SET (&p->left, BTREE_NP_CHILD (q2->right));
+		      if (BTREE_NP_CHILD (p->left))
+			BTREE_NP_SET (&BTREE_NP_CHILD (p->left)->parent, p);
+		      BTREE_NP_CHILD_SET (&q->right, BTREE_NP_CHILD (q2->left));
+		      if (BTREE_NP_CHILD (q->right))
+			BTREE_NP_SET (&BTREE_NP_CHILD (q->right)->parent, q);
+		      BTREE_NP_CHILD_SET (&q2->left, q);
+		      BTREE_NP_SET (&q->parent, q2);
+		      BTREE_NP_CHILD_SET (&q2->right, p);
+		      BTREE_NP_SET (&p->parent, q2);
+		      BTREE_NP_CHILD_SET (pp, q2);
+		      BTREE_NODE_RED_SET (p, 0);
 
-		      if (! q->right)
-			q->right = (BTREE_(node_t) *)
-			  ((uintptr_t) BTREE_(next_hard) (q) | 1);
+		      if (! BTREE_NP_CHILD (q->right))
+			BTREE_NP_THREAD_SET (&q->right, BTREE_(next_hard) (q));
 		    }
 		  else
 		    {
-		      q->red = p->red;
-		      p->red = 0;
-		      q->left->red = 0;
-		      q->parent = p->parent;
-		      p->left = BTREE_(link_internal) (q->right);
-		      if (p->left)
-			p->left->parent = p;
-		      q->right = p;
-		      p->parent = q;
-		      *pp = q;
+		      BTREE_NODE_RED_SET (q, BTREE_NODE_RED_P (p));
+		      BTREE_NODE_RED_SET (p, 0);
+		      BTREE_NODE_RED_SET (BTREE_NP_CHILD (q->left), 0);
+		      BTREE_NP_SET (&q->parent, BTREE_NP (p->parent));
+		      BTREE_NP_CHILD_SET (&p->left, BTREE_NP_CHILD (q->right));
+		      if (BTREE_NP_CHILD (p->left))
+			BTREE_NP_SET (&BTREE_NP_CHILD (p->left)->parent, p);
+		      BTREE_NP_CHILD_SET (&q->right, p);
+		      BTREE_NP_SET (&p->parent, q);
+		      BTREE_NP_CHILD_SET (pp, q);
 		    }
 		  return;
 		}
 	    }
 	}
-      if (r != NULL)
-	r->red = 0;
+      if (child != NULL)
+	BTREE_NODE_RED_SET (child, 0);
     }
 }
 

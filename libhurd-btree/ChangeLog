@@ -1,5 +1,42 @@
 2007-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* btree.h (struct BTREE_(node_ptr)): New structure.
+	(struct BTREE_(node_pptr)): Likewise.
+	(struct BTREE_(node)): Make parent a struct BTREE_(node_pptr).
+	left a struct BTREE_(node_ptr).  Likewise for right.  Fold red
+	into the parent field.  Update all users.
+	(BTREE_NP): New macro.
+	(BTREE_NP_SET): Likewise.
+	(BTREE_NP_THREAD_P): Likewise.
+	(BTREE_NP_THREAD_P_SET): Likewise.
+	(BTREE_NP_THREAD): Likewise.
+	(BTREE_NP_THREAD_SET): Likewise.
+	(BTREE_NP_CHILD): Likewise.
+	(BTREE_NP_CHILD_SET): Likewise.
+	(BTREE_NODE_RED_P): Likewise.
+	(BTREE_NODE_RED_SET): Likewise.
+	(struct BTREE_(t)): Make root a struct BTREE_(node_ptr).
+	(BTREE_(link_internal)): Remove function.
+	(BTREE_(check_tree_internal)): New declaration.
+	(BTREE_(insert)): Make NEWNODE->LEFT a thread.  Call
+	BTREE_(check_tree_internal).
+	(BTREE_(prev_hard)): New declaration.
+	(BTREE_(prev)): New function.
+	(BTREE_CLASS:detach): Call BTREE_(check_tree_internal).
+	* btree.c (BTREE_): Take additional parameter, check_colors.
+	Update callers.  If COMPARE is NULL, don't compare values.  Check
+	if the threads are correct.
+	(BTREE_(check_tree_internal)): Take additional parameter,
+	check_colors.
+	(BTREE_(next_hard)): Remove static qualifier.
+	(BTREE_(prev)): Rename from this...
+	(BTREE_(prev_hard)): ... to this.  If
+	(selfp): Change return type to a struct BTREE_(node_ptr) *.
+	Update users.
+	(BTREE_(detach)): Also adjust the left thread as appropriate.
+
+2007-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (AM_CPPFLAGS): Add -D_GNU_SOURCE.
 	(TESTS): New variable.
 	(check_PROGRAMS): Likewise.

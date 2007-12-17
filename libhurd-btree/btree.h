@@ -111,24 +111,110 @@
    memory is allocated and deallocated and it eliminates a level of
    indirection where user data is pointed to by the node which is
    present in many btree implementations.  */
+struct BTREE_(node_ptr)
+{
+  union
+  {
+    struct
+    {
+      /* Whether PTR is a child (=0) or a thread pointer (=1).  */
+      uintptr_t thread : 1;
+      /* The value of the pointer >> 1.  */
+      uintptr_t ptr : (sizeof (uintptr_t) * 8 - 1);
+    };
+    uintptr_t raw;
+    struct BTREE_(node) *ptr;
+  };
+};
+
+struct BTREE_(node_pptr)
+{
+  union
+  {
+    struct
+    {
+      /* Whether the node is red (=1) or black (=0).  */
+      uintptr_t red : 1;
+      /* The value of the pointer >> 1.  */
+      uintptr_t ptr : (sizeof (uintptr_t) * 8 - 1);
+    };
+    uintptr_t raw;
+    struct BTREE_(node) *ptr;
+  };
+};
+
 struct BTREE_(node)
 {
   /* All members are private to the implementation.  */
-  struct BTREE_(node) *left;
-  /* If the least significant bit is 0, right is not a right link but
-     a right thread (i.e. a pointer to the current node's
-     successor).  */
-  struct BTREE_(node) *right;
-  struct BTREE_(node) *parent;
-  bool red;
+  struct BTREE_(node_pptr) parent;
+  struct BTREE_(node_ptr) left;
+  struct BTREE_(node_ptr) right;
 };
 typedef struct BTREE_(node) BTREE_(node_t);
+
+/* Internal accessors functions.  */
+
+/* Give a struct BTREE_(node_ptr), return a BTREE_(node_t).  This
+   function does not distinguish between child links and thread
+   links.  */
+#define BTREE_NP(__bn_node_ptr)				\
+  ((BTREE_(node_t) *) ((__bn_node_ptr).ptr << 1))
+/* Set a struct BTREE_(node_ptr) * to point to BTREE_(node_t).  */
+#define BTREE_NP_SET(__bnp_node_ptrp, __bnp_value)		\
+  do								\
+    {								\
+      BTREE_(node_t) *__bnp_val = (__bnp_value);		\
+      (__bnp_node_ptrp)->ptr = ((uintptr_t) __bnp_val) >> 1;	\
+    }								\
+  while (0)
+
+/* Return whether the BTREE_(node_ptr) contains a thread pointer (if
+   not, then it contains a child pointer).  */
+#define BTREE_NP_THREAD_P(__bntp_node_ptr)	\
+  ((__bntp_node_ptr).thread)
+#define BTREE_NP_THREAD_P_SET(__bntps_node_ptrp, __bntps_value)	\
+  (((__bntps_node_ptrp)->thread) = __bntps_value)
+
+#define BTREE_NP_THREAD(__bnt_node_ptr)				\
+  (BTREE_NP_THREAD_P ((__bnt_node_ptr))				\
+   ? BTREE_NP ((__bnt_node_ptr)) : NULL)
+#define BTREE_NP_THREAD_SET(__bnts_node_ptrp, __bnts_value)	\
+  do								\
+    {								\
+      struct BTREE_(node_ptr) *__bnts_n = (__bnts_node_ptrp);	\
+      BTREE_(node_t) *__bnts_val = (__bnts_value);		\
+								\
+      BTREE_NP_SET (__bnts_n, __bnts_val);			\
+      BTREE_NP_THREAD_P_SET (__bnts_n, 1);			\
+    }								\
+  while (0)
+
+#define BTREE_NP_CHILD(__bnc_node_ptr)			\
+  (BTREE_NP_THREAD_P ((__bnc_node_ptr))			\
+   ? NULL : BTREE_NP ((__bnc_node_ptr)))
+#define BTREE_NP_CHILD_SET(__bncs_node_ptrp, __bncs_value)	\
+  do								\
+    {								\
+      struct BTREE_(node_ptr) *__bncs_np = (__bncs_node_ptrp);	\
+      BTREE_(node_t) *__bncs_val = (__bncs_value);		\
+								\
+      BTREE_NP_SET (__bncs_np, __bncs_val);			\
+      BTREE_NP_THREAD_P_SET (__bncs_np, 0);			\
+    }								\
+  while (0)
+
+/* Return whether a BTREE_(node) * designates a red node.  */
+#define BTREE_NODE_RED_P(__bnrp_node)		\
+  ((__bnrp_node)->parent.red)
+/* Set whether the BTREE_(node) * designates a red node.  */
+#define BTREE_NODE_RED_SET(__bnrs_node, __bnrs_value)	\
+  (((__bnrs_node)->parent.red) = __bnrs_value)
 
 /* The root of a btree.  */
 typedef struct 
 {
   /* All members are private to the implementation.  */
-  struct BTREE_(node) *root;
+  struct BTREE_(node_ptr) root;
 } BTREE_(t);
 
 /* Compare two keys.  Return 0 if A and B are equal, less then 0 if a
@@ -147,21 +233,16 @@ BTREE_EXTERN_INLINE void BTREE_(tree_init) (BTREE_(t) *btree);
 BTREE_EXTERN_INLINE void
 BTREE_(tree_init) (BTREE_(t) *btree)
 {
-  btree->root = 0;
+  BTREE_NP_CHILD_SET (&btree->root, 0);
 }
 
 /* This is a private function do not call it from user code!
 
-   Given a node pointer return the link portion (i.e. return NULL if
-   LINK is a thread and not a child pointer).  */
-static inline BTREE_(node_t) *
-BTREE_(link_internal) (BTREE_(node_t) *link)
-{
-  if ((((uintptr_t) link) & 0x1) == 1)
-    /* This is a right thread, not a child.  */
-    return NULL;
-  return link;
-}
+   Internal function.  Perform a consistent check on the tree rooted
+   at ROOT.  */
+extern void BTREE_(check_tree_internal) (BTREE_(node_t) *root,
+					 BTREE_(key_compare_t) compare,
+					 size_t key_offset, bool check_colors);
 
 /* This is a private function do not call it from user code!
 
@@ -185,9 +266,11 @@ BTREE_(maybe_split_internal) (BTREE_(t) *tree, BTREE_(node_t) *node,
 			      int force)
 {
   if (force
-      || (node->left && node->left->red
-	  && BTREE_(link_internal) (node->right)
-	  && node->right->red))
+      /* Are both children red?  */
+      || (BTREE_NP_CHILD (node->left)
+	  && BTREE_NODE_RED_P (BTREE_NP_CHILD (node->left))
+	  && BTREE_NP_CHILD (node->right)
+	  && BTREE_NODE_RED_P (BTREE_NP_CHILD (node->right))))
     BTREE_(maybe_split2_internal) (tree, node, force);
 }
 
@@ -211,26 +294,28 @@ BTREE_(maybe_split_internal) (BTREE_(t) *tree, BTREE_(node_t) *node,
 BTREE_EXTERN_INLINE error_t
 BTREE_(find_internal) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 		       size_t key_offset, const void *key,
-		       BTREE_(node_t) ***nodepp, BTREE_(node_t) **predp,
-		       BTREE_(node_t) **succp, BTREE_(node_t) **parentp);
+		       struct BTREE_(node_ptr) **nodepp,
+		       BTREE_(node_t) **predp, BTREE_(node_t) **succp,
+		       BTREE_(node_t) **parentp);
 BTREE_EXTERN_INLINE error_t
 BTREE_(find_internal) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 		       size_t key_offset, const void *key,
-		       BTREE_(node_t) ***nodepp, BTREE_(node_t) **predp,
-		       BTREE_(node_t) **succp, BTREE_(node_t) **parentp)
+		       struct BTREE_(node_ptr) **nodepp,
+		       BTREE_(node_t) **predp, BTREE_(node_t) **succp,
+		       BTREE_(node_t) **parentp)
 {
   int r;
   error_t err = ESRCH;
-  BTREE_(node_t) **nodep = &btree->root;
-  *parentp = NULL;
-  *predp = *succp = NULL;
+  struct BTREE_(node_ptr) *nodep = &btree->root;
+  *parentp = 0;
+  *predp = *succp = 0;
 
-  while (BTREE_(link_internal) (*nodep))
+  while (BTREE_NP_CHILD (*nodep))
     {
       /* We need NODE not because it is convenient but because if any
 	 rotations are done by BTREE_(maybe_split_internal) then the
 	 value it contains may be invalid.  */
-      BTREE_(node_t) *node = *nodep;
+      BTREE_(node_t) *node = BTREE_NP (*nodep);
 
       r = compare (key, (void *) node + key_offset);
       if (r == 0)
@@ -273,11 +358,12 @@ BTREE_(find) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 	      size_t key_offset, const void *key)
 {
   error_t err;
-  BTREE_(node_t) **nodep, *node, *pred, *succ, *parent;
+  struct BTREE_(node_ptr) *nodep;
+  BTREE_(node_t) *node, *pred, *succ, *parent;
 
   err = BTREE_(find_internal) (btree, compare, key_offset, key,
 			       &nodep, &pred, &succ, &parent);
-  node = BTREE_(link_internal) (*nodep);
+  node = BTREE_NP_CHILD (*nodep);
   /* If not found, NODE will be NULL.  */
   assert ((err == ESRCH && ! node) || (err == 0 && node));
   return node;
@@ -295,34 +381,46 @@ BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 		size_t key_offset, BTREE_(node_t) *newnode)
 {
   error_t err;
-  BTREE_(node_t) **nodep, *pred, *succ, *parent;
+  struct BTREE_(node_ptr) *nodep;
+  BTREE_(node_t) *pred, *succ, *parent;
 
   err = BTREE_(find_internal) (btree, compare, key_offset,
 			       (void *) newnode + key_offset,
 			       &nodep, &pred, &succ, &parent);
   if (! err)
     /* Overlap!  Bail.  */
-    return BTREE_(link_internal) (*nodep);
+    {
+      assert (! BTREE_NP_THREAD_P (*nodep));
+      return BTREE_NP_CHILD (*nodep);
+    }
 
   assert (err == ESRCH);
-  assert (BTREE_(link_internal) (*nodep) == NULL);
+  assert (BTREE_NP_CHILD (*nodep) == NULL);
 
   /* A node with the same key as NEWNODE does not exist in the tree
      BTREE.  NODEP is a pointer to the location where NODE should be
      installed (i.e. either &PARENT->LEFT or &PARENT->RIGHT).  PARENT
      is the parent of *NODEP.  */
-  *nodep = newnode;
-  newnode->parent = parent;
-  newnode->left = NULL;
-  newnode->right = (BTREE_(node_t) *) ((uintptr_t) succ | 1);
-  newnode->red = 1;
+  BTREE_NP_CHILD_SET (nodep, newnode);
+  BTREE_NP_SET (&newnode->parent, parent);
+  BTREE_NP_THREAD_SET (&newnode->left, pred);
+  BTREE_NP_THREAD_SET (&newnode->right, succ);
+  BTREE_NODE_RED_SET (newnode, true);
 
-  if (pred && ((uintptr_t) pred->right & 1) == 1)
-    /* NEWNODE's predecessor has a right thread.  */
+  if (pred && BTREE_NP_THREAD_P (pred->right))
+    /* NEWNODE's predecessor has a right thread, update it.  */
     {
-      assert (pred->right == (BTREE_(node_t) *) ((uintptr_t) succ | 1));
-      /* But more importantly, we must point it to us.  */
-      pred->right = (BTREE_(node_t) *) (((uintptr_t) newnode) | 1);
+      assert (BTREE_NP_CHILD (pred->right) == succ);
+      BTREE_NP_THREAD_SET (&pred->right, newnode);
+    }
+
+  if (succ && (BTREE_NP_THREAD_P (succ->left)
+	       || ! BTREE_NP_CHILD (succ->left)))
+    /* NEWNODE's successor has a left thread, update it.  */
+    {
+      if (BTREE_NP_THREAD_P (succ->left))
+	assert (BTREE_NP_CHILD (succ->left) == pred);
+      BTREE_NP_THREAD_SET (&succ->left, newnode);
     }
 
   if (parent)
@@ -332,7 +430,10 @@ BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
   else
     /* NEWNODE is the top of the tree.  Making it black means less
        balancing later on.  */
-    newnode->red = 0;
+    BTREE_NODE_RED_SET (newnode, false);
+
+  BTREE_(check_tree_internal) (BTREE_NP_CHILD (btree->root),
+			       compare, key_offset, true);
 
   return 0;
 }
@@ -364,15 +465,20 @@ BTREE_(first) (BTREE_(t) *btree)
 {
   BTREE_(node_t) *node;
 
-  node = btree->root;
+  node = BTREE_NP (btree->root);
 
   if (! node)
     return NULL;
 
-  while (node->left)
-    node = node->left;
+  while (BTREE_NP_CHILD (node->left))
+    node = BTREE_NP_CHILD (node->left);
   return node;
 }
+
+/* Internal function, do not call from user code.  */
+extern BTREE_(node_t) *BTREE_(next_hard) (BTREE_(node_t) *node);
+/* Internal function, do not call from user code.  */
+extern BTREE_(node_t) *BTREE_(prev_hard) (BTREE_(node_t) *node);
 
 /* Return the node following node NODE or NULL if NODE is the last
    (i.e. largest) node in the tree.  This function is guaranteed to
@@ -381,22 +487,37 @@ BTREE_EXTERN_INLINE BTREE_(node_t) *BTREE_(next) (BTREE_(node_t) *node);
 BTREE_EXTERN_INLINE BTREE_(node_t) *
 BTREE_(next) (BTREE_(node_t) *node)
 {
-  if (((uintptr_t) node->right & 1) == 1)
+  if (BTREE_NP_THREAD_P (node->right))
     /* We have a right thread, use it.  */
-    return (BTREE_(node_t) *) (((uintptr_t) node->right) & ~1);
-  assert (node->right);
+    return BTREE_NP_THREAD (node->right);
+  assert (BTREE_NP_CHILD (node->right));
 
   /* NODE has a right child node.  The left most child of NODE->RIGHT
      is the next node.  */
-  node = node->right;
-  while (node->left)
-    node = node->left;
+  node = BTREE_NP_CHILD (node->right);
+  while (BTREE_NP_CHILD (node->left))
+    node = BTREE_NP_CHILD (node->left);
   return node;
 }
 
 /* Return the node preceding node NODE or NULL if NODE is the first
    (i.e. smallest) node in the tree.  */
-extern BTREE_(node_t) *BTREE_(prev) (BTREE_(node_t) *node);
+BTREE_EXTERN_INLINE BTREE_(node_t) *BTREE_(prev) (BTREE_(node_t) *node);
+BTREE_EXTERN_INLINE BTREE_(node_t) *
+BTREE_(prev) (BTREE_(node_t) *node)
+{
+  if (BTREE_NP_THREAD_P (node->left))
+    /* We have a left thread, use it.  */
+    return BTREE_NP_THREAD (node->left);
+
+  /* We have to do it the hard way.  */
+  BTREE_(node_t) *prev = BTREE_(prev_hard) (node);
+
+  if (! BTREE_NP_CHILD (node->left))
+    BTREE_NP_THREAD_SET (&node->left, node);
+
+  return prev;
+}
 
 /* Create a more strongly typed btree interface a la C++'s templates.
 
@@ -514,6 +635,13 @@ static inline void							\
 BTREE_(name##_detach) (BTREE_(name##_t) *btree, node_type *node)	\
 {									\
   BTREE_(detach) (&btree->btree, &node->btree_node_field);		\
+									\
+  int (*cmp) (const key_type *, const key_type *) = (cmp_function);	\
+  BTREE_(check_tree_internal) (BTREE_NP_CHILD (btree->btree.root),	\
+			       (BTREE_(key_compare_t)) cmp,		\
+			       offsetof (node_type, key_field)		\
+			       - offsetof (node_type, btree_node_field), \
+			       true);					\
 }									\
 									\
 static inline node_type *						\
