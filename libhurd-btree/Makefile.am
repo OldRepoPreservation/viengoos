@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libhurd-btree.
-# Copyright (C) 2004 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2007 Free Software Foundation, Inc.
 # Written by Neal H. Walfield <neal@gnu.org>.
 #
 # This file is part of the GNU Hurd.
