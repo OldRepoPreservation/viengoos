@@ -157,7 +157,47 @@ typedef BTREE_(node_t) *node;
 #define CHECK_TREE(a) check_tree(a)
 
 static void
-check_tree_recurse (node p, BTREE_(key_compare_t) compare, size_t key_offset,
+dump_tree (node root, int indent)
+{
+  int i;
+  for (i = 0; i < indent; i ++)
+    printf (".");
+
+  char g = ' ';
+  if (root && BTREE_NP (root->parent)
+      && BTREE_NP (BTREE_NP (root->parent)->parent))
+    g = BTREE_NODE_RED_P (BTREE_NP (BTREE_NP (root->parent)->parent))
+      ? 'r' : 'b';
+
+  char p = ' ';
+  if (root && BTREE_NP (root->parent))
+    p = BTREE_NODE_RED_P (BTREE_NP (root->parent)) ? 'r' : 'b';
+
+  char n = root ? (BTREE_NODE_RED_P (root) ? 'r' : 'b') : ' ';
+
+  char l = ' ';
+  if (root && BTREE_NP_CHILD (root->left))
+    l = BTREE_NODE_RED_P (BTREE_NP_CHILD (root->left)) ? 'r' : 'b';
+  char r = ' ';
+  if (root && BTREE_NP_CHILD (root->right))
+    r = BTREE_NODE_RED_P (BTREE_NP_CHILD (root->right)) ? 'r' : 'b';
+
+  int bad = (p == 'r' && n == 'r')
+    || (n == 'r' && (l == 'r' || r == 'r'));
+
+  printf ("%p: %c (%c -> %c -> *%c* -> %c %c) %s\n",
+	  root, n, g, p, n, l, r, bad ? "***" : "");
+
+  if (! root)
+    return;
+
+  dump_tree (BTREE_NP_CHILD (root->left), indent + 1);
+  dump_tree (BTREE_NP_CHILD (root->right), indent + 1);
+}
+
+static void
+check_tree_recurse (BTREE_(t) *btree, node p,
+		    BTREE_(key_compare_t) compare, size_t key_offset,
 		    int d_sofar, int d_total, bool check_colors)
 {
   if (p == NULL)
@@ -166,39 +206,6 @@ check_tree_recurse (node p, BTREE_(key_compare_t) compare, size_t key_offset,
 	assert (d_sofar == d_total);
       return;
     }
-
-  check_tree_recurse (BTREE_NP_CHILD (p->left), compare, key_offset,
-		      d_sofar
-		      + (BTREE_NP_CHILD (p->left)
-			 && !BTREE_NODE_RED_P (BTREE_NP_CHILD (p->left))),
-		      d_total, check_colors);
-  check_tree_recurse (BTREE_NP_CHILD (p->right), compare, key_offset, 
-		      d_sofar
-		      + (BTREE_NP_CHILD (p->right)
-			 && !BTREE_NODE_RED_P (BTREE_NP_CHILD (p->right))),
-		      d_total, check_colors);
-  if (BTREE_NP_CHILD (p->left))
-    {
-      assert (!(BTREE_NODE_RED_P (BTREE_NP_CHILD (p->left))
-		&& BTREE_NODE_RED_P (p)));
-      assert (BTREE_NP (BTREE_NP_CHILD (p->left)->parent) == p);
-      if (compare)
-	assert (compare ((void *) BTREE_NP_CHILD (p->left) + key_offset,
-			 (void *) p + key_offset) < 0);
-    }
-  if (BTREE_NP_CHILD (p->right))
-    {
-      assert (!(BTREE_NODE_RED_P (BTREE_NP_CHILD (p->right))
-		&& BTREE_NODE_RED_P (p)));
-      assert (BTREE_NP (BTREE_NP_CHILD (p->right)->parent) == p);
-      if (compare)
-	assert (compare ((void *) BTREE_NP_CHILD (p->right) + key_offset,
-			 (void *) p + key_offset) > 0);
-    }
-  else
-    /* If it doesn't have a child, then it better have a right
-       thread.  */
-    assert (BTREE_NP_THREAD_P (p->right));
 
   if (BTREE_NP_THREAD_P (p->left))
     {
@@ -217,10 +224,50 @@ check_tree_recurse (node p, BTREE_(key_compare_t) compare, size_t key_offset,
       assert (orig_next == next);
       BTREE_NP_THREAD_SET (&p->right, next);
     }
+
+  check_tree_recurse (btree, BTREE_NP_CHILD (p->left), compare, key_offset,
+		      d_sofar
+		      + (BTREE_NP_CHILD (p->left)
+			 && !BTREE_NODE_RED_P (BTREE_NP_CHILD (p->left))),
+		      d_total, check_colors);
+  check_tree_recurse (btree, BTREE_NP_CHILD (p->right), compare, key_offset, 
+		      d_sofar
+		      + (BTREE_NP_CHILD (p->right)
+			 && !BTREE_NODE_RED_P (BTREE_NP_CHILD (p->right))),
+		      d_total, check_colors);
+  if (BTREE_NP_CHILD (p->left))
+    {
+      if (BTREE_NODE_RED_P (BTREE_NP_CHILD (p->left))
+	  && BTREE_NODE_RED_P (p))
+	dump_tree (BTREE_NP (btree->root), 0);
+      assert (!(BTREE_NODE_RED_P (BTREE_NP_CHILD (p->left))
+		&& BTREE_NODE_RED_P (p)));
+      assert (BTREE_NP (BTREE_NP_CHILD (p->left)->parent) == p);
+      if (compare)
+	assert (compare ((void *) BTREE_NP_CHILD (p->left) + key_offset,
+			 (void *) p + key_offset) <= 0);
+    }
+  if (BTREE_NP_CHILD (p->right))
+    {
+      if (BTREE_NODE_RED_P (BTREE_NP_CHILD (p->right))
+	  && BTREE_NODE_RED_P (p))
+	dump_tree (BTREE_NP (btree->root), 0);
+      assert (!(BTREE_NODE_RED_P (BTREE_NP_CHILD (p->right))
+		&& BTREE_NODE_RED_P (p)));
+      assert (BTREE_NP (BTREE_NP_CHILD (p->right)->parent) == p);
+      if (compare)
+	assert (compare ((void *) BTREE_NP_CHILD (p->right) + key_offset,
+			 (void *) p + key_offset) >= 0);
+    }
+  else
+    /* If it doesn't have a child, then it better have a right
+       thread.  */
+    assert (BTREE_NP_THREAD_P (p->right));
 }
 
 void
-BTREE_(check_tree_internal) (node root, BTREE_(key_compare_t) compare,
+BTREE_(check_tree_internal) (BTREE_(t) *btree, node root,
+			     BTREE_(key_compare_t) compare,
 			     size_t key_offset, bool check_colors)
 {
   int cnt = 0;
@@ -231,7 +278,7 @@ BTREE_(check_tree_internal) (node root, BTREE_(key_compare_t) compare,
   if (check_colors)
     for(p = BTREE_NP_CHILD (root->left); p; p = BTREE_NP_CHILD (p->left))
       cnt += !BTREE_NODE_RED_P (p);
-  check_tree_recurse (root, compare, key_offset, 0, cnt, check_colors);
+  check_tree_recurse (btree, root, compare, key_offset, 0, cnt, check_colors);
 }
 
 
@@ -240,7 +287,8 @@ BTREE_(check_tree_internal) (node root, BTREE_(key_compare_t) compare,
 #define CHECK_TREE(a)
 
 static void
-BTREE_(check_tree_internal) (node root, BTREE_(key_compare_t) compare,
+BTREE_(check_tree_internal) (BTREE_(t) *btree, node root,
+			     BTREE_(key_compare_t) compare,
 			     size_t key_offset, bool check_colors)
 {
 }
@@ -894,7 +942,8 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
       for (; p && (child == NULL || !BTREE_NODE_RED_P (child));
 	   p = BTREE_NP (p->parent))
 	{
-	  BTREE_ (check_tree_internal) (BTREE_NP (btree->root), 0, 0, false);
+	  BTREE_ (check_tree_internal) (btree, BTREE_NP (btree->root),
+					0, 0, false);
 
 	  struct BTREE_(node_ptr) *pp = selfp (btree, p);
 

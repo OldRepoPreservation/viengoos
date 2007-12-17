@@ -241,13 +241,14 @@ BTREE_(tree_init) (BTREE_(t) *btree)
    Internal function.  Perform a consistent check on the tree rooted
    at ROOT.  */
 #ifndef NDEBUG
-extern void BTREE_(check_tree_internal) (BTREE_(node_t) *root,
+extern void BTREE_(check_tree_internal) (BTREE_(t) *btree,
+					 BTREE_(node_t) *root,
 					 BTREE_(key_compare_t) compare,
 					 size_t key_offset, bool check_colors);
-#define BTREE_check_tree_internal_(r, c, k, cc) \
-  BTREE_(check_tree_internal) (r, c, k, cc)
+#define BTREE_check_tree_internal_(bt, r, c, k, cc)	\
+  BTREE_(check_tree_internal) (bt, r, c, k, cc)
 #else
-#define BTREE_check_tree_internal_(r, c, k, c) do { } while (0)
+#define BTREE_check_tree_internal_(bt, r, c, k, c) do { } while (0)
 #endif
 
 /* This is a private function do not call it from user code!
@@ -290,25 +291,30 @@ BTREE_(maybe_split_internal) (BTREE_(t) *tree, BTREE_(node_t) *node,
    be if it was in the tree) in *NODEPP, e.g. if KEY is larger than
    the parent's, *NODEPP is set to &(*parent)->right.  Returns
    (whether or not the node with KEY is found) the parent node in
-   *PARENT (or sets it to NULL if the tree is empty).  If no node is
-   found in the tree with key KEY, then *PREDP is set to the node with
-   the largest key which compares less than KEY or NULL if key is
-   smaller than all nodes in the tree.  *SUCCP is set similarly to
-   *PREDP expect that it points to the node with the smallest key
-   which compares greater than KEY or NULL if key is larger than all
-   nodes in the tree.  Returns 0 if found and ESRCH otherwise.  */
+   *PARENT (or sets it to NULL if the tree is empty).
+
+   If no node is found in the tree with key KEY, then *PREDP is set to
+   the node with the largest key which compares less than KEY or NULL
+   if key is smaller than all nodes in the tree.  *SUCCP is set
+   similarly to *PREDP expect that it points to the node with the
+   smallest key which compares greater than KEY or NULL if key is
+   larger than all nodes in the tree.  Returns 0 if found and ESRCH
+   otherwise.
+
+   If MAY_OVERLAP is true, then finds a slot to insert a node with key
+   KEY even if such a node already exists.  */
 BTREE_EXTERN_INLINE error_t
 BTREE_(find_internal) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 		       size_t key_offset, const void *key,
 		       struct BTREE_(node_ptr) **nodepp,
 		       BTREE_(node_t) **predp, BTREE_(node_t) **succp,
-		       BTREE_(node_t) **parentp);
+		       BTREE_(node_t) **parentp, bool may_overlap);
 BTREE_EXTERN_INLINE error_t
 BTREE_(find_internal) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 		       size_t key_offset, const void *key,
 		       struct BTREE_(node_ptr) **nodepp,
 		       BTREE_(node_t) **predp, BTREE_(node_t) **succp,
-		       BTREE_(node_t) **parentp)
+		       BTREE_(node_t) **parentp, bool may_overlap)
 {
   int r;
   error_t err = ESRCH;
@@ -324,7 +330,7 @@ BTREE_(find_internal) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
       BTREE_(node_t) *node = BTREE_NP (*nodep);
 
       r = compare (key, (void *) node + key_offset);
-      if (r == 0)
+      if (r == 0 && ! may_overlap)
 	/* Found it.  */
 	{
 	  err = 0;
@@ -368,7 +374,7 @@ BTREE_(find) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
   BTREE_(node_t) *node, *pred, *succ, *parent;
 
   err = BTREE_(find_internal) (btree, compare, key_offset, key,
-			       &nodep, &pred, &succ, &parent);
+			       &nodep, &pred, &succ, &parent, false);
   node = BTREE_NP_CHILD (*nodep);
   /* If not found, NODE will be NULL.  */
   assert ((err == ESRCH && ! node) || (err == 0 && node));
@@ -376,15 +382,15 @@ BTREE_(find) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 }
 
 /* Insert node NODE into btree BTREE.  COMPARE is the comparison
-   function.  NEWNODE's key must be valid.  If the node cannot be
-   inserted as a node with the key already exists, returns the node.
-   Otherwise, returns 0.  */
+   function.  NEWNODE's key must be valid.  If MAY_OVERLAP is not
+   true, and there exists a node with a key that compares equal to
+   NEWNODE's key, such a node is returned.  Otherwise, returns 0.  */
 BTREE_EXTERN_INLINE BTREE_(node_t) *
 BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
-		size_t key_offset, BTREE_(node_t) *newnode);
+		size_t key_offset, bool may_overlap, BTREE_(node_t) *newnode);
 BTREE_EXTERN_INLINE BTREE_(node_t) *
 BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
-		size_t key_offset, BTREE_(node_t) *newnode)
+		size_t key_offset, bool may_overlap, BTREE_(node_t) *newnode)
 {
   error_t err;
   struct BTREE_(node_ptr) *nodep;
@@ -392,9 +398,10 @@ BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
 
   err = BTREE_(find_internal) (btree, compare, key_offset,
 			       (void *) newnode + key_offset,
-			       &nodep, &pred, &succ, &parent);
+			       &nodep, &pred, &succ, &parent,
+			       may_overlap);
   if (! err)
-    /* Overlap!  Bail.  */
+    /* Overlap!  */
     {
       assert (! BTREE_NP_THREAD_P (*nodep));
       return BTREE_NP_CHILD (*nodep);
@@ -438,7 +445,7 @@ BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
        balancing later on.  */
     BTREE_NODE_RED_SET (newnode, false);
 
-  BTREE_check_tree_internal_ (BTREE_NP_CHILD (btree->root),
+  BTREE_check_tree_internal_ (btree, BTREE_NP_CHILD (btree->root),
 			      compare, key_offset, true);
 
   return 0;
@@ -587,7 +594,7 @@ BTREE_(prev) (BTREE_(node_t) *node)
      };
      
      BTREE_CLASS (int, struct my_int_node, int, key, node,
-                  my_int_node_compare)
+                  my_int_node_compare, false)
      
      int
      int_node_compare (const int *a, const int *b)
@@ -598,7 +605,7 @@ BTREE_(prev) (BTREE_(node_t) *node)
    Would make btree_int_node_find, btree_int_node_insert, etc.
    available.  */
 #define BTREE_CLASS(name, node_type, key_type, key_field,		\
-		    btree_node_field, cmp_function)			\
+		    btree_node_field, cmp_function, may_overlap)	\
 									\
 typedef struct								\
 {									\
@@ -634,7 +641,7 @@ BTREE_(name##_insert) (BTREE_(name##_t) *btree, node_type *newnode)	\
 		    (int (*) (const void *, const void *)) cmp,		\
 		    offsetof (node_type, key_field)			\
 		    - offsetof (node_type, btree_node_field),		\
-		    &newnode->btree_node_field);			\
+		    may_overlap, &newnode->btree_node_field);		\
 }									\
 									\
 static inline void							\
@@ -643,7 +650,8 @@ BTREE_(name##_detach) (BTREE_(name##_t) *btree, node_type *node)	\
   BTREE_(detach) (&btree->btree, &node->btree_node_field);		\
 									\
   int (*cmp) (const key_type *, const key_type *) = (cmp_function);	\
-  BTREE_check_tree_internal_ (BTREE_NP_CHILD (btree->btree.root),	\
+  BTREE_check_tree_internal_ (&btree->btree,				\
+			      BTREE_NP_CHILD (btree->btree.root),	\
 			      (BTREE_(key_compare_t)) cmp,		\
 			      offsetof (node_type, key_field)		\
 			      - offsetof (node_type, btree_node_field), \

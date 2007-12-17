@@ -1,5 +1,25 @@
 2007-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* btree.h (BTREE_(check_tree_internal)): Take additional
+	parameter, the btree.  Update users.
+	(BTREE_check_tree_internal_): Take additional parameter, the
+	btree.  Update users.
+	(BTREE_(find_internal)): Take additional parameter, may_overlap.
+	If true, then don't break out when a matching node is found.
+	Update users.
+	(BTREE_(insert)): Take additional parameter, may_overlap.  
+	If true, don't require that nodes have a unique key.
+	(BTREE_CLASS): Take additional parameter, may_overlap.  Generate
+	stubs appropriate.
+	* btree.c (BTREE_): New function.
+	(check_tree_recurse): Take additional parameter, btree.  Update
+	users.  Add additional tests.
+	(BTREE_(check_tree_internal)): Take additional parameter, btree.
+	Update users.
+	* btree-test.c: Add tests for checking trees with overlapping keys.
+
+2007-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* btree.c (DEBUGGING): Don't define.  Use !NDEBUG instead.
 	(BTREE_(check_tree_internal) [NDEBUG]): Define.
 	* btree.h (BTREE_check_tree_internal_): Define.  Update users to

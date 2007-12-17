@@ -23,7 +23,9 @@ struct int_node
   int key;
 };
 
-BTREE_CLASS(int_node, struct int_node, int, key, node, int_node_compare)
+BTREE_CLASS(int_node, struct int_node, int, key, node, int_node_compare, false)
+
+BTREE_CLASS(intd_node, struct int_node, int, key, node, int_node_compare, true)
 
 static int
 int_node_compare (const int *a, const int *b)
@@ -65,8 +67,8 @@ print_nodes (struct int_node *a, int depth)
 }
 
 #define A 0
-#define B 5000
-#define C 10000
+#define B 500
+#define C 1000
 
 int
 main (int argc, char *argv[])
@@ -519,6 +521,77 @@ main (int argc, char *argv[])
   /* Empty again.  */
   node = hurd_btree_int_node_first (&root);
   assert (! node);
+
+  /* Test whether we can insert nodes with the same value into a true
+     with MAY_OVERLAP set to true.  */
+  hurd_btree_intd_node_t droot;
+  hurd_btree_intd_node_tree_init (&droot);
+
+  node = hurd_btree_intd_node_first (&droot);
+  assert (! node);
+
+  /* Insert 0, 1, ..., max - 1, 10 times.  */
+  const int max = 10;
+  for (i = 0; i < 10; i ++)
+    for (j = 0; j < max; j ++)
+      {
+	debug ("Inserting %d... ", j);
+	node = malloc (sizeof (struct int_node));
+	assert (node);
+
+	node->key = j;
+	ret = hurd_btree_intd_node_insert (&droot, node);
+	assert (! ret);
+
+	int cnt = 0;
+	node = hurd_btree_intd_node_first (&droot);
+	while (node)
+	  {
+	    /* Consider:
+
+	       We've added:
+
+	         0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2
+
+	       thus, max = 4, and i = 2, j = 2.
+
+	       As we traverse the list, we expect:
+	       
+	         0  1  2  3  4  5  6  7  8  9 10 11 12
+
+	         0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4
+		 \     /  \     /  \     /  \  /  \  /
+		 i+1 0's  i+1 1's  i+1 2's  i 3's  i 4's
+
+	       Thus, we expect that if CNT <= (i+1)*(j+1),
+
+	         key(node(cnt)) = cnt / (i + 1)
+
+	       e.g., 7 / (2 + 1) = 2, as expected
+
+	       Otherwise,
+
+	         key(node(cnt)) = j + 1 + ((cnt - ((i + 1) * (j + 1))) / i)
+
+	       e.g., 2 + 1 + ((11 - ((2 + 1) * (2 + 1))) / 2) = 4
+	    */
+
+	    if (i == 0)
+	      assert (node->key == cnt);
+	    else if (cnt <= (i + 1) * (j + 1))
+	      assert (node->key == cnt / (i + 1));
+	    else
+	      assert (node->key == j + 1 + ((cnt - ((i + 1) * (j + 1))) / i));
+	    cnt ++;
+
+	    struct int_node *next = hurd_btree_intd_node_next (node);
+	    if (next)
+	      assert (hurd_btree_intd_node_prev (next) == node);
+	    node = next;
+	  }
+	assert (cnt == max * i + j + 1);
+      }
+
 
   printf (". done\n"); fflush (stdout);
 
