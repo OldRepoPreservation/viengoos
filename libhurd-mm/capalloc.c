@@ -79,7 +79,7 @@ addr_compare (const addr_t *a, const addr_t *b)
 }
 
 BTREE_CLASS (cappage_desc, struct cappage_desc,
-	     addr_t, cappage, node, addr_compare)
+	     addr_t, cappage, node, addr_compare, false)
 
 static pthread_mutex_t cappage_descs_lock = PTHREAD_MUTEX_INITIALIZER;
 static hurd_btree_cappage_desc_t cappage_descs;

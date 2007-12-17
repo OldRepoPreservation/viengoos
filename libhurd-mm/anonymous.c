@@ -54,7 +54,7 @@ addr_compare (const addr_t *a, const addr_t *b)
 }
 
 BTREE_CLASS (storage_desc, struct storage_desc,
-	     addr_t, addr, node, addr_compare)
+	     addr_t, addr, node, addr_compare, false)
 
 static error_t
 slab_alloc (void *hook, size_t size, void **ptr)

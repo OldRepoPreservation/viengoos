@@ -112,7 +112,7 @@ pager_region_compare (const struct pager_region *a,
 }
 
 BTREE_CLASS (pager, struct pager, struct pager_region, region, node,
-	     pager_region_compare)
+	     pager_region_compare, false)
 
 /* Protects PAGERS and all pager's NODE.  This lock may not be taken
    if a pager's LOCK is held by the caller.  */

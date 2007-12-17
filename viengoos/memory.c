@@ -70,7 +70,7 @@ reservation_node_compare (const struct region *a,
 }
 
 BTREE_CLASS (reservation, struct reservation, struct region, region, node,
-	     reservation_node_compare);
+	     reservation_node_compare, false);
 
 static hurd_btree_reservation_t reservations;
 

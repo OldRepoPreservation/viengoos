@@ -28,6 +28,7 @@
 #include <hurd/slab.h>
 #include <hurd/mutex.h>
 #include <l4/types.h>
+#include <l4/kip.h>
 
 #include <string.h>
 
@@ -78,7 +79,7 @@ region_compare (const struct region *a, const struct region *b)
 }
 
 BTREE_CLASS (free_space, struct free_space, struct region, region, node,
-	     region_compare)
+	     region_compare, false)
 
 /* The list of free regions.  */
 static ss_mutex_t free_spaces_lock;

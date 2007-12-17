@@ -139,7 +139,7 @@ addr_compare (const addr_t *a, const addr_t *b)
 }
 
 BTREE_CLASS (storage_desc, struct storage_desc,
-	     addr_t, folio, node, addr_compare)
+	     addr_t, folio, node, addr_compare, false)
 
 static hurd_btree_storage_desc_t storage_descs;
 

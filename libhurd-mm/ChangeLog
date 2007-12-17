@@ -1,3 +1,11 @@
+2007-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.c: Update BTREE_CLASS use to reflect API changes.
+	* as.c: Likewise.
+	* capalloc.c: Likewise.
+	* pager.h: Likewise.
+	* storage.c: Likewise.
+
 2007-12-14  Neal H. Walfield  <neal@gnu.org>
 
 	* mmap.c (munmap): Rewrite to avoid race.

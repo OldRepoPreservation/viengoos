@@ -1,3 +1,7 @@
+2007-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* memory.c: Update BTREE_CLASS use to reflect API changes.
+
 2007-12-14  Neal H. Walfield  <neal@gnu.org>
 
 	* viengoos.c (system_task_load:csalloc): Remove function.
