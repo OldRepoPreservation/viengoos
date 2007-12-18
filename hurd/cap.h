@@ -25,7 +25,7 @@
 #include <hurd/types.h>
 #include <hurd/stddef.h>
 #include <hurd/addr-trans.h>
-#include <hurd/rm.h>
+#include <hurd/startup.h>
 #include <errno.h>
 
 #ifndef RM_INTERN
@@ -125,7 +125,82 @@ enum cap_type
     cap_thread,
 #define CAP_TYPE_MAX cap_thread
   };
+
+#define RPC_STUB_PREFIX rm
+#define RPC_ID_PREFIX RM
+#undef RPC_TARGET_NEED_ARG
+#define RPC_TARGET \
+  ({ \
+    extern struct hurd_startup_data *__hurd_startup_data; \
+    __hurd_startup_data->rm; \
+  })
 
+#include <hurd/rpc.h>
+
+enum
+  {
+    RM_cap_copy = 300,
+    RM_cap_read,
+
+    RM_object_slot_copy_out = 400,
+    RM_object_slot_copy_in,
+    RM_object_slot_read,
+  };
+
+enum
+{
+  /* Use subpage in CAP_ADDR_TRANS (must be a subset of subpage in
+     SOURCE).  */
+  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE = 1 << 0,
+  /* Use guard in TARGET, not the guard in CAP_ADDR_TRANS.  */
+  CAP_COPY_COPY_ADDR_TRANS_GUARD = 1 << 1,
+  /* Use guard in SOURCE.  */
+  CAP_COPY_COPY_SOURCE_GUARD = 1 << 2,
+
+  /* When copying the capability copies a weakened reference.  */
+  CAP_COPY_WEAKEN = 1 << 3
+};
+
+/* Copy capability SOURCE to the capability slot TARGET.
+   ADDR_TRANS_FLAGS is a subset of CAP_COPY_GUARD, CAP_COPY_SUBPAGE,
+   and CAP_COPY_PRESERVE_GUARD, bitwise-ored.  If CAP_COPY_GUARD is
+   set, the guard descriptor in CAP_ADDR_TRANS is used, if
+   CAP_COPY_PRESERVE_GUARD, the guard descriptor in TARGET, otherwise,
+   the guard descriptor is copied from SOURCE.  If CAP_COPY_SUBPAGE is
+   set, the subpage descriptor in CAP_ADDR_TRANS is used, otherwise,
+   the subpage descriptor is copied from SOURCE.  */
+RPC(cap_copy, 5, 0, addr_t, principal, addr_t, target, addr_t, source,
+    l4_word_t, addr_trans_flags, struct cap_addr_trans, cap_addr_trans)
+
+/* Store the public bits of the capability CAP in *TYPE and
+   *CAP_ADDR_TRANS.  */
+RPC(cap_read, 2, 2, addr_t, principal, addr_t, cap,
+    /* Out: */
+    l4_word_t, type, struct cap_addr_trans, cap_addr_trans)
+
+/* Copy the capability from slot SLOT of the object OBJECT (relative
+   to the start of the object's subpage) to slot TARGET.  */
+RPC(object_slot_copy_out, 6, 0, addr_t, principal,
+    addr_t, object, l4_word_t, slot, addr_t, target,
+    l4_word_t, flags, struct cap_addr_trans, cap_addr_trans)
+
+/* Copy the capability from slot SOURCE to slot INDEX of the object
+   OBJECT (relative to the start of the object's subpage).  */
+RPC(object_slot_copy_in, 6, 0, addr_t, principal,
+    addr_t, object, l4_word_t, index, addr_t, source,
+    l4_word_t, flags, struct cap_addr_trans, cap_addr_trans)
+
+/* Store the public bits of the capability slot SLOT of object
+   OBJECT in *TYPE and *CAP_ADDR.  */
+RPC(object_slot_read, 3, 2, addr_t, principal,
+    addr_t, object, l4_word_t, slot,
+    /* Out: */
+    l4_word_t, type, struct cap_addr_trans, cap_addr_trans)
+
+#undef RPC_STUB_PREFIX
+#undef RPC_ID_PREFIX
+#undef RPC_TARGET
+
 /* Return whether cap CAP is of type TYPE.  */
 static inline bool
 cap_is_a (struct cap *cap, enum cap_type type)

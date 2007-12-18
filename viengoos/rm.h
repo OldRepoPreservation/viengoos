@@ -21,50 +21,20 @@
 #ifndef RM_RM_H
 #define RM_RM_H
 
-#include <assert.h>
-#include <l4.h>
-#include <errno.h>
-
-#include <hurd/types.h>
-#include <hurd/addr.h>
-#include <hurd/addr-trans.h>
 #include <hurd/startup.h>
-
+#include <hurd/folio.h>
+#include <hurd/exceptions.h>
 #include <hurd/thread.h>
 #include <hurd/activity.h>
-
-#define RPC_STUB_PREFIX rm
-#define RPC_ID_PREFIX RM
-#undef RPC_TARGET_NEED_ARG
-#define RPC_TARGET \
-  ({ \
-    extern struct hurd_startup_data *__hurd_startup_data; \
-    __hurd_startup_data->rm; \
-  })
-
-#include <hurd/rpc.h>
 
 enum rm_method_id
   {
     RM_putchar = 100,
     RM_as_dump,
-
-    RM_folio_alloc = 200,
-    RM_folio_free,
-    RM_folio_object_alloc,
-
-    RM_cap_copy = 300,
-    RM_cap_read,
-
-    RM_object_slot_copy_out = 400,
-    RM_object_slot_copy_in,
-    RM_object_slot_read,
-
-    RM_exception_collect = 500,
   };
 
 static inline const char *
-rm_method_id_string (enum rm_method_id id)
+rm_method_id_string (int id)
 {
   switch (id)
     {
@@ -99,83 +69,21 @@ rm_method_id_string (enum rm_method_id id)
     }
 }
 
+#define RPC_STUB_PREFIX rm
+#define RPC_ID_PREFIX RM
+#undef RPC_TARGET_NEED_ARG
+#define RPC_TARGET \
+  ({ \
+    extern struct hurd_startup_data *__hurd_startup_data; \
+    __hurd_startup_data->rm; \
+  })
+
+#include <hurd/rpc.h>
+
 /* Echo the character CHR on the manager console.  */
 RPC_SIMPLE(putchar, 1, 0, int, chr)
 
-/* Allocate a folio against PRINCIPAL.  Store a capability in
-   the caller's cspace in slot FOLIO.  */
-RPC(folio_alloc, 2, 0, addr_t, principal, addr_t, folio)
-  
-/* Free the folio designated by FOLIO.  PRINCIPAL pays.  */
-RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
-
-/* Allocate INDEXth object in folio FOLIO as an object of type TYPE.
-   PRINCIPAL is charged.  If OBJECT_SLOT is not ADDR_VOID, then stores
-   a capability to the allocated object in OBJECT_SLOT.  If
-   OBJECT_WEAK_SLOT is not ADDR_VOID, stores a weaken reference to the
-   created object.  */
-RPC(folio_object_alloc, 6, 0, addr_t, principal,
-    addr_t, folio, l4_word_t, index, l4_word_t, type,
-    addr_t, object_slot, addr_t, object_weak_slot)
-
-enum
-{
-  /* Use subpage in CAP_ADDR_TRANS (must be a subset of subpage in
-     SOURCE).  */
-  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE = 1 << 0,
-  /* Use guard in TARGET, not the guard in CAP_ADDR_TRANS.  */
-  CAP_COPY_COPY_ADDR_TRANS_GUARD = 1 << 1,
-  /* Use guard in SOURCE.  */
-  CAP_COPY_COPY_SOURCE_GUARD = 1 << 2,
-
-  /* When copying the capability copies a weakened reference.  */
-  CAP_COPY_WEAKEN = 1 << 3,
-};
-
-/* Copy capability SOURCE to the capability slot TARGET.
-   ADDR_TRANS_FLAGS is a subset of CAP_COPY_GUARD, CAP_COPY_SUBPAGE,
-   and CAP_COPY_PRESERVE_GUARD, bitwise-ored.  If CAP_COPY_GUARD is
-   set, the guard descriptor in CAP_ADDR_TRANS is used, if
-   CAP_COPY_PRESERVE_GUARD, the guard descriptor in TARGET, otherwise,
-   the guard descriptor is copied from SOURCE.  If CAP_COPY_SUBPAGE is
-   set, the subpage descriptor in CAP_ADDR_TRANS is used, otherwise,
-   the subpage descriptor is copied from SOURCE.  */
-RPC(cap_copy, 5, 0, addr_t, principal, addr_t, target, addr_t, source,
-    l4_word_t, addr_trans_flags, struct cap_addr_trans, cap_addr_trans)
-
-/* Store the public bits of the capability CAP in *TYPE and
-   *CAP_ADDR_TRANS.  */
-RPC(cap_read, 2, 2, addr_t, principal, addr_t, cap,
-    /* Out: */
-    l4_word_t, type, struct cap_addr_trans, cap_addr_trans)
-
-/* Copy the capability from slot SLOT of the object OBJECT (relative
-   to the start of the object's subpage) to slot TARGET.  */
-RPC(object_slot_copy_out, 6, 0, addr_t, principal,
-    addr_t, object, l4_word_t, slot, addr_t, target,
-    l4_word_t, flags, struct cap_addr_trans, cap_addr_trans)
-
-/* Copy the capability from slot SOURCE to slot INDEX of the object
-   OBJECT (relative to the start of the object's subpage).  */
-RPC(object_slot_copy_in, 6, 0, addr_t, principal,
-    addr_t, object, l4_word_t, index, addr_t, source,
-    l4_word_t, flags, struct cap_addr_trans, cap_addr_trans)
-
-/* Store the public bits of the capability slot SLOT of object
-   OBJECT in *TYPE and *CAP_ADDR.  */
-RPC(object_slot_read, 3, 2, addr_t, principal,
-    addr_t, object, l4_word_t, slot,
-    /* Out: */
-    l4_word_t, type, struct cap_addr_trans, cap_addr_trans)
-
-/* Cause the delivery of a pending event, if any.  */
-RPC(exception_collect, 1, 0, addr_t, principal)
-
 /* Dump THREAD's address space.  */
 RPC(as_dump, 2, 0, addr_t, principal, addr_t, thread)
-
-#undef RPC_STUB_PREFIX
-#undef RPC_ID_PREFIX
-#undef RPC_TARGET
 
 #endif

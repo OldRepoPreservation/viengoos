@@ -1,3 +1,21 @@
+2007-12-18  Neal H. Walfield  <neal@gnu.org>
+
+	* rm.h: Don't include <assert.h>, <l4.h>, <errno.h>,
+	<hurd/types.h>, <hurd/addr.h> or <hurd/addr-trans.h>.  Include
+	<hurd/folio.h> and <hurd/exceptions.h>.
+	(RM_folio_alloc, RM_folio_free, RM_folio_object_alloc,
+	folio_alloc, folio_free, folio_object_alloc): Move from here...
+	* ../hurd/folio.h: ... to this file.
+	* rm.h (RM_cap_copy, RM_cap_read, RM_object_slot_copy_out,
+	RM_object_slot_copy_in, RM_object_slot_read, cap_copy, cap_read,
+	object_slot_copy_out, object_slot_copy_in, object_slot_read,
+	CAP_COPY_COPY_ADDR_TRANS_SUBPAGE, CAP_COPY_COPY_ADDR_TRANS_GUARD,
+	CAP_COPY_COPY_SOURCE_GUARD, CAP_COPY_WEAKEN): Move from here...
+	* ../hurd/folio.h: ... to this file.
+	* rm.h (RM_exception_collect, exception_collect): Move from
+	here...
+	* ../hurd/exceptions.h: ... to this file.
+
 2007-12-17  Neal H. Walfield  <neal@gnu.org>
 
 	* memory.c: Update BTREE_CLASS use to reflect API changes.

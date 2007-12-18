@@ -23,6 +23,9 @@
 #define _HURD_FOLIO_H 1
 
 #include <hurd/types.h>
+#include <hurd/addr.h>
+#include <hurd/startup.h>
+#include <stdint.h>
 
 /* Number of user objects per folio.  */
 enum
@@ -95,5 +98,43 @@ struct folio
   struct cap objects[FOLIO_OBJECTS];
 #endif
 };
+
+#define RPC_STUB_PREFIX rm
+#define RPC_ID_PREFIX RM
+#undef RPC_TARGET_NEED_ARG
+#define RPC_TARGET \
+  ({ \
+    extern struct hurd_startup_data *__hurd_startup_data; \
+    __hurd_startup_data->rm; \
+  })
+
+#include <hurd/rpc.h>
+
+enum
+  {
+    RM_folio_alloc = 200,
+    RM_folio_free,
+    RM_folio_object_alloc,
+  };
+
+/* Allocate a folio against PRINCIPAL.  Store a capability in
+   the caller's cspace in slot FOLIO.  */
+RPC(folio_alloc, 2, 0, addr_t, principal, addr_t, folio)
+  
+/* Free the folio designated by FOLIO.  PRINCIPAL pays.  */
+RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
+
+/* Allocate INDEXth object in folio FOLIO as an object of type TYPE.
+   PRINCIPAL is charged.  If OBJECT_SLOT is not ADDR_VOID, then stores
+   a capability to the allocated object in OBJECT_SLOT.  If
+   OBJECT_WEAK_SLOT is not ADDR_VOID, stores a weaken reference to the
+   created object.  */
+RPC(folio_object_alloc, 6, 0, addr_t, principal,
+    addr_t, folio, l4_word_t, index, l4_word_t, type,
+    addr_t, object_slot, addr_t, object_weak_slot)
+
+#undef RPC_STUB_PREFIX
+#undef RPC_ID_PREFIX
+#undef RPC_TARGET
 
 #endif

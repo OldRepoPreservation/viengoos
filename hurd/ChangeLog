@@ -1,3 +1,20 @@
+2007-12-18  Neal H. Walfield  <neal@gnu.org>
+
+	* folio.h: Include <hurd/addr.h>, <hurd/startup.h> and <stdint.h>.
+	(RM_folio_alloc, RM_folio_free, RM_folio_object_alloc,
+	folio_alloc, folio_free, folio_object_alloc): Move here...
+	* ../viengoos/rm.h: ... from this file.
+	* cap.h: Don't include <hurd/rm.h>.  Include <hurd/startup.h>.
+	(RM_cap_copy, RM_cap_read, RM_object_slot_copy_out,
+	RM_object_slot_copy_in, RM_object_slot_read, cap_copy, cap_read,
+	object_slot_copy_out, object_slot_copy_in, object_slot_read,
+	CAP_COPY_COPY_ADDR_TRANS_SUBPAGE, CAP_COPY_COPY_ADDR_TRANS_GUARD,
+	CAP_COPY_COPY_SOURCE_GUARD, CAP_COPY_WEAKEN): Move here...
+	* ../viengoos/rm.h: ... from this file.
+	* exceptions.h: Include <hurd/thread.h>.
+	(RM_exception_collect, exception_collect): Move here...
+	* ../viengoos/rm.h: ... from here.
+
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (cap_type_weak_p): New function.
