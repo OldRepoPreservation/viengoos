@@ -24,8 +24,6 @@
 #include <l4.h>
 #include <hurd/cap.h>
 
-#include "rm.h"
-
 /* The number of slots in a capability object of the given type.  */
 extern const int cap_type_num_slots[];
 

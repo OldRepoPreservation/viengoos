@@ -1,5 +1,20 @@
 2007-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c: Include "activity.h".
+	* as.c: Include "rm.h".
+	* cap.h: Don't include "rm.h".
+	* loader.c: Include "cap.h" and "thread.h".
+	* loader.h: Don't include "activity.h" or "thread.h".
+	(struct activity): Add forward declaration.
+	(struct thread): Likewise.
+	* thread.h: Don't include "cap.h".
+	* viengoos.c: Include <hurd/thread.h>.
+	
+	* as.c (as_insert): Add assert.
+	* cap-lookup.c (lookup): Improve assert.
+
+2007-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h: Don't include <assert.h>, <l4.h>, <errno.h>,
 	<hurd/types.h>, <hurd/addr.h> or <hurd/addr-trans.h>.  Include
 	<hurd/folio.h> and <hurd/exceptions.h>.

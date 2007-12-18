@@ -24,8 +24,6 @@
 #include <l4.h>
 #include <errno.h>
 
-#include "cap.h"
-
 /* Forward.  */
 struct folio;
 struct activity;

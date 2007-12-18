@@ -28,6 +28,7 @@
 
 #include "as.h"
 #include "bits.h"
+#include "rm.h"
 
 #ifdef RM_INTERN
 #include "object.h"
@@ -90,7 +91,7 @@ as_build_internal (activity_t activity,
 	{
 	  if (remaining == root_gbits && may_overwrite)
 	    {
-	      debug (0, "Overwriting " ADDR_FMT " with " ADDR_FMT
+	      debug (4, "Overwriting " ADDR_FMT " with " ADDR_FMT
 		     " (at " ADDR_FMT ")",
 		     ADDR_PRINTF (addr_extend (addr_chop (a, remaining),
 					       root_guard, root_gbits)),
@@ -413,7 +414,6 @@ as_build_internal (activity_t activity,
       bool r = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans, guard, gbits,
 						 0, 1);
       assert (r);
-
       r = cap_copy_x (activity, root, addr_chop (a, gbits),
 		      *root, addr_chop (a, gbits),
 		      CAP_COPY_COPY_ADDR_TRANS_GUARD, addr_trans);
@@ -452,6 +452,7 @@ as_insert (activity_t activity,
 
   struct cap *slot = as_build_internal (activity, root, addr, allocate_object,
 					false);
+  assert (slot);
   cap_copy (activity, slot, addr, entry, entry_addr);
 
 #ifndef RM_INTERN

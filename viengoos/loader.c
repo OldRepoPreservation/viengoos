@@ -28,8 +28,10 @@
 #include "loader.h"
 #include "elf.h"
 
+#include "cap.h"
 #include "object.h"
 #include "as.h"
+#include "thread.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 

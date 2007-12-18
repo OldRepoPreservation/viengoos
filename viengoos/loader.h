@@ -24,9 +24,11 @@
 #include <l4/types.h>
 
 #include "cap.h"
-#include "activity.h"
-#include "thread.h"
 #include "as.h"
+
+/* Forwards.  */
+struct activity;
+struct thread;
 
 /* Load the ELF image from START to END into memory under the name
    NAME (also used as the name for the region of the resulting ELF

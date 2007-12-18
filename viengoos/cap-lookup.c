@@ -177,7 +177,9 @@ lookup (activity_t activity,
 	      return false;
 	    }
 #else
-	  assert (object);
+	  assertx (object, ADDR_FMT "(%s) has no shadow object",
+		   ADDR_PRINTF (addr_chop (address, remaining)),
+		   cap_type_string (root->type));
 #endif
 
 	  struct folio *folio = (struct folio *) object;

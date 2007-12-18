@@ -26,6 +26,7 @@
 
 #include "ager.h"
 #include "object.h"
+#include "activity.h"
 
 /* When frames are shared amoung multiple activities, the first
    activity to access the frame is charged.  This is unfair; the cost
@@ -274,7 +275,7 @@ ager_loop (l4_thread_id_t main_thread)
 #if UNMAP_PERIODICALLY
       if (iterations == 8 * 5)
 	{
-	  debug (1, "Unmapping all. %d active, %d inacitve, last interation "
+	  debug (1, "Unmapping all. %d active, %d inactive, last interation "
 		 "retired: %d, revived: %d",
 		 active, inactive, retired, revived);
 
