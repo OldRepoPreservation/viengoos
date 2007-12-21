@@ -383,7 +383,7 @@ find_components (void)
 #define KMEM_SIZE	(16 * 0x100000)
 
   /* The upper limit for the end of the kernel memory.  */
-#define KMEM_MAX	(240 * 0x100000)
+#define KMEM_MAX	(240 * 0x100000 - 1)
 
   if (CHECK_FLAG (mbi->flags, 6))
     {
