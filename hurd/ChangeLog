@@ -1,5 +1,35 @@
 2007-12-21  Neal H. Walfield  <neal@gnu.org>
 
+	* rpc.h: Include <hurd/stddef.h>.  Don't include <string.h>.
+
+	(RPCLOADARG): Don't require that the argument be a multiple of the
+	machine word size.
+	(RPCSTOREARG): Likewise.
+
+	(RPC_COMMA, RPC_NOCOMMA, RPC_IF_COMMA): New macros.
+	(RPC_SEND_MARSHAL): Use it here.
+	(RPC_SEND_UNMARSHAL): Likewise.
+	(RPC_REPLY_MARSHAL): Likewise.
+	(RPC_REPLY_UNMARSHAL): Likewise.
+	(RPC_): Likewise.
+	
+	(RPCLOAD): Change argument names to avoid inadvertent expansion.
+	(RPCSTORE): Likewise.
+	(RPC_ARGUMENTS): Likewise.
+	(RPC_CHOP): Likewise.
+	(RPC_GRAB2): Likewise.
+	(RPC_GRAB): Likewise.
+	(RPC_SEND_UNMARSHAL): Change variable names to avoid inadvertent
+	expansion.
+	(RPC_REPLY_UNMARSHAL): Likewise.
+
+	* t-rpc.c: New file.
+	* Makefile.am (TESTS): Add t-rpc.
+	(t_rpc_CPPFLAGS): New variable.
+	(t_rpc_SOURCES): Likewise.
+
+2007-12-21  Neal H. Walfield  <neal@gnu.org>
+
 	* folio.h: Include <hurd/cap.h>.
 
 2007-12-18  Neal H. Walfield  <neal@gnu.org>
