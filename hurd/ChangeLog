@@ -1,3 +1,7 @@
+2007-12-21  Neal H. Walfield  <neal@gnu.org>
+
+	* folio.h: Include <hurd/cap.h>.
+
 2007-12-18  Neal H. Walfield  <neal@gnu.org>
 
 	* folio.h: Include <hurd/addr.h>, <hurd/startup.h> and <stdint.h>.

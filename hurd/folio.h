@@ -25,6 +25,7 @@
 #include <hurd/types.h>
 #include <hurd/addr.h>
 #include <hurd/startup.h>
+#include <hurd/cap.h>
 #include <stdint.h>
 
 /* Number of user objects per folio.  */
