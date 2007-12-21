@@ -69,6 +69,7 @@ const char program_name[] = "viengoos";
 extern char _start;
 extern char _end;
 
+static struct output_driver output_device;
 
 static void
 parse_args (int argc, char *argv[])
@@ -130,7 +131,7 @@ parse_args (int argc, char *argv[])
       else if (!strcmp (argv[i], "-o") || !strcmp (argv[i], "--output"))
 	{
 	  i++;
-	  if (!output_init (argv[i]))
+	  if (!output_init (&output_device, argv[i], true))
 	    panic ("Unknown output driver %s", argv[i]);
 	  i++;
 	}

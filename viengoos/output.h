@@ -21,6 +21,8 @@
 #ifndef _OUTPUT_H
 #define _OUTPUT_H	1
 
+#include <stdint.h>
+#include <stdbool.h>
 
 /* Every architecture must define at least one output driver, but might
    define several.  For each output driver, the name and operations on
@@ -31,13 +33,18 @@ struct output_driver
   const char *name;
 
   /* Initialize the output device.  */
-  void (*init) (const char *cfg);
+  void (*init) (struct output_driver *device, const char *cfg);
 
   /* Deinitialize the output device.  */
-  void (*deinit) (void);
+  void (*deinit) (struct output_driver *device);
 
   /* Output a character.  */
-  void (*putchar) (int chr);
+  void (*putchar) (struct output_driver *device, int chr);
+
+  /* Read a character.  */
+  int (*getchar) (struct output_driver *device);
+
+  uintptr_t cookie;
 };
 
 
@@ -49,27 +56,37 @@ extern struct output_driver *output_drivers[];
 
 #include <stdarg.h>
 
-/* Activate the output driver DRIVER or the default one if DRIVER is a
-   null pointer.  Must be called once at startup, before calling
-   putchar or any other output routine.  DRIVER has the pattern
-   NAME[,CONFIG...], for example "serial,uart2,speed=9600".  Returns 0
-   if DRIVER is not a valid output driver specification, otherwise 1
-   on success.  */
-int output_init (const char *driver);
+/* Activate the output device described by CONF.  CONF has the pattern
+   NAME[,CONFIG...], for example "serial,uart2,speed=9600".  If CONF
+   is NULL, then the default device is used.  Store the device
+   instance in * the storage designated by *DEVICE.  If MAKE_DEFAULT
+   is true, on success device configuration, make the device the
+   default i/o device.  If there is already a default i/o device, that
+   driver is first deinitialized.  Returns false if DRIVER is not a
+   valid output driver specification, otherwise true on success.  */
+bool output_init (struct output_driver *device, const char *conf,
+		  bool make_default);
 
 
 /* Deactivate the output driver.  Must be called after the last time
    putchar or any other output routine is called.  */
-void output_deinit (void);
+void output_deinit (struct output_driver *device);
 
 
 /* Print the single character CHR on the output device.  */
+int device_putchar (struct output_driver *device, int chr);
 int putchar (int chr);
 
+int device_puts (struct output_driver *device, const char *str);
 int puts (const char *str);
 
+int device_vprintf (struct output_driver *device, const char *fmt, va_list ap);
 int vprintf (const char *fmt, va_list ap);
 
+int device_printf (struct output_driver *device, const char *fmt, ...);
 int printf (const char *fmt, ...);
+
+int device_getchar (struct output_driver *device);
+int getchar (void);
 
 #endif	/* _OUTPUT_H */

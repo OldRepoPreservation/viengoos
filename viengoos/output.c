@@ -22,59 +22,63 @@
 #include <config.h>
 #endif
 
+#include <hurd/stddef.h>
 #include <stdarg.h>
 #include <string.h>
 
 #include "output.h"
 
 /* The active output driver.  */
-static struct output_driver *output;
+static struct output_driver *default_device;
 
 
 /* Activate the output driver NAME or the default one if NAME is a
    null pointer.  Must be called once at startup, before calling
    putchar or any other output routine.  Returns 0 if NAME is not a
    valid output driver name, otherwise 1 on success.  */
-int
-output_init (const char *driver)
+bool
+output_init (struct output_driver *device, const char *conf,
+	     bool make_default)
 {
-  const char *driver_cfg = NULL;
+  const char *driver_args = NULL;
 
-  if (output)
+  struct output_driver **out = &output_drivers[0];
+  if (conf)
     {
-      output_deinit ();
-      output = 0;
-    }
-
-  if (driver)
-    {
-      struct output_driver **out = &output_drivers[0];
       while (*out)
 	{
 	  unsigned int name_len = strlen ((*out)->name);
-	  if (!strncmp (driver, (*out)->name, name_len))
+	  if (!strncmp (conf, (*out)->name, name_len))
 	    {
-	      const char *cfg = driver + name_len;
+	      const char *cfg = conf + name_len;
 	      if (!*cfg || *cfg == ',') 
 		{
 		  if (*cfg)
-		    driver_cfg = cfg + 1;
-		  output = *out;
+		    driver_args = cfg + 1;
 		  break;
 		}
 	    }
 	  out++;
 	}
-      if (!output)
-	return 0;
+      if (!*out)
+	return false;
     }
-  else
-    output = output_drivers[0];
 
-  if (output->init)
-    (*output->init) (driver_cfg);
+  if (make_default && default_device)
+    {
+      output_deinit (default_device);
+      default_device = 0;
+    }
 
-  return 1;
+  *device = **out;
+
+  if (device->init)
+    (*device->init) (device, driver_args);
+
+  if (make_default)
+    default_device = device;
+
+  return true;
 }
 
 
@@ -82,41 +86,49 @@ output_init (const char *driver)
    putchar or any other output routine is called, and before control
    is passed on to the L4 kernel.  */
 void
-output_deinit (void)
+output_deinit (struct output_driver *device)
 {
-  if (output && output->deinit)
-    (*output->deinit) ();
+  if (device && device->deinit)
+    (*device->deinit) (device);
 }
 
 
 /* Print the single character CHR on the output device.  */
 int
+device_putchar (struct output_driver *device, int chr)
+{
+  if (device && device->putchar)
+    device->putchar (device, chr);
+  return 0;
+}
+
+int
 putchar (int chr)
 {
-  if (!output)
-    output_init (0);
-
-  if (output->putchar)
-    (*output->putchar) (chr);
-
-  return 0;
+  return device_putchar (default_device, chr);
 }
 
 
 int
-puts (const char *str)
+device_puts (struct output_driver *device, const char *str)
 {
   while (*str != '\0')
-    putchar (*(str++));
+    device_putchar (device, *(str++));
 
-  putchar ('\n');
+  device_putchar (device, '\n');
 
   return 0;
 }
 
+int
+puts (const char *str)
+{
+  return device_puts (default_device, str);
+}
+
 
 static void
-print_nr (unsigned long long nr, int base)
+print_nr (struct output_driver *device, unsigned long long nr, int base)
 {
   static char *digits = "0123456789abcdef";
   char str[30];
@@ -131,29 +143,29 @@ print_nr (unsigned long long nr, int base)
 
   i--;
   while (i >= 0)
-    putchar (str[i--]);
+    device_putchar (device, str[i--]);
 }
   
 
 static void
-print_signed_nr (long long nr, int base)
+print_signed_nr (struct output_driver *device, long long nr, int base)
 {
   unsigned long long unr;
 
   if (nr < 0)
     {
-      putchar ('-');
+      device_putchar (device, '-');
       unr = -nr;
     }
   else
     unr = nr;
 
-  print_nr (unr, base);
+  print_nr (device, unr, base);
 }
   
 
 int
-vprintf (const char *fmt, va_list ap)
+device_vprintf (struct output_driver *device, const char *fmt, va_list ap)
 {
   const char *p = fmt;
 
@@ -161,7 +173,7 @@ vprintf (const char *fmt, va_list ap)
     {
       if (*p != '%')
 	{
-	  putchar (*(p++));
+	  device_putchar (device, *(p++));
 	  continue;
 	}
 
@@ -169,7 +181,7 @@ vprintf (const char *fmt, va_list ap)
       switch (*p)
 	{
 	case '%':
-	  putchar ('%');
+	  device_putchar (device, '%');
 	  p++;
 	  break;
 
@@ -177,69 +189,69 @@ vprintf (const char *fmt, va_list ap)
 	  p++;
 	  if (*p != 'l')
 	    {
-	      putchar ('%');
-	      putchar ('l');
-	      putchar (*(p++));
+	      device_putchar (device, '%');
+	      device_putchar (device, 'l');
+	      device_putchar (device, *(p++));
 	      continue;
 	    }
 	  p++;
 	  switch (*p)
 	    {
 	    case 'o':
-	      print_nr (va_arg (ap, unsigned long long), 8);
+	      print_nr (device, va_arg (ap, unsigned long long), 8);
 	      p++;
 	      break;
 
 	    case 'd':
 	    case 'i':
-	      print_signed_nr (va_arg (ap, long long), 10);
+	      print_signed_nr (device, va_arg (ap, long long), 10);
 	      p++;
 	      break;
 
 	    case 'x':
 	    case 'X':
-	      print_nr (va_arg (ap, unsigned long long), 16);
+	      print_nr (device, va_arg (ap, unsigned long long), 16);
 	      p++;
 	      break;
 
 	    case 'u':
-	      print_nr (va_arg (ap, unsigned long long), 10);
+	      print_nr (device, va_arg (ap, unsigned long long), 10);
 	      p++;
 	      break;
 
 	    default:
-	      putchar ('%');
-	      putchar ('l');
-	      putchar ('l');
-	      putchar (*(p++));
+	      device_putchar (device, '%');
+	      device_putchar (device, 'l');
+	      device_putchar (device, 'l');
+	      device_putchar (device, *(p++));
 	      break;
 	    }
 	  break;
 
 	case 'o':
-	  print_nr (va_arg (ap, unsigned int), 8);
+	  print_nr (device, va_arg (ap, unsigned int), 8);
 	  p++;
 	  break;
 
 	case 'd':
 	case 'i':
-	  print_signed_nr (va_arg (ap, int), 10);
+	  print_signed_nr (device, va_arg (ap, int), 10);
 	  p++;
 	  break;
 
 	case 'x':
 	case 'X':
-	  print_nr (va_arg (ap, unsigned int), 16);
+	  print_nr (device, va_arg (ap, unsigned int), 16);
 	  p++;
 	  break;
 
 	case 'u':
-	  print_nr (va_arg (ap, unsigned int), 10);
+	  print_nr (device, va_arg (ap, unsigned int), 10);
 	  p++;
 	  break;
 
 	case 'c':
-	  putchar (va_arg (ap, int));
+	  device_putchar (device, va_arg (ap, int));
 	  p++;
 	  break;
 
@@ -247,27 +259,46 @@ vprintf (const char *fmt, va_list ap)
 	  {
 	    char *str = va_arg (ap, char *);
 	    while (*str)
-	      putchar (*(str++));
+	      device_putchar (device, *(str++));
 	  }
 	  p++;
 	  break;
 
 	case 'p':
-	  putchar ('0');
-	  putchar ('x');
-	  print_nr ((unsigned int) va_arg (ap, void *), 16);
+	  device_putchar (device, '0');
+	  device_putchar (device, 'x');
+	  print_nr (device, (unsigned int) va_arg (ap, void *), 16);
 	  p++;
 	  break;
 
 	default:
-	  putchar ('%');
-	  putchar (*p);
+	  device_putchar (device, '%');
+	  device_putchar (device, *p);
 	  p++;
 	  break;
 	}
     }
 
   return 0;
+}
+
+int
+vprintf (const char *fmt, va_list ap)
+{
+  return device_vprintf (default_device, fmt, ap);
+}
+
+
+int
+device_printf (struct output_driver *device, const char *fmt, ...)
+{
+  va_list ap;
+
+  va_start (ap, fmt);
+  int r = device_vprintf (device, fmt, ap);
+  va_end (ap);
+
+  return r;
 }
 
 int
@@ -281,3 +312,26 @@ printf (const char *fmt, ...)
 
   return r;
 }
+
+int
+device_getchar (struct output_driver *device)
+{
+  if (! device)
+    panic ("Attempt to read but no device given!");
+
+  if (! device->getchar)
+    panic ("Attempt to read from device (%s) with no input stream",
+	   device->name);
+
+  return device->getchar (device);
+}
+
+int
+getchar (void)
+{
+  if (! default_device)
+    panic ("Attempt to read but no default device configured");
+
+  return device_getchar (default_device);
+}
+

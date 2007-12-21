@@ -36,27 +36,30 @@
 #define UART1_BASE	0x3f8
 #define UART2_BASE	0x2f8
 
-/* The selected base port.  */
-static unsigned short int uart_base = UART1_BASE;
+/* The default base port.  */
+#define UART_BASE_DEFAULT UART1_BASE;
 
 /* The data register.  */
-#define UART_DR		(uart_base + 0)
+#define UART_DR		(device->cookie + 0)
 
 /* The interrupt enable and ID registers.  */
-#define UART_IER	(uart_base + 1)
-#define UART_IIR	(uart_base + 2)
+#define UART_IER	(device->cookie + 1)
+#define UART_IIR	(device->cookie + 2)
 
 /* The line and modem control and status registers.  */
-#define UART_LCR	(uart_base + 3)
-#define UART_MCR	(uart_base + 4)
-#define UART_LSR	(uart_base + 5)
+#define UART_LCR	(device->cookie + 3)
+#define UART_MCR	(device->cookie + 4)
+#define UART_LSR	(device->cookie + 5)
+/* Data ready.  */
+#define UART_LSR_DR	(1 << 0)
+/* Empty transmitter holding register.  */
 #define UART_LSR_THRE	(1 << 5)
-#define UART_MSR	(uart_base + 6)
+#define UART_MSR	(device->cookie + 6)
 
 
 /* Baudrate divisor LSB and MSB registers.  */
-#define UART_LSB (uart_base + 0)
-#define UART_MSB (uart_base + 1)
+#define UART_LSB (device->cookie + 0)
+#define UART_MSB (device->cookie + 1)
 
 /* The default speed setting.  */
 #define UART_SPEED_MAX		115200
@@ -65,13 +68,14 @@ static unsigned short int uart_base = UART1_BASE;
 
 
 static void
-serial_init (const char *driver_cfg)
+serial_init (struct output_driver *device, const char *driver_cfg)
 {
   static const char delimiters[] = ",";
   /* Twice the desired UART speed, to allow for .5 values.  */
   unsigned int uart_speed = 2 * UART_SPEED_DEFAULT;
   unsigned int divider;
 
+  device->cookie = UART_BASE_DEFAULT;
   if (driver_cfg)
     {      
       char *cfg = strdupa (driver_cfg);
@@ -80,9 +84,9 @@ serial_init (const char *driver_cfg)
       while (token)
 	{
 	  if (!strcmp (token, "uart1"))
-	    uart_base = UART1_BASE;
+	    device->cookie = UART1_BASE;
 	  if (!strcmp (token, "uart2"))
-	    uart_base = UART2_BASE;
+	    device->cookie = UART2_BASE;
 	  if (!strncmp (token, "speed=", 6))
 	    {
 	      char *tail;
@@ -139,7 +143,7 @@ serial_init (const char *driver_cfg)
 
 
 static void
-serial_putchar (int chr)
+serial_putchar (struct output_driver *device, int chr)
 {
   while (!(inb (UART_LSR) & UART_LSR_THRE))
     ;
@@ -147,14 +151,23 @@ serial_putchar (int chr)
   outb (chr, UART_DR);
 
   if (chr == '\n')
-    serial_putchar ('\r');
+    serial_putchar (device, '\r');
 }
 
+static int
+serial_getchar (struct output_driver *device)
+{
+  while (!((inb (UART_LSR)) & UART_LSR_DR))
+    ;
+
+  return inb (UART_DR);
+}
 
 struct output_driver serial_output =
   {
     "serial",
     serial_init,
     0,			/* deinit */
-    serial_putchar
+    serial_putchar,
+    serial_getchar
   };

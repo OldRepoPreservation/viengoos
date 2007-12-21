@@ -80,7 +80,7 @@ static char *video;
 
 
 static void
-vga_init (const char *cfg)
+vga_init (struct output_driver *device, const char *cfg)
 {
   unsigned int pos = vga_get_cursor_pos ();
   col = pos % VGA_COLUMNS;
@@ -94,7 +94,7 @@ vga_init (const char *cfg)
 
 
 static void
-vga_putchar (int chr)
+vga_putchar (struct output_driver *device, int chr)
 {
   unsigned int pos;
 

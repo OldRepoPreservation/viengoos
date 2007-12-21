@@ -75,7 +75,7 @@ t_as_SOURCES = t-as.c				\
 	as.h as.c				\
 	output.h output.c output-stdio.c	\
 	shutdown.h shutdown.c			\
-	panic.h panic.c				\
+	panic.c					\
 	debug.h debug.c
 t_as_LDADD = $(viengoos_LDADD)
 
@@ -90,17 +90,17 @@ t_activity_SOURCES = t-activity.c		\
 	as.h as.c				\
 	output.h output.c output-stdio.c	\
 	shutdown.h shutdown.c			\
-	panic.h panic.c				\
+	panic.c					\
 	debug.h debug.c
 t_activity_LDADD = $(viengoos_LDADD)
 
 t_link_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
 t_link_SOURCES = t-link.c object.h		\
-	output.h output.c output-stdio.c
+	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
 t_guard_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
 t_guard_SOURCES = t-guard.c			\
-	output.h output.c output-stdio.c
+	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
 lib_LIBRARIES = libhurd-cap.a
 libhurd_cap_a_CPPFLAGS = $(COMMON_CPPFLAGS)

@@ -28,7 +28,7 @@
 #include <unistd.h>
 
 static void
-stdio_putchar (int chr)
+stdio_putchar (struct output_driver *device, int chr)
 {
   char c[1] = { chr };
   write (1, &c, 1);

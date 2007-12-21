@@ -1,3 +1,68 @@
+2007-12-21  Neal H. Walfield  <neal@gnu.org>
+
+	* output.h: Include <stdint.h> and <stdbool.h>.
+	(struct output_driver): Add a struct output_driver * argument to
+	all function pointers.  Update users.  Add fields getchar and
+	cookie.
+	(output_init): Take additional arguments device, a struct
+	output_driver * pointing to storage to hold the driver instance,
+	and make_default, a boolean, indicating whether the device should
+	be made the default device.
+	(output_deinit): Take additional argument device, a struct
+	output_driver *, designating the device to deinitialize.  Update
+	users.
+	(device_putchar): New declaration.
+	(device_puts): Likewise.
+	(device_vprintf): Likewise.
+	(device_printf): Likewise.
+	(device_getchar): Likewise.
+	(getchar): Likewise.
+	* output.c: Include <hurd/stddef.h>.
+	(output): Rename...
+	(default_device): ... to this.  Update users.
+	(output_init): Take additional parameter, device.  Treat the
+	selected driver as a template and store a copy of it here.  Take
+	additional parameter make_default.  If true, set DEFAULT_DEVICE to
+	the driver.  If DEFAULT_DEVICE was not NULL and MAKE_DEFAULT is
+	true, first deinitialize the driver instance.
+	(output_deinit): Take additional parameter device.  Use it as the
+	device to deinitialize.
+	(device_putchar): New function.
+	(putchar): Implement in terms of device_putchar.
+	(device_puts): New function.
+	(puts): Implement in terms of device_puts.
+	(print_nr): Take additional parameter, the device to send output
+	to.  Use it.  Update callers.
+	(print_signed_nr): Likewise.
+	(device_vprintf): New function.
+	(vprintf): Implement in terms of device_vprintf.
+	(device_printf): New function.
+	(device_getchar): Likewise.
+	(getchar): Likewise.
+	* output-serial.c (uart_base): Remove variable.
+	(UART_BASE_DEFAULT): New macro.
+	(UART_DR): Use DEVICE->COOKIE, not UART_BASE, to determine the
+	uart.
+	(UART_IER): Likewise.
+	(UART_IIR): Likewise.
+	(UART_LCR): Likewise.
+	(UART_MCR): Likewise.
+	(UART_LSR): Likewise.
+	(UART_MSR): Likewise.
+	(UART_LSB): Likewise.
+	(UART_MSB): Likewise.
+	(UART_LSR_DR): New macro.
+	(serial_init): Save the selected uart in DEVICE->COOKIE.
+	(serial_getchar): New function.
+	(serial_output): Add it here.
+	* Makefile.am (t_link_SOURCES): Add panic.c shutdown.h shutdown.c.
+	(t_guard_SOURCES): Likewise.
+	* t-environment.h: Include "output.h".
+	* viengoos.c (output_device): New variable.
+	
+	* Makefile.am (t_as_SOURCES): Remove reference to panic.h.
+	(t_activity_SOURCES): Likewise.
+
 2007-12-18  Neal H. Walfield  <neal@gnu.org>
 
 	* ager.c: Include "activity.h".

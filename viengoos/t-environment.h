@@ -277,16 +277,20 @@ environment_init (int argc, char *argv[])
   while (0)
 
 
+#include "output.h"
+
 void test (void);
 
 
 int
 main (int argc, char *argv[])
 {
+  struct output_driver device;
+
   /* Initialize the test environment.  */
   environment_init (argc, argv);
 
-  output_init ("stdio");
+  output_init (&device, "stdio", true);
 
   test ();
 
