@@ -388,9 +388,11 @@ object_claim_ (struct activity *activity, struct object *object)
     object_claim_ (a, o);						\
   })
 
-/* Allocate a folio to activity ACTIVITY.  Returns NULL if not
-   possible.  Otherwise a pointer to the in-memory folio.  */
-extern struct folio *folio_alloc (struct activity *activity);
+/* Allocate a folio to activity ACTIVITY.  POLICY is the new folio's
+   initial storage policy.  Returns NULL if not possible.  Otherwise a
+   pointer to the in-memory folio.  */
+extern struct folio *folio_alloc (struct activity *activity,
+				  struct folio_policy policy);
 
 /* Assign the storage designated by FOLIO to the activity ACTIVITY.  */
 extern void folio_parent (struct activity *activity, struct folio *folio);
@@ -430,5 +432,12 @@ object_free (struct activity *activity, struct object *object)
 
   folio_object_free (activity, folio, page);
 }
+
+/* Get and set folio FOLIO's storage policy according to flags FLAGS,
+   IN and OUT.  */
+extern void folio_policy (struct activity *activity,
+			  struct folio *folio,
+			  uintptr_t flags, struct folio_policy in,
+			  struct folio_policy *out);
 
 #endif

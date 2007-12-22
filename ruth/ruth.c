@@ -138,7 +138,7 @@ main (int argc, char *argv[])
 
     addr_t folio = capalloc ();
     assert (! ADDR_IS_VOID (folio));
-    error_t err = rm_folio_alloc (activity, folio);
+    error_t err = rm_folio_alloc (activity, folio, FOLIO_POLICY_DEFAULT);
     assert (! err);
 
     int i;
@@ -189,7 +189,7 @@ main (int argc, char *argv[])
 	assert (slot);
 	slot->type = cap_folio;
 
-	error_t err = rm_folio_alloc (activity, f);
+	error_t err = rm_folio_alloc (activity, f, FOLIO_POLICY_DEFAULT);
 	assert (! err);
 
 	struct storage shadow_storage
@@ -440,7 +440,7 @@ main (int argc, char *argv[])
 
 	  /* Allocate a folio against the activity and use it.  */
 	  a[i].folio = capalloc ();
-	  err = rm_folio_alloc (a[i].child, a[i].folio);
+	  err = rm_folio_alloc (a[i].child, a[i].folio, FOLIO_POLICY_DEFAULT);
 	  assert (err == 0);
 
 	  a[i].page = capalloc ();
@@ -486,7 +486,7 @@ main (int argc, char *argv[])
 
     error_t err;
     addr_t folio = capalloc ();
-    err = rm_folio_alloc (activity, folio);
+    err = rm_folio_alloc (activity, folio, FOLIO_POLICY_DEFAULT);
     assert (err == 0);
 
     test (activity, folio, 2);

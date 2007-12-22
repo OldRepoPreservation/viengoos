@@ -1,3 +1,15 @@
+2007-12-22  Neal H. Walfield  <neal@gnu.org>
+
+	* object.h (folio_alloc): Take additional parameter policy.
+	Update users.
+	(folio_policy): New declaration.
+	* object.c: Include <hurd/folio.h>.
+	(folio_alloc): Take additional parameter policy.  Use it.
+	(folio_policy): New function.
+	* server.c (server_loop): Update folio_alloc implementation to
+	handle additional parameter policy.  Implement the folio_policy
+	method.
+
 2007-12-21  Neal H. Walfield  <neal@gnu.org>
 
 	* output.h: Include <stdint.h> and <stdbool.h>.

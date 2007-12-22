@@ -374,7 +374,7 @@ storage_alloc_ (addr_t activity,
 	}
 
       /* And then the folio.  */
-      error_t err = rm_folio_alloc (activity, addr);
+      error_t err = rm_folio_alloc (activity, addr, FOLIO_POLICY_DEFAULT);
       assert (! err);
 
       /* Allocate and fill a descriptor.  */

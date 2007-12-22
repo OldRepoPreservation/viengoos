@@ -365,23 +365,27 @@ server_loop (void)
       switch (label)
 	{
 	case RM_folio_alloc:
-	  err = rm_folio_alloc_send_unmarshal (&msg, &principal_addr,
-					       &folio_addr);
-	  if (err)
-	    REPLY (err);
+	  {
+	    struct folio_policy policy;
 
-	  struct cap *folio_slot = SLOT (folio_addr);
+	    err = rm_folio_alloc_send_unmarshal (&msg, &principal_addr,
+						 &folio_addr, &policy);
+	    if (err)
+	      REPLY (err);
 
-	  folio = folio_alloc (principal);
-	  if (! folio)
-	    REPLY (ENOMEM);
+	    struct cap *folio_slot = SLOT (folio_addr);
 
-	  r = cap_set (principal,
-		       folio_slot, object_to_cap ((struct object *) folio));
-	  assert (r);
+	    folio = folio_alloc (principal, policy);
+	    if (! folio)
+	      REPLY (ENOMEM);
 
-	  rm_folio_alloc_reply_marshal (&msg);
-	  break;
+	    r = cap_set (principal,
+			 folio_slot, object_to_cap ((struct object *) folio));
+	    assert (r);
+
+	    rm_folio_alloc_reply_marshal (&msg);
+	    break;
+	  }
 
 	case RM_folio_free:
 	  err = rm_folio_free_send_unmarshal (&msg, &principal_addr,
@@ -446,6 +450,25 @@ server_loop (void)
 
 	  rm_folio_object_alloc_reply_marshal (&msg);
 	  break;
+
+	case RM_folio_policy:
+	  {
+	    l4_word_t flags;
+	    struct folio_policy in, out;
+
+	    err = rm_folio_policy_send_unmarshal (&msg, &principal_addr,
+						  &folio_addr,
+						  &flags, &in);
+	    if (err)
+	      REPLY (err);
+
+	    folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
+
+	    folio_policy (principal, folio, flags, in, &out);
+
+	    rm_folio_policy_reply_marshal (&msg, out);
+	    break;
+	  }
 
 	case RM_object_slot_copy_out:
 	  err = rm_object_slot_copy_out_send_unmarshal

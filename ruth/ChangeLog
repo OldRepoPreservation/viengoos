@@ -1,3 +1,7 @@
+2007-12-22  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Update rm_folio_alloc use to reflect API changes.
+
 2007-12-14  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Only check the objects contained immediately

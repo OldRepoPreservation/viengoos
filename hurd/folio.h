@@ -37,7 +37,56 @@ enum
   {
     FOLIO_OBJECTS_LOG2 = 7,
   };
+/* User settable folio policy.  */
 
+/* The range of valid folio priorities.  A lower numerical value
+   corresponds to a higher priority.  */
+#define FOLIO_PRIORITY_BITS 15
+#define FOLIO_PRIORITY_MIN ((1 << (FOLIO_PRIORITY_BITS - 1)) - 1)
+#define FOLIO_PRIORITY_LRU (0)
+#define FOLIO_PRIORITY_MAX (-(1 << (FOLIO_PRIORITY_BITS - 1)))
+
+/* The folio group range.  */
+#define FOLIO_GROUP_BITS 15
+#define FOLIO_GROUP_NONE 0
+#define FOLIO_GROUP_MIN 0
+#define FOLIO_GROUP_MAX ((1 << FOLIO_BITS) - 1)
+
+struct folio_policy
+{
+  union
+  {
+    struct
+    {
+      /* Whether a folio is discardable.  If an activity reaches it
+	 quota, rather than returning an out of memory error, the
+	 system may reclaim storage with the discardable bit set.  It
+	 performs the equivalent of calling folio_free on the
+	 folio.  */
+      int32_t discardable : 1;
+
+      /* The following are only used if DISCARABLE is true.  */
+
+      /* Folios can belong to a group.  When one folio is discarded,
+	 all folios in that group are discarded, unless GROUP is
+	 FOLIO_GROUP_NONE.  */
+      uint32_t group : FOLIO_GROUP_BITS;
+
+      /* By default, the system tries to discard folios according to
+	 an LRU policy.  This can be overridden using this field.  In
+	 this case, folios from the lowest priority group are
+	 discarded.  */
+      int32_t priority : FOLIO_PRIORITY_BITS;
+    };
+    uint32_t raw;
+  };
+};
+
+#define FOLIO_POLICY_INIT { { raw: 0 } }
+#define FOLIO_POLICY_VOID (struct folio_policy) FOLIO_POLICY_INIT
+/* The default policy is not discardable.  */
+#define FOLIO_POLICY_DEFAULT FOLIO_POLICY_VOID
+
 /* The format of the first page of a folio.  This page is followed (on
    disk) by FOLIO_OBJECTS pages.  */
 struct folio
@@ -53,6 +102,8 @@ struct folio
 
   /* The folio's version.  */
   l4_word_t folio_version;
+
+  struct folio_policy policy;
 
   struct
   {
@@ -116,11 +167,14 @@ enum
     RM_folio_alloc = 200,
     RM_folio_free,
     RM_folio_object_alloc,
+    RM_folio_policy,
   };
 
-/* Allocate a folio against PRINCIPAL.  Store a capability in
-   the caller's cspace in slot FOLIO.  */
-RPC(folio_alloc, 2, 0, addr_t, principal, addr_t, folio)
+/* Allocate a folio against PRINCIPAL.  Store a capability in the
+   caller's cspace in slot FOLIO.  POLICY specifies the storage
+   policy.  */
+RPC(folio_alloc, 3, 0, addr_t, principal, addr_t, folio,
+    struct folio_policy, policy)
   
 /* Free the folio designated by FOLIO.  PRINCIPAL pays.  */
 RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
@@ -133,6 +187,31 @@ RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
 RPC(folio_object_alloc, 6, 0, addr_t, principal,
     addr_t, folio, l4_word_t, index, l4_word_t, type,
     addr_t, object_slot, addr_t, object_weak_slot)
+
+/* Flags for folio_policy.  */
+enum
+{
+  FOLIO_POLICY_DELIVER = 1 << 0,
+
+  FOLIO_POLICY_DISCARDABLE_SET = 1 << 1,
+  FOLIO_POLICY_GROUP_SET = 1 << 2,
+  FOLIO_POLICY_PRIORITY_SET = 1 << 3,
+
+  FOLIO_POLICY_SET = (FOLIO_POLICY_DISCARDABLE_SET
+		      | FOLIO_POLICY_GROUP_SET
+		      | FOLIO_POLICY_PRIORITY_SET)
+};
+
+/* Get and set the management policy for folio FOLIO.
+
+   If FOLIO_POLICY_DELIVER is set in FLAGS, then return FOLIO's
+   current paging policy in VALUE.  Then, if any of the set flags are
+   set, set the corresponding values based on the value of POLICY.  */
+RPC(folio_policy, 4, 1,
+    addr_t, principal, addr_t, folio,
+    l4_word_t, flags, struct folio_policy, policy,
+    /* Out: */
+    struct folio_policy, value)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

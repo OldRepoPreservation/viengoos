@@ -226,7 +226,7 @@ system_task_load (void)
 	{
 	  static int f = 1;
 
-	  folio = folio_alloc (root_activity);
+	  folio = folio_alloc (root_activity, FOLIO_POLICY_DEFAULT);
 	  folio_index = 0;
 
 	  /* XXX: Allocate more space.  */

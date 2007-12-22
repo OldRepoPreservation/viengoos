@@ -21,7 +21,7 @@ allocate_object (enum cap_type type, addr_t addr)
 {
   if (! folio || object == FOLIO_OBJECTS)
     {
-      folio = folio_alloc (root_activity);
+      folio = folio_alloc (root_activity, FOLIO_POLICY_DEFAULT);
       object = 0;
     }
 
@@ -88,7 +88,8 @@ try (struct alloc *allocs, int count, bool dump)
 	{
 	case cap_folio:
 	  caps[i] = object_to_cap ((struct object *)
-				   folio_alloc (root_activity));
+				   folio_alloc (root_activity,
+						FOLIO_POLICY_DEFAULT));
 	  break;
 	case cap_void:
 	  caps[i].type = cap_void;
@@ -217,7 +218,7 @@ test (void)
   object_init ();
 
   /* Create the root activity.  */
-  folio = folio_alloc (NULL);
+  folio = folio_alloc (NULL, FOLIO_POLICY_DEFAULT);
   if (! folio)
     panic ("Failed to allocate storage for the initial task!");
 

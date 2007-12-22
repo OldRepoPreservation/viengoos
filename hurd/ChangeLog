@@ -1,5 +1,29 @@
 2007-12-22  Neal H. Walfield  <neal@gnu.org>
 
+	* folio.h (FOLIO_PRIORITY_BITS): Define.
+	(FOLIO_PRIORITY_MIN): Likewise.
+	(FOLIO_PRIORITY_LRU): Likewise.
+	(FOLIO_PRIORITY_MAX): Likewise.
+	(FOLIO_GROUP_BITS): Likewise.
+	(FOLIO_GROUP_NONE): Likewise.
+	(FOLIO_GROUP_MIN): Likewise.
+	(FOLIO_GROUP_MAX): Likewise.
+	(struct folio_policy): New structure.
+	(FOLIO_POLICY_INIT): Define.
+	(FOLIO_POLICY_VOID): Likewise.
+	(FOLIO_POLICY_DEFAULT): Likewise.
+	(struct folio): Add field policy.
+	(RM_folio_policy): Define.
+	(folio_alloc): Take additional parameter policy.
+	(FOLIO_POLICY_DELIVER): Define.
+	(FOLIO_POLICY_DISCARDABLE_SET): Likewise.
+	(FOLIO_POLICY_GROUP_SET): Likewise.
+	(FOLIO_POLICY_PRIORITY_SET): Likewise.
+	(FOLIO_POLICY_SET): Likewise.
+	(folio_policy): New method.
+
+2007-12-22  Neal H. Walfield  <neal@gnu.org>
+
 	* RPC: New file.
 
 2007-12-21  Neal H. Walfield  <neal@gnu.org>

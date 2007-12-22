@@ -22,6 +22,7 @@
 #include <string.h>
 #include <hurd/stddef.h>
 #include <hurd/ihash.h>
+#include <hurd/folio.h>
 #include <bit-array.h>
 
 #include "object.h"
@@ -323,7 +324,7 @@ folio_parent (struct activity *activity, struct folio *folio)
 }
 
 struct folio *
-folio_alloc (struct activity *activity)
+folio_alloc (struct activity *activity, struct folio_policy policy)
 {
   if (! activity)
     assert (! root_activity);
@@ -368,6 +369,8 @@ folio_alloc (struct activity *activity)
 
   if (activity)
     folio_parent (activity, folio);
+
+  folio->policy = policy;
 
   return folio;
 }
@@ -573,4 +576,33 @@ folio_object_alloc (struct activity *activity,
 	object = object_find (activity, oid);
       *objectp = object;
     }
+}
+
+void
+folio_policy (struct activity *activity,
+	      struct folio *folio,
+	      uintptr_t flags, struct folio_policy in,
+	      struct folio_policy *out)
+{
+  if ((flags & FOLIO_POLICY_DELIVER) && out)
+    {
+      out->discardable = folio->policy.discardable;
+      out->group = folio->policy.group;
+      out->priority = folio->policy.priority;
+    }
+
+  if (! (flags & FOLIO_POLICY_SET))
+    return;
+
+  if ((flags & FOLIO_POLICY_GROUP_SET))
+    folio->policy.group = in.group;
+
+  if ((flags & FOLIO_POLICY_DISCARDABLE_SET)
+      && in.discardable != folio->policy.discardable)
+    /* XXX: We need to move the folio from the discardable list to the
+       precious list (or vice versa).  */
+    folio->policy.discardable = in.discardable;
+
+  if ((flags & FOLIO_POLICY_PRIORITY_SET))
+    folio->policy.priority = in.priority;
 }

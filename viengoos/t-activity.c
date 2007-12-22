@@ -21,7 +21,7 @@ allocate_object (enum cap_type type, addr_t addr)
 {
   if (! folio || object == FOLIO_OBJECTS)
     {
-      folio = folio_alloc (root_activity);
+      folio = folio_alloc (root_activity, FOLIO_POLICY_DEFAULT);
       object = 0;
     }
 
@@ -52,7 +52,7 @@ test (void)
   object_init ();
 
   /* Create the root activity.  */
-  folio = folio_alloc (NULL);
+  folio = folio_alloc (NULL, FOLIO_POLICY_DEFAULT);
   if (! folio)
     panic ("Failed to allocate storage for the initial task!");
 
@@ -84,7 +84,7 @@ test (void)
 	a[i].child = (struct activity *) object;
 
 	/* Allocate a folio against the activity and use it.  */
-	a[i].folio = folio_alloc (a[i].child);
+	a[i].folio = folio_alloc (a[i].child, FOLIO_POLICY_DEFAULT);
 	assert (a[i].folio);
 
 	folio_object_alloc (a[i].child, a[i].folio, 0, cap_page, &a[i].page);
@@ -115,7 +115,7 @@ test (void)
   int i;
   for (i = 0; i < 10; i ++)
     {
-      struct folio *f = folio_alloc (root_activity);
+      struct folio *f = folio_alloc (root_activity, FOLIO_POLICY_DEFAULT);
       assert (f);
 
       try (root_activity, f, 4);

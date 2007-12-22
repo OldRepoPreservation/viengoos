@@ -1,3 +1,8 @@
+2007-12-22  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.c (storage_alloc_): Update rm_folio_alloc use to reflect
+	API changes.
+
 2007-12-17  Neal H. Walfield  <neal@gnu.org>
 
 	* anonymous.c: Update BTREE_CLASS use to reflect API changes.
