@@ -1,3 +1,7 @@
+2007-12-22  Neal H. Walfield  <neal@gnu.org>
+
+	* RPC: New file.
+
 2007-12-21  Neal H. Walfield  <neal@gnu.org>
 
 	* rpc.h: Include <hurd/stddef.h>.  Don't include <string.h>.
