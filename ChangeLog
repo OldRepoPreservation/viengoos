@@ -1,3 +1,7 @@
+2007-12-23  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Don't overwrite the value of CFLAGS, add to it.
+
 2007-12-11  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Update email address.
