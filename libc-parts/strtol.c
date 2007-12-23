@@ -39,7 +39,9 @@ extern int errno;
 
 #include <limits.h>
 #include <stddef.h>
+#if 0
 #include <stdlib.h>
+#endif
 #include <string.h>
 
 #ifdef USE_NUMBER_GROUPING

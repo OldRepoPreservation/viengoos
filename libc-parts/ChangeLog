@@ -1,3 +1,7 @@
+2007-12-23  Neal H. Walfield  <neal@gnu.org>
+
+	* strtol.c: Don't inlcude <stdlib.h>.
+
 2007-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* assert.h (assertx): New macro.
