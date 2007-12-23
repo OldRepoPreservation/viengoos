@@ -95,7 +95,7 @@ L4_ApiVersion (void)
   L4_Word_t api_flags;
   L4_Word_t kernel_id;
 
-  _L4_kernel_interface (&api_version, &api_flags, &kernel_id);
+  (void) _L4_kernel_interface (&api_version, &api_flags, &kernel_id);
 
   return api_version;
 }
@@ -117,7 +117,7 @@ L4_ApiFlags (void)
   L4_Word_t api_flags;
   L4_Word_t kernel_id;
 
-  _L4_kernel_interface (&api_version, &api_flags, &kernel_id);
+  (void) _L4_kernel_interface (&api_version, &api_flags, &kernel_id);
 
   return api_flags;
 }
@@ -160,7 +160,7 @@ L4_KernelId (void)
   L4_Word_t api_flags;
   L4_Word_t kernel_id;
 
-  _L4_kernel_interface (&api_version, &api_flags, &kernel_id);
+  (void) _L4_kernel_interface (&api_version, &api_flags, &kernel_id);
 
   return kernel_id;
 }

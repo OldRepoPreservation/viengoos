@@ -1,3 +1,10 @@
+2007-12-23  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/compat/kip.h (L4_ApiVersion): Cast result of
+	_L4_kernel_interface to elide gcc warning.
+	(L4_ApiFlags): Likewise.
+	(L4_KernelId): Likewise.
+
 2007-12-13  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/pagefault.h (_L4_pagefault_reply_formulate_in): New function.
