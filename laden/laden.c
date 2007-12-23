@@ -26,7 +26,7 @@
 
 
 /* The program name.  */
-extern const char program_name[] = "laden";
+const char program_name[] = "laden";
 
 l4_rootserver_t kernel;
 l4_rootserver_t sigma0;
