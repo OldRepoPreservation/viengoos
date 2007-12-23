@@ -24,6 +24,8 @@
 
 #include <l4.h>
 
+#include "output.h"
+
 #ifdef _L4_TEST_ENVIRONMENT
 extern void abort (void);
 #endif
