@@ -94,10 +94,6 @@ AC_SUBST(STATIC_GLIBC)
 
 # Checks for header files.
 
-# Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
-AC_C_VOLATILE
-
 arch_ia32=false
 arch_powerpc=false
 case $host_cpu in
