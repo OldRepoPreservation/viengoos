@@ -1,5 +1,9 @@
 2007-12-23  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h (as_dump_from): New declaration.
+
+2007-12-23  Neal H. Walfield  <neal@gnu.org>
+
 	* mutex.h (struct ss_lock_trace): Replace const with __const.
 	(ss_lock_trace_dump): Likewise.
 	(ss_mutex_trace_add): Likewise.
