@@ -34,7 +34,7 @@ typedef l4_thread_id_t ss_mutex_t;
 
 struct ss_lock_trace
 {
-  const char *caller;
+  __const char *caller;
   int line;
   ss_mutex_t *lock;
   int func;
@@ -69,7 +69,7 @@ ss_lock_trace_dump (ss_mutex_t *lock)
       if (trace->lock != lock)
 	continue;
 
-      const char *func = NULL;
+      __const char *func = NULL;
       switch (trace->func)
 	{
 	case SS_MUTEX_LOCK:
@@ -100,7 +100,7 @@ ss_lock_trace_dump (ss_mutex_t *lock)
 }
 
 static inline void
-ss_mutex_trace_add (int func, const char *caller, int line, ss_mutex_t *lock)
+ss_mutex_trace_add (int func, __const char *caller, int line, ss_mutex_t *lock)
 {
 #ifndef NDEBUG
   int i = (ss_lock_trace_count ++) % SS_LOCK_TRACE_COUNT;
@@ -114,7 +114,7 @@ ss_mutex_trace_add (int func, const char *caller, int line, ss_mutex_t *lock)
 }
 
 static inline void
-ss_mutex_lock (const char *caller, int line, ss_mutex_t *lock)
+ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lock)
 {
   l4_thread_id_t owner;
 
@@ -149,7 +149,7 @@ ss_mutex_lock (const char *caller, int line, ss_mutex_t *lock)
   ss_mutex_lock (__func__, __LINE__, __sml_lockp)
 
 static inline void
-ss_mutex_unlock (const char *caller, int line, ss_mutex_t *lock)
+ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lock)
 {
   l4_thread_id_t waiter;
 
@@ -175,7 +175,7 @@ ss_mutex_unlock (const char *caller, int line, ss_mutex_t *lock)
   ss_mutex_unlock (__func__, __LINE__, __sml_lockp)
 
 static inline bool
-ss_mutex_trylock (const char *caller, int line, ss_mutex_t *lock)
+ss_mutex_trylock (__const char *caller, int line, ss_mutex_t *lock)
 {
   l4_thread_id_t owner;
 
