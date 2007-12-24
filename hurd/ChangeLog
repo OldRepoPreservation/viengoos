@@ -1,5 +1,9 @@
 2007-12-24  Neal H. Walfield  <neal@gnu.org>
 
+	* addr-trans.h (CAP_ADDR_TRANS_INIT): Define.
+
+2007-12-24  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (OID_FMT) [RM_INTERN]: Define.
 	(OID_PRINTF) [RM_INTERN]: Likewise.
 
