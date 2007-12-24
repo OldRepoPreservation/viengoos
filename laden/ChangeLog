@@ -1,3 +1,7 @@
+2007-12-24  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-cmain.c (cmain): Cast PROGRAM_NAME to elide gcc warning.
+
 2007-12-23  Neal H. Walfield  <neal@gnu.org>
 
 	* laden.c (program_name): Remove extern qualifier.

@@ -130,7 +130,7 @@ cmain (uint32_t magic, multiboot_info_t *mbi)
       argc = 1;
 
       argv = alloca (sizeof (char *) * 2);
-      argv[0] = program_name;
+      argv[0] = (char *) program_name;
       argv[1] = 0;
     }
 
