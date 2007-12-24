@@ -209,6 +209,8 @@ struct cap_properties
 /* An OID corresponds to a page on a volume.  Only the least 54 bits
    are significant.  */
 typedef l4_uint64_t oid_t;
+#define OID_FMT "%llx"
+#define OID_PRINTF(__op_oid) ((oid_t) (__op_oid))
 #endif
 
 #define CAP_VERSION_BITS 20

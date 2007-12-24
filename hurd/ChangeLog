@@ -1,3 +1,8 @@
+2007-12-24  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (OID_FMT) [RM_INTERN]: Define.
+	(OID_PRINTF) [RM_INTERN]: Likewise.
+
 2007-12-23  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (as_dump_from): New declaration.

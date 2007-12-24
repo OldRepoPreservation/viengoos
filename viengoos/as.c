@@ -29,6 +29,7 @@
 #include "as.h"
 #include "bits.h"
 #include "rm.h"
+#include "output.h"
 
 #ifdef RM_INTERN
 #include "object.h"
@@ -59,7 +60,9 @@ as_build_internal (activity_t activity,
 							   addr_t addr),
 		   bool may_overwrite)
 {
+#ifdef RM_INTERN
   struct cap *start = root;
+#endif
 
   assert (! ADDR_IS_VOID (a));
 
@@ -152,8 +155,8 @@ as_build_internal (activity_t activity,
 #ifdef RM_INTERN
 		if (! object)
 		  {
-		    debug (1, "Failed to get object with OID %llx",
-			   root->oid);
+		    debug (1, "Failed to get object with OID " OID_FMT,
+			   OID_PRINTF (root->oid));
 		    return false;
 		  }
 #else
@@ -533,7 +536,7 @@ do_walk (activity_t activity, int index, struct cap *root, addr_t addr,
 	    addr_depth (addr) + CAP_GUARD_BITS (&cap));
 
 #ifdef RM_INTERN
-  printf ("@%llx ", cap.oid);
+  printf ("@" OID_FMT, OID_PRINTF (cap.oid));
 #endif
   printf ("%s", cap_type_string (cap.type));
 

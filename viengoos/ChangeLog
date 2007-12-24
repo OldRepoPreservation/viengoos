@@ -1,3 +1,11 @@
+2007-12-24  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c (as_build_internal): Include "output.h".
+
+	* cap-lookup.c (lookup): Use OID_FMT and OID_PRINTF rather than
+	assuming OID's type.
+	* as.c (as_build_internal): Likewise.
+
 2007-12-23  Neal H. Walfield  <neal@gnu.org>
 
 	* shutdown.c: Include "output.h".

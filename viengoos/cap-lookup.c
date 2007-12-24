@@ -65,7 +65,7 @@ lookup (activity_t activity,
     {
       assert (CAP_TYPE_MIN <= root->type && root->type <= CAP_TYPE_MAX);
 
-      if (cap_is_a (root, cap_rcappage))
+      if (root->type == cap_rcappage)
 	/* The page directory is read-only.  Note the weakened access
 	   appropriately.  */
 	{
@@ -143,8 +143,8 @@ lookup (activity_t activity,
 	    if (! object)
 	      {
 #ifdef RM_INTERN
-		debug (1, "Failed to get object with OID %llx",
-		       root->oid);
+		debug (1, "Failed to get object with OID " OID_FMT,
+		       OID_PRINTF (root->oid));
 #endif
 		return false;
 	      }
@@ -172,8 +172,8 @@ lookup (activity_t activity,
 #ifdef RM_INTERN
 	  if (! object)
 	    {
-	      debug (1, "Failed to get object with OID %llx",
-		     root->oid);
+	      debug (1, "Failed to get object with OID " OID_FMT,
+		     OID_PRINTF (root->oid));
 	      return false;
 	    }
 #else
@@ -244,7 +244,7 @@ lookup (activity_t activity,
     }
   assert (remaining == 0);
 
-  if (! cap_is_a (root, type))
+  if (root->type != type)
     /* Types don't match.  They may, however, be compatible.  */
     {
       if (cap_types_compatible (root->type, type))
@@ -264,7 +264,7 @@ lookup (activity_t activity,
 	}
     }
 
-  if (cap_is_a (root, cap_rpage) || cap_is_a (root, cap_rcappage))
+  if (root->type == cap_rpage || root->type == cap_rcappage)
     w = false;
 
   if (writable)
