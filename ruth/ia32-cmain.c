@@ -40,6 +40,8 @@
 extern struct hurd_startup_data *__hurd_startup_data;
 
 
+extern void exit (int status)  __attribute__ ((__noreturn__));
+
 static void
 finish (void)
 {
@@ -94,7 +96,7 @@ finish (void)
       argc = 1;
 
       argv = alloca (sizeof (char *) * 2);
-      argv[0] = program_name;
+      argv[0] = (char *) program_name;
       argv[1] = 0;
     }
 

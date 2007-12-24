@@ -1,3 +1,8 @@
+2007-12-24  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-cmain.c (exit): Declare.
+	(finish): Cast PROGRAM_NAME.
+
 2007-12-22  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update rm_folio_alloc use to reflect API changes.
