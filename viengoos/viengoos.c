@@ -253,7 +253,8 @@ system_task_load (void)
 
       struct object *object;
       int index = folio_index ++;
-      folio_object_alloc (root_activity, folio, index, type, &object);
+      folio_object_alloc (root_activity, folio, index, type,
+			  OBJECT_POLICY_VOID, &object);
 
       if (! (desc_count < desc_max))
 	panic ("Initial task too large.");
@@ -371,7 +372,7 @@ system_task_load (void)
   err = thread_exregs (root_activity, thread,
 		       HURD_EXREGS_SET_SP_IP
 		       | HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC,
-		       NULL, 0, (struct cap_addr_trans) CAP_ADDR_TRANS_VOID,
+		       NULL, 0, CAP_PROPERTIES_VOID,
 		       NULL, NULL, &thread->sp, &thread->ip, NULL, NULL,
 		       NULL, NULL, NULL);
   if (err)

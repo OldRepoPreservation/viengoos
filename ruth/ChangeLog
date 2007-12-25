@@ -1,3 +1,9 @@
+2007-12-25  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Change visit to be consistent with as_walk's
+	expected function signature.  Update rm_folio_object_alloc use to
+	reflect API changes.
+
 2007-12-24  Neal H. Walfield  <neal@gnu.org>
 
 	* ia32-cmain.c (exit): Declare.

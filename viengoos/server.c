@@ -30,6 +30,7 @@
 
 #include "rm.h"
 
+#include "output.h"
 #include "cap.h"
 #include "object.h"
 #include "thread.h"
@@ -358,7 +359,7 @@ server_loop (void)
       addr_t target_addr;
       struct cap *target;
       l4_word_t flags;
-      struct cap_addr_trans addr_trans;
+      struct cap_properties properties;
 
       DEBUG (5, "");
 
@@ -400,56 +401,63 @@ server_loop (void)
 	  break;
 
 	case RM_folio_object_alloc:
-	  err = rm_folio_object_alloc_send_unmarshal (&msg, &principal_addr,
-						      &folio_addr, &idx,
-						      &type, &object_addr,
-						      &object_weak_addr);
-	  if (err)
-	    REPLY (err);
+	  {
+	    struct object_policy policy;
 
-	  folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
+	    err = rm_folio_object_alloc_send_unmarshal (&msg, &principal_addr,
+							&folio_addr, &idx,
+							&type, 
+							&policy,
+							&object_addr,
+							&object_weak_addr);
+	    if (err)
+	      REPLY (err);
 
-	  if (idx >= FOLIO_OBJECTS)
-	    REPLY (EINVAL);
+	    folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
 
-	  if (! (CAP_TYPE_MIN <= type && type <= CAP_TYPE_MAX))
-	    REPLY (EINVAL);
+	    if (idx >= FOLIO_OBJECTS)
+	      REPLY (EINVAL);
 
-	  object_slot = NULL;
-	  if (! ADDR_IS_VOID (object_addr))
-	    object_slot = SLOT (object_addr);
+	    if (! (CAP_TYPE_MIN <= type && type <= CAP_TYPE_MAX))
+	      REPLY (EINVAL);
 
-	  object_weak_slot = NULL;
-	  if (! ADDR_IS_VOID (object_weak_addr))
-	    object_weak_slot = SLOT (object_weak_addr);
+	    object_slot = NULL;
+	    if (! ADDR_IS_VOID (object_addr))
+	      object_slot = SLOT (object_addr);
 
-	  DEBUG (4, "(folio: %llx/%d, idx: %d, type: %s, target: %llx/%d)",
-		 addr_prefix (folio_addr), addr_depth (folio_addr),
-		 idx, cap_type_string (type),
-		 addr_prefix (object_addr), addr_depth (object_addr));
+	    object_weak_slot = NULL;
+	    if (! ADDR_IS_VOID (object_weak_addr))
+	      object_weak_slot = SLOT (object_weak_addr);
 
-	  folio_object_alloc (principal, folio, idx, type,
-			      type == cap_void ? NULL : &object);
+	    DEBUG (4, "(folio: %llx/%d, idx: %d, type: %s, target: %llx/%d)",
+		   addr_prefix (folio_addr), addr_depth (folio_addr),
+		   idx, cap_type_string (type),
+		   addr_prefix (object_addr), addr_depth (object_addr));
 
-	  if (type != cap_void)
-	    {
-	      if (object_slot)
-		{
-		  r = cap_set (principal, object_slot, object_to_cap (object));
-		  assert (r);
-		}
-	      if (object_weak_slot)
-		{
-		  r = cap_set (principal, object_weak_slot,
-			       object_to_cap (object));
-		  assert (r);
-		  object_weak_slot->type
-		    = cap_type_weaken (object_weak_slot->type);
-		}
-	    }
+	    folio_object_alloc (principal, folio, idx, type, policy,
+				type == cap_void ? NULL : &object);
 
-	  rm_folio_object_alloc_reply_marshal (&msg);
-	  break;
+	    if (type != cap_void)
+	      {
+		if (object_slot)
+		  {
+		    r = cap_set (principal,
+				 object_slot, object_to_cap (object));
+		    assert (r);
+		  }
+		if (object_weak_slot)
+		  {
+		    r = cap_set (principal, object_weak_slot,
+				 object_to_cap (object));
+		    assert (r);
+		    object_weak_slot->type
+		      = cap_type_weaken (object_weak_slot->type);
+		  }
+	      }
+
+	    rm_folio_object_alloc_reply_marshal (&msg);
+	    break;
+	  }
 
 	case RM_folio_policy:
 	  {
@@ -473,7 +481,7 @@ server_loop (void)
 	case RM_object_slot_copy_out:
 	  err = rm_object_slot_copy_out_send_unmarshal
 	    (&msg, &principal_addr,
-	     &source_addr, &idx, &target_addr, &flags, &addr_trans);
+	     &source_addr, &idx, &target_addr, &flags, &properties);
 	  if (err)
 	    REPLY (err);
 
@@ -486,7 +494,7 @@ server_loop (void)
 	    {
 	      err = rm_object_slot_copy_in_send_unmarshal
 		(&msg, &principal_addr,
-		 &target_addr, &idx, &source_addr, &flags, &addr_trans);
+		 &target_addr, &idx, &source_addr, &flags, &properties);
 	      if (err)
 		REPLY (err);
 
@@ -532,7 +540,7 @@ server_loop (void)
 	case RM_cap_copy:
 	  err = rm_cap_copy_send_unmarshal (&msg, &principal_addr,
 					    &target_addr, &source_addr,
-					    &flags, &addr_trans);
+					    &flags, &properties);
 	  if (err)
 	    REPLY (err);
 
@@ -544,7 +552,9 @@ server_loop (void)
 	  if ((flags & ~(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			 | CAP_COPY_COPY_ADDR_TRANS_GUARD
 			 | CAP_COPY_COPY_SOURCE_GUARD
-			 | CAP_COPY_WEAKEN)))
+			 | CAP_COPY_WEAKEN
+			 | CAP_COPY_DISCARDABLE_SET
+			 | CAP_COPY_PRIORITY_SET)))
 	    REPLY (EINVAL);
 
 	  DEBUG (4, "(target: %llx/%d, source: %llx/%d, "
@@ -557,15 +567,14 @@ server_loop (void)
 		 flags & CAP_COPY_COPY_ADDR_TRANS_SUBPAGE ? "copy"
 		 : "preserve",
 		 flags & CAP_COPY_WEAKEN ? "weaken" : "no weaken",
-		 CAP_ADDR_TRANS_GUARD (addr_trans),
-		 CAP_ADDR_TRANS_GUARD_BITS (addr_trans),
-		 CAP_ADDR_TRANS_SUBPAGE (addr_trans),
-		 CAP_ADDR_TRANS_SUBPAGES (addr_trans));
+		 CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+		 CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
+		 CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
+		 CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
 
 	  bool r = cap_copy_x (principal,
-			       target, ADDR_VOID,
-			       source, ADDR_VOID,
-			       flags, addr_trans);
+			       target, ADDR_VOID, source, ADDR_VOID,
+			       flags, properties);
 	  if (! r)
 	    REPLY (EINVAL);
 
@@ -613,7 +622,7 @@ server_loop (void)
 	  source = ((struct cap *) object)[idx];
 
 	  rm_object_slot_read_reply_marshal (&msg, source.type,
-					     source.addr_trans);
+					     CAP_PROPERTIES_GET (source));
 	  break;
 
 
@@ -623,7 +632,8 @@ server_loop (void)
 
 	  source = CAP (source_addr, -1, false);
 
-	  rm_cap_read_reply_marshal (&msg, source.type, source.addr_trans);
+	  rm_cap_read_reply_marshal (&msg, source.type,
+				     CAP_PROPERTIES_GET (source));
 	  break;
 
 	case RM_thread_exregs:
@@ -691,8 +701,8 @@ server_loop (void)
 	    out.user_handle = in.user_handle;
 
 	    err = thread_exregs (principal, t, control,
-				 aspace, in.aspace_addr_trans_flags,
-				 in.aspace_addr_trans, a, exception_page,
+				 aspace, in.aspace_cap_properties_flags,
+				 in.aspace_cap_properties, a, exception_page,
 				 &out.sp, &out.ip,
 				 &out.eflags, &out.user_handle,
 				 aspace_out, activity_out,

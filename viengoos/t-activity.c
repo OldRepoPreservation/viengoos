@@ -26,7 +26,8 @@ allocate_object (enum cap_type type, addr_t addr)
     }
 
   struct object *o;
-  folio_object_alloc (root_activity, folio, object ++, type, &o);
+  folio_object_alloc (root_activity, folio, object ++,
+		      type, OBJECT_POLICY_DEFAULT, &o);
 
   struct as_insert_rt rt;
   rt.cap = object_to_cap (o);
@@ -80,14 +81,16 @@ test (void)
 
 	/* Allocate a new activity.  */
 	folio_object_alloc (activity, folio, obj ++,
-			    cap_activity_control, &object);
+			    cap_activity_control, OBJECT_POLICY_DEFAULT,
+			    &object);
 	a[i].child = (struct activity *) object;
 
 	/* Allocate a folio against the activity and use it.  */
 	a[i].folio = folio_alloc (a[i].child, FOLIO_POLICY_DEFAULT);
 	assert (a[i].folio);
 
-	folio_object_alloc (a[i].child, a[i].folio, 0, cap_page, &a[i].page);
+	folio_object_alloc (a[i].child, a[i].folio, 0,
+			    cap_page, OBJECT_POLICY_DEFAULT, &a[i].page);
 	assert (object_type (a[i].page) == cap_page);
       }
 

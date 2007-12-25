@@ -2,29 +2,27 @@
    Copyright (C) 2007 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
-   This file is part of the GNU Hurd.
+   GNU Hurd is free software: you can redistribute it and/or modify it
+   under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
-
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   License along with GNU Hurd.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #ifndef _HURD_THREAD_H
 #define _HURD_THREAD_H 1
 
 #include <hurd/types.h>
-#include <hurd/startup.h>
 #include <hurd/addr-trans.h>
+#include <hurd/cap.h>
+#include <hurd/startup.h>
 #include <l4/syscall.h>
 #include <l4/ipc.h>
 
@@ -151,8 +149,8 @@ struct hurd_thread_exregs_in
   l4_word_t control;
 
   addr_t aspace;
-  l4_word_t aspace_addr_trans_flags;
-  struct cap_addr_trans aspace_addr_trans;
+  uintptr_t aspace_cap_properties_flags;
+  struct cap_properties aspace_cap_properties;
 
   addr_t activity;
 

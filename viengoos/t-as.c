@@ -26,7 +26,8 @@ allocate_object (enum cap_type type, addr_t addr)
     }
 
   struct object *o;
-  folio_object_alloc (root_activity, folio, object ++, type, &o);
+  folio_object_alloc (root_activity, folio, object ++,
+		      type, OBJECT_POLICY_DEFAULT, &o);
 
   struct as_insert_rt rt;
   rt.cap = object_to_cap (o);

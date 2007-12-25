@@ -1,3 +1,49 @@
+2007-12-25  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h: Include <stdint.h>.
+	(OBJECT_PRIORITY_BITS): Define.
+	(OBJECT_PRIORITY_MAX): Likewise.
+	(OBJECT_PRIORITY_LRU): Likewise.
+	(OBJECT_PRIORITY_MIN): Likewise.
+	(struct object_policy): New structure.
+	(OBJECT_POLICY_INIT): Define.
+	(OBJECT_POLICY): Likewise.
+	(OBJECT_POLICY_VOID): Likewise.
+	(OBJECT_POLICY_DEFAULT): Likewise.
+	(struct cap_properties): New structure.
+	(CAP_PROPERTIES_INIT): Define.
+	(CAP_PROPERTIES): Likewise.
+	(CAP_PROPERTIES_VOID): Likewise.
+	(CAP_PROPERTIES_DEFAULT): Likewise.
+	(struct cap): Add fields discardable and priority.
+	[RM_INTERN]: Reduce OID to 54 bits.
+	[! RM_INTERN]: Allow the shadow field an entire word.
+	(CAP_PROPERTIES_GET): Define.
+	(CAP_PROPERTIES_SET): Likewise.
+	(CAP_COPY_DISCARDABLE_SET): Likewise.
+	(CAP_COPY_PRIORITY_SET): Likewise.
+	(cap_copy): Remove the stuct cap_addr_trans parameter and replace
+	with a struct cap_properties.  Update callers.
+	(cap_read): Likewise.
+	(object_slot_copy_out): Likewise.
+	(object_slot_copy_in): Likewise.
+	(object_slot_read): Likewise.
+	(cap_copy_x): Likewise.  Save the object policies in the shadow
+	capability.
+	(cap_get_shadow): Don't munge the address.
+	(cap_set_shadow): Likewise.
+	* thread.h: Include <hurd/cap.h>.
+	(struct hurd_thread_exregs_in): Remove field aspace_addr_trans.
+	Add field aspace_cap_properties.  Rename field
+	aspace_addr_trans_flags to aspace_cap_properties_flags.
+	* folio.h (struct folio): Remove field discardable.  Add field
+	policy.
+	(folio_object_alloc): Take an additional argument, a struct
+	object_policy.  Update users.
+
+	* cap.h (cap_is_a): Remove dead code.
+	(cap_is_a_page): Remove dead code.
+
 2007-12-24  Neal H. Walfield  <neal@gnu.org>
 
 	* addr-trans.h (CAP_ADDR_TRANS_INIT): Define.

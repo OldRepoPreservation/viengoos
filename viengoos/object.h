@@ -127,6 +127,8 @@ struct object_desc
 
   l4_word_t dirty: 1;
 
+  struct object_policy policy;
+
   /* The object's age.  */
   unsigned short age;
 
@@ -222,6 +224,8 @@ object_desc_to_cap (struct object_desc *desc)
   cap.oid = desc->oid;
   cap.version = desc->version;
   cap.addr_trans = CAP_ADDR_TRANS_VOID;
+  cap.discardable = desc->policy.discardable;
+  cap.priority = desc->policy.priority;
 
   return cap;
 }
@@ -408,6 +412,7 @@ extern void folio_free (struct activity *activity, struct folio *folio);
 extern void folio_object_alloc (struct activity *activity,
 				struct folio *folio, int page,
 				enum cap_type type,
+				struct object_policy policy,
 				struct object **objectp);
 
 /* Deallocate the object stored in page PAGE of folio FOLIO.  */
@@ -415,7 +420,8 @@ static inline void
 folio_object_free (struct activity *activity,
 		   struct folio *folio, int page)
 {
-  folio_object_alloc (activity, folio, page, cap_void, NULL);
+  folio_object_alloc (activity, folio, page, cap_void,
+		      OBJECT_POLICY_VOID, NULL);
 }
 
 /* Deallocate the object OBJECT.  */

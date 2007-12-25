@@ -92,7 +92,7 @@ extern void thread_decommission (struct thread *thread);
 extern error_t thread_exregs (struct activity *principal,
 			      struct thread *thread, l4_word_t control,
 			      struct cap *aspace,
-			      l4_word_t flags, struct cap_addr_trans addr_trans,
+			      l4_word_t flags, struct cap_properties properties,
 			      struct cap *activity,
 			      struct cap *exception_page,
 			      l4_word_t *sp, l4_word_t *ip,

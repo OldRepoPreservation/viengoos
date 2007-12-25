@@ -269,6 +269,7 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
 
       error_t err = rm_folio_object_alloc (meta_data_activity,
 					   storage->folio, idx, cap_page,
+					   OBJECT_POLICY_DEFAULT,
 					   ADDR_VOID, ADDR_VOID);
       assert (err == 0);
       shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
@@ -311,7 +312,9 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
   cap_set_shadow (cap, shadow);
 
   shadow->caps[idx].type = cap_page;
-  shadow->caps[idx].addr_trans = CAP_ADDR_TRANS_VOID;
+  CAP_PROPERTIES_SET (&shadow->caps[idx],
+		      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
+				      CAP_ADDR_TRANS_VOID));
 }
 
 void
@@ -506,14 +509,17 @@ storage_alloc_ (addr_t activity,
   if (likely (!! shadow))
     {
       cap = &shadow->caps[idx];
-      cap->addr_trans = CAP_ADDR_TRANS_VOID;
+      CAP_PROPERTIES_SET (cap, CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
+					       CAP_ADDR_TRANS_VOID));
       cap->type = type;
     }
   else
     assert (! as_init_done);
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
-				       folio, idx, type, addr, ADDR_VOID);
+				       folio, idx, type,
+				       OBJECT_POLICY_DEFAULT,
+				       addr, ADDR_VOID);
   assert (! err);
 
   /* We drop DESC->LOCK.  */
@@ -646,13 +652,16 @@ storage_free_ (addr_t object, bool unmap_now)
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
 				       folio, idx, cap_void,
+				       OBJECT_POLICY_DEFAULT,
 				       ADDR_VOID, ADDR_VOID);
   assert (err == 0);
 
   if (likely (!! shadow))
     {
       shadow->caps[idx].type = cap_void;
-      shadow->caps[idx].addr_trans = CAP_ADDR_TRANS_VOID;
+      CAP_PROPERTIES_SET (&shadow->caps[idx],
+			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
+					  CAP_ADDR_TRANS_VOID));
     }
   else
     assert (! as_init_done);

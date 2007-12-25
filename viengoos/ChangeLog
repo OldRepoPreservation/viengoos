@@ -1,3 +1,29 @@
+2007-12-25  Neal H. Walfield  <neal@gnu.org>
+
+	* object.h (struct object_desc): Add field policy.
+	(object_desc_to_cap): Also return the discardable bit and the
+	priority.
+	(folio_object_alloc): Take additional parameter, the object's
+	policy.  Update callers.
+	* object.c (folio_object_alloc): Take additional parameter, the
+	object policy.  Save it in the folio header.
+	* as.c (as_build_internal): Update cap_copy_x use to reflect API
+	changes.
+	* thread.h: Remove parameter addr_trans and replace with a
+	parameter that includes it and the object policy.  Update users.
+	* thread.c (thread_exregs): Remove parameter addr_trans and
+	replace with a parameter that includes it and the object policy.
+	Pass it to cap_copy_x as appropriate.
+	* server.c: Include "output.h".
+	(server_loop): Update the folio_object_alloc,
+	object_slot_copy_out, object_slot_copy_in, and cap_copy
+	implementations to set the allocated object's policy consistent
+	with the API changes.  Update the object_slot_read and cap_read
+	implementations to return the object policy consistent with the
+	API changes.  Update the thread_exregs implementation to handle
+	the address space capability's object policy consistent with the
+	API changes.
+
 2007-12-24  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c (as_build_internal): Include "output.h".

@@ -128,14 +128,13 @@ extern struct cap object_lookup (activity_t activity,
 /* Walk the address space (without using the shadow page tables),
    depth first.  VISIT is called for each slot for which (1 <<
    reported capability type) & TYPES is non-zero.  TYPE is the
-   reported type of the capability and CAP_ADDR_TRANS the value of its
-   address translation fields.  WRITABLE is whether the slot is
-   writable.  If VISIT returns a non-zero value, the walk is aborted
-   and that value is returned.  If the walk is not aborted, 0 is
-   returned.  */
+   reported type of the capability and PROPERTIES the value of its
+   properties.  WRITABLE is whether the slot is writable.  If VISIT
+   returns a non-zero value, the walk is aborted and that value is
+   returned.  If the walk is not aborted, 0 is returned.  */
 extern int as_walk (int (*visit) (addr_t cap,
 				  l4_word_t type,
-				  struct cap_addr_trans cap_addr_trans,
+				  struct cap_properties properties,
 				  bool writable,
 				  void *cookie),
 		    int types,

@@ -365,7 +365,9 @@ as_build_internal (activity_t activity,
 	  bool r = cap_copy_x (activity,
 			       &cappage->caps[pivot_idx], pivot_addr,
 			       *root, root_addr,
-			       CAP_COPY_COPY_ADDR_TRANS_GUARD, addr_trans);
+			       CAP_COPY_COPY_ADDR_TRANS_GUARD,
+			       CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
+					       addr_trans));
 	  assert (r);
 
 	  /* Finally, set the slot at ROOT to point to CAPPAGE.  */
@@ -383,7 +385,8 @@ as_build_internal (activity_t activity,
 	  r = cap_copy_x (activity, root, root_addr, rt.cap, rt.storage,
 			  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			  | CAP_COPY_COPY_ADDR_TRANS_GUARD,
-			  addr_trans);
+			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
+
 	  assert (r);
 	}
 
@@ -419,7 +422,8 @@ as_build_internal (activity_t activity,
       assert (r);
       r = cap_copy_x (activity, root, addr_chop (a, gbits),
 		      *root, addr_chop (a, gbits),
-		      CAP_COPY_COPY_ADDR_TRANS_GUARD, addr_trans);
+		      CAP_COPY_COPY_ADDR_TRANS_GUARD,
+		      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
       assert (r);
     }
 

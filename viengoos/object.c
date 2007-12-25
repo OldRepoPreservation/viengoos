@@ -462,6 +462,7 @@ folio_object_alloc (struct activity *activity,
 		    struct folio *folio,
 		    int idx,
 		    enum cap_type type,
+		    struct object_policy policy,
 		    struct object **objectp)
 {
   debug (4, "allocating %s at %d", cap_type_string (type), idx);
@@ -551,6 +552,8 @@ folio_object_alloc (struct activity *activity,
   folio->objects[idx].type = type;
   /* Mark it as being empty.  */
   folio->objects[idx].content = 0;
+
+  folio->objects[idx].policy = policy;
 
   switch (type)
     {

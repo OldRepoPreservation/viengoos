@@ -98,7 +98,7 @@ main (int argc, char *argv[])
     int processing_folio = -1;
 
     int visit (addr_t addr,
-	       l4_word_t type, struct cap_addr_trans cap_addr_trans,
+	       l4_word_t type, struct cap_properties properties,
 	       bool writable,
 	       void *cookie)
       {
@@ -149,14 +149,15 @@ main (int argc, char *argv[])
 	  panic ("capalloc");
 
 	err = rm_folio_object_alloc (activity, folio, i, cap_page,
+				     OBJECT_POLICY_DEFAULT,
 				     addr, ADDR_VOID);
 	assert ((err == 0) == (0 <= i && i < FOLIO_OBJECTS));
 
 	if (0 <= i && i < FOLIO_OBJECTS)
 	  {
 	    l4_word_t type;
-	    struct cap_addr_trans cap_addr_trans;
-	    err = rm_cap_read (activity, addr, &type, &cap_addr_trans);
+	    struct cap_properties properties;
+	    err = rm_cap_read (activity, addr, &type, &properties);
 	    assert (! err);
 	    assert (type == cap_page);
 	  }
@@ -203,10 +204,10 @@ main (int argc, char *argv[])
 	for (j = 0; j <= i; j ++)
 	  {
 	    l4_word_t type;
-	    struct cap_addr_trans addr_trans;
+	    struct cap_properties properties;
 
 	    error_t err = rm_cap_read (activity, addr_extend (root, j, bits),
-				       &type, &addr_trans);
+				       &type, &properties);
 	    assert (! err);
 	    assert (type == cap_folio);
 
@@ -318,8 +319,8 @@ main (int argc, char *argv[])
     struct hurd_thread_exregs_in in;
 
     in.aspace = ADDR (0, 0);
-    in.aspace_addr_trans = CAP_ADDR_TRANS_VOID;
-    in.aspace_addr_trans_flags = CAP_COPY_COPY_SOURCE_GUARD;
+    in.aspace_cap_properties = CAP_PROPERTIES_DEFAULT;
+    in.aspace_cap_properties_flags = CAP_COPY_COPY_SOURCE_GUARD;
 
     in.activity = activity;
 
@@ -393,7 +394,7 @@ main (int argc, char *argv[])
       {
 	debug (5, "Creating thread %d", i);
 	error_t err = pthread_create (&threads[i], NULL, start,
-				      (uintptr_t) i);
+				      (void *) (uintptr_t) i);
 	assert (err == 0);
       }
 
@@ -403,7 +404,7 @@ main (int argc, char *argv[])
 	debug (5, "Waiting on thread %d", i);
 	error_t err = pthread_join (threads[i], &status);
 	assert (err == 0);
-	assert (status == (uintptr_t) i);
+	assert ((uintptr_t) status == (uintptr_t) i);
 	debug (5, "Joined %d", i);
       }
 
@@ -415,6 +416,7 @@ main (int argc, char *argv[])
   {
     printf ("Checking activity creation... ");
 
+#undef N
 #define N 10
     void test (addr_t activity, addr_t folio, int depth)
     {
@@ -435,6 +437,7 @@ main (int argc, char *argv[])
 	  a[i].child = capalloc ();
 	  err = rm_folio_object_alloc (activity, folio, obj ++,
 				       cap_activity_control,
+				       OBJECT_POLICY_DEFAULT,
 				       a[i].child, ADDR_VOID);
 	  assert (err == 0);
 
@@ -445,13 +448,14 @@ main (int argc, char *argv[])
 
 	  a[i].page = capalloc ();
 	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 0, cap_page,
+				       OBJECT_POLICY_DEFAULT,
 				       a[i].page, ADDR_VOID);
 	  assert (err == 0);
 
 	  l4_word_t type;
-	  struct cap_addr_trans addr_trans;
+	  struct cap_properties properties;
 
-	  err = rm_cap_read (a[i].child, a[i].page, &type, &addr_trans);
+	  err = rm_cap_read (a[i].child, a[i].page, &type, &properties);
 	  assert (err == 0);
 	  assert (type == cap_page);
 	}
@@ -475,6 +479,7 @@ main (int argc, char *argv[])
 	     use the object.  If this fails, we assume that the folio was
 	     destroyed.  */
 	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 1, cap_page,
+				       OBJECT_POLICY_DEFAULT,
 				       a[i].page, ADDR_VOID);
 	  assert (err);
 

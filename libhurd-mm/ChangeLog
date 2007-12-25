@@ -1,3 +1,19 @@
+2007-12-25  Neal H. Walfield  <neal@gnu.org>
+
+	* as.h: Change VISIT's signature: pass a struct cap_properties
+	instead of a struct cap_addr_trans.  Update callers.
+	* as.c (as_walk): Change VISIT's signature: pass a struct
+	cap_properties instead of a struct cap_addr_trans.  Call VISIT
+	appropriately.
+	(as_alloc_slow): Update rm_cap_read use to reflect API changes.
+	(as_init): Update rm_cap_read use to reflect API changes.  Use
+	CAP_PROPERTIES_SET to set shadow capability properties.
+	* storage.c (shadow_setup): Update rm_folio_object_alloc use to
+	reflect API changes.  Also save the object policy in the shadow
+	capability.
+	(storage_alloc_): Likewise.
+	(storage_free_): Likewise.
+
 2007-12-22  Neal H. Walfield  <neal@gnu.org>
 
 	* storage.c (storage_alloc_): Update rm_folio_alloc use to reflect

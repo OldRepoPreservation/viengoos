@@ -4,28 +4,27 @@
 
    This file is part of the GNU Hurd.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+   GNU Hurd is free software: you can redistribute it and/or modify it
+   under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   License along with GNU Hurd.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #ifndef _HURD_FOLIO_H
 #define _HURD_FOLIO_H 1
 
 #include <hurd/types.h>
 #include <hurd/addr.h>
-#include <hurd/startup.h>
 #include <hurd/cap.h>
+#include <hurd/startup.h>
 #include <stdint.h>
 
 /* Number of user objects per folio.  */
@@ -37,6 +36,7 @@ enum
   {
     FOLIO_OBJECTS_LOG2 = 7,
   };
+
 /* User settable folio policy.  */
 
 /* The range of valid folio priorities.  A lower numerical value
@@ -113,14 +113,9 @@ struct folio
     /* The type Page type.  */
     l4_uint32_t type : CAP_TYPE_BITS;
 
-    /* Whether a page is has any content (i.e., if it is not
+    /* Whether a page has any content (i.e., if it is not
        uninitialized).  */
     l4_uint32_t content : 1;
-
-    /* Whether a page is discardable (if so and the page is not zero,
-       trying to read the page from disk generates a first fault
-       fault).  */
-    l4_uint32_t discardable : 1;
 
     /* We only need to bump the object's version when we can't easily
        reclaim all references.  If there are no references or if the
@@ -136,6 +131,8 @@ struct folio
     /* If clear, we know that references (if there are any)
        are only in-memory.  */
     l4_uint32_t mhazard : 1;
+
+    struct object_policy policy;
 
     /* 128-bit md5sum of each object.  */
     l4_uint64_t checksum[2];
@@ -167,7 +164,7 @@ enum
     RM_folio_alloc = 200,
     RM_folio_free,
     RM_folio_object_alloc,
-    RM_folio_policy,
+    RM_folio_policy
   };
 
 /* Allocate a folio against PRINCIPAL.  Store a capability in the
@@ -180,12 +177,13 @@ RPC(folio_alloc, 3, 0, addr_t, principal, addr_t, folio,
 RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
 
 /* Allocate INDEXth object in folio FOLIO as an object of type TYPE.
-   PRINCIPAL is charged.  If OBJECT_SLOT is not ADDR_VOID, then stores
-   a capability to the allocated object in OBJECT_SLOT.  If
-   OBJECT_WEAK_SLOT is not ADDR_VOID, stores a weaken reference to the
-   created object.  */
-RPC(folio_object_alloc, 6, 0, addr_t, principal,
+   POLICY specifies the object's policy when accessed via the folio.
+   If OBJECT_SLOT is not ADDR_VOID, then stores a capability to the
+   allocated object in OBJECT_SLOT.  If OBJECT_WEAK_SLOT is not
+   ADDR_VOID, stores a weaken reference to the created object.  */
+RPC(folio_object_alloc, 7, 0, addr_t, principal,
     addr_t, folio, l4_word_t, index, l4_word_t, type,
+    struct object_policy, policy,
     addr_t, object_slot, addr_t, object_weak_slot)
 
 /* Flags for folio_policy.  */

@@ -393,7 +393,7 @@ as_alloc_slow (int width)
   addr_t slot = ADDR_VOID;
 
   int find_free_slot (addr_t addr,
-		      l4_word_t type, struct cap_addr_trans addr_trans,
+		      l4_word_t type, struct cap_properties properties,
 		      bool writable,
 		      void *cookie)
   {
@@ -425,13 +425,14 @@ as_alloc_slow (int width)
       /* Overlaps the UTCB.  */
       return 0;
 
-    /* Be sure we haven't already given this addrss out.  */
+    /* Be sure we haven't already given this address out.  */
     int i;
     for (i = 0; i < desc_additional_count; i ++)
       {
 	struct hurd_object_desc *desc = &desc_additional[i];
 	if (ADDR_EQ (addr, addr_chop (desc->object,
-				      CAP_ADDR_TRANS_GUARD_BITS (addr_trans))))
+				      CAP_ADDR_TRANS_GUARD_BITS
+				      (properties.addr_trans))))
 	  return 0;
       }
 
@@ -452,10 +453,10 @@ as_alloc_slow (int width)
   int gbits = ADDR_BITS - addr_depth (slot) - width;
   assert (gbits >= 0);
 
-  struct cap_addr_trans cap_addr_trans = CAP_ADDR_TRANS_VOID;
-  CAP_ADDR_TRANS_SET_GUARD (&cap_addr_trans, 0, gbits);
+  struct cap_properties properties = CAP_PROPERTIES_DEFAULT;
+  CAP_ADDR_TRANS_SET_GUARD (&properties.addr_trans, 0, gbits);
   err = rm_cap_copy (meta_data_activity, slot, slot,
-		     CAP_COPY_COPY_ADDR_TRANS_GUARD, cap_addr_trans);
+		     CAP_COPY_COPY_ADDR_TRANS_GUARD, properties);
   if (err)
     panic ("failed to copy capability: %d", err);
 
@@ -572,18 +573,20 @@ as_init (void)
 	 cappage.  */
       bool have_one = false;
 
-      /* XXX: Would be nice have syscall bundling here.  */
+      /* XXX: Would be nice to have syscall bundling here.  */
       for (i = 0; i < (1 << slots_log2); i ++)
 	{
 	  struct cap *slot = &shadow->caps[i];
 
 	  addr_t slot_addr = addr_extend (addr, i, slots_log2);
 	  l4_word_t type;
+	  struct cap_properties properties;
 	  err = rm_cap_read (meta_data_activity, slot_addr,
-			     &type, &slot->addr_trans);
+			     &type, &properties);
 	  if (err)
 	    panic ("Error reading cap %d: %d", i, err);
 	  slot->type = type;
+	  CAP_PROPERTIES_SET (slot, properties);
 
 	  if (type != cap_void)
 	    /* Mark the slot as free--unless we are in a folio.  */
@@ -607,10 +610,12 @@ as_init (void)
 
   /* Shadow the root capability.  */
   l4_word_t type;
+  struct cap_properties properties;
   err = rm_cap_read (meta_data_activity, ADDR (0, 0),
-		     &type, &shadow_root.addr_trans);
+		     &type, &properties);
   assert (err == 0);
   shadow_root.type = type;
+  CAP_PROPERTIES_SET (&shadow_root, properties);
 
   if (type != cap_void)
     as_alloc_at (ADDR (CAP_GUARD (&shadow_root),
@@ -690,7 +695,7 @@ as_init (void)
   /* Walk the address space the hard way and make sure that we've got
      everything.  */
   int visit (addr_t addr,
-	     l4_word_t type, struct cap_addr_trans addr_trans,
+	     l4_word_t type, struct cap_properties properties,
 	     bool writable, void *cookie)
     {
       struct cap *cap = slot_lookup_rel (meta_data_activity,
@@ -699,7 +704,14 @@ as_init (void)
 	       ADDR_PRINTF (addr), cap_type_string (type));
 
       assert (cap->type == type);
-      assert (cap->addr_trans.raw == addr_trans.raw);
+
+      struct cap_properties properties2 = CAP_PROPERTIES_GET (*cap);
+      assert (properties.policy.discardable == properties2.policy.discardable);
+      assertx (properties.policy.priority == properties2.policy.priority,
+	       ADDR_FMT "(%s) %d != %d",
+	       ADDR_PRINTF (addr), cap_type_string (type),
+	       properties.policy.priority, properties2.policy.priority);
+      assert (properties.addr_trans.raw == properties2.addr_trans.raw);
 
       return 0;
     }
@@ -752,14 +764,13 @@ slot_lookup (activity_t activity,
 /* Walk the address space, depth first.  VISIT is called for each
    *slot* for which (1 << reported capability type) & TYPES is
    non-zero.  TYPE is the reported type of the capability and
-   CAP_ADDR_TRANS the value of its address translation fields.
-   WRITABLE is whether the slot is writable.  If VISIT returns -1, the
-   current sub-tree is exited.  For other non-zero values, the walk is
-   aborted and that value is returned.  If the walk is not aborted, 0
-   is returned.  */
+   PROPERTIES the value of its properties.  WRITABLE is whether the
+   slot is writable.  If VISIT returns -1, the current sub-tree is
+   exited.  For other non-zero values, the walk is aborted and that
+   value is returned.  If the walk is not aborted, 0 is returned.  */
 int
 as_walk (int (*visit) (addr_t addr,
-		       l4_word_t type, struct cap_addr_trans cap_addr_trans,
+		       l4_word_t type, struct cap_properties properties,
 		       bool writable,
 		       void *cookie),
 	 int types,
@@ -781,16 +792,16 @@ as_walk (int (*visit) (addr_t addr,
       child[0] = 0;
 
       error_t err;
-      struct cap_addr_trans addr_trans;
+      struct cap_properties properties;
       l4_word_t type;
 
       /* Just caching the root capability cuts the number of RPCs by
 	 about 25%.  */
-      struct cap_addr_trans root_addr_trans;
+      struct cap_properties root_properties;
       l4_word_t root_type;
 
       err = rm_cap_read (meta_data_activity,
-			 ADDR (0, 0), &root_type, &root_addr_trans);
+			 ADDR (0, 0), &root_type, &root_properties);
       assert (err == 0);
 
     restart:
@@ -807,17 +818,18 @@ as_walk (int (*visit) (addr_t addr,
 	  if (d == 0)
 	    {
 	      type = root_type;
-	      addr_trans = root_addr_trans;
+	      properties = root_properties;
 	    }
 	  else
 	    {
 	      err = rm_cap_read (meta_data_activity,
-				 addr, &type, &addr_trans);
+				 addr, &type, &properties);
 	      assert (err == 0);
 	    }
 
-	  addr = addr_extend (addr, CAP_ADDR_TRANS_GUARD (addr_trans),
-			      CAP_ADDR_TRANS_GUARD_BITS (addr_trans));
+	  addr
+	    = addr_extend (addr, CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+			   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans));
 
 	  switch (type)
 	    {
@@ -825,7 +837,8 @@ as_walk (int (*visit) (addr_t addr,
 	      writable = false;
 	      /* Fall through.  */
 	    case cap_cappage:
-	      slots_log2 = CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (addr_trans);
+	      slots_log2
+		= CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans);
 	      break;
 	    case cap_folio:
 	      slots_log2 = FOLIO_OBJECTS_LOG2;
@@ -857,14 +870,14 @@ as_walk (int (*visit) (addr_t addr,
 
 	  addr = addr_extend (addr, child[d], slots_log2);
 	  err = rm_cap_read (meta_data_activity,
-			     addr, &type, &addr_trans);
+			     addr, &type, &properties);
 	  assert (err == 0);
 	}
 
       for (;;)
 	{
 	  err = rm_cap_read (meta_data_activity,
-			     addr, &type, &addr_trans);
+			     addr, &type, &properties);
 	  if (err)
 	    /* Dangling pointer.  */
 	    {
@@ -888,7 +901,7 @@ as_walk (int (*visit) (addr_t addr,
 
 	  if (((1 << type) & types))
 	    {
-	      int r = visit (addr, type, addr_trans, writable, cookie);
+	      int r = visit (addr, type, properties, writable, cookie);
 	      if (r == -1)
 		{
 		  /* Pop.  */
@@ -907,21 +920,24 @@ as_walk (int (*visit) (addr_t addr,
 		return r;
 	    }
 
-	  if (addr_depth (addr) + CAP_ADDR_TRANS_GUARD_BITS (addr_trans)
+	  if (addr_depth (addr)
+	      + CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans)
 	      > ADDR_BITS)
 	    {
 	      child[depth - 1] ++;
 	      goto restart;
 	    }
 
-	  addr = addr_extend (addr, CAP_ADDR_TRANS_GUARD (addr_trans),
-			      CAP_ADDR_TRANS_GUARD_BITS (addr_trans));
+	  addr
+	    = addr_extend (addr, CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+			   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans));
 
 	  switch (type)
 	    {
 	    case cap_rcappage:
 	    case cap_cappage:
-	      slots_log2 = CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (addr_trans);
+	      slots_log2
+		= CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans);
 	      break;
 	    case cap_folio:
 	      slots_log2 = FOLIO_OBJECTS_LOG2;
@@ -952,17 +968,17 @@ as_walk (int (*visit) (addr_t addr,
   int do_walk (struct cap *cap, addr_t addr, bool writable)
     {
       l4_word_t type;
-      struct cap_addr_trans cap_addr_trans;
+      struct cap_properties cap_properties;
 
       type = cap->type;
-      cap_addr_trans = cap->addr_trans;
+      cap_properties = CAP_PROPERTIES_GET (*cap);
 
       debug (5, ADDR_FMT " (%s)", ADDR_PRINTF (addr), cap_type_string (type));
 
       int r;
       if (((1 << type) & types))
 	{
-	  r = visit (addr, type, cap_addr_trans, writable, cookie);
+	  r = visit (addr, type, cap_properties, writable, cookie);
 	  if (r == -1)
 	    /* Don't go deeper.  */
 	    return 0;
@@ -970,12 +986,14 @@ as_walk (int (*visit) (addr_t addr,
 	    return r;
 	}
 
-      if (addr_depth (addr) + CAP_ADDR_TRANS_GUARD_BITS (cap_addr_trans)
+      if (addr_depth (addr)
+	  + CAP_ADDR_TRANS_GUARD_BITS (cap_properties.addr_trans)
 	  > ADDR_BITS)
 	return 0;
 
-      addr = addr_extend (addr, CAP_ADDR_TRANS_GUARD (cap_addr_trans),
-			  CAP_ADDR_TRANS_GUARD_BITS (cap_addr_trans));
+      addr
+	= addr_extend (addr, CAP_ADDR_TRANS_GUARD (cap_properties.addr_trans),
+		       CAP_ADDR_TRANS_GUARD_BITS (cap_properties.addr_trans));
 
       int slots_log2 = 0;
       switch (type)
@@ -985,7 +1003,8 @@ as_walk (int (*visit) (addr_t addr,
 	  if (type == cap_rcappage)
 	    writable = false;
 
-	  slots_log2 = CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (cap_addr_trans);
+	  slots_log2
+	    = CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (cap_properties.addr_trans);
 	  break;
 
 	case cap_folio:
