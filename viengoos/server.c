@@ -343,30 +343,13 @@ server_loop (void)
 	  principal = activity;
 	}
 
-      addr_t folio_addr;
-      struct folio *folio;
-      addr_t object_addr;
-      struct cap object_cap;
-      struct cap *object_slot;
-      struct object *object;
-      l4_word_t idx;
-      l4_word_t type;
-      addr_t object_weak_addr;
-      struct cap *object_weak_slot;
-      bool r;
-      addr_t source_addr;
-      struct cap source;
-      addr_t target_addr;
-      struct cap *target;
-      l4_word_t flags;
-      struct cap_properties properties;
-
       DEBUG (5, "");
 
       switch (label)
 	{
 	case RM_folio_alloc:
 	  {
+	    addr_t folio_addr;
 	    struct folio_policy policy;
 
 	    err = rm_folio_alloc_send_unmarshal (&msg, &principal_addr,
@@ -376,12 +359,12 @@ server_loop (void)
 
 	    struct cap *folio_slot = SLOT (folio_addr);
 
-	    folio = folio_alloc (principal, policy);
+	    struct folio *folio = folio_alloc (principal, policy);
 	    if (! folio)
 	      REPLY (ENOMEM);
 
-	    r = cap_set (principal,
-			 folio_slot, object_to_cap ((struct object *) folio));
+	    bool r = cap_set (principal, folio_slot,
+			      object_to_cap ((struct object *) folio));
 	    assert (r);
 
 	    rm_folio_alloc_reply_marshal (&msg);
@@ -389,20 +372,30 @@ server_loop (void)
 	  }
 
 	case RM_folio_free:
-	  err = rm_folio_free_send_unmarshal (&msg, &principal_addr,
-					      &folio_addr);
-	  if (err)
-	    REPLY (err);
+	  {
+	    addr_t folio_addr;
 
-	  folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
-	  folio_free (principal, folio);
+	    err = rm_folio_free_send_unmarshal (&msg, &principal_addr,
+						&folio_addr);
+	    if (err)
+	      REPLY (err);
 
-	  rm_folio_free_reply_marshal (&msg);
-	  break;
+	    struct folio *folio = (struct folio *) OBJECT (folio_addr,
+							   cap_folio, true);
+	    folio_free (principal, folio);
+
+	    rm_folio_free_reply_marshal (&msg);
+	    break;
+	  }
 
 	case RM_folio_object_alloc:
 	  {
+	    addr_t folio_addr;
+	    uint32_t idx;
+	    uint32_t type;
 	    struct object_policy policy;
+	    addr_t object_addr;
+	    addr_t object_weak_addr;
 
 	    err = rm_folio_object_alloc_send_unmarshal (&msg, &principal_addr,
 							&folio_addr, &idx,
@@ -412,7 +405,8 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
+	    struct folio *folio = (struct folio *) OBJECT (folio_addr,
+							   cap_folio, true);
 
 	    if (idx >= FOLIO_OBJECTS)
 	      REPLY (EINVAL);
@@ -420,11 +414,11 @@ server_loop (void)
 	    if (! (CAP_TYPE_MIN <= type && type <= CAP_TYPE_MAX))
 	      REPLY (EINVAL);
 
-	    object_slot = NULL;
+	    struct cap *object_slot = NULL;
 	    if (! ADDR_IS_VOID (object_addr))
 	      object_slot = SLOT (object_addr);
 
-	    object_weak_slot = NULL;
+	    struct cap *object_weak_slot = NULL;
 	    if (! ADDR_IS_VOID (object_weak_addr))
 	      object_weak_slot = SLOT (object_weak_addr);
 
@@ -433,6 +427,7 @@ server_loop (void)
 		   idx, cap_type_string (type),
 		   addr_prefix (object_addr), addr_depth (object_addr));
 
+	    struct object *object;
 	    folio_object_alloc (principal, folio, idx, type, policy,
 				type == cap_void ? NULL : &object);
 
@@ -440,14 +435,14 @@ server_loop (void)
 	      {
 		if (object_slot)
 		  {
-		    r = cap_set (principal,
-				 object_slot, object_to_cap (object));
+		    bool r = cap_set (principal,
+				      object_slot, object_to_cap (object));
 		    assert (r);
 		  }
 		if (object_weak_slot)
 		  {
-		    r = cap_set (principal, object_weak_slot,
-				 object_to_cap (object));
+		    bool r = cap_set (principal, object_weak_slot,
+				      object_to_cap (object));
 		    assert (r);
 		    object_weak_slot->type
 		      = cap_type_weaken (object_weak_slot->type);
@@ -460,6 +455,7 @@ server_loop (void)
 
 	case RM_folio_policy:
 	  {
+	    addr_t folio_addr;
 	    l4_word_t flags;
 	    struct folio_policy in, out;
 
@@ -469,7 +465,8 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    folio = (struct folio *) OBJECT (folio_addr, cap_folio, true);
+	    struct folio *folio = (struct folio *) OBJECT (folio_addr,
+							   cap_folio, true);
 
 	    folio_policy (principal, folio, flags, in, &out);
 
@@ -478,161 +475,184 @@ server_loop (void)
 	  }
 
 	case RM_object_slot_copy_out:
-	  err = rm_object_slot_copy_out_send_unmarshal
-	    (&msg, &principal_addr,
-	     &source_addr, &idx, &target_addr, &flags, &properties);
-	  if (err)
-	    REPLY (err);
+	  {
+	    addr_t source_addr;
+	    struct cap source;
+	    addr_t target_addr;
+	    struct cap *target;
+	    uint32_t idx;
+	    uint32_t flags;
+	    struct cap_properties properties;
 
-	  object_cap = CAP (source_addr, -1, false);
+	    struct cap object_cap;
+	    struct object *object;
 
-	  /* Fall through.  */
 
-	case RM_object_slot_copy_in:
-	  if (label == RM_object_slot_copy_in)
-	    {
-	      err = rm_object_slot_copy_in_send_unmarshal
-		(&msg, &principal_addr,
-		 &target_addr, &idx, &source_addr, &flags, &properties);
-	      if (err)
-		REPLY (err);
+	    err = rm_object_slot_copy_out_send_unmarshal
+	      (&msg, &principal_addr,
+	       &source_addr, &idx, &target_addr, &flags, &properties);
+	    if (err)
+	      REPLY (err);
 
-	      object_cap = CAP (target_addr, -1, true);
-	    }
+	    object_cap = CAP (source_addr, -1, false);
 
-	  if (idx >= cap_type_num_slots[object_cap.type])
-	    REPLY (EINVAL);
+	    /* Fall through.  */
 
-	  if (object_cap.type == cap_cappage || object_cap.type == cap_rcappage)
-	    /* Ensure that IDX falls within the subpage.  */
-	    {
-	      if (idx >= CAP_SUBPAGE_SIZE (&object_cap))
-		{
-		  DEBUG (1, "index (%d) >= subpage size (%d)",
-			 idx, CAP_SUBPAGE_SIZE (&object_cap));
-		  REPLY (EINVAL);
-		}
+	  case RM_object_slot_copy_in:
+	    if (label == RM_object_slot_copy_in)
+	      {
+		err = rm_object_slot_copy_in_send_unmarshal
+		  (&msg, &principal_addr,
+		   &target_addr, &idx, &source_addr, &flags, &properties);
+		if (err)
+		  REPLY (err);
 
-	      idx += CAP_SUBPAGE_OFFSET (&object_cap);
-	    }
+		object_cap = CAP (target_addr, -1, true);
+	      }
 
-	  object = cap_to_object (principal, &object_cap);
-	  if (! object)
-	    {
-	      DEBUG (1, CAP_FMT " maps to void", CAP_PRINTF (&object_cap));
+	    if (idx >= cap_type_num_slots[object_cap.type])
 	      REPLY (EINVAL);
-	    }
 
-	  if (label == RM_object_slot_copy_out)
-	    {
-	      source = ((struct cap *) object)[idx];
-	      target = SLOT (target_addr);
-	    }
-	  else
-	    {
-	      source = CAP (source_addr, -1, false);
-	      target = &((struct cap *) object)[idx];
-	    }
+	    if (object_cap.type == cap_cappage
+		|| object_cap.type == cap_rcappage)
+	      /* Ensure that IDX falls within the subpage.  */
+	      {
+		if (idx >= CAP_SUBPAGE_SIZE (&object_cap))
+		  {
+		    DEBUG (1, "index (%d) >= subpage size (%d)",
+			   idx, CAP_SUBPAGE_SIZE (&object_cap));
+		    REPLY (EINVAL);
+		  }
 
-	  goto cap_copy_body;
+		idx += CAP_SUBPAGE_OFFSET (&object_cap);
+	      }
 
-	case RM_cap_copy:
-	  err = rm_cap_copy_send_unmarshal (&msg, &principal_addr,
-					    &target_addr, &source_addr,
-					    &flags, &properties);
-	  if (err)
-	    REPLY (err);
+	    object = cap_to_object (principal, &object_cap);
+	    if (! object)
+	      {
+		DEBUG (1, CAP_FMT " maps to void", CAP_PRINTF (&object_cap));
+		REPLY (EINVAL);
+	      }
 
-	  target = SLOT (target_addr);
-	  source = CAP (source_addr, -1, false);
+	    if (label == RM_object_slot_copy_out)
+	      {
+		source = ((struct cap *) object)[idx];
+		target = SLOT (target_addr);
+	      }
+	    else
+	      {
+		source = CAP (source_addr, -1, false);
+		target = &((struct cap *) object)[idx];
+	      }
 
-	cap_copy_body:;
+	    goto cap_copy_body;
 
-	  if ((flags & ~(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
-			 | CAP_COPY_COPY_ADDR_TRANS_GUARD
-			 | CAP_COPY_COPY_SOURCE_GUARD
-			 | CAP_COPY_WEAKEN
-			 | CAP_COPY_DISCARDABLE_SET
-			 | CAP_COPY_PRIORITY_SET)))
-	    REPLY (EINVAL);
+	  case RM_cap_copy:
+	    err = rm_cap_copy_send_unmarshal (&msg, &principal_addr,
+					      &target_addr, &source_addr,
+					      &flags, &properties);
+	    if (err)
+	      REPLY (err);
 
-	  DEBUG (4, "(target: " ADDR_FMT ", source: " ADDR_FMT ", "
-		 "%s|%s, %s {%llx/%d %d/%d})",
-		 ADDR_PRINTF (target_addr), ADDR_PRINTF (source_addr),
-		 flags & CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
-		 : (flags & CAP_COPY_COPY_SOURCE_GUARD ? "source"
-		    : "preserve"),
-		 flags & CAP_COPY_COPY_ADDR_TRANS_SUBPAGE ? "copy"
-		 : "preserve",
-		 flags & CAP_COPY_WEAKEN ? "weaken" : "no weaken",
-		 CAP_ADDR_TRANS_GUARD (properties.addr_trans),
-		 CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
-		 CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
-		 CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
+	    target = SLOT (target_addr);
+	    source = CAP (source_addr, -1, false);
 
-	  bool r = cap_copy_x (principal,
-			       target, ADDR_VOID, source, ADDR_VOID,
-			       flags, properties);
-	  if (! r)
-	    REPLY (EINVAL);
+	  cap_copy_body:;
 
-	  switch (label)
-	    {
-	    case RM_object_slot_copy_out:
-	      rm_object_slot_copy_out_reply_marshal (&msg);
-	      break;
-	    case RM_object_slot_copy_in:
-	      rm_object_slot_copy_in_reply_marshal (&msg);
-	      break;
-	    case RM_cap_copy:
-	      rm_cap_copy_reply_marshal (&msg);
-	      break;
-	    }
-	  break;
+	    if ((flags & ~(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
+			   | CAP_COPY_COPY_ADDR_TRANS_GUARD
+			   | CAP_COPY_COPY_SOURCE_GUARD
+			   | CAP_COPY_WEAKEN
+			   | CAP_COPY_DISCARDABLE_SET
+			   | CAP_COPY_PRIORITY_SET)))
+	      REPLY (EINVAL);
+
+	    DEBUG (4, "(target: " ADDR_FMT ", source: " ADDR_FMT ", "
+		   "%s|%s, %s {%llx/%d %d/%d})",
+		   ADDR_PRINTF (target_addr), ADDR_PRINTF (source_addr),
+		   flags & CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
+		   : (flags & CAP_COPY_COPY_SOURCE_GUARD ? "source"
+		      : "preserve"),
+		   flags & CAP_COPY_COPY_ADDR_TRANS_SUBPAGE ? "copy"
+		   : "preserve",
+		   flags & CAP_COPY_WEAKEN ? "weaken" : "no weaken",
+		   CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+		   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
+		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
+		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
+
+	    bool r = cap_copy_x (principal,
+				 target, ADDR_VOID, source, ADDR_VOID,
+				 flags, properties);
+	    if (! r)
+	      REPLY (EINVAL);
+
+	    switch (label)
+	      {
+	      case RM_object_slot_copy_out:
+		rm_object_slot_copy_out_reply_marshal (&msg);
+		break;
+	      case RM_object_slot_copy_in:
+		rm_object_slot_copy_in_reply_marshal (&msg);
+		break;
+	      case RM_cap_copy:
+		rm_cap_copy_reply_marshal (&msg);
+		break;
+	      }
+	    break;
+	  }
 
 	case RM_object_slot_read:
-	  err = rm_object_slot_read_send_unmarshal (&msg,
-						    &principal_addr,
-						    &source_addr, &idx);
-	  if (err)
-	    REPLY (err);
+	  {
+	    addr_t source_addr;
+	    uint32_t idx;
 
-	  /* We don't look up the argument directly as we need to
-	     respect any subpag specification for cappages.  */
-	  source = CAP (source_addr, -1, false);
+	    err = rm_object_slot_read_send_unmarshal (&msg,
+						      &principal_addr,
+						      &source_addr, &idx);
+	    if (err)
+	      REPLY (err);
 
-	  object = cap_to_object (activity, &source);
-	  if (! object)
-	    REPLY (EINVAL);
+	    /* We don't look up the argument directly as we need to
+	       respect any subpag specification for cappages.  */
+	    struct cap source = CAP (source_addr, -1, false);
 
-	  if (idx >= cap_type_num_slots[source.type])
-	    REPLY (EINVAL);
+	    struct object *object = cap_to_object (activity, &source);
+	    if (! object)
+	      REPLY (EINVAL);
 
-	  if (source.type == cap_cappage || source.type == cap_rcappage)
-	    /* Ensure that idx falls within the subpage.  */
-	    {
-	      if (idx >= CAP_SUBPAGE_SIZE (&source))
-		REPLY (EINVAL);
+	    if (idx >= cap_type_num_slots[source.type])
+	      REPLY (EINVAL);
 
-	      idx += CAP_SUBPAGE_OFFSET (&source);
-	    }
+	    if (source.type == cap_cappage || source.type == cap_rcappage)
+	      /* Ensure that idx falls within the subpage.  */
+	      {
+		if (idx >= CAP_SUBPAGE_SIZE (&source))
+		  REPLY (EINVAL);
 
-	  source = ((struct cap *) object)[idx];
+		idx += CAP_SUBPAGE_OFFSET (&source);
+	      }
 
-	  rm_object_slot_read_reply_marshal (&msg, source.type,
-					     CAP_PROPERTIES_GET (source));
-	  break;
+	    source = ((struct cap *) object)[idx];
 
+	    rm_object_slot_read_reply_marshal (&msg, source.type,
+					       CAP_PROPERTIES_GET (source));
+	    break;
+	  }
 
 	case RM_cap_read:
-	  err = rm_cap_read_send_unmarshal (&msg, &principal_addr,
-					    &source_addr);
+	  {
+	    addr_t source_addr;
 
-	  source = CAP (source_addr, -1, false);
+	    err = rm_cap_read_send_unmarshal (&msg, &principal_addr,
+					      &source_addr);
 
-	  rm_cap_read_reply_marshal (&msg, source.type,
-				     CAP_PROPERTIES_GET (source));
-	  break;
+	    struct cap source = CAP (source_addr, -1, false);
+
+	    rm_cap_read_reply_marshal (&msg, source.type,
+				       CAP_PROPERTIES_GET (source));
+	    break;
+	  }
 
 	case RM_thread_exregs:
 	  {

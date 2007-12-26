@@ -1,5 +1,10 @@
 2007-12-26  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Refactor code to move variable
+	declaration into the smallest scope in which they are used.
+
+2007-12-26  Neal H. Walfield  <neal@gnu.org>
+
 	* object.h: Include <hurd/btree.h>.  Don't include "activity.h".
 	(struct activity): Add forward.
 	(struct object_desc): Add field priority_node.
