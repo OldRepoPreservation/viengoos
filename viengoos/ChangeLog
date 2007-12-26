@@ -1,5 +1,10 @@
 2007-12-26  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Refactor code to eliminate gcc
+	uninitialized use warnings.
+	
+2007-12-26  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Refactor code to move variable
 	declaration into the smallest scope in which they are used.
 

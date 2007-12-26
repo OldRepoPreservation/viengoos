@@ -487,7 +487,6 @@ server_loop (void)
 	    struct cap object_cap;
 	    struct object *object;
 
-
 	    err = rm_object_slot_copy_out_send_unmarshal
 	      (&msg, &principal_addr,
 	       &source_addr, &idx, &target_addr, &flags, &properties);
@@ -496,20 +495,18 @@ server_loop (void)
 
 	    object_cap = CAP (source_addr, -1, false);
 
-	    /* Fall through.  */
+	    goto get_slot;
 
 	  case RM_object_slot_copy_in:
-	    if (label == RM_object_slot_copy_in)
-	      {
-		err = rm_object_slot_copy_in_send_unmarshal
-		  (&msg, &principal_addr,
-		   &target_addr, &idx, &source_addr, &flags, &properties);
-		if (err)
-		  REPLY (err);
+	    err = rm_object_slot_copy_in_send_unmarshal
+	      (&msg, &principal_addr,
+	       &target_addr, &idx, &source_addr, &flags, &properties);
+	    if (err)
+	      REPLY (err);
 
-		object_cap = CAP (target_addr, -1, true);
-	      }
+	    object_cap = CAP (target_addr, -1, true);
 
+	  get_slot:
 	    if (idx >= cap_type_num_slots[object_cap.type])
 	      REPLY (EINVAL);
 
