@@ -1,5 +1,17 @@
 2007-12-26  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (activity_for_each_child): Improve comment.
+	(activity_consistency_check): Remove.
+	(activity_consistency_check_): Likewise.
+	* activity.c (activity_consistency_check_): Remove.
+	* object.c (memory_object_alloc): Remove call to
+	activity_consistency_check.
+	(object_find_soft): Likewise.
+	(folio_free): Likewise.
+	(folio_object_alloc): Likewise.
+
+2007-12-26  Neal H. Walfield  <neal@gnu.org>
+
 	* object.h (struct object_desc): Replace field activity_lru.prevp
 	with activity_lru.prev.  Replace field global_lru.prevp with
 	global_lru.prev.

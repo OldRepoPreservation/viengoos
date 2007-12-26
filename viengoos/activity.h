@@ -134,8 +134,9 @@ activity_charge (struct activity *activity, int objects)
 }
 
 /* For each child of ACTIVITY, set to CHILD and execute code.  The
-   caller may destroy CHILD, however, it may not destroy any
-   siblings.  */
+   caller may destroy CHILD, however, it may not destroy any siblings.
+   Be careful of deadlock: this function calls cap_to_object, which
+   calls object_find, which may take LRU_LOCK.  */
 #define activity_for_each_child(__fec_activity, __fec_child, __fec_code) \
   do {									\
     __fec_child								\
@@ -159,13 +160,5 @@ activity_charge (struct activity *activity, int objects)
 
 /* Dump the activity ACTIVITY and its children to the screen.  */
 extern void activity_dump (struct activity *activity);
-
-
-/* Perform a consistency checl on the activity ACTIVITY.  Will take
-   LRU_LOCK.  */
-extern void activity_consistency_check_ (const char *func, int line,
-					 struct activity *activity);
-#define activity_consistency_check(a)		\
-  activity_consistency_check_ (__func__, __LINE__, (a))
 
 #endif

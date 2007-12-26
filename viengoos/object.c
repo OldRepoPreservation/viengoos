@@ -146,9 +146,6 @@ memory_object_alloc (struct activity *activity,
 
   ss_mutex_unlock (&lru_lock);
 
-  if (activity)
-    activity_consistency_check (activity);
-
   return object;
 }
 
@@ -230,8 +227,6 @@ object_find_soft (struct activity *activity, oid_t oid,
       ss_mutex_lock (&lru_lock);
       object_desc_claim (activity, odesc, policy);
       ss_mutex_unlock (&lru_lock);
-
-      activity_consistency_check (activity);
     }
 
   return object;
@@ -471,8 +466,6 @@ folio_free (struct activity *activity, struct folio *folio)
   object_disown ((struct object *) folio);
   ss_mutex_unlock (&lru_lock);
 
-  activity_consistency_check (owner);
-
   /* And free the folio.  */
   folio->folio_version = fdesc->version ++;
   bit_dealloc (folios, fdesc->oid / (FOLIO_OBJECTS + 1));
@@ -549,8 +542,6 @@ folio_object_alloc (struct activity *activity,
 	  ss_mutex_lock (&lru_lock);
 	  object_desc_claim (activity, odesc, policy);
 	  ss_mutex_unlock (&lru_lock);
-
-	  activity_consistency_check (activity);
 	}
 
       odesc->type = type;
