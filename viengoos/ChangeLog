@@ -1,5 +1,9 @@
 2007-12-26  Neal H. Walfield  <neal@gnu.org>
 
+	* t-activity.c (test): Remove unused variable.
+
+2007-12-26  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (activity_for_each_child): Improve comment.
 	(activity_consistency_check): Remove.
 	(activity_consistency_check_): Likewise.

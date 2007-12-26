@@ -43,8 +43,6 @@ extern char _end;
 void
 test (void)
 {
-  struct cap *cap = NULL;
-
   if (! memory_reserve ((l4_word_t) &_start, (l4_word_t) &_end,
 			memory_reservation_self))
     panic ("Failed to reserve memory for self.");
