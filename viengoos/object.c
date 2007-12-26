@@ -128,11 +128,14 @@ memory_object_alloc (struct activity *activity,
 
   ss_mutex_lock (&lru_lock);
 
-  object_global_lru_link (&global_active, odesc);
+  odesc->global_lru.next = odesc->global_lru.prev = NULL;
+  odesc->activity_lru.next = odesc->activity_lru.prev = NULL;
+
+  object_global_lru_push (&global_active, odesc);
   /* object_desc_claim wants to first unlink the descriptor.  To make
      it happy, we initially connect the descriptor to the disowned
      list.  */
-  object_activity_lru_link (&disowned, odesc);
+  object_activity_lru_push (&disowned, odesc);
 
   if (! activity)
     /* This may only happen if we are initializing.  */
@@ -155,35 +158,48 @@ memory_object_destroy (struct activity *activity, struct object *object)
 {
   assert (activity);
 
-  struct object_desc *odesc = object_to_object_desc (object);
+  struct object_desc *desc = object_to_object_desc (object);
 
   debug (5, "Destroy %s at 0x%llx (object %d)",
-	 cap_type_string (odesc->type), odesc->oid,
-	 ((uintptr_t) odesc - (uintptr_t) object_descs)
-	 / sizeof (*odesc));
+	 cap_type_string (desc->type), desc->oid,
+	 ((uintptr_t) desc - (uintptr_t) object_descs)
+	 / sizeof (*desc));
 
-  struct cap cap = object_desc_to_cap (odesc);
+  struct cap cap = object_desc_to_cap (desc);
   cap_shootdown (activity, &cap);
 
   ss_mutex_lock (&lru_lock);
-  object_desc_disown (odesc);
+  object_desc_disown (desc);
 
-  object_activity_lru_unlink (odesc);
-  object_global_lru_unlink (odesc);
+  struct object_desc **global;
+  if (desc->age)
+    /* DESC is active.  */
+    global = &global_active;
+  else
+    /* DESC is inactive.  */
+    if (desc->dirty && ! desc->policy.discardable)
+      /* And dirty.  */
+      global = &global_inactive_dirty;
+    else
+      /* And clean.  */
+      global = &global_inactive_clean;
+
+  object_activity_lru_unlink (&disowned, desc);
+  object_global_lru_unlink (global, desc);
   ss_mutex_unlock (&lru_lock);
 
-  if (odesc->type == cap_activity_control)
+  if (desc->type == cap_activity_control)
     {
       struct activity *a = (struct activity *) object;
       if (a->frames)
 	panic ("Attempt to page-out activity with allocated frames");
     }
 
-  hurd_ihash_locp_remove (&objects, odesc->locp);
-  assert (! hurd_ihash_find (&objects, odesc->oid));
+  hurd_ihash_locp_remove (&objects, desc->locp);
+  assert (! hurd_ihash_find (&objects, desc->oid));
 
 #ifdef NDEBUG
-  memset (odesc, 0xde, sizeof (struct object_desc));
+  memset (desc, 0xde, sizeof (struct object_desc));
 #endif
 
   /* Return the frame to the free pool.  */
@@ -621,8 +637,21 @@ object_desc_disown_simple (struct object_desc *desc)
   assert (! ss_mutex_trylock (&lru_lock));
   assert (desc->activity);
 
-  object_activity_lru_unlink (desc);
-  object_activity_lru_link (&disowned, desc);
+  struct object_desc **list;
+  if (desc->age)
+    /* DESC is active.  */
+    list = &desc->activity->active;
+  else
+    /* DESC is inactive.  */
+    if (desc->dirty && ! desc->policy.discardable)
+      /* And dirty.  */
+      list = &desc->activity->inactive_dirty;
+    else
+      /* And clean.  */
+      list = &desc->activity->inactive_clean;
+
+  object_activity_lru_unlink (list, desc);
+  object_activity_lru_push (&disowned, desc);
 
   if (desc->policy.priority != OBJECT_PRIORITY_LRU)
     hurd_btree_priorities_detach (&desc->activity->priorities, desc);
@@ -667,10 +696,11 @@ object_desc_claim_ (struct activity *activity, struct object_desc *desc,
     /* Already claimed by another activity; first disown it.  */
     object_desc_disown (desc);
 
+  /* DESC->ACTIVITY is NULL so DESC must be on DISOWNED.  */
+  object_activity_lru_unlink (&disowned, desc);
+  object_activity_lru_push (&activity->active, desc);
   desc->activity = activity;
   activity_charge (activity, 1);
-  object_activity_lru_unlink (desc);
-  object_activity_lru_link (&activity->active, desc);
 
   desc->policy.discardable = policy.discardable;
   desc->policy.priority = policy.priority;

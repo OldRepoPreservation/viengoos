@@ -1,5 +1,15 @@
 2007-12-26  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (struct object_desc): Replace field activity_lru.prevp
+	with activity_lru.prev.  Replace field global_lru.prevp with
+	global_lru.prev.
+	(LINK_TEMPLATE): Use circular lists.  Replace the
+	object_field_link function with object_field_push and
+	object_field_queue.  Require that the caller pass the head of the
+	list to unlink.  Update users.
+
+2007-12-26  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Refactor code to eliminate gcc
 	uninitialized use warnings.
 	

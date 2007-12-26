@@ -194,15 +194,21 @@ do_activity_dump (struct activity *activity, int indent)
 
   int active = 0;
   struct object_desc *desc;
-  for (desc = activity->active; desc; desc = desc->activity_lru.next)
+  for (desc = activity->active; desc;
+       desc = (desc->activity_lru.next == activity->active
+	       ? NULL : desc->activity_lru.next))
     active ++;
 
   int dirty = 0;
-  for (desc = activity->inactive_dirty; desc; desc = desc->activity_lru.next)
+  for (desc = activity->inactive_dirty; desc;
+       desc = (desc->activity_lru.next == activity->inactive_dirty
+	       ? NULL : desc->activity_lru.next))
     dirty ++;
 
   int clean = 0;
-  for (desc = activity->inactive_clean; desc; desc = desc->activity_lru.next)
+  for (desc = activity->inactive_clean; desc;
+       desc = (desc->activity_lru.next == activity->inactive_clean
+	       ? NULL : desc->activity_lru.next))
     clean ++;
 
   printf ("%s %llx: %d frames (active: %d, dirty: %d, clean: %d)\n",
@@ -230,31 +236,44 @@ void
 activity_consistency_check_ (const char *func, int line,
 			     struct activity *activity)
 {
+#if 0
   /* The number of objects on the active and inactive lists plus the
      objects owned by the descendents must equal activity->frames.  */
+  assertx (activity, "%s:%d", func, line);
 
   int active = 0;
   struct object_desc *d;
-  for (d = activity->active; d; d = d->activity_lru.next)
+  for (d = activity->active; d;
+       d = (d->activity_lru.next == activity->active
+	    ? NULL : desc->activity_lru.next))
     active ++;
 
   int dirty = 0;
-  for (d = activity->inactive_dirty; d; d = d->activity_lru.next)
+  for (d = activity->inactive_dirty; d;
+       d = (d->activity_lru.next == activity->inactive_dirty
+	    ? NULL : desc->activity_lru.next))
     dirty ++;
 
   int clean = 0;
-  for (d = activity->inactive_clean; d; d = d->activity_lru.next)
+  for (d = activity->inactive_clean; d;
+       d = (d->activity_lru.next == activity->inactive_clean
+	    ? NULL : desc->activity_lru.next))
     clean ++;
 
   int children = 0;
   struct activity *child;
+
   activity_for_each_child (activity, child,
 			   ({ children += child->frames; }));
 
   if (active + dirty + clean + children != activity->frames)
-    debug (0, "at %s:%d: frames (%d) "
-	   "!= active (%d) + dirty (%d) + clean (%d) + children (%d)",
-	   func, line,
-	   activity->frames, active, dirty, clean, children);
+    {
+      debug (0, "at %s:%d: frames (%d) "
+	     "!= active (%d) + dirty (%d) + clean (%d) + children (%d)",
+	     func, line,
+	     activity->frames, active, dirty, clean, children);
+      activity_dump (activity);
+    }
   assert (active + dirty + clean + children == activity->frames);
+#endif
 }
