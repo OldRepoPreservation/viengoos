@@ -178,7 +178,8 @@ as_build_internal (activity_t activity,
 		struct object_desc *fdesc;
 		fdesc = object_to_object_desc (object);
 
-		object = object_find (activity, fdesc->oid + i + 1);
+		object = object_find (activity, fdesc->oid + i + 1,
+				      folio->objects[i].policy);
 		assert (object);
 		*root = object_to_cap (object);
 #else
@@ -470,6 +471,8 @@ as_insert (activity_t activity,
 static void
 print_nr (int width, l4_int64_t nr, bool hex)
 {
+  extern int putchar (int chr);
+
   int base = 10;
   if (hex)
     base = 16;

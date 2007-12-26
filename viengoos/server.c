@@ -406,8 +406,7 @@ server_loop (void)
 
 	    err = rm_folio_object_alloc_send_unmarshal (&msg, &principal_addr,
 							&folio_addr, &idx,
-							&type, 
-							&policy,
+							&type, &policy,
 							&object_addr,
 							&object_weak_addr);
 	    if (err)
@@ -557,10 +556,9 @@ server_loop (void)
 			 | CAP_COPY_PRIORITY_SET)))
 	    REPLY (EINVAL);
 
-	  DEBUG (4, "(target: %llx/%d, source: %llx/%d, "
-		 "%s|%s, %s, {%llx/%d %d/%d})",
-		 addr_prefix (target_addr), addr_depth (target_addr),
-		 addr_prefix (source_addr), addr_depth (source_addr),
+	  DEBUG (4, "(target: " ADDR_FMT ", source: " ADDR_FMT ", "
+		 "%s|%s, %s {%llx/%d %d/%d})",
+		 ADDR_PRINTF (target_addr), ADDR_PRINTF (source_addr),
 		 flags & CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
 		 : (flags & CAP_COPY_COPY_SOURCE_GUARD ? "source"
 		    : "preserve"),

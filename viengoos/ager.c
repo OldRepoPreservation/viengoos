@@ -167,7 +167,7 @@ ager_loop (l4_thread_id_t main_thread)
 		    {
 		      /* Move to the appropriate inactive lists.  */
 		      object_global_lru_unlink (desc);
-		      if (desc->dirty)
+		      if (desc->dirty && ! desc->policy.discardable)
 			object_global_lru_link (&global_inactive_dirty, desc);
 		      else
 			object_global_lru_link (&global_inactive_clean, desc);
@@ -179,7 +179,7 @@ ager_loop (l4_thread_id_t main_thread)
 		      if (desc->activity)
 			{
 			  object_activity_lru_unlink (desc);
-			  if (desc->dirty)
+			  if (desc->dirty && ! desc->policy.discardable)
 			    object_activity_lru_link
 			      (&desc->activity->inactive_dirty, desc);
 			  else

@@ -23,9 +23,11 @@
 
 #include <l4.h>
 #include <errno.h>
+#include <hurd/btree.h>
 
 #include "cap.h"
-
+#include "object.h"
+
 /* Forward.  */
 struct object_desc;
 struct thread;
@@ -60,8 +62,6 @@ struct activity
      children).  */
   l4_word_t folio_count;
 
-  /* The remainder of the elements are in-memory only.  */
-
   /* Cached location of the in-memory parent activity.  This must be
      set on page-in.  It is only NULL for the root activity.  */
   struct activity *parent_ptr;
@@ -71,10 +71,15 @@ struct activity
   struct object_desc *inactive_clean;
   struct object_desc *inactive_dirty;
 
+  /* All objects owned by this activity whose priority is not
+     OBJECT_PRIORITY_LRU, keyed by priority.  */
+  hurd_btree_priorities_t priorities;
+
   /* Number of frames allocated to this activity (including children).
-     This is the sum of the number of objects on DIRTY plus the number
-     of objects on CLEAN.  */
-  int frames;
+     This is the sum of the number of objects on ACTIVE,
+     INACTIVE_CLEAN and INACTIVE_DIRTY plus the number of frames
+     allocated to each child.  */
+  uint32_t frames;
 
   int dying;
 };

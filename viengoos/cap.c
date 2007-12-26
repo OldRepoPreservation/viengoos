@@ -42,7 +42,11 @@ cap_to_object (struct activity *activity, struct cap *cap)
   if (cap->type == cap_void)
     return NULL;
 
-  struct object *object = object_find (activity, cap->oid);
+  /* XXX: If CAP does not grant write access, then we need to flatten
+     the discardable bit.  */
+  struct object *object = object_find (activity, cap->oid,
+				       OBJECT_POLICY (cap->discardable,
+						      cap->priority));
   if (! object)
     {
       /* Clear the capability to save the effort of looking up the
@@ -90,7 +94,9 @@ cap_shootdown (struct activity *activity, struct cap *cap)
 
 	  /* If the object is not in memory, then it can't be
 	     mapped.  */
-	  object = object_find_soft (activity, cap->oid);
+	  object = object_find_soft (activity, cap->oid,
+				     OBJECT_POLICY (cap->discardable,
+						    cap->priority));
 	  if (! object)
 	    return;
 

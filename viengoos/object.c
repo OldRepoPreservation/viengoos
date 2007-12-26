@@ -64,10 +64,11 @@ static struct hurd_ihash objects;
 void
 object_init (void)
 {
-  assert (sizeof (struct folio) <= PAGESIZE);
-  assert (sizeof (struct activity) <= PAGESIZE);
-  assert (sizeof (struct object) <= PAGESIZE);
-  assert (sizeof (struct thread) <= PAGESIZE);
+  assertx (sizeof (struct folio) <= PAGESIZE, "%d", sizeof (struct folio));
+  assertx (sizeof (struct activity) <= PAGESIZE,
+	   "%d", sizeof (struct activity));
+  assertx (sizeof (struct object) <= PAGESIZE, "%d", sizeof (struct object));
+  assertx (sizeof (struct thread) <= PAGESIZE, "%d", sizeof (struct thread));
 
   hurd_ihash_init (&objects, (int) (&((struct object_desc *)0)->locp));
 
@@ -83,7 +84,8 @@ object_init (void)
 static struct object *
 memory_object_alloc (struct activity *activity,
 		     enum cap_type type,
-		     oid_t oid, l4_word_t version)
+		     oid_t oid, l4_word_t version,
+		     struct object_policy policy)
 {
   debug (5, "Allocating %llx(%d), %s", oid, version, cap_type_string (type));
 
@@ -137,7 +139,7 @@ memory_object_alloc (struct activity *activity,
     assert (! root_activity);
   else
     /* Account the memory to the activity ACTIVITY.  */
-    object_desc_claim (activity, odesc);
+    object_desc_claim (activity, odesc, policy);
 
   ss_mutex_unlock (&lru_lock);
 
@@ -163,16 +165,12 @@ memory_object_destroy (struct activity *activity, struct object *object)
   struct cap cap = object_desc_to_cap (odesc);
   cap_shootdown (activity, &cap);
 
-  struct activity *owner = odesc->activity;
-
   ss_mutex_lock (&lru_lock);
   object_desc_disown (odesc);
 
   object_activity_lru_unlink (odesc);
   object_global_lru_unlink (odesc);
   ss_mutex_unlock (&lru_lock);
-
-  activity_consistency_check (owner);
 
   if (odesc->type == cap_activity_control)
     {
@@ -193,7 +191,8 @@ memory_object_destroy (struct activity *activity, struct object *object)
 }
 
 struct object *
-object_find_soft (struct activity *activity, oid_t oid)
+object_find_soft (struct activity *activity, oid_t oid,
+		  struct object_policy policy)
 {
   struct object_desc *odesc = hurd_ihash_find (&objects, oid);
   if (! odesc)
@@ -213,7 +212,7 @@ object_find_soft (struct activity *activity, oid_t oid)
        ownership.  */
     {
       ss_mutex_lock (&lru_lock);
-      object_desc_claim (activity, odesc);
+      object_desc_claim (activity, odesc, policy);
       ss_mutex_unlock (&lru_lock);
 
       activity_consistency_check (activity);
@@ -223,9 +222,10 @@ object_find_soft (struct activity *activity, oid_t oid)
 }
 
 struct object *
-object_find (struct activity *activity, oid_t oid)
+object_find (struct activity *activity, oid_t oid,
+	     struct object_policy policy)
 {
-  struct object *obj = object_find_soft (activity, oid);
+  struct object *obj = object_find_soft (activity, oid, policy);
   if (obj)
     return obj;
 
@@ -240,7 +240,8 @@ object_find (struct activity *activity, oid_t oid)
 	{
 	  assert (bit_test (folios, oid / (FOLIO_OBJECTS + 1)));
 
-	  return memory_object_alloc (activity, cap_folio, oid, 0);
+	  return memory_object_alloc (activity, cap_folio, oid, 0,
+				      policy);
 	}
 
       /* It's not an in-memory folio.  We read it from disk below.  */
@@ -248,7 +249,8 @@ object_find (struct activity *activity, oid_t oid)
   else
     {
       /* Find the folio corresponding to the object.  */
-      folio = (struct folio *) object_find (activity, oid - page - 1);
+      folio = (struct folio *) object_find (activity, oid - page - 1,
+					    OBJECT_POLICY_DEFAULT);
       assert (folio);
 
       if (folio->objects[page].type == cap_void)
@@ -258,7 +260,8 @@ object_find (struct activity *activity, oid_t oid)
 	/* The object is a zero page.  No need to read anything from
 	   backing store: just allocate a page and zero it.  */
 	return memory_object_alloc (activity, folio->objects[page].type,
-				    oid, folio->objects[page].version);
+				    oid, folio->objects[page].version,
+				    policy);
     }
   
   /* Read the object from backing store.  */
@@ -289,7 +292,8 @@ folio_parent (struct activity *activity, struct folio *folio)
 	  {
 	    int i;
 	    for (i = 0; i < FOLIO_OBJECTS; i ++)
-	      assert (! object_find_soft (activity, desc->oid + 1 + i));
+	      assert (! object_find_soft (activity, desc->oid + 1 + i,
+					  OBJECT_POLICY_DEFAULT));
 	  }
 	true;
       }));
@@ -365,7 +369,8 @@ folio_alloc (struct activity *activity, struct folio_policy policy)
 
   /* We can't just allocate a fresh page as we need to preserve the
      version information for the folio as well as the objects.  */
-  struct folio *folio = (struct folio *) object_find (activity, foid);
+  struct folio *folio = (struct folio *) object_find (activity, foid,
+						      OBJECT_POLICY_DEFAULT);
 
   if (activity)
     folio_parent (activity, folio);
@@ -484,7 +489,7 @@ folio_object_alloc (struct activity *activity,
     /* These object types have state that needs to be explicitly
        destroyed.  */
     {
-      object = object_find (activity, oid);
+      object = object_find (activity, oid, OBJECT_POLICY_DEFAULT);
 
       /* See if we need to destroy the object.  */
       switch (folio->objects[idx].type)
@@ -504,7 +509,7 @@ folio_object_alloc (struct activity *activity,
     }
 
   if (! object)
-    object = object_find_soft (activity, oid);
+    object = object_find_soft (activity, oid, policy);
   if (object)
     /* The object is in memory.  Update its descriptor and revoke any
        references to the old object.  */
@@ -526,7 +531,7 @@ folio_object_alloc (struct activity *activity,
 	  cap_shootdown (activity, &cap);
 
 	  ss_mutex_lock (&lru_lock);
-	  object_desc_claim (activity, odesc);
+	  object_desc_claim (activity, odesc, policy);
 	  ss_mutex_unlock (&lru_lock);
 
 	  activity_consistency_check (activity);
@@ -560,7 +565,7 @@ folio_object_alloc (struct activity *activity,
     case cap_activity_control:
       {
 	if (! object)
-	  object = object_find (activity, oid);
+	  object = object_find (activity, oid, policy);
 
 	activity_create (activity, (struct activity *) object);
 	break;
@@ -576,7 +581,7 @@ folio_object_alloc (struct activity *activity,
       assert (type != cap_void);
 
       if (! object)
-	object = object_find (activity, oid);
+	object = object_find (activity, oid, policy);
       *objectp = object;
     }
 }
@@ -608,4 +613,71 @@ folio_policy (struct activity *activity,
 
   if ((flags & FOLIO_POLICY_PRIORITY_SET))
     folio->policy.priority = in.priority;
+}
+
+void
+object_desc_disown_simple (struct object_desc *desc)
+{
+  assert (! ss_mutex_trylock (&lru_lock));
+  assert (desc->activity);
+
+  object_activity_lru_unlink (desc);
+  object_activity_lru_link (&disowned, desc);
+
+  if (desc->policy.priority != OBJECT_PRIORITY_LRU)
+    hurd_btree_priorities_detach (&desc->activity->priorities, desc);
+
+  desc->activity = NULL;
+}
+
+void
+object_desc_disown_ (struct object_desc *desc)
+{
+  activity_charge (desc->activity, -1);
+  object_desc_disown_simple (desc);
+}
+
+void
+object_desc_claim_ (struct activity *activity, struct object_desc *desc,
+		    struct object_policy policy)
+{
+  assert (activity);
+
+  if (desc->activity == activity)
+    /* Same owner: update the policy.  */
+    {
+      desc->policy.discardable = policy.discardable;
+
+      if (desc->policy.priority == policy.priority)
+	/* The priority didn't change; don't do any unnecessary work.  */
+	return;
+
+      if (desc->policy.priority != OBJECT_PRIORITY_LRU)
+	hurd_btree_priorities_detach (&desc->activity->priorities, desc);
+
+      desc->policy.priority = policy.priority;
+
+      if (desc->policy.priority != OBJECT_PRIORITY_LRU)
+	hurd_btree_priorities_insert (&desc->activity->priorities, desc);
+
+      return;
+    }
+
+  if (desc->activity)
+    /* Already claimed by another activity; first disown it.  */
+    object_desc_disown (desc);
+
+  desc->activity = activity;
+  activity_charge (activity, 1);
+  object_activity_lru_unlink (desc);
+  object_activity_lru_link (&activity->active, desc);
+
+  desc->policy.discardable = policy.discardable;
+  desc->policy.priority = policy.priority;
+  if (policy.priority != OBJECT_PRIORITY_LRU)
+    /* Add to ACTIVITY's priority queue.  */
+    {
+      void *ret = hurd_btree_priorities_insert (&activity->priorities, desc);
+      assert (! ret);
+    }
 }

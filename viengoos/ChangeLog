@@ -1,3 +1,35 @@
+2007-12-26  Neal H. Walfield  <neal@gnu.org>
+
+	* object.h: Include <hurd/btree.h>.  Don't include "activity.h".
+	(struct activity): Add forward.
+	(struct object_desc): Add field priority_node.
+	(priority_compare): New function.
+	(priorities): New btree class.
+	* activity.h: Include <hurd/btree.h>.  Don't include "object.h".
+	(struct activity): Add field priorities.
+	* ager.c (ager_loop): Don't add discardable dirty objects to the
+	inactive dirty list.
+	* object.h (object_find): Take additional parameter policy.
+	Update callers.
+	(object_find_soft): Likewise.
+	(object_desc_disown_simple): Move implementation from here...
+	* object.c (object_desc_disown_simple): ... to here.  Maintain
+	the activity's priority-ordered object list.
+	* object.h (object_desc_disown_): Move from here...
+	* object.c (object_desc_disown_): ... to here.  Maintain the
+	activity's priority-ordered object list.
+	* object.h (object_desc_claim_): Move from here...
+	* object.c (object_desc_claim_): ... to here.  Take additional
+	parameter policy.  Save the policy in the object descriptor.
+	Maintain the activity's priority-ordered object list.  Update
+	callers.
+	* object.h (object_claim_): Take additional parameter policy.
+	Pass it to object_desc_claim_.  Update callers.
+	* object.c (memory_object_alloc): Take additional parameter
+	policy.  Pass it to object_desc_claim.  Update callers.
+	(object_find_soft): Likewise.
+	(object_find): Likewise.
+	
 2007-12-25  Neal H. Walfield  <neal@gnu.org>
 
 	* object.h (struct object_desc): Add field policy.

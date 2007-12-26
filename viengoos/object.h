@@ -28,11 +28,13 @@
 #include <hurd/cap.h>
 #include <hurd/folio.h>
 #include <hurd/mutex.h>
+#include <hurd/btree.h>
 #include <stdint.h>
 
-#include "memory.h"
 #include "cap.h"
-#include "activity.h"
+#include "memory.h"
+
+struct activity;
 
 /* Objects
    -------
@@ -110,7 +112,6 @@
    implicitly deallocate each object contained in the folio according
    to the above rules.  */
 
-
 /* An object descriptor.  There is one for each in-memory object.  */
 struct object_desc
 {
@@ -130,10 +131,15 @@ struct object_desc
   struct object_policy policy;
 
   /* The object's age.  */
-  unsigned short age;
+  uint16_t age;
+
+  /* Ordered list of all owned objects whose priority is other than
+     OBJECT_PRIORITY_LRU.  */
+  hurd_btree_node_t priority_node;
 
   /* The activity to which the *memory* (not the storage) is
-     attributed.  If none, then NULL.  */
+     attributed.  If none, then NULL.  (The owner of the storage can
+     be found by looking at the folio.)  */
   struct activity *activity;
 
   /* Each allocated object is attached to the activity that pays for
@@ -161,7 +167,7 @@ struct object_desc
 extern struct object_desc *object_descs;
 
 /* Lock protecting the following lists and each object descriptor's
-   activity_lru and global_lru fields.  */
+   activity_lru, global_lru and priority_node fields.  */
 extern ss_mutex_t lru_lock;
 
 /* The global LRU lists.  Every allocated frame is on one of these
@@ -171,6 +177,17 @@ extern struct object_desc *global_inactive_dirty;
 extern struct object_desc *global_inactive_clean;
 /* Objects that are not accounted to any activity.  */
 extern struct object_desc *disowned;
+
+static int
+priority_compare (const struct object_policy *a,
+		  const struct object_policy *b)
+{
+  return (int) a->priority - (int) b->priority;
+}
+
+BTREE_CLASS (priorities, struct object_desc,
+	     struct object_policy, policy, priority_node,
+	     priority_compare, true);
 
 /* Initialize the object sub-system.  Must be called after grabbing
    all of the memory.  */
@@ -178,12 +195,14 @@ extern void object_init (void);
 
 /* Return the address of the object corresponding to object OID,
    reading it from backing store if required.  */
-extern struct object *object_find (struct activity *activity, oid_t oid);
+extern struct object *object_find (struct activity *activity, oid_t oid,
+				   struct object_policy policy);
 
 /* If the object corresponding to object OID is in-memory, return it.
    Otherwise, return NULL.  Does not go to disk.  */
 extern struct object *object_find_soft (struct activity *activity,
-					oid_t oid);
+					oid_t oid,
+					struct object_policy policy);
 
 /* Return the object corresponding to the object descriptor DESC.  */
 #define object_desc_to_object(desc_) \
@@ -312,17 +331,7 @@ LINK_TEMPLATE(global_lru)
 
 /* Like object_disown but does not adjust DESC->ACTIVITY->FRAMES.
    (This is useful when removing multiple frames at once.)  */
-static inline void
-object_desc_disown_simple (struct object_desc *desc)
-{
-  assert (! ss_mutex_trylock (&lru_lock));
-  assert (desc->activity);
-
-  object_activity_lru_unlink (desc);
-  object_activity_lru_link (&disowned, desc);
-
-  desc->activity = NULL;
-}
+extern void object_desc_disown_simple (struct object_desc *desc);
 
 static inline void
 object_disown_simple (struct object *object)
@@ -330,12 +339,7 @@ object_disown_simple (struct object *object)
   object_desc_disown_simple (object_to_object_desc (object));
 }
 
-static inline void
-object_desc_disown_ (struct object_desc *desc)
-{
-  activity_charge (desc->activity, -1);
-  object_desc_disown_simple (desc);
-}
+extern inline void object_desc_disown_ (struct object_desc *desc);
 #define object_desc_disown(d)						\
   ({ debug (5, "object_desc_disown: %p (%d)",				\
 	    d->activity, d->activity->frames);				\
@@ -357,39 +361,28 @@ object_disown_ (struct object *object)
   })
 
 /* Transfer ownership of DESC to the activity ACTIVITY.  */
-static inline void
-object_desc_claim_ (struct activity *activity, struct object_desc *desc)
-{
-  if (desc->activity == activity)
-    return;
-
-  if (desc->activity)
-    /* Already claimed by another activity; first disown it.  */
-    object_desc_disown (desc);
-
-  desc->activity = activity;
-  activity_charge (activity, 1);
-  object_activity_lru_unlink (desc);
-  object_activity_lru_link (&activity->active, desc);
-}
-#define object_desc_claim(a, o)						\
+extern void object_desc_claim_ (struct activity *activity,
+				struct object_desc *desc,
+				struct object_policy policy);
+#define object_desc_claim(__odc_a, __odc_o, __odc_p)			\
   ({									\
-    debug (5, "object_desc_claim: %p (%d)", a, a->frames);		\
+    debug (5, "object_desc_claim: %p (%d)", (__odc_a), (__odc_a)->frames); \
     assert (! ss_mutex_trylock (&lru_lock));				\
-    object_desc_claim_ (a, o);						\
+    object_desc_claim_ ((__odc_a), (__odc_o), (__odc_p));		\
   })
 
 /* Transfer ownership of OBJECT to the activity ACTIVITY.  */
 static inline void
-object_claim_ (struct activity *activity, struct object *object)
+object_claim_ (struct activity *activity, struct object *object,
+	       struct object_policy policy)
 {
-  object_desc_claim_ (activity, object_to_object_desc (object));
+  object_desc_claim_ (activity, object_to_object_desc (object), policy);
 }
-#define object_claim(a, o)						\
+#define object_claim(__oc_a, __oc_o, __oc_p)				\
   ({									\
-    debug (5, "object_claim: %p (%d)", a, a->frames);			\
+    debug (5, "object_claim: %p (%d)", (__oc_a), (__oc_a)->frames);	\
     assert (! ss_mutex_trylock (&lru_lock));				\
-    object_claim_ (a, o);						\
+    object_claim_ ((__oc_a), (__oc_o));					\
   })
 
 /* Allocate a folio to activity ACTIVITY.  POLICY is the new folio's
@@ -433,7 +426,8 @@ object_free (struct activity *activity, struct object *object)
   int page = (odesc->oid % (1 + FOLIO_OBJECTS)) - 1;
   oid_t foid = odesc->oid - page - 1;
 
-  struct folio *folio = (struct folio *) object_find (activity, foid);
+  struct folio *folio = (struct folio *) object_find (activity, foid,
+						      OBJECT_POLICY_VOID);
   assert (folio);
 
   folio_object_free (activity, folio, page);
