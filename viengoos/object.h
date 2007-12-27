@@ -326,15 +326,17 @@ object_type (struct object *object)
     assert (e->field.prev);						\
 									\
     /* Ensure that E appears on LIST.  */				\
-    struct object_desc *i = *list;					\
-    do									\
-      {									\
-	if (i == e)							\
-	  break;							\
-	i = i->field.next;						\
-      }									\
-    while (i != *list);							\
-    assert (i);								\
+    assert ({								\
+	struct object_desc *i = *list;					\
+	do								\
+	  {								\
+	    if (i == e)							\
+	      break;							\
+	    i = i->field.next;						\
+	  }								\
+	while (i != *list);						\
+	i;								\
+      });								\
     									\
     /* Unlink E.  */							\
     e->field.prev->field.next = e->field.next;				\
