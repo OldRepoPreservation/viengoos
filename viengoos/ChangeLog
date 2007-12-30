@@ -1,5 +1,13 @@
 2007-12-30  Neal H. Walfield  <neal@gnu.org>
 
+	* zalloc.h (zalloc_memory): New declaration.
+	* zalloc.c (zalloc_memory): New definition.
+	(zfree): Keep zalloc_memory up to date.
+	(zalloc): Likewise.  Add an assert.
+	(zalloc_dump_zones): Add an assert.
+
+2007-12-30  Neal H. Walfield  <neal@gnu.org>
+
 	* zalloc.h: Don't include <l4.h>.  Include <stdint.h>.  Replace
 	use of l4 types with standard C types.
 	* zalloc.c: Include <stdint.h> and <l4/math.h>.  Replace use of l4

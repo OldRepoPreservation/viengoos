@@ -32,6 +32,8 @@
 
 #include "zalloc.h"
 
+uintptr_t zalloc_memory;
+
 /* Zalloc: A fast zone allocator.  This is not a general purpose
    allocator.  If you attempt to use it as such, you will find that it
    is very inefficient.  It is, however, designed to be very fast and
@@ -189,6 +191,8 @@ zfree (uintptr_t block, uintptr_t size)
     panic ("%s: freed block 0x%x of size 0x%x is not aligned to "
 	   "minimum page size", __func__, block, size);
 
+  zalloc_memory += size / PAGESIZE;
+
   do
     {
       /* All blocks must be stored aligned to their size.  */
@@ -215,7 +219,8 @@ zalloc (uintptr_t size)
   unsigned int zone_nr;
   struct block *block;
 
-  debug (5, "request for 0x%x pages", size / PAGESIZE);
+  debug (5, "request for 0x%x pages (%d pages available)",
+	 size / PAGESIZE, zalloc_memory);
 
   if (size & (PAGESIZE - 1))
     panic ("%s: requested size 0x%x is not a multiple of "
@@ -238,6 +243,7 @@ zalloc (uintptr_t size)
   if (zone_nr == ZONES)
     {
       debug (1, "Cannot allocate a block of %d bytes!", size);
+      assert (zalloc_memory == 0);
       return 0;
     }
 
@@ -248,6 +254,10 @@ zalloc (uintptr_t size)
   zone[zone_nr] = block->next;
   if (zone[zone_nr])
     zone[zone_nr]->prev = 0;
+
+  /* We may not actually allocate the entire zone, however, the call
+     to zfree will mark the rest as released.  */
+  zalloc_memory -= ZONE_SIZE (zone_nr) / PAGESIZE;
 
   /* And donate back the remainder of this block, if any.  */
   if (ZONE_SIZE (zone_nr) > size)
@@ -290,5 +300,7 @@ zalloc_dump_zones (const char *prefix)
 	  (unsigned long long) 4 * available,
 	  (unsigned long long) 4 * available,
 	  available);
+
+  assertx (available == zalloc_memory, "%d != %d", available, zalloc_memory);
 }
 #endif
