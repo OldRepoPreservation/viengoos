@@ -40,11 +40,11 @@ enum
 /* User settable folio policy.  */
 
 /* The range of valid folio priorities.  A lower numerical value
-   corresponds to a higher priority.  */
+   corresponds to a lower priority.  */
 #define FOLIO_PRIORITY_BITS 15
-#define FOLIO_PRIORITY_MIN ((1 << (FOLIO_PRIORITY_BITS - 1)) - 1)
+#define FOLIO_PRIORITY_MIN (-(1 << (FOLIO_PRIORITY_BITS - 1)))
 #define FOLIO_PRIORITY_LRU (0)
-#define FOLIO_PRIORITY_MAX (-(1 << (FOLIO_PRIORITY_BITS - 1)))
+#define FOLIO_PRIORITY_MAX ((1 << (FOLIO_PRIORITY_BITS - 1)) - 1)
 
 /* The folio group range.  */
 #define FOLIO_GROUP_BITS 15

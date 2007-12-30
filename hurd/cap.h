@@ -147,11 +147,11 @@ cap_type_weaken (enum cap_type type)
 /* Object policy.  */
 
 /* The object priority is a signed 10-bit number.  A lower numeric
-   value corresponds to a higher priority.  */
+   value corresponds to a lower priority.  */
 #define OBJECT_PRIORITY_BITS 10
-#define OBJECT_PRIORITY_MAX (-(1 << (OBJECT_PRIORITY_BITS - 1)))
+#define OBJECT_PRIORITY_MIN (-(1 << (OBJECT_PRIORITY_BITS - 1)))
 #define OBJECT_PRIORITY_LRU (0)
-#define OBJECT_PRIORITY_MIN ((1 << (OBJECT_PRIORITY_BITS - 1)) - 1)
+#define OBJECT_PRIORITY_MAX ((1 << (OBJECT_PRIORITY_BITS - 1)) - 1)
 
 struct object_policy
 {
@@ -566,22 +566,6 @@ cap_copy_x (activity_t activity,
       debug (5, "Guard changed invalidating translation "
 	     "0x%x/%d -> %llx/%d",
 	     guard, gbits, CAP_GUARD (target), CAP_GUARD_BITS (target));
-      changes_translation = true;
-    }
-
-  if (target->type != source.type
-      && ! ((flags & CAP_COPY_WEAKEN)
-	    && cap_type_weaken (source.type) == target->type))
-    {
-      debug (5, "Type changed, invalidating translation");
-      changes_translation = true;
-    }
-
-  if (target->type != source.type
-      && ! ((flags & CAP_COPY_WEAKEN)
-	    && cap_type_weaken (source.type) == target->type))
-    {
-      debug (5, "Type changed, invalidating translation");
       changes_translation = true;
     }
 

@@ -1,3 +1,11 @@
+2007-12-30  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (OBJECT_PRIORITY): Make a high numeric priority reflect a
+	high priority, not vice-versa.
+	(FOLIO_PRIORITY): Likewise.
+	
+	(cap_copy_x): Remove redundant code.
+
 2007-12-25  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h: Include <stdint.h>.
