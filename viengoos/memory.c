@@ -233,6 +233,13 @@ memory_add (l4_word_t start, l4_word_t end)
 
   debug (5, "Request to add physical memory 0x%x-0x%x", start, end);
 
+  if (start == 0)
+    /* Just drop the page at address 0.  */
+    {
+      start += PAGESIZE;
+      debug (5, "Ignoring page at address 0");
+    }
+
   l4_word_t start_reservation;
   l4_word_t end_reservation;
 

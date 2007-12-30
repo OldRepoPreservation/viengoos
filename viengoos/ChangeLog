@@ -1,3 +1,8 @@
+2007-12-30  Neal H. Walfield  <neal@gnu.org>
+
+	* memory.c (memory_add): Don't add the page at address 0 to the
+	free pool.
+
 2007-12-27  Neal H. Walfield  <neal@gnu.org>
 
 	* object.h (LINK_TEMPLATE): Move assertion related code into the
