@@ -1,5 +1,5 @@
 /* Zone allocator for physical memory server.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
    Written by Neal H Walfield.
 
    This file is part of the GNU Hurd.
@@ -22,16 +22,16 @@
 #ifndef __ZALLOC_H__
 #define __ZALLOC_H__
 
-#include <l4.h>
+#include <stdint.h>
 
 /* Add to the pool the block BLOCK of size SIZE.  BLOCK must be
    aligned to the system's minimum page size.  SIZE must be a multiple
    of the system's minimum page size.  */
-void zfree (l4_word_t block, l4_word_t size);
+void zfree (uintptr_t block, uintptr_t size);
 
 /* Allocate a block of memory of size SIZE.  SIZE must be a multiple
    of the system's minimum page size. */
-l4_word_t zalloc (l4_word_t size);
+uintptr_t zalloc (uintptr_t size);
 
 /* Dump some internal data structures.  Only defined if zalloc was
    compiled without NDEBUG defined.  */

@@ -1,5 +1,5 @@
 /* Zone allocator for physical memory server.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
    Written by Neal H Walfield.
    Modified by Marcus Brinkmann.
 
@@ -26,7 +26,9 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdint.h>
 #include <hurd/stddef.h>
+#include <l4/math.h>
 
 #include "zalloc.h"
 
@@ -93,10 +95,10 @@ struct block
 #define ZONE_SIZE(x) (1 << ((x) + PAGESIZE_LOG2))
 
 /* Number of zones in the system.  */
-#define ZONES (sizeof (L4_Word_t) * 8 - PAGESIZE_LOG2)
+#define ZONES (sizeof (uintptr_t) * 8 - PAGESIZE_LOG2)
 
 /* The zones.  */
-static struct block *zone[ZONES] = { 0, };
+static struct block *zone[ZONES];
 
 
 /* Add the block BLOCK to the zone ZONE_NR.  The block has the
@@ -116,7 +118,7 @@ add_block (struct block *block, unsigned int zone_nr)
 	  right = right->next;
 	}
 
-      if (left && (((l4_word_t) left) ^ ((l4_word_t) block))
+      if (left && (((uintptr_t) left) ^ ((uintptr_t) block))
 	  == ZONE_SIZE (zone_nr))
 	{
 	  /* Buddy on the left.  */
@@ -132,7 +134,7 @@ add_block (struct block *block, unsigned int zone_nr)
 	  block = left;
 	  zone_nr++;
 	}
-      else if (right && (((l4_word_t) right) ^ ((l4_word_t) block))
+      else if (right && (((uintptr_t) right) ^ ((uintptr_t) block))
 	       == ZONE_SIZE (zone_nr))
 	{
 	  /* Buddy on the right.  */
@@ -172,9 +174,12 @@ add_block (struct block *block, unsigned int zone_nr)
    aligned to the system's minimum page size.  SIZE must be a multiple
    of the system's minimum page size.  */
 void
-zfree (l4_word_t block, l4_word_t size)
+zfree (uintptr_t block, uintptr_t size)
 {
-  debug (4, "freeing block 0x%x - 0x%x", block, block + size);
+  assert (block);
+
+  debug (5, "freeing block 0x%x - 0x%x (%d pages)",
+	 block, block + size, size / PAGESIZE);
 
   if (size & (PAGESIZE - 1))
     panic ("%s: size 0x%x of freed block 0x%x is not a multiple of "
@@ -204,13 +209,13 @@ zfree (l4_word_t block, l4_word_t size)
 /* Allocate a block of memory of size SIZE and return its address.
    SIZE must be a multiple of the system's minimum page size.  If no
    block of the required size could be allocated, return 0.  */
-l4_word_t
-zalloc (l4_word_t size)
+uintptr_t
+zalloc (uintptr_t size)
 {
   unsigned int zone_nr;
   struct block *block;
 
-  debug (4, "request for 0x%x bytes", size);
+  debug (5, "request for 0x%x pages", size / PAGESIZE);
 
   if (size & (PAGESIZE - 1))
     panic ("%s: requested size 0x%x is not a multiple of "
@@ -246,12 +251,12 @@ zalloc (l4_word_t size)
 
   /* And donate back the remainder of this block, if any.  */
   if (ZONE_SIZE (zone_nr) > size)
-    zfree (((l4_word_t) block) + size, ZONE_SIZE (zone_nr) - size);
+    zfree (((uintptr_t) block) + size, ZONE_SIZE (zone_nr) - size);
 
   /* Zero out the newly allocated block.  */
   memset (block, 0, size);
 
-  return (l4_word_t) block;
+  return (uintptr_t) block;
 }
 
 
@@ -262,24 +267,28 @@ zalloc_dump_zones (const char *prefix)
 {
   int i;
   struct block *block;
-  l4_word_t available = 0;
+  uintptr_t available = 0;
   int print_empty = 0;
 
   for (i = ZONES - 1; ZONE_SIZE (i) >= PAGESIZE; i--)
     if (zone[i] || print_empty)
       {
+	int count = 0;
+
 	print_empty = 1;
-	printf ("%s: 0x%x: { ", prefix, ZONE_SIZE (i));
+	printf ("%s: %d: { ", prefix, ZONE_SIZE (i) / PAGESIZE);
 	for (block = zone[i]; block; block = block->next)
 	  {
-	    available += ZONE_SIZE (i);
+	    available += ZONE_SIZE (i) / PAGESIZE;
 	    printf ("%p%s", block, (block->next ? ", " : " "));
+	    count ++;
 	  }
-	printf ("}\n");
+	printf ("} = %d pages\n", count * ZONE_SIZE (i) / PAGESIZE);
       }
 
-  printf ("%s: %llu (0x%llx) kbytes available\n", prefix,
-	  (unsigned long long) available / 1024,
-	  (unsigned long long) available / 1024);
+  printf ("%s: %llu (0x%llx) kbytes (%d pages) available\n", prefix,
+	  (unsigned long long) 4 * available,
+	  (unsigned long long) 4 * available,
+	  available);
 }
 #endif
