@@ -33,6 +33,8 @@
 #include "sigma0.h"
 #endif
 
+uint32_t memory_total;
+
 l4_word_t first_frame;
 l4_word_t last_frame;
 
@@ -342,12 +344,17 @@ memory_grab (void)
   do_debug (3)
     zalloc_dump_zones (__func__);
 #endif
+
+  memory_total = zalloc_memory;
 }
 
 l4_word_t
 memory_frame_allocate (void)
 {
   l4_word_t f = zalloc (PAGESIZE);
+  if (! f)
+    panic ("Out of memory");
+
   memset ((void *) f, 0, PAGESIZE);
   return f;
 }

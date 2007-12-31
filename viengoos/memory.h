@@ -21,6 +21,7 @@
 #ifndef RM_MEMORY_H
 #define RM_MEMORY_H
 
+#include <stdint.h>
 #include <l4.h>
 
 enum memory_reservation
@@ -34,6 +35,9 @@ enum memory_reservation
     /* Memory used by boot modules.  */
     memory_reservation_modules,
   };
+
+/* Total number of frames.  */
+extern uint32_t memory_total;
 
 /* Address of the first byte of the first frame.  */
 extern l4_word_t first_frame;

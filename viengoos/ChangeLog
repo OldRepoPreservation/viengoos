@@ -1,3 +1,12 @@
+2007-12-31  Neal H. Walfield  <neal@gnu.org>
+
+	* memory.h: Include <stdint.h>.
+	(memory_total): New declaration.
+	* memory.c (memory_total): Define.
+	(memory_grab): Before exiting, set memory_total to zalloc_memory.
+
+	(memory_frame_allocate): If zalloc fails, panic.
+
 2007-12-30  Neal H. Walfield  <neal@gnu.org>
 
 	* zalloc.h (zalloc_memory): New declaration.
