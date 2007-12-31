@@ -33,11 +33,10 @@ struct object_desc *object_descs;
 
 ss_mutex_t lru_lock;
 
-struct object_desc *global_active;
-struct object_desc *global_inactive_dirty;
-struct object_desc *global_inactive_clean;
-
-struct object_desc *disowned;
+struct object_global_lru_list global_active;
+struct object_global_lru_list global_inactive_dirty;
+struct object_global_lru_list global_inactive_clean;
+struct object_activity_lru_list disowned;
 
 /* XXX: The number of in memory folios.  (Recall: one folio => 512kb
    storage.)  */
@@ -131,11 +130,11 @@ memory_object_alloc (struct activity *activity,
   odesc->global_lru.next = odesc->global_lru.prev = NULL;
   odesc->activity_lru.next = odesc->activity_lru.prev = NULL;
 
-  object_global_lru_push (&global_active, odesc);
+  object_global_lru_list_push (&global_active, odesc);
   /* object_desc_claim wants to first unlink the descriptor.  To make
      it happy, we initially connect the descriptor to the disowned
      list.  */
-  object_activity_lru_push (&disowned, odesc);
+  object_activity_lru_list_push (&disowned, odesc);
 
   if (! activity)
     /* This may only happen if we are initializing.  */
@@ -168,7 +167,7 @@ memory_object_destroy (struct activity *activity, struct object *object)
   ss_mutex_lock (&lru_lock);
   object_desc_disown (desc);
 
-  struct object_desc **global;
+  struct object_global_lru_list *global;
   if (desc->age)
     /* DESC is active.  */
     global = &global_active;
@@ -181,9 +180,8 @@ memory_object_destroy (struct activity *activity, struct object *object)
       /* And clean.  */
       global = &global_inactive_clean;
 
-  object_activity_lru_unlink (&disowned, desc);
-  object_global_lru_unlink (global, desc);
-  ss_mutex_unlock (&lru_lock);
+  object_activity_lru_list_unlink (&disowned, desc);
+  object_global_lru_list_unlink (global, desc);
 
   if (desc->type == cap_activity_control)
     {
@@ -628,7 +626,7 @@ object_desc_disown_simple (struct object_desc *desc)
   assert (! ss_mutex_trylock (&lru_lock));
   assert (desc->activity);
 
-  struct object_desc **list;
+  struct object_activity_lru_list *list;
   if (desc->age)
     /* DESC is active.  */
     list = &desc->activity->active;
@@ -641,8 +639,8 @@ object_desc_disown_simple (struct object_desc *desc)
       /* And clean.  */
       list = &desc->activity->inactive_clean;
 
-  object_activity_lru_unlink (list, desc);
-  object_activity_lru_push (&disowned, desc);
+  object_activity_lru_list_unlink (list, desc);
+  object_activity_lru_list_push (&disowned, desc);
 
   if (desc->policy.priority != OBJECT_PRIORITY_LRU)
     hurd_btree_priorities_detach (&desc->activity->priorities, desc);
@@ -688,8 +686,8 @@ object_desc_claim_ (struct activity *activity, struct object_desc *desc,
     object_desc_disown (desc);
 
   /* DESC->ACTIVITY is NULL so DESC must be on DISOWNED.  */
-  object_activity_lru_unlink (&disowned, desc);
-  object_activity_lru_push (&activity->active, desc);
+  object_activity_lru_list_unlink (&disowned, desc);
+  object_activity_lru_list_push (&activity->active, desc);
   desc->activity = activity;
   activity_charge (activity, 1);
 

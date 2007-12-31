@@ -67,9 +67,9 @@ struct activity
   struct activity *parent_ptr;
 
   /* Objects owned by this activity.  */
-  struct object_desc *active;
-  struct object_desc *inactive_clean;
-  struct object_desc *inactive_dirty;
+  struct object_activity_lru_list active;
+  struct object_activity_lru_list inactive_clean;
+  struct object_activity_lru_list inactive_dirty;
 
   /* All objects owned by this activity whose priority is not
      OBJECT_PRIORITY_LRU, keyed by priority.  */

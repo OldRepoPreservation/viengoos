@@ -33,7 +33,9 @@
 
 #include "cap.h"
 #include "memory.h"
+#include "list.h"
 
+/* Forward.  */
 struct activity;
 
 /* Objects
@@ -145,19 +147,11 @@ struct object_desc
   /* Each allocated object is attached to the activity that pays for
      it.  If ACTIVITY is NULL, then attached to DISOWNED.  Protected
      by LRU_LOCK.  */
-  struct
-  {
-    struct object_desc *next;
-    struct object_desc *prev;
-  } activity_lru;
+  struct list_node activity_lru;
 
   /* Each allocated object is attached to either the global active or
      the global inactive list.  */
-  struct
-  {
-    struct object_desc *next;
-    struct object_desc *prev;
-  } global_lru;
+  struct list_node global_lru;
 };
 
 /* We keep an array of object descriptors.  There is a linear mapping
@@ -166,18 +160,24 @@ struct object_desc
    memory map.  */
 extern struct object_desc *object_descs;
 
+LIST_CLASS(object_activity_lru, struct object_desc, activity_lru)
+LIST_CLASS(object_global_lru, struct object_desc, global_lru)
+
 /* Lock protecting the following lists and each object descriptor's
    activity_lru, global_lru and priority_node fields.  */
 extern ss_mutex_t lru_lock;
 
 /* The global LRU lists.  Every allocated frame is on one of these
    two.  */
-extern struct object_desc *global_active;
-extern struct object_desc *global_inactive_dirty;
-extern struct object_desc *global_inactive_clean;
-/* Objects that are not accounted to any activity.  */
-extern struct object_desc *disowned;
-
+extern struct object_global_lru_list global_active;
+extern struct object_global_lru_list global_inactive_dirty;
+extern struct object_global_lru_list global_inactive_clean;
+/* Objects that are not accounted to any activity (e.g., if the
+   activity to which an object is attached is destroyed, it is
+   attached to this list).  */
+extern struct object_activity_lru_list disowned;
+
+/* Sort lower priority objects towards the start.  */
 static int
 priority_compare (const struct object_policy *a,
 		  const struct object_policy *b)
@@ -261,145 +261,6 @@ object_type (struct object *object)
 {
   return object_to_object_desc (object)->type;
 }
-
-#define LINK_TEMPLATE(field)						\
-  /* Add as head of list.  */						\
-  static inline void							\
-  object_##field##_push (struct object_desc **list, struct object_desc *e) \
-  {									\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-    assert (! e->field.next);						\
-    assert (! e->field.prev);						\
-									\
-    struct object_desc *head = *list;					\
-    if (head)								\
-      {									\
-	struct object_desc *tail = head->field.prev;			\
-									\
-	/* tail <-> e <-> head.  */					\
-	e->field.next = head;						\
-	head->field.prev = e;						\
-									\
-	tail->field.next = e;						\
-	e->field.prev = tail;						\
-      }									\
-    else								\
-      /* List is empty.  */						\
-      e->field.prev = e->field.next = e;				\
-    /* Make E new head.  */						\
-    *list = e;								\
-  }									\
-  									\
-  /* Add to tail of list.  */						\
-  static inline void							\
-  object_##field##_queue (struct object_desc **list, struct object_desc *e) \
-  {									\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-    assert (! e->field.next);						\
-    assert (! e->field.prev);						\
-									\
-    struct object_desc *head = *list;					\
-    if (head)								\
-      {									\
-	struct object_desc *tail = head->field.prev;			\
-									\
-	/* tail <-> e <-> head.  */					\
-	e->field.next = head;						\
-	head->field.prev = e;						\
-									\
-	tail->field.next = e;						\
-	e->field.prev = tail;						\
-      }									\
-    else								\
-      {									\
-	/* List is empty.  */						\
-	e->field.prev = e->field.next = e;				\
-	*list = e;							\
-      }									\
-  }									\
-  									\
-  static inline void							\
-  object_##field##_unlink (struct object_desc **list, struct object_desc *e) \
-  {									\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-    assert (e->field.next);						\
-    assert (e->field.prev);						\
-									\
-    /* Ensure that E appears on LIST.  */				\
-    assert ({								\
-	struct object_desc *i = *list;					\
-	do								\
-	  {								\
-	    if (i == e)							\
-	      break;							\
-	    i = i->field.next;						\
-	  }								\
-	while (i != *list);						\
-	i;								\
-      });								\
-    									\
-    /* Unlink E.  */							\
-    e->field.prev->field.next = e->field.next;				\
-    e->field.next->field.prev = e->field.prev;				\
-									\
-    if (*list == e)							\
-      /* E is the head of the list.  */					\
-      {									\
-	if (e->field.next == e)						\
-	  /* Only element on the list.  */				\
-	  *list = NULL;							\
-	else								\
-	  *list = e->field.next;					\
-      }									\
-									\
-    /* Try to detect multiple unlink.  */				\
-    e->field.next = NULL;						\
-    e->field.prev = NULL;						\
-  }									\
-									\
-  /* Move the list designated by SOURCE to be designated by TARGET.  */ \
-  static inline void							\
-  object_##field##_move (struct object_desc **target,			\
-			 struct object_desc **source)			\
-  {									\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-									\
-    *target = *source;							\
-    *source = NULL;							\
-  }									\
-									\
-  /* Add list SOURCE to the end of the list TARGET.  */			\
-  static inline void							\
-  object_##field##_join (struct object_desc **target,			\
-			 struct object_desc **source)			\
-  {									\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-									\
-    if (! *source)							\
-      return;								\
-									\
-    if (! *target)							\
-      return object_##field##_move (target, source);			\
-									\
-    /* target's tail <-- (1) (2) --> source's head */			\
-    /* source's tail <-- (3) (4) --> target's head */			\
-									\
-    /* 2) Connect TARGET's tail to SOURCE's head.  */			\
-    (*target)->field.prev->field.next = *source;			\
-    /* 4) Connect SOURCE's tail to TARGET's head.  */			\
-    (*source)->field.prev->field.next = *target;			\
-									\
-    struct object_desc *sources_tail = (*source)->field.prev;		\
-    /* 1) Connect SOURCE's head to TARGET's tail.  */			\
-    (*source)->field.prev = (*target)->field.prev;			\
-    /* 3) Connect TARGET's head to SOURCE's tail.  */			\
-    (*target)->field.prev = sources_tail;				\
-									\
-    *source = NULL;							\
-  }
-
-LINK_TEMPLATE(activity_lru)
-LINK_TEMPLATE(global_lru)
 
 /* Like object_disown but does not adjust DESC->ACTIVITY->FRAMES.
    (This is useful when removing multiple frames at once.)  */

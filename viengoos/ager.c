@@ -90,10 +90,11 @@ ager_loop (l4_thread_id_t main_thread)
 
       /* Grab a batch of records starting with *PTR.  Changes *PTR to
 	 point to the next unprocessed record.  */
-      int grab (struct object_desc *head, struct object_desc **ptr)
+      int grab (struct object_desc **ptr)
       {
 	int count = 0;
-	while (*ptr && count < BATCH_SIZE)
+	for (; *ptr && count < BATCH_SIZE;
+	     *ptr = object_global_lru_list_next (*ptr))
 	  {
 	    if (! ss_mutex_trylock (&(*ptr)->lock))
 	      /* We failed to get the lock.  This means that someone is
@@ -106,20 +107,15 @@ ager_loop (l4_thread_id_t main_thread)
 	    fpages[count] = l4_fpage ((l4_word_t) objects[count], PAGESIZE);
 
 	    count ++;
-
-	    if ((*ptr)->global_lru.next == head)
-	      *ptr = NULL;
-	    else
-	      *ptr = (*ptr)->global_lru.next;
 	  }
 
 	return count;
       }
 
-      struct object_desc *ptr = global_active;
+      struct object_desc *ptr = object_global_lru_list_head (&global_active);
       for (;;)
 	{
-	  int count = grab (global_active, &ptr);
+	  int count = grab (&ptr);
 	  if (count == 0)
 	    break;
 
@@ -159,11 +155,13 @@ ager_loop (l4_thread_id_t main_thread)
 		  if (desc->age == 0)
 		    {
 		      /* Move to the appropriate inactive lists.  */
-		      object_global_lru_unlink (&global_active, desc);
+		      object_global_lru_list_unlink (&global_active, desc);
 		      if (desc->dirty && ! desc->policy.discardable)
-			object_global_lru_push (&global_inactive_dirty, desc);
+			object_global_lru_list_push (&global_inactive_dirty,
+						     desc);
 		      else
-			object_global_lru_push (&global_inactive_clean, desc);
+			object_global_lru_list_push (&global_inactive_clean,
+						     desc);
 
 		      /* If the object is owned, then move it to its
 			 activity's inactive list.  Otherwise, the
@@ -171,15 +169,16 @@ ager_loop (l4_thread_id_t main_thread)
 			 needn't do anything.  */
 		      if (desc->activity)
 			{
-			  object_activity_lru_unlink (desc->activity
-						      ? &desc->activity->active
-						      : &disowned,
-						      desc);
+			  object_activity_lru_list_unlink
+			    (desc->activity
+			     ? &desc->activity->active : &disowned,
+			     desc);
+
 			  if (desc->dirty && ! desc->policy.discardable)
-			    object_activity_lru_push
+			    object_activity_lru_list_push
 			      (&desc->activity->inactive_dirty, desc);
 			  else
-			    object_activity_lru_push
+			    object_activity_lru_list_push
 			      (&desc->activity->inactive_clean, desc);
 			}
 		    }
@@ -198,16 +197,16 @@ ager_loop (l4_thread_id_t main_thread)
 	}
 
 #if !UNMAP_INACTIVE
-      struct object_desc **lists[] = { &global_inactive_clean,
-				       &global_inactive_dirty };
+      struct object_global_lru_list *lists[] = { &global_inactive_clean,
+						 &global_inactive_dirty };
       int j;
       for (j = 0; j < 2; j ++)
 	{
-	  ptr = *lists[j];
+	  ptr = object_global_lru_list_head (lists[j]);
 
 	  for (;;)
 	    {
-	      int count = grab (*lists[j], &ptr);
+	      int count = grab (&ptr);
 	      if (count == 0)
 		break;
 
@@ -240,8 +239,8 @@ ager_loop (l4_thread_id_t main_thread)
 		      revived ++;
 
 		      /* Move to the active list.  */
-		      object_global_lru_unlink (lists[j], desc);
-		      object_global_lru_push (&global_active, desc);
+		      object_global_lru_list_unlink (lists[j], desc);
+		      object_global_lru_list_push (&global_active, desc);
 
 		      desc->age = AGE_DELTA;
 
@@ -251,15 +250,15 @@ ager_loop (l4_thread_id_t main_thread)
 			 that can happen.  */
 		      if (desc->activity)
 			{
-			  object_activity_lru_unlink
+			  object_activity_lru_list_unlink
 			    (desc->activity
 			     ? (j == 0
 				? &desc->activity->inactive_clean
 				: &desc->activity->inactive_dirty)
 			     : &disowned,
 			     desc);
-			  object_activity_lru_push (&desc->activity->active,
-						    desc);
+			  object_activity_lru_list_push
+			    (&desc->activity->active, desc);
 			}
 		    }
 

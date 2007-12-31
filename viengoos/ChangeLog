@@ -1,5 +1,29 @@
 2007-12-31  Neal H. Walfield  <neal@gnu.org>
 
+	* list.h: New file.
+	* Makefile.am (viengoos_SOURCES): Add list.h.
+	(t_link_SOURCES): Remove object.h.  Add list.h.
+	* object.h: Include "list.h".
+	(LINK_TEMPLATE): Move from here...
+	* list.h: ... to this new file.  Generalize functionality.  Add
+	count, head, prev, next and prev methods.  Rename LINK_TEMPLATE to
+	LIST_CLASS.  Update users.
+	* object.h (struct object_desc): Change activity_lru and
+	global_lru to struct list_node's.
+	(global_active): Change to a struct object_global_lru_list.
+	(global_inactive_dirty): Likewise.
+	(global_inactive_clean): Likewise.
+	(disowned): Change to a struct object_activity_lru_list.
+	* object.c (global_active): Change to a struct
+	object_global_lru_list.
+	(global_inactive_dirty): Likewise.
+	(global_inactive_clean): Likewise.
+	(disowned): Change to a struct object_activity_lru_list.
+	* activity.h (struct activity): Change active, inactive_clean and
+	inactive_dirty to struct object_activity_lru_list's.
+
+2007-12-31  Neal H. Walfield  <neal@gnu.org>
+
 	* memory.h: Include <stdint.h>.
 	(memory_total): New declaration.
 	* memory.c (memory_total): Define.

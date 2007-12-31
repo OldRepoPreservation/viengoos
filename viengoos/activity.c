@@ -117,17 +117,17 @@ activity_destroy (struct activity *activity, struct activity *victim)
   ss_mutex_lock (&lru_lock);
   struct object_desc *desc;
   int count = 0;
-  while ((desc = victim->active))
+  while ((desc = object_activity_lru_list_head (&victim->active)))
     {
       object_desc_disown_simple (desc);
       count ++;
     }
-  while ((desc = victim->inactive_clean))
+  while ((desc = object_activity_lru_list_head (&victim->inactive_clean)))
     {
       object_desc_disown_simple (desc);
       count ++;
     }
-  while ((desc = victim->inactive_dirty))
+  while ((desc = object_activity_lru_list_head (&victim->inactive_dirty)))
     {
       object_desc_disown_simple (desc);
       count ++;
@@ -146,7 +146,8 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
 	struct object_desc *desc;
 	ss_mutex_lock (&lru_lock);
-	for (desc = victim->active; desc; desc = desc->activity_lru.next)
+	for (desc = object_activity_lru_list_head (&victim->active);
+	     desc; desc = object_activity_lru_list_next (desc))
 	  debug (0, " %llx: %s", desc->oid, cap_type_string (desc->type));
 	ss_mutex_unlock (&lru_lock);
       }
@@ -192,24 +193,9 @@ do_activity_dump (struct activity *activity, int indent)
   memset (indent_string, ' ', indent);
   indent_string[indent] = 0;
 
-  int active = 0;
-  struct object_desc *desc;
-  for (desc = activity->active; desc;
-       desc = (desc->activity_lru.next == activity->active
-	       ? NULL : desc->activity_lru.next))
-    active ++;
-
-  int dirty = 0;
-  for (desc = activity->inactive_dirty; desc;
-       desc = (desc->activity_lru.next == activity->inactive_dirty
-	       ? NULL : desc->activity_lru.next))
-    dirty ++;
-
-  int clean = 0;
-  for (desc = activity->inactive_clean; desc;
-       desc = (desc->activity_lru.next == activity->inactive_clean
-	       ? NULL : desc->activity_lru.next))
-    clean ++;
+  int active = object_activity_lru_list_count (&activity->active);
+  int dirty = object_activity_lru_list_count (&activity->inactive_dirty);
+  int clean = object_activity_lru_list_count (&activity->inactive_clean);
 
   printf ("%s %llx: %d frames (active: %d, dirty: %d, clean: %d)\n",
 	  indent_string,

@@ -50,7 +50,8 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	as.h as.c				\
 	bits.h					\
 	elf.h loader.h loader.c			\
-	server.h server.c
+	server.h server.c			\
+	list.h
 
 # Doug Lea's malloc is included by malloc-wrap.c.
 EXTRA_viengoos_SOURCES = malloc.c
@@ -95,7 +96,7 @@ t_activity_SOURCES = t-activity.c		\
 t_activity_LDADD = $(viengoos_LDADD)
 
 t_link_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
-t_link_SOURCES = t-link.c object.h		\
+t_link_SOURCES = t-link.c list.h		\
 	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
 t_guard_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
