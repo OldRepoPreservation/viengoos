@@ -1,3 +1,23 @@
+2008-01-01  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h (struct activity): Rename field parent to parent_cap.
+	Rename field children to children_cap.  Rename field sibling_next
+	to sibling_next_cap.  Rename field sibling_prev to
+	sibling_prev_cap.  Rename field parent_ptr to parent.  Add fields
+	children, sibling_next and sibling_prev.  Rename field frames to
+	frames_total.  Add field frames_local.  Update users.
+	(activity_prepare): New declaration.
+	(activity_deprepare): Likewise.
+	(activity_charge): Update ACTIVITY->FRAMES_LOCAL.
+	(activity_for_each_inmemory_child): New define.
+	* activity.c (activity_create): Call activity_prepare.
+	(activity_destroy): Assert that VICTIM->FRAMES_LOCAL is 0.  Call
+	activity_deprepare.
+	(activity_prepare): New function.
+	(activity_deprepare): Likewise.
+	(do_activity_dump): Assert that the total number of objects on the
+	active, dirty and clean lists matches ACTIVITY->FRAMES_LOCAL.
+
 2007-12-31  Neal H. Walfield  <neal@gnu.org>
 
 	* list.h: New file.

@@ -1,5 +1,5 @@
 /* activity.c - Activity object implementation.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -31,7 +31,7 @@ void
 activity_create (struct activity *parent,
 		 struct activity *child)
 {
-  struct object *old_parent = cap_to_object (parent, &child->parent);
+  struct object *old_parent = cap_to_object (parent, &child->parent_cap);
   if (old_parent)
     /* CHILD is live.  Destroy it first.  */
     {
@@ -46,25 +46,26 @@ activity_create (struct activity *parent,
     }
 
   /* Set child's parent pointer.  */
-  child->parent = object_to_cap ((struct object *) parent);
-  child->parent_ptr = parent;
+  child->parent_cap = object_to_cap ((struct object *) parent);
 
   /* Connect to PARENT's activity list.  */
-  child->sibling_next = parent->children;
-  child->sibling_prev.type = cap_void;
-  parent->children = object_to_cap ((struct object *) child);
+  child->sibling_next_cap = parent->children_cap;
+  child->sibling_prev_cap.type = cap_void;
+  parent->children_cap = object_to_cap ((struct object *) child);
 
-  struct object *old_head = cap_to_object (parent, &child->sibling_next);
+  struct object *old_head = cap_to_object (parent, &child->sibling_next_cap);
   if (old_head)
     {
       assert (object_type (old_head) == cap_activity_control);
       /* The old head's previous pointer should be NULL.  */
-      assert (! cap_to_object (parent,
-			       &((struct activity *) old_head)->sibling_prev));
+      assert (! cap_to_object
+	      (parent, &((struct activity *) old_head)->sibling_prev_cap));
 
-      ((struct activity *) old_head)->sibling_prev
+      ((struct activity *) old_head)->sibling_prev_cap
 	= object_to_cap ((struct object *) child);
     }
+
+  activity_prepare (parent, child);
 }
 
 void
@@ -74,7 +75,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
   assert (object_type ((struct object *) victim) == cap_activity_control);
 
   /* We should never destroy the root activity.  */
-  if (! victim->parent_ptr)
+  if (! victim->parent)
     {
       assert (victim == root_activity);
       panic ("Request to destroy root activity");
@@ -101,7 +102,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
   /* Activity's that are sub-activity's of ACTIVITY are not
      necessarily allocated out of storage allocated to ACTIVITY.  */
-  while ((o = cap_to_object (activity, &victim->children)))
+  while ((o = cap_to_object (activity, &victim->children_cap)))
     {
       /* If O was destroyed, it should have been removed from its
 	 respective activity's allocation list.  */
@@ -137,11 +138,11 @@ activity_destroy (struct activity *activity, struct activity *victim)
   activity_charge (victim, -count);
 
   do_debug (1)
-    if (victim->frames != 0)
+    if (victim->frames_total != 0)
       {
-	debug (0, "activity (%llx)->frame = %d",
+	debug (0, "activity (%llx)->frames_total = %d",
 	       object_to_object_desc ((struct object *) victim)->oid,
-	       victim->frames);
+	       victim->frames_total);
 	activity_dump (root_activity);
 
 	struct object_desc *desc;
@@ -151,39 +152,87 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	  debug (0, " %llx: %s", desc->oid, cap_type_string (desc->type));
 	ss_mutex_unlock (&lru_lock);
       }
-  assert (victim->frames == 0);
+  assert (victim->frames_total == 0);
+  assert (victim->frames_local == 0);
   assert (victim->folio_count == 0);
 
-  /* Remove from parent's activity list.  */
-  struct activity *parent = victim->parent_ptr;
-  assert ((struct object *) parent
-	  == cap_to_object (activity, &victim->parent));
+  activity_deprepare (activity, victim);
 
-  struct object *prev_object = cap_to_object (activity, &victim->sibling_prev);
+  /* Remove from parent's activity list.  */
+  struct activity *parent = victim->parent;
+  assert ((struct object *) parent
+	  == cap_to_object (activity, &victim->parent_cap));
+
+  struct object *prev_object = cap_to_object (activity,
+					      &victim->sibling_prev_cap);
   assert (! prev_object
 	  || object_to_object_desc (prev_object)->type == cap_activity_control);
   struct activity *prev = (struct activity *) prev_object;
 
-  struct object *next_object = cap_to_object (activity, &victim->sibling_next);
+  struct object *next_object = cap_to_object (activity,
+					      &victim->sibling_next_cap);
   assert (! next_object
 	  || object_to_object_desc (next_object)->type == cap_activity_control);
   struct activity *next = (struct activity *) next_object;
 
   if (prev)
-    prev->sibling_next = victim->sibling_next;
+    prev->sibling_next_cap = victim->sibling_next_cap;
   else
     /* VICTIM is the head of PARENT's child list.  */
     {
-      assert (cap_to_object (activity, &parent->children)
+      assert (cap_to_object (activity, &parent->children_cap)
 	      == (struct object *) victim);
-      parent->children = victim->sibling_next;
+      parent->children_cap = victim->sibling_next_cap;
     }
 
   if (next)
-    next->sibling_prev = victim->sibling_prev;
+    next->sibling_prev_cap = victim->sibling_prev_cap;
 
-  victim->sibling_next.type = cap_void;
-  victim->sibling_prev.type = cap_void;
+  victim->sibling_next_cap.type = cap_void;
+  victim->sibling_prev_cap.type = cap_void;
+}
+
+void
+activity_prepare (struct activity *principal, struct activity *activity)
+{
+  /* Lookup parent.  */
+  activity->parent = (struct activity *) cap_to_object (principal,
+							&activity->parent_cap);
+  assert (activity->parent);
+
+  /* Link to parent's children list.  */
+  assert (! activity->parent->children
+	  || ! activity->parent->children->sibling_prev);
+
+  activity->sibling_next = activity->parent->children;
+  if (activity->parent->children)
+    activity->parent->children->sibling_prev = activity;
+  activity->parent->children = activity;
+
+  /* We have no in-memory children.  */
+  activity->children = NULL;
+}
+
+void
+activity_deprepare (struct activity *principal, struct activity *victim)
+{
+  /* If we have any in-memory children, then we can't be paged
+     out.  */
+  assert (! victim->children);
+
+  /* Unlink from parent's children list.  */
+  assert (victim->parent);
+
+  if (victim->sibling_prev)
+    victim->sibling_prev->sibling_next = victim->sibling_next;
+  else
+    {
+      assert (victim->parent->children == victim);
+      victim->parent->children = victim->sibling_next;
+    }
+
+  if (victim->sibling_next)
+    victim->sibling_next->sibling_prev = victim->sibling_prev;
 }
 
 static void
@@ -197,10 +246,14 @@ do_activity_dump (struct activity *activity, int indent)
   int dirty = object_activity_lru_list_count (&activity->inactive_dirty);
   int clean = object_activity_lru_list_count (&activity->inactive_clean);
 
-  printf ("%s %llx: %d frames (active: %d, dirty: %d, clean: %d)\n",
+  printf ("%s %llx: %d frames (active: %d, dirty: %d, clean: %d) "
+	  "(total frames: %d)\n",
 	  indent_string,
 	  object_to_object_desc ((struct object *) activity)->oid,
-	  activity->frames, active, dirty, clean);
+	  activity->frames_local, active, dirty, clean,
+	  activity->frames_total);
+
+  assert (active + dirty + clean == activity->frames_local);
 
   struct activity *child;
   activity_for_each_child (activity, child,

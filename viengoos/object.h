@@ -1,5 +1,5 @@
 /* object.h - Object store interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -275,7 +275,7 @@ object_disown_simple (struct object *object)
 extern inline void object_desc_disown_ (struct object_desc *desc);
 #define object_desc_disown(d)						\
   ({ debug (5, "object_desc_disown: %p (%d)",				\
-	    d->activity, d->activity->frames);				\
+	    d->activity, d->activity->frames_total);			\
     assert (! ss_mutex_trylock (&lru_lock));				\
     object_desc_disown_ (d); })
 
@@ -299,7 +299,8 @@ extern void object_desc_claim_ (struct activity *activity,
 				struct object_policy policy);
 #define object_desc_claim(__odc_a, __odc_o, __odc_p)			\
   ({									\
-    debug (5, "object_desc_claim: %p (%d)", (__odc_a), (__odc_a)->frames); \
+    debug (5, "object_desc_claim: %p (%d)",				\
+	   (__odc_a), (__odc_a)->frames_total);				\
     assert (! ss_mutex_trylock (&lru_lock));				\
     object_desc_claim_ ((__odc_a), (__odc_o), (__odc_p));		\
   })
@@ -313,7 +314,8 @@ object_claim_ (struct activity *activity, struct object *object,
 }
 #define object_claim(__oc_a, __oc_o, __oc_p)				\
   ({									\
-    debug (5, "object_claim: %p (%d)", (__oc_a), (__oc_a)->frames);	\
+    debug (5, "object_claim: %p (%d)",					\
+	   (__oc_a), (__oc_a)->frames_total);				\
     assert (! ss_mutex_trylock (&lru_lock));				\
     object_claim_ ((__oc_a), (__oc_o));					\
   })

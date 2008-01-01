@@ -1,5 +1,5 @@
 /* object.c - Object store management.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -186,7 +186,7 @@ memory_object_destroy (struct activity *activity, struct object *object)
   if (desc->type == cap_activity_control)
     {
       struct activity *a = (struct activity *) object;
-      if (a->frames)
+      if (a->frames_total)
 	panic ("Attempt to page-out activity with allocated frames");
     }
 
