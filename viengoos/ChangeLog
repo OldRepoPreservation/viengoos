@@ -1,5 +1,19 @@
 2008-01-01  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h: Don't include <l4.h>, <errno.h> or <hurd/btree.h>.
+	Include <hurd/activity.h>.
+	(struct activity): Remove fields priority, weight and
+	storage_quota.  Replace with policy.  Change folio_count to a
+	uint32_t.  Update users.
+
+	* server.c (server_loop): Remove activity_properties
+	implementation.  Add activity_policy implementation.
+
+	* rm.h (rm_method_id_string): Remove RM_activity_properties case.
+	Handle RM_activity_policy.
+
+2008-01-01  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (struct activity): Rename field parent to parent_cap.
 	Rename field children to children_cap.  Rename field sibling_next
 	to sibling_next_cap.  Rename field sibling_prev to

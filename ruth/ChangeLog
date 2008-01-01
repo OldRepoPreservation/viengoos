@@ -1,3 +1,8 @@
+2008-01-01  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Remove activity_properties test.  Replace with
+	activity_policy test.
+
 2007-12-25  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Change visit to be consistent with as_walk's

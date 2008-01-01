@@ -345,14 +345,15 @@ folio_alloc (struct activity *activity, struct folio_policy policy)
     /* Check that ACTIVITY won't exceed its quota.  */
     {
       struct activity *a = activity;
-      activity_for_each_ancestor (a,
-				  ({
-				    if (a->storage_quota
-					&& a->folio_count >= a->storage_quota)
-				      break;
+      activity_for_each_ancestor
+	(a,
+	 ({
+	   if (a->policy.folios
+	       && a->folio_count >= a->policy.folios)
+	     break;
 
-				    a->folio_count ++;
-				  }));
+	   a->folio_count ++;
+	 }));
 
       if (a)
 	/* Exceeded A's quota.  Readjust the folio count of the

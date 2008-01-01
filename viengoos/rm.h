@@ -1,5 +1,5 @@
 /* rm.h - Resource manager interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -62,8 +62,8 @@ rm_method_id_string (int id)
       return "exception_collect";
     case RM_thread_exregs:
       return "thread_exregs";
-    case RM_activity_properties:
-      return "activity_properties";
+    case RM_activity_policy:
+      return "activity_policy";
     default:
       return "unknown method id";
     }

@@ -1,23 +1,22 @@
 /* ruth.c - Test server.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   The GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+   General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #if HAVE_CONFIG_H
 #include <config.h>
@@ -505,39 +504,64 @@ main (int argc, char *argv[])
   }
 
   {
-    printf ("Checking activity_properties... ");
+    printf ("Checking activity_policy... ");
 
-    l4_word_t priority;
-    l4_word_t weight;
-    l4_word_t storage_quota;
+    addr_t weak = capalloc ();
+    error_t err = rm_cap_copy (activity, weak, activity,
+			       CAP_COPY_WEAKEN, CAP_PROPERTIES_VOID);
+    assert (! err);
 
-    error_t err;
-    err = rm_activity_properties (activity,
-				  ACTIVITY_PROPERTIES_ALL_SET,
-				  2, 3, 10000,
-				  &priority, &weight, &storage_quota);
+    struct activity_policy in, out;
+
+    in.sibling_rel.priority = 2;
+    in.sibling_rel.weight = 3;
+    in.child_rel = ACTIVITY_MEMORY_POLICY_VOID;
+    in.folios = 10000;
+
+    err = rm_activity_policy (activity,
+			      ACTIVITY_POLICY_SIBLING_REL_SET
+			      | ACTIVITY_POLICY_STORAGE_SET,
+			      in,
+			      &out);
     assert (err == 0);
 			    
-    err = rm_activity_properties (activity,
-				  0,
-				  0, 0, 0,
-				  &priority, &weight, &storage_quota);
+    err = rm_activity_policy (activity,
+			      0, ACTIVITY_POLICY_VOID,
+			      &out);
     assert (err == 0);
 
-    assert (priority == 2);
-    assert (weight == 3);
-    assert (storage_quota == 10000);
+    assert (out.sibling_rel.priority == 2);
+    assert (out.sibling_rel.weight == 3);
+    assert (out.folios == 10000);
 
-    err = rm_activity_properties (activity,
-				  ACTIVITY_PROPERTIES_ALL_SET,
-				  4, 5, 10001,
-				  &priority, &weight, &storage_quota);
+    in.sibling_rel.priority = 4;
+    in.sibling_rel.weight = 5;
+    in.folios = 10001;
+    err = rm_activity_policy (activity,
+			      ACTIVITY_POLICY_SIBLING_REL_SET
+			      | ACTIVITY_POLICY_STORAGE_SET,
+			      in, &out);
     assert (err == 0);
 
     /* We expect the old values.  */
-    assert (priority == 2);
-    assert (weight == 3);
-    assert (storage_quota == 10000);
+    assert (out.sibling_rel.priority == 2);
+    assert (out.sibling_rel.weight == 3);
+    assert (out.folios == 10000);
+
+    err = rm_activity_policy (weak,
+			      ACTIVITY_POLICY_SIBLING_REL_SET
+			      | ACTIVITY_POLICY_STORAGE_SET,
+			      in, &out);
+    assert (err == EPERM);
+
+    err = rm_activity_policy (weak, 0, in, &out);
+    assert (err == 0);
+
+    assert (out.sibling_rel.priority == 4);
+    assert (out.sibling_rel.weight == 5);
+    assert (out.folios == 10001);
+
+    capfree (weak);
 
     printf ("ok.\n");
   }

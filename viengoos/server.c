@@ -1,5 +1,5 @@
 /* server.c - Server loop implementation.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -730,36 +730,35 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_activity_properties:
+	case RM_activity_policy:
 	  {
-	    l4_word_t flags;
-	    l4_word_t priority;
-	    l4_word_t weight;
-	    l4_word_t storage_quota;
+	    uintptr_t flags;
+	    struct activity_policy in;
 
-	    err = rm_activity_properties_send_unmarshal (&msg,
-							 &principal_addr,
-							 &flags,
-							 &priority, &weight,
-							 &storage_quota);
+	    err = rm_activity_policy_send_unmarshal (&msg, &principal_addr,
+						     &flags, &in);
 	    if (err)
 	      REPLY (err);
 
-	    if (flags && principal_cap.type != cap_activity_control)
+	    if (principal_cap.type != cap_activity_control
+		&& (flags & (ACTIVITY_POLICY_STORAGE_SET
+			     | ACTIVITY_POLICY_CHILD_REL_SET)))
 	      REPLY (EPERM);
 
-	    rm_activity_properties_reply_marshal (&msg,
-						  principal->priority,
-						  principal->weight,
-						  principal->storage_quota);
+	    rm_activity_policy_reply_marshal (&msg, principal->policy);
 
-	    if ((flags & ACTIVITY_PROPERTIES_PRIORITY_SET))
-	      principal->priority = priority;
-	    if ((flags & ACTIVITY_PROPERTIES_WEIGHT_SET))
-	      principal->weight = weight;
-	    if ((flags & ACTIVITY_PROPERTIES_STORAGE_QUOTA_SET))
-	      principal->storage_quota = storage_quota;
+	    if ((flags & ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
+	      principal->policy.child_rel.priority = in.child_rel.priority;
+	    if ((flags & ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET))
+	      principal->policy.child_rel.weight = in.child_rel.weight;
 
+	    if ((flags & ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET))
+	      principal->policy.sibling_rel.priority = in.sibling_rel.priority;
+	    if ((flags & ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET))
+	      principal->policy.sibling_rel.weight = in.sibling_rel.weight;
+
+	    if ((flags & ACTIVITY_POLICY_STORAGE_SET))
+	      principal->policy.folios = in.folios;
 	    break;
 	  }
 

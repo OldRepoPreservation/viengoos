@@ -1,3 +1,30 @@
+2008-01-01  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h (RM_activity_properties): Rename...
+	(RM_activity_policy): ... to this.  Update users.
+	(struct activity_memory_policy): New structure.
+	(ACTIVITY_MEMORY_POLICY): New definition.
+	(ACTIVITY_MEMORY_POLICY_VOID): Likewise.
+	(struct activity_policy): New structure.
+	(ACTIVITY_POLICY): New definition.
+	(ACTIVITY_POLICY_VOID): Likewise.
+	(ACTIVITY_PROPERTIES_PRIORITY_SET): Rename...
+	(ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET): ... to this.  Update
+	users.
+	(ACTIVITY_PROPERTIES_WEIGHT_SET): Rename...
+	(ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET): ... to this.  Update
+	users.
+	(ACTIVITY_PROPERTIES_STORAGE_QUOTA_SET): Rename...
+	(ACTIVITY_POLICY_STORAGE_SET): ... to this.  Update users.
+	(ACTIVITY_PROPERTIES_ALL_SET): Rename...
+	(ACTIVITY_POLICY_SIBLING_REL_SET): ... to this.
+	(ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET): New definition.
+	(ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET): Likewise.
+	(ACTIVITY_POLICY_CHILD_REL_SET): Likewise.
+	(activity_properties): Rename...
+	(activity_policy): ... to this.  Accept a structure rather than
+	individual variables.  Update callers.
+
 2007-12-30  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (OBJECT_PRIORITY): Make a high numeric priority reflect a

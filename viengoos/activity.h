@@ -21,9 +21,7 @@
 #ifndef RM_ACTIVITY_H
 #define RM_ACTIVITY_H
 
-#include <l4.h>
-#include <errno.h>
-#include <hurd/btree.h>
+#include <hurd/activity.h>
 
 #include "cap.h"
 #include "object.h"
@@ -50,17 +48,12 @@ struct activity
   /* Head of the linked list of folios allocated to this activity.  */
   struct cap folios;
 
-  /* Parent assigned values.  */
-  /* Memory.  */
-  l4_word_t priority;
-  l4_word_t weight;
-  /* Maximum number of folios this activity may allocate.  0 means no
-     limit.  */
-  l4_word_t storage_quota;
+  /* Policy.  */
+  struct activity_policy policy;
 
   /* Number of folios allocated to this activity (including
      children).  */
-  l4_word_t folio_count;
+  uint32_t folio_count;
 
   /* Location of the in-memory parent activity.  An activity may only
      be in memory if its parent is in memory.  It is only NULL for the
