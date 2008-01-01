@@ -1,5 +1,11 @@
 2008-01-01  Neal H. Walfield  <neal@gnu.org>
 
+	* stddef.h (do_debug) [DEBUG_ELIDE]: Make a proper conditional.
+	(debug): Don't change definition depending on DEBUG_ELIDE, always
+	use the full definition relying on do_debug to do the right thing.
+
+2008-01-01  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (RM_activity_properties): Rename...
 	(RM_activity_policy): ... to this.  Update users.
 	(struct activity_memory_policy): New structure.
