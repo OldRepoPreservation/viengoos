@@ -1,5 +1,11 @@
 2008-01-01  Neal H. Walfield  <neal@gnu.org>
 
+	* t-link.c: Include <stdlib.h>.
+	(test): Use malloc to allocate the object.  Free them on unlink.
+	Improve coverage of tail and prev functions.
+
+2008-01-01  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (memory_object_destroy): Unlock LRU_LOCK.
 
 2008-01-01  Neal H. Walfield  <neal@gnu.org>
