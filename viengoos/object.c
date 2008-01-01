@@ -183,6 +183,8 @@ memory_object_destroy (struct activity *activity, struct object *object)
   object_activity_lru_list_unlink (&disowned, desc);
   object_global_lru_list_unlink (global, desc);
 
+  ss_mutex_unlock (&lru_lock);
+
   if (desc->type == cap_activity_control)
     {
       struct activity *a = (struct activity *) object;

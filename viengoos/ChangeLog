@@ -1,5 +1,9 @@
 2008-01-01  Neal H. Walfield  <neal@gnu.org>
 
+	* object.c (memory_object_destroy): Unlock LRU_LOCK.
+
+2008-01-01  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h: Don't include <l4.h>, <errno.h> or <hurd/btree.h>.
 	Include <hurd/activity.h>.
 	(struct activity): Remove fields priority, weight and
