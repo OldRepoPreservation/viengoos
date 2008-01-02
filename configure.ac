@@ -1,5 +1,5 @@
 # configure.ac - Configure script for the GNU Hurd.
-# Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2005, 2007, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -34,8 +34,8 @@ maintainer_mode=${enable_maintainer_mode-no}
 AC_PROG_CC
 
 # FIXME: We should support setting the CFLAGS by the user.  But
-# -std=gnu99 and -O2 are required.
-CFLAGS="-std=gnu99 -Wall -g -O3 $CFLAGS"
+# -std=gnu99 and -O1 are required.
+CFLAGS="-std=gnu99 -Wall -g -O2 $CFLAGS"
 AM_PROG_AS
 AC_PROG_RANLIB
 AC_CHECK_TOOL([AR], [ar], :)

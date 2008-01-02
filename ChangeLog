@@ -1,3 +1,7 @@
+2008-01-02  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac (CFLAGS): Make the default optimization level -O2.
+
 2007-12-23  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Don't use AC_C_CONST or AC_C_VOLATILE.  The former
