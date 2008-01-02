@@ -6,8 +6,8 @@
 
    The GNU Hurd is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
-   your option) any later version.
+   published by the Free Software Foundation; either version 3 of the
+   License, or (at your option) any later version.
 
    The GNU Hurd is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +15,8 @@
    General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
+   along with this program.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 	.text
 
@@ -70,7 +70,7 @@ _exception_handler_entry:
 	and $0xfffff000, %edx
 
 	/* Now check if the interrupt in transition flag is set.  */
-	bt $0x2, MODE(%edx)
+	bt $0x4, MODE(%edx)
 	jc after_save
 
 	/* Nope; we need to save the current EAX, ECX and eflags.  */
@@ -93,7 +93,7 @@ after_adjust:
 	our pointer to the exception page on the stack.  */
 	pushl %edx
 
-	/* The exception handler function takes a single arguments:
+	/* The exception handler function takes a single argument:
 	the exception page.  */
 
 	/* Push the exception page.  */
@@ -148,7 +148,7 @@ after_adjust:
 	/* Check for pending messages.  This does not need to be
 	   atomic as if we get interrupted here, we automatically
 	   transition back to activated mode.  */
-	bt $0x1, MODE(%edx)
+	bt $0x2, MODE(%edx)
 	jc process_pending
 
 	/* Restore the user stack.  */
@@ -223,7 +223,7 @@ exception_frame_run:
 exception_handler_end:
 _exception_handler_end:
 
-	/* We have now left the protected mode.  We've saved all the
+	/* We have now left activated mode.  We've saved all the
 	state we need to return to the interrupted state in the
 	exception frame and ESP points to the normal stack.  If a
 	fault now occurs, nothing bad can happend.  */
@@ -243,9 +243,9 @@ _exception_handler_end:
 	/* Remove the argument.  */
 	add $4, %esp
 
-	/* Restore the exception page pointer and the exception frame
-	pointer.  */
+	/* Restore the exception frame pointer.  */
 	popl %eax
+	/* And restore the exception page pointer.  */
 	popl %edx
 
 	/* Restore the user state.  */

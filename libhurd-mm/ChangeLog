@@ -1,3 +1,22 @@
+2008-01-02  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c (crc) [! NDEBUG]: New function.
+	(exception_handler_activated) [! NDEBUG]: After saving the frame
+	state, calculate the crc of the header.  Check it before
+	returning.
+
+	(exception_frame_slab_alloc): Save the UTCB state before calling
+	storage_alloc and restore it before returning.
+
+	(exception_handler_activated): Assert that
+	EXCEPTION_PAGE->ACTIVATED_MODE is set.
+
+	(exception_handler_normal): If we fail to handle the fault, panic.
+	(exception_handler_activated): Likewise.
+
+	* ia32-exception-entry.S (_exception_handler_entry): Correctly
+	test and set the flags.
+
 2007-12-25  Neal H. Walfield  <neal@gnu.org>
 
 	* as.h: Change VISIT's signature: pass a struct cap_properties

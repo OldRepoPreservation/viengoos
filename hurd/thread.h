@@ -1,5 +1,5 @@
 /* thread.h - Thread definitions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    GNU Hurd is free software: you can redistribute it and/or modify it
@@ -63,14 +63,21 @@ struct exception_page
        this structure ****  */
     struct
     {
-      /* Whether the thread is in activated mode.  */
-      l4_word_t activated_mode : 1;
-      /* Set by the kernel to indicated that there is a pending
-	 message.  */
-      l4_word_t pending_message : 1;
-      /* Set by the kernel to indicate whether the thread was
-	 interrupted while the EIP is in the transition range.  */
-      l4_word_t interrupt_in_transition : 1;
+      union
+      {
+	struct
+	{
+	  /* Whether the thread is in activated mode.  */
+	  l4_word_t activated_mode : 1;
+	  /* Set by the kernel to indicated that there is a pending
+	     message.  */
+	  l4_word_t pending_message : 1;
+	  /* Set by the kernel to indicate whether the thread was
+	     interrupted while the EIP is in the transition range.  */
+	  l4_word_t interrupt_in_transition : 1;
+	};
+	l4_word_t mode;
+      };
 
       /* The value of the IP and SP when the thread was running.  */
       l4_word_t saved_ip;
@@ -89,6 +96,8 @@ struct exception_page
 
       /* The exception.  */
       l4_msg_t exception;
+
+      l4_word_t crc;
     };
     char data[PAGESIZE];
   };

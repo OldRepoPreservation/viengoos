@@ -1,3 +1,8 @@
+2008-01-02  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h (struct exception_page): Make mode bits a union thereby
+	providing straightforward access to the raw bits.  Add field crc.
+
 2008-01-01  Neal H. Walfield  <neal@gnu.org>
 
 	* stddef.h (do_debug) [DEBUG_ELIDE]: Make a proper conditional.

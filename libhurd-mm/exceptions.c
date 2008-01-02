@@ -1,23 +1,22 @@
 /* exceptions.c - Exception handler implementation.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+   GNU Hurd is free software: you can redistribute it and/or modify it
+   under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   License along with GNU Hurd.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #include <hurd/startup.h>
 #include <hurd/stddef.h>
@@ -32,6 +31,36 @@
 
 extern struct hurd_startup_data *__hurd_startup_data;
 
+static void
+utcb_state_save (struct exception_frame *exception_frame)
+{
+  l4_word_t *utcb = _L4_utcb ();
+
+  exception_frame->saved_sender = utcb[_L4_UTCB_SENDER];
+  exception_frame->saved_receiver = utcb[_L4_UTCB_RECEIVER];
+  exception_frame->saved_timeout = utcb[_L4_UTCB_TIMEOUT];
+  exception_frame->saved_error_code = utcb[_L4_UTCB_ERROR_CODE];
+  exception_frame->saved_flags = utcb[_L4_UTCB_FLAGS];
+  exception_frame->saved_br0 = utcb[_L4_UTCB_BR0];
+  memcpy (&exception_frame->saved_message,
+	  utcb, L4_NUM_MRS * sizeof (l4_word_t));
+}
+
+static void
+utcb_state_restore (struct exception_frame *exception_frame)
+{
+  l4_word_t *utcb = _L4_utcb ();
+
+  utcb[_L4_UTCB_SENDER] = exception_frame->saved_sender;
+  utcb[_L4_UTCB_RECEIVER] = exception_frame->saved_receiver;
+  utcb[_L4_UTCB_TIMEOUT] = exception_frame->saved_timeout;
+  utcb[_L4_UTCB_ERROR_CODE] = exception_frame->saved_error_code;
+  utcb[_L4_UTCB_FLAGS] = exception_frame->saved_flags;
+  utcb[_L4_UTCB_BR0] = exception_frame->saved_br0;
+  memcpy (utcb, &exception_frame->saved_message,
+	  L4_NUM_MRS * sizeof (l4_word_t));
+}
+
 static struct hurd_slab_space exception_frame_slab;
 
 static error_t
@@ -39,10 +68,15 @@ exception_frame_slab_alloc (void *hook, size_t size, void **ptr)
 {
   assert (size == PAGESIZE);
 
+  struct exception_frame frame;
+  utcb_state_save (&frame);
+
   struct storage storage  = storage_alloc (meta_data_activity,
 					   cap_page, STORAGE_EPHEMERAL,
 					   ADDR_VOID);
   *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+
+  utcb_state_restore (&frame);
 
   return 0;
 }
@@ -102,36 +136,6 @@ exception_frame_alloc (struct exception_page *exception_page)
   return exception_frame;
 }
 
-static void
-utcb_state_save (struct exception_frame *exception_frame)
-{
-  l4_word_t *utcb = _L4_utcb ();
-
-  exception_frame->saved_sender = utcb[_L4_UTCB_SENDER];
-  exception_frame->saved_receiver = utcb[_L4_UTCB_RECEIVER];
-  exception_frame->saved_timeout = utcb[_L4_UTCB_TIMEOUT];
-  exception_frame->saved_error_code = utcb[_L4_UTCB_ERROR_CODE];
-  exception_frame->saved_flags = utcb[_L4_UTCB_FLAGS];
-  exception_frame->saved_br0 = utcb[_L4_UTCB_BR0];
-  memcpy (&exception_frame->saved_message,
-	  utcb, L4_NUM_MRS * sizeof (l4_word_t));
-}
-
-static void
-utcb_state_restore (struct exception_frame *exception_frame)
-{
-  l4_word_t *utcb = _L4_utcb ();
-
-  utcb[_L4_UTCB_SENDER] = exception_frame->saved_sender;
-  utcb[_L4_UTCB_RECEIVER] = exception_frame->saved_receiver;
-  utcb[_L4_UTCB_TIMEOUT] = exception_frame->saved_timeout;
-  utcb[_L4_UTCB_ERROR_CODE] = exception_frame->saved_error_code;
-  utcb[_L4_UTCB_FLAGS] = exception_frame->saved_flags;
-  utcb[_L4_UTCB_BR0] = exception_frame->saved_br0;
-  memcpy (utcb, &exception_frame->saved_message,
-	  L4_NUM_MRS * sizeof (l4_word_t));
-}
-
 /* Fetch an exception.  */
 void
 exception_fetch_exception (void)
@@ -185,11 +189,9 @@ exception_handler_normal (struct exception_frame *exception_frame)
 	bool r = pager_fault (fault, ip, info);
 	if (! r)
 	  {
-	    debug (1, "Failed to handle fault at " ADDR_FMT " (ip=%x)",
-		   ADDR_PRINTF (fault), ip);
 	    /* XXX: Should raise SIGSEGV.  */
-	    for (;;)
-	      l4_yield ();
+	    panic ("Failed to handle fault at " ADDR_FMT " (ip=%x)",
+		   ADDR_PRINTF (fault), ip);
 	  }
 
 	break;
@@ -202,9 +204,24 @@ exception_handler_normal (struct exception_frame *exception_frame)
   utcb_state_restore (exception_frame);
 }
 
+#ifndef NDEBUG
+static l4_word_t
+crc (struct exception_page *exception_page)
+{
+  l4_word_t crc = 0;
+  l4_word_t *p;
+  for (p = (l4_word_t *) exception_page; p < &exception_page->crc; p ++)
+    crc += *p;
+
+  return crc;
+}
+#endif
+
 struct exception_frame *
 exception_handler_activated (struct exception_page *exception_page)
 {
+  assert (exception_page->activated_mode);
+
   debug (5, "Exception handler called (0x%x.%x, exception_page: %p)",
 	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
 	 exception_page);
@@ -212,8 +229,11 @@ exception_handler_activated (struct exception_page *exception_page)
   /* Allocate an exception frame.  */
   struct exception_frame *exception_frame
     = exception_frame_alloc (exception_page);
-
   utcb_state_save (exception_frame);
+
+#ifndef NDEBUG
+  exception_page->crc = crc (exception_page);
+#endif
 
   l4_msg_t *msg = &exception_page->exception;
 
@@ -246,15 +266,19 @@ exception_handler_activated (struct exception_page *exception_page)
 	    bool r = pager_fault (fault, ip, info);
 	    if (! r)
 	      {
-		debug (1, "Failed to handle fault at " ADDR_FMT " (ip=%x)",
+		panic ("Failed to handle fault at " ADDR_FMT " (ip=%x)",
 		       ADDR_PRINTF (fault), ip);
 		/* XXX: Should raise SIGSEGV.  */
-		for (;;)
-		  l4_yield ();
 	      }
+	    assert (exception_page->crc == crc (exception_page));
 
 	    utcb_state_restore (exception_frame);
-	    assert (exception_page->exception_stack == exception_frame);
+
+	    assert (exception_page->crc == crc (exception_page));
+	    assertx (exception_page->exception_stack == exception_frame,
+		     "%p != %p",
+		     exception_page->exception_stack, exception_frame);
+
 	    exception_page->exception_stack
 	      = exception_page->exception_stack->next;
 	    return NULL;
@@ -273,6 +297,7 @@ exception_handler_activated (struct exception_page *exception_page)
   memcpy (&exception_frame->exception, msg,
 	  (1 + l4_untyped_words (msg_tag)) * sizeof (l4_word_t));
 
+  assert (exception_page->crc == crc (exception_page));
   return exception_frame;
 }
 
