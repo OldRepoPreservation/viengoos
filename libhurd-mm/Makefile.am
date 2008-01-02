@@ -1,23 +1,22 @@
 # Makefile.am - Makefile template for libhurd-mm.
-# Copyright (C) 2004, 2005, 2007 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2005, 2007, 2008 Free Software Foundation, Inc.
 # Written by Neal H. Walfield
 #
 # This file is part of the GNU Hurd.
+# 
+# The GNU Hurd is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Lesser Public License as
+# published by the Free Software Foundation; either version 3 of the
+# License, or (at your option) any later version.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Lesser General Public
-# License as published by the Free Software Foundation; either
-# version 2.1 of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but
+# This GNU Hurd is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Lesser General Public License for more details.
+# General Lesser Public License for more details.
 #
-# You should have received a copy of the GNU Lesser General Public
-# License along with this program; if not, write to the Free
-# Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-# 02111-1307 USA.
+# You should have received a copy of the GNU General Lesser Public
+# License along with this program.  If not, see
+# <http://www.gnu.org/licenses/>.
 
 if ARCH_IA32
   ARCH_SOURCES = ia32-exception-entry.S
@@ -29,7 +28,7 @@ includehurddir = $(includedir)/hurd
 includehurd_HEADERS = mm.h storage.h as.h
 
 COMMON_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts \
-	-D_GNU_SOURCE -Wall -std=gnu99 -g -O3
+	-D_GNU_SOURCE -Wall -std=gnu99 -g -O2 -mpreferred-stack-boundary=2
 libhurd_mm_a_CPPFLAGS = $(COMMON_CPPFLAGS)
 libhurd_mm_a_SOURCES = mm.h			\
 	capalloc.h capalloc.c			\

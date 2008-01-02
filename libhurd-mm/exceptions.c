@@ -162,9 +162,10 @@ exception_fetch_exception (void)
 void
 exception_handler_normal (struct exception_frame *exception_frame)
 {
-  debug (5, "Exception handler called (0x%x.%x, exception_frame: %p)",
+  debug (5, "Exception handler called (0x%x.%x, exception_frame: %p, "
+	 "next: %p)",
 	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
-	 exception_frame);
+	 exception_frame, exception_frame->next);
 
   l4_msg_t *msg = &exception_frame->exception;
 
@@ -220,16 +221,18 @@ crc (struct exception_page *exception_page)
 struct exception_frame *
 exception_handler_activated (struct exception_page *exception_page)
 {
+  /* We expect EXCEPTION_PAGE to be page aligned.  */
+  assert (((uintptr_t) exception_page & (PAGESIZE - 1)) == 0);
   assert (exception_page->activated_mode);
-
-  debug (5, "Exception handler called (0x%x.%x, exception_page: %p)",
-	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
-	 exception_page);
 
   /* Allocate an exception frame.  */
   struct exception_frame *exception_frame
     = exception_frame_alloc (exception_page);
   utcb_state_save (exception_frame);
+
+  debug (5, "Exception handler called (0x%x.%x, exception_page: %p)",
+	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
+	 exception_page);
 
 #ifndef NDEBUG
   exception_page->crc = crc (exception_page);

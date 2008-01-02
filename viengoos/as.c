@@ -1,5 +1,5 @@
 /* as.c - Address space composition helper functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -37,7 +37,27 @@
 
 #ifndef RM_INTERN
 pthread_rwlock_t as_lock = __PTHREAD_RWLOCK_INITIALIZER;
-# define AS_LOCK pthread_rwlock_wrlock (&as_lock)
+
+static void __attribute__ ((noinline))
+ensure_stack(int i)
+{
+  /* XXX: If we fault on the stack while we have the address space
+     lock, we deadlock.  Ensure that we have some stack space and hope
+     it is enough.  (This can't be too much as we may be running on
+     the exception handler's stack.)  */
+  volatile char space[1024 + 512];
+  space[0] = 0;
+  space[sizeof (space) - 1] = 0;
+}
+
+# define AS_LOCK					\
+  do							\
+    {							\
+      ensure_stack (1);					\
+      pthread_rwlock_wrlock (&as_lock);			\
+    }							\
+  while (0)
+
 # define AS_UNLOCK pthread_rwlock_unlock (&as_lock)
 # define AS_DUMP rm_as_dump (ADDR_VOID, ADDR_VOID)
 

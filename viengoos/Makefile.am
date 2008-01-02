@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for viengoos.
-# Copyright (C) 2003, 2004, 2007 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2007, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -104,6 +104,7 @@ t_guard_SOURCES = t-guard.c			\
 	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
 lib_LIBRARIES = libhurd-cap.a
-libhurd_cap_a_CPPFLAGS = $(COMMON_CPPFLAGS)
+# Use a small stack alignment to decrease stack usage.
+libhurd_cap_a_CPPFLAGS = $(COMMON_CPPFLAGS) -mpreferred-stack-boundary=2
 libhurd_cap_a_SOURCES = cap-lookup.c as.c as.h
 

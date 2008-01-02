@@ -1,5 +1,5 @@
 /* cap-lookup.c - Address space walker.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -41,6 +41,36 @@ enum lookup_mode
     want_slot,
     want_object
   };
+
+#ifndef RM_INTERN
+
+static void __attribute__ ((noinline))
+ensure_stack(void)
+{
+  /* XXX: If we fault on the stack while we have the address space
+     lock, we deadlock.  Ensure that we have some stack space and hope
+     it is enough.  (This can't be too much as we may be running on
+     the exception handler's stack.)  */
+  volatile char space[1024 + 512];
+  space[0] = 0;
+  space[sizeof (space) - 1] = 0;
+}
+
+# define AS_LOCK					\
+  do							\
+    {							\
+      ensure_stack ();					\
+      pthread_rwlock_rdlock (&as_lock);			\
+    }							\
+  while (0)
+
+# define AS_UNLOCK pthread_rwlock_unlock (&as_lock)
+
+#else
+# define AS_LOCK do { } while (0)
+# define AS_UNLOCK do { } while (0)
+#endif
+
 
 static bool
 lookup (activity_t activity,
@@ -296,15 +326,11 @@ cap_lookup_rel (activity_t activity,
 {
   union rt rt;
 
-#ifndef RM_INTERN
-  pthread_rwlock_rdlock (&as_lock);
-#endif
+  AS_LOCK;
 
   bool ret = lookup (activity, root, address, type, writable, want_cap, &rt);
 
-#ifndef RM_INTERN
-  pthread_rwlock_unlock (&as_lock);
-#endif
+  AS_UNLOCK;
 
   if (! ret)
     return (struct cap) { .type = cap_void };
@@ -318,15 +344,11 @@ object_lookup_rel (activity_t activity,
 {
   union rt rt;
 
-#ifndef RM_INTERN
-  pthread_rwlock_rdlock (&as_lock);
-#endif
+  AS_LOCK;
 
   bool ret = lookup (activity, root, address, type, writable, want_object, &rt);
 
-#ifndef RM_INTERN
-  pthread_rwlock_unlock (&as_lock);
-#endif
+  AS_UNLOCK;
 
   if (! ret)
     return (struct cap) { .type = cap_void };
@@ -340,15 +362,11 @@ slot_lookup_rel (activity_t activity,
 {
   union rt rt;
 
-#ifndef RM_INTERN
-  pthread_rwlock_rdlock (&as_lock);
-#endif
+  AS_LOCK;
 
   bool ret = lookup (activity, root, address, type, writable, want_slot, &rt);
 
-#ifndef RM_INTERN
-  pthread_rwlock_unlock (&as_lock);
-#endif
+  AS_UNLOCK;
 
   if (! ret)
     return NULL;

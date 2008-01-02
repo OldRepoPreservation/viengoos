@@ -1,5 +1,13 @@
 2008-01-02  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.c (exception_handler_activated): Move the debug
+	statement after the call to utcb_state_save.
+
+	* Makefile.am (COMMON_CPPFLAGS): Add -mpreferred-stack-boundary=2.
+	Use -O2.
+
+2008-01-02  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.c (crc) [! NDEBUG]: New function.
 	(exception_handler_activated) [! NDEBUG]: After saving the frame
 	state, calculate the crc of the header.  Check it before

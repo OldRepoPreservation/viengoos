@@ -1,5 +1,20 @@
 2008-01-02  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (libhurd_cap_a_CPPFLAGS): Add
+	-mpreferred-stack-boundary=2.
+
+	* as.c (ensure_stack) [! RM_INTERN]: New function.
+	(AS_LOCK) [! RM_INTERN]: Call it.
+	* cap-lookup.c (ensure_stack) [! RM_INTERN]: New function.
+	(AS_LOCK): New macro.
+	(AS_UNLOCK): Likewise.
+	(cap_lookup_rel): Use AS_LOCK and AS_UNOCK rather than
+	pthread_rwlock_rdlock and pthread_rwlock_unlock, respectively.
+	(object_lookup_rel): Likewise.
+	(slot_lookup_rel): Likewise.
+
+2008-01-02  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (parse_args) [DEBUG_ELIDE]: Indicate in the help text
 	that debugging output is disabled.  Don't assign to OUTPUT_DEBUG in
 	this case.
