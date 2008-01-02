@@ -1,3 +1,12 @@
+2008-01-02  Neal H. Walfield  <neal@gnu.org>
+
+	* viengoos.c (parse_args) [DEBUG_ELIDE]: Indicate in the help text
+	that debugging output is disabled.  Don't assign to OUTPUT_DEBUG in
+	this case.
+	(memory_configure): Use do_debug rather than directly checking
+	against OUTPUT_DEBUG.
+	(system_task_load): Likewise.
+
 2008-01-01  Neal H. Walfield  <neal@gnu.org>
 
 	* t-link.c: Include <stdlib.h>.

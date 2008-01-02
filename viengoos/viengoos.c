@@ -1,5 +1,5 @@
 /* viengoos.c - Main file for viengoos.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -96,7 +96,11 @@ parse_args (int argc, char *argv[])
 		  "calls.\n"
 		  "\n"
 		  "  -o, --output DRV  use output driver DRV\n"
-		  "  -D, --debug LEVEL enable debug output (1-5)\n"
+		  "  -D, --debug LEVEL enable debug output (1-5)"
+#ifdef DEBUG_ELIDE
+		  " (disabled)"
+#endif
+		  "\n"
 		  "  -h, --halt        halt the system at error (default)\n"
 		  "  -r, --reboot      reboot the system at error\n"
 		  "\n"
@@ -150,7 +154,9 @@ parse_args (int argc, char *argv[])
 	  i++;
 	  if (! ('0' <= argv[i][0] && argv[i][0] <= '9'))
 	    panic ("Option -D expects an integer argument");
+#ifndef DEBUG_ELIDE
 	  output_debug = atoi (argv[i]);
+#endif
 	  i++;
 	}
       else if (argv[i][0] == '-')
@@ -184,7 +190,7 @@ memory_configure (void)
     }
 
   /* Grab all available physical memory.  */
-  if (3 < output_debug)
+  do_debug (3)
     memory_reserve_dump ();
   memory_grab ();
 
@@ -360,7 +366,7 @@ system_task_load (void)
   /* Release the memory used by the binary.  */
   memory_reservation_clear (memory_reservation_system_executable);
 
-  if (2 < output_debug)
+  do_debug (3)
     /* Dump the system task's address space before we start it
        running.  */
     {
