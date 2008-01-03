@@ -1,5 +1,5 @@
 # headers.m4 - Autoconf snippets to install links for header files.
-# Copyright 2003, 2007 Free Software Foundation, Inc.
+# Copyright 2003, 2007, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann <marcus@gnu.org>.
 #
 # This file is free software; as a special exception the author gives
@@ -21,5 +21,6 @@ AC_CONFIG_LINKS([include/hurd/stddef.h:hurd/stddef.h
 		 include/hurd/exceptions.h:hurd/exceptions.h
 		 include/hurd/thread.h:hurd/thread.h
 		 include/hurd/activity.h:hurd/activity.h
+		 include/hurd/lock.h:hurd/lock.h
 		 include/hurd/mutex.h:hurd/mutex.h
 		])

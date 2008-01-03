@@ -1,3 +1,27 @@
+2008-01-03  Neal H. Walfield  <neal@gnu.org>
+
+	* mutex.h: Don't include <l4/ipc.h>.  Include <hurd/lock.h>.
+	(struct ss_lock_trace): Move from here..
+	* lock.h: ... to this new file.
+	* mutex.h (SS_LOCK_TRACE_COUNT): Likewise.
+	(ss_mutex_lock): Likewise.
+	(ss_mutex_lock): Likewise.
+	(SS_MUTEX_LOCK): Likewise.
+	(SS_MUTEX_LOCK_WAIT): Likewise.
+	(SS_MUTEX_UNLOCK): Likewise.
+	(SS_MUTEX_TRYLOCK): Likewise.
+	(SS_MUTEX_TRYLOCK_BLOCKED): Likewise.
+	(ss_lock_trace_dump): Likewise.
+	(ss_mutex_trace_add): Likewise.
+	(ss_mutex_lock): To wait, call __ss_lock_wait.
+	(ss_mutex_unlock): To wakeup a thread, use __ss_lock_wakeup.
+	(ss_mutex_lock): New define.
+	(ss_mutex_unlock): Likewise.
+	(ss_mutex_trylock): Likewise.
+	* Makefile.am (includehurd_HEADERS): Add lock.h.
+	* headers.m4: Create link from ../include/hurd/lock.h to
+	hurd/lock.h.
+
 2008-01-02  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (struct exception_page): Make mode bits a union thereby
