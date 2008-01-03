@@ -366,7 +366,7 @@ folio_alloc (struct activity *activity, struct folio_policy policy)
 				      ({
 					if (b == a)
 					  break;
-					b->folio_count ++;
+					b->folio_count --;
 				      }));
 
 	  return NULL;

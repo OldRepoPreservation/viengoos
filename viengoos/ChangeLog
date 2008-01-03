@@ -1,3 +1,7 @@
+2008-01-03  Neal H. Walfield  <neal@gnu.org>
+
+	* object.c (folio_alloc): Correctly account folios.
+
 2008-01-02  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (libhurd_cap_a_CPPFLAGS): Add
