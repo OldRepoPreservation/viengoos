@@ -1,3 +1,13 @@
+2008-01-04  Neal H. Walfield  <neal@gnu.org>
+
+	* list.h (struct list_node): Add comment that about initialization
+	requirements.
+	(list_unlink): Always set ITEM->NEXT and ITEM->PREV to NULL.
+
+	(list_node_attached): New function.
+
+	(list_count): Add an assert.
+
 2008-01-03  Neal H. Walfield  <neal@gnu.org>
 
 	* object.c (folio_alloc): Correctly account folios.

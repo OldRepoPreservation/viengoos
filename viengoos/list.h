@@ -1,5 +1,5 @@
 /* list.h - Linked list interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -23,6 +23,8 @@
 
 /* A circular linked-list implementation.  */
 
+/* New nodes must be initialized to NULL before being added to a list.
+   (list_unlink will clear them.)  */
 struct list_node
 {
   struct list_node *next;
@@ -42,6 +44,13 @@ struct list
 };
 typedef struct list list_t;
 
+/* Return whether a node is attached to a list.  */
+static inline bool
+list_node_attached (struct list_node *node)
+{
+  return !! node->next;
+}
+
 /* Initialize a list.  Equivalently, zero initialization is
    sufficient.  */
 static inline void
@@ -63,13 +72,6 @@ list_init (struct list *list)
 /* Return the pointer value clearing any sentinel.  */
 #define LIST_PTR(__ls_ptr)				\
   ((struct list_node *) ((uintptr_t) (__ls_ptr) & ~1))
-
-/* Return the number of items attach to list LIST.  */
-static inline int
-list_count (struct list *list)
-{
-  return list->count;
-}
 
 /* Return LIST's head.  If the list is empty, returns NULL.  */
 static inline struct list_node *
@@ -108,6 +110,22 @@ list_prev (struct list_node *node)
   if (LIST_SENTINEL_P (node->prev))
     return NULL;
   return node->prev;
+}
+
+/* Return the number of items attach to list LIST.  */
+static inline int
+list_count (struct list *list)
+{
+#ifndef NDEBUG
+  int count = 0;
+  struct list_node *node;
+  for (node = list_head (list); node; node = list_next (node))
+    count ++;
+
+  assert (count == list->count);
+#endif
+
+  return list->count;
 }
 
 /* Add ITEM to the head of the list LIST.  */
@@ -238,11 +256,8 @@ list_unlink (struct list *list, struct list_node *item)
       item->prev->next = item->next;
     }
 
-#ifndef NDEBUG
-  /* Try to detect multiple unlink.  */
   item->next = NULL;
   item->prev = NULL;
-#endif
 
   list->count --;
 }
