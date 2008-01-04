@@ -1,5 +1,5 @@
 /* cap.h - Capability definitions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -207,7 +207,7 @@ struct cap_properties
 /* An OID corresponds to a page on a volume.  Only the least 54 bits
    are significant.  */
 typedef l4_uint64_t oid_t;
-#define OID_FMT "%llx"
+#define OID_FMT "0x%llx"
 #define OID_PRINTF(__op_oid) ((oid_t) (__op_oid))
 #endif
 
