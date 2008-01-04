@@ -51,6 +51,7 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	bits.h					\
 	elf.h loader.h loader.c			\
 	server.h server.c			\
+	pager.h pager.c				\
 	list.h
 
 # Doug Lea's malloc is included by malloc-wrap.c.

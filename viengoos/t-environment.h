@@ -277,6 +277,12 @@ environment_init (int argc, char *argv[])
   while (0)
 
 
+/* Some stub functions.  */
+void
+pager_collect (void)
+{
+}
+
 #include "output.h"
 
 void test (void);

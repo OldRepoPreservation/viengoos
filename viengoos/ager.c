@@ -1,5 +1,5 @@
 /* ager.c - Ager loop implementation.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -27,6 +27,7 @@
 #include "ager.h"
 #include "object.h"
 #include "activity.h"
+#include "zalloc.h"
 
 /* When frames are shared amoung multiple activities, the first
    activity to access the frame is charged.  This is unfair; the cost
@@ -54,9 +55,6 @@
 #define UNMAP_INACTIVE 0
 #define UNMAP_PERIODICALLY 1
 
-/* The amount to age a frame when it is found to be active.  */
-#define AGE_DELTA (1 << 8)
-
 void
 ager_loop (l4_thread_id_t main_thread)
 {
@@ -69,17 +67,11 @@ ager_loop (l4_thread_id_t main_thread)
   int iterations = 0;
 #endif
 
+  int frames = (last_frame - first_frame + PAGESIZE) / PAGESIZE;
+
   for (;;)
     {
-      int active = 0;
-      int inactive = 0;
-      int retired = 0;
-      int revived = 0;
-
-      /* XXX: This lock could be held for a while.  It would be much
-	 better to grab it and release it as required.  This
-	 complicates the code a bit and requires some thought.  */
-      ss_mutex_lock (&lru_lock);
+      int frame = 0;
 
 #define BATCH_SIZE (L4_NUM_MRS / 2)
       struct object_desc *descs[BATCH_SIZE];
@@ -88,22 +80,43 @@ ager_loop (l4_thread_id_t main_thread)
 
       /* We try to batch calls to l4_unmap, hence the acrobatics.  */
 
-      /* Grab a batch of records starting with *PTR.  Changes *PTR to
-	 point to the next unprocessed record.  */
-      int grab (struct object_desc **ptr)
+      /* Grab a batch of live objects starting with object I.  */
+      int grab (void)
       {
-	int count = 0;
-	for (; *ptr && count < BATCH_SIZE;
-	     *ptr = object_global_lru_list_next (*ptr))
+	int count;
+	for (count = 0; frame < frames && count < BATCH_SIZE; frame ++)
 	  {
-	    if (! ss_mutex_trylock (&(*ptr)->lock))
-	      /* We failed to get the lock.  This means that someone is
-		 using this object and thus it makes no sense to
-		 age it; just continue.  */
+	    struct object_desc *desc = &object_descs[frame];
+
+	    if (! desc->live)
+	      /* The object is not live.  */
+	      continue;
+	    if (desc->eviction_candidate)
+	      /* Eviction candidates are unmapped.  Don't waste our
+		 time.  */
 	      continue;
 
-	    descs[count] = (*ptr);
-	    objects[count] = object_desc_to_object (descs[count]);
+	    if (! ss_mutex_trylock (&desc->lock))
+	      /* We failed to get the lock.  This means that
+		 someone is using this object and thus it makes no
+		 sense to age it; just continue.  */
+	      continue;
+
+	    if (! desc->live || desc->eviction_candidate)
+	      /* State changed between check and lock acquisition,
+		 unlock and continue.  */
+	      {
+		ss_mutex_unlock (&desc->lock);
+		continue;
+	      }
+
+	    assertx (desc->activity,
+		     "OID: " OID_FMT " (%s), age: %d",
+		     OID_PRINTF (desc->oid), cap_type_string (desc->type),
+		     desc->age);
+
+	    descs[count] = desc;
+	    objects[count] = object_desc_to_object (desc);
 	    fpages[count] = l4_fpage ((l4_word_t) objects[count], PAGESIZE);
 
 	    count ++;
@@ -112,14 +125,14 @@ ager_loop (l4_thread_id_t main_thread)
 	return count;
       }
 
-      struct object_desc *ptr = object_global_lru_list_head (&global_active);
-      for (;;)
+      int retired = 0;
+      int revived = 0;
+
+      while (frame < frames)
 	{
-	  int count = grab (&ptr);
+	  int count = grab ();
 	  if (count == 0)
 	    break;
-
-	  active += count;
 
 	  /* Get the status bits for the COUNT objects.  (We flush
 	     rather than unmap as we are also interested in whether we
@@ -127,6 +140,8 @@ ager_loop (l4_thread_id_t main_thread)
 	     objects, e.g., cappages, on behalf activities or we have
 	     flushed a page of data to disk.) */
 	  l4_flush_fpages (count, fpages);
+
+	  ss_mutex_lock (&lru_lock);
 
 	  int i;
 	  for (i = 0; i < count; i ++)
@@ -138,144 +153,91 @@ ager_loop (l4_thread_id_t main_thread)
 	      int dirty = (rights & L4_FPAGE_WRITABLE);
 	      int referenced = (rights & L4_FPAGE_READABLE);
 
-	      desc->dirty = desc->dirty || dirty;
+	      if (dirty)
+		/* Dirty implies referenced.  */
+		assert (referenced);
 
-	      assert (desc->age);
-
-	      if (! referenced)
+	      if (desc->age)
+		/* The object was active.  */
 		{
-#if UNMAP_INACTIVE
-		  l4_fpage_t f;
-		  f = l4_fpage_add_rights (fpage, L4_FPAGE_FULLY_ACCESSIBLE);
-		  l4_unmap_fpage (f);
-#endif
+		  assert (desc->activity);
 
-		  desc->age >>= 1;
+		  desc->dirty |= dirty;
 
-		  if (desc->age == 0)
+		  if (referenced)
+		    object_age (desc);
+		  else
 		    {
-		      /* Move to the appropriate inactive lists.  */
-		      object_global_lru_list_unlink (&global_active, desc);
-		      if (desc->dirty && ! desc->policy.discardable)
-			object_global_lru_list_push (&global_inactive_dirty,
-						     desc);
-		      else
-			object_global_lru_list_push (&global_inactive_clean,
-						     desc);
+		      desc->age >>= 1;
 
-		      /* If the object is owned, then move it to its
-			 activity's inactive list.  Otherwise, the
-			 page is on the disowned list in which case we
-			 needn't do anything.  */
-		      if (desc->activity)
+		      if (! desc->age
+			  && desc->policy.priority == OBJECT_PRIORITY_LRU)
+			/* The object has become inactive.  */
 			{
-			  object_activity_lru_list_unlink
-			    (desc->activity
-			     ? &desc->activity->active : &disowned,
-			     desc);
+			  retired ++;
 
+			  /* Detach from active list.  */
+			  activity_lru_list_unlink (&desc->activity->active,
+						    desc);
+
+			  /* Attach to appropriate inactive list.  */
 			  if (desc->dirty && ! desc->policy.discardable)
-			    object_activity_lru_list_push
+			    activity_lru_list_push
 			      (&desc->activity->inactive_dirty, desc);
 			  else
-			    object_activity_lru_list_push
+			    activity_lru_list_push
 			      (&desc->activity->inactive_clean, desc);
+
+#if UNMAP_INACTIVE
+			  l4_fpage_t f;
+			  f = l4_fpage_add_rights (fpage,
+						   L4_FPAGE_FULLY_ACCESSIBLE);
+			  l4_unmap_fpage (f);
+#endif
 			}
 		    }
-
-		  retired ++;
 		}
 	      else
+		/* The object was inactive.  */
 		{
-		  /* Be careful with wrap around.  */
-		  if ((typeof (desc->age)) (desc->age + AGE_DELTA) > desc->age)
-		    desc->age += AGE_DELTA;
+		  if (referenced)
+		    /* The object has become active.  */
+		    {
+		      revived ++;
+
+		      desc->age = AGE_DELTA;
+
+		      if (desc->policy.priority == OBJECT_PRIORITY_LRU)
+			{
+			  /* Detach from inactive list.  */
+			  if (desc->dirty && ! desc->policy.discardable)
+			    activity_lru_list_unlink
+			      (&desc->activity->inactive_dirty, desc);
+			  else
+			    activity_lru_list_unlink
+			      (&desc->activity->inactive_clean, desc);
+
+			  /* Attach to active list.  */
+			  activity_lru_list_push (&desc->activity->active,
+						  desc);
+			}
+
+		      desc->dirty |= dirty;
+		    }
 		}
 
 	      ss_mutex_unlock (&desc->lock);
 	    }
+
+	  ss_mutex_unlock (&lru_lock);
 	}
-
-#if !UNMAP_INACTIVE
-      struct object_global_lru_list *lists[] = { &global_inactive_clean,
-						 &global_inactive_dirty };
-      int j;
-      for (j = 0; j < 2; j ++)
-	{
-	  ptr = object_global_lru_list_head (lists[j]);
-
-	  for (;;)
-	    {
-	      int count = grab (&ptr);
-	      if (count == 0)
-		break;
-
-	      inactive += count;
-
-	      /* Get the status bits for the COUNT objects.  (We flush
-		 rather than unmap as we are also interested in whether we
-		 have accessed the object--this occurs as we access some
-		 objects, e.g., cappages, on behalf activities or we have
-		 flushed a page of data to disk.) */
-	      l4_flush_fpages (count, fpages);
-
-	      int i;
-	      for (i = 0; i < count; i ++)
-		{
-		  struct object_desc *desc = descs[i];
-		  l4_fpage_t fpage = fpages[i];
-
-		  l4_word_t rights = l4_rights (fpage);
-
-		  int dirty = (rights & L4_FPAGE_WRITABLE);
-		  int referenced = (rights & L4_FPAGE_READABLE);
-		  if (dirty)
-		    assert (referenced);
-
-		  desc->dirty = desc->dirty ? : dirty;
-
-		  if (referenced)
-		    {
-		      revived ++;
-
-		      /* Move to the active list.  */
-		      object_global_lru_list_unlink (lists[j], desc);
-		      object_global_lru_list_push (&global_active, desc);
-
-		      desc->age = AGE_DELTA;
-
-		      /* If the object is not owned, then it is on the
-			 disowned list.  It's unusual that we should
-			 get a reference on an unowned object, but,
-			 that can happen.  */
-		      if (desc->activity)
-			{
-			  object_activity_lru_list_unlink
-			    (desc->activity
-			     ? (j == 0
-				? &desc->activity->inactive_clean
-				: &desc->activity->inactive_dirty)
-			     : &disowned,
-			     desc);
-			  object_activity_lru_list_push
-			    (&desc->activity->active, desc);
-			}
-		    }
-
-		  ss_mutex_unlock (&desc->lock);
-		}
-	    }
-	}
-#endif
-
-      ss_mutex_unlock (&lru_lock);
 
 #if UNMAP_PERIODICALLY
       if (iterations == 8 * 5)
 	{
-	  debug (1, "Unmapping all. %d active, %d inactive, last interation "
-		 "retired: %d, revived: %d",
-		 active, inactive, retired, revived);
+	  debug (1, "Unmapping all (%d of %d). "
+		 "last interation retired: %d, revived: %d",
+		 zalloc_memory, memory_total, retired, revived);
 
 	  l4_unmap_fpage (l4_fpage_add_rights (L4_COMPLETE_ADDRESS_SPACE,
 					       L4_FPAGE_FULLY_ACCESSIBLE));

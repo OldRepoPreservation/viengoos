@@ -117,41 +117,74 @@ struct activity;
 /* An object descriptor.  There is one for each in-memory object.  */
 struct object_desc
 {
-  /* Every in-memory object lives in a hash hashed on its OID.  */
-  void *locp;
-
+  /* Protects the following memorys and the object's data.  */
   ss_mutex_t lock;
 
   /* The version and OID of the object.  */
   oid_t oid;
-
   l4_word_t version : CAP_VERSION_BITS;
   l4_word_t type : CAP_TYPE_BITS;
 
+  /* Whether the page is dirty.  */
   l4_word_t dirty: 1;
 
+  /* Whether the object has been selected for eviction.  */
+  l4_word_t eviction_candidate : 1;
+
+  /* Whether the object is live.  */
+  l4_word_t live: 1;
+
+  /* The object's policy.  Set when the object is claimed using the
+     value in the capability referencing the object.  */
   struct object_policy policy;
 
   /* The object's age.  */
   uint16_t age;
-
-  /* Ordered list of all owned objects whose priority is other than
-     OBJECT_PRIORITY_LRU.  */
-  hurd_btree_node_t priority_node;
 
   /* The activity to which the *memory* (not the storage) is
      attributed.  If none, then NULL.  (The owner of the storage can
      be found by looking at the folio.)  */
   struct activity *activity;
 
-  /* Each allocated object is attached to the activity that pays for
-     it.  If ACTIVITY is NULL, then attached to DISOWNED.  Protected
-     by LRU_LOCK.  */
-  struct list_node activity_lru;
+  /* The following members are protected by LRU_LOCK.  */
 
-  /* Each allocated object is attached to either the global active or
-     the global inactive list.  */
-  struct list_node global_lru;
+  /* Every in-memory object lives in a hash hashed on its OID.  */
+  void *locp;
+
+  union
+  {
+    /* ACTIVITY is valid, EVICTION_CANDIDATE is false, POLICY.PRIORITY
+       != OBJECT_PRIORITY_LRU.
+
+         => attached to ACTIVITY->PRIORITIES.  */
+    hurd_btree_node_t priority_node;
+
+    /* ACTIVITY is valid, EVICTION_CANDIDATE is false, POLICY.PRIORITY
+       == OBJECT_PRIORITY_LRU,
+
+         => attached to one of ACTIVITY's LRU lists.
+
+      EVICTION_CANDIDATE is true
+
+         => attached to either ACTIVITY->EVICTION_CLEAN or
+            ACTIVITY->EVICTION_DIRTY.  */
+    struct list_node activity_node;
+  };
+
+  union
+  {
+    /* If EVICTION_CANDIDATE is true and DIRTY and
+       !POLICY.DISCARDABLE, then attached to LAUNDRY.
+
+       If EVICTION_CANDIDATE is false, MAY be attached to LAUNDRY if
+       DIRTY and !POLICY.DISCARDABLE.  (In this case, it is a
+       optimistic sync.)  */
+    struct list_node laundry_node;
+
+    /* If EVICTION_CANDIDATE is true and either !DIRTY or
+       POLICY.DISCARDABLE, then attached to AVAILABLE.  */
+    struct list_node available_node;
+  };
 };
 
 /* We keep an array of object descriptors.  There is a linear mapping
@@ -160,28 +193,29 @@ struct object_desc
    memory map.  */
 extern struct object_desc *object_descs;
 
-LIST_CLASS(object_activity_lru, struct object_desc, activity_lru)
-LIST_CLASS(object_global_lru, struct object_desc, global_lru)
+LIST_CLASS(activity_lru, struct object_desc, activity_node)
+LIST_CLASS(eviction, struct object_desc, activity_node)
+
+LIST_CLASS(available, struct object_desc, available_node)
+LIST_CLASS(laundry, struct object_desc, laundry_node)
 
-/* Lock protecting the following lists and each object descriptor's
-   activity_lru, global_lru and priority_node fields.  */
+/* Lock protecting the following lists as well as an activity's
+   lists.  */
 extern ss_mutex_t lru_lock;
 
-/* The global LRU lists.  Every allocated frame is on one of these
-   two.  */
-extern struct object_global_lru_list global_active;
-extern struct object_global_lru_list global_inactive_dirty;
-extern struct object_global_lru_list global_inactive_clean;
-/* Objects that are not accounted to any activity (e.g., if the
-   activity to which an object is attached is destroyed, it is
-   attached to this list).  */
-extern struct object_activity_lru_list disowned;
+/* List of objects that need syncing to backing store.  */
+extern struct laundry_list laundry;
+/* List of clean objects available for reallocation.  */
+extern struct available_list available;
 
 /* Sort lower priority objects towards the start.  */
 static int
 priority_compare (const struct object_policy *a,
 		  const struct object_policy *b)
 {
+  /* XXX: We should actually compare on priority and then on age.  To
+     allowing finding an object with a particular priority but any
+     age, we need to have a special key.  */
   return (int) a->priority - (int) b->priority;
 }
 
@@ -204,33 +238,40 @@ extern struct object *object_find_soft (struct activity *activity,
 					oid_t oid,
 					struct object_policy policy);
 
+/* Destroy the object OBJECT.  Any changes must have already been
+   flushed to disk.  LRU_LOCK must be held.  Does NOT release the
+   memory.  It is the caller's responsibility to ensure that
+   memory_frame_free is eventually called.  */
+extern void memory_object_destroy (struct activity *activity,
+				   struct object *object);
+
 /* Return the object corresponding to the object descriptor DESC.  */
-#define object_desc_to_object(desc_) \
-  ({ \
-    struct object_desc *desc__ = (desc_); \
-    /* There is only one legal area for descriptors.  */ \
-    assert ((uintptr_t) object_descs <= (uintptr_t) (desc__)); \
-    assert ((uintptr_t) (desc__) \
-	    <= (uintptr_t) &object_descs[(last_frame - first_frame) \
-					 / PAGESIZE]); \
-  \
-    (struct object *) (first_frame \
+#define object_desc_to_object(desc_)					\
+  ({									\
+    struct object_desc *desc__ = (desc_);				\
+    /* There is only one legal area for descriptors.  */		\
+    assert ((uintptr_t) object_descs <= (uintptr_t) (desc__));		\
+    assert ((uintptr_t) (desc__)					\
+	    <= (uintptr_t) &object_descs[(last_frame - first_frame)	\
+					 / PAGESIZE]);			\
+									\
+    (struct object *) (first_frame					\
 		       + (((uintptr_t) (desc__) - (uintptr_t) object_descs) \
-			  / sizeof (struct object_desc)) * PAGESIZE); \
+			  / sizeof (struct object_desc)) * PAGESIZE);	\
   })
 
 /* Return the object descriptor corresponding to the object
    OBJECT.  */
-#define object_to_object_desc(object_) \
-  ({ \
-    struct object *object__ = (object_); \
-    /* Objects better be on a page boundary.  */ \
-    assert (((uintptr_t) (object__) & (PAGESIZE - 1)) == 0); \
-    /* And they better be in memory.  */ \
-    assert (first_frame <= (uintptr_t) (object__)); \
-    assert ((uintptr_t) (object__) <= last_frame); \
-  \
-    &object_descs[((uintptr_t) (object__) - first_frame) / PAGESIZE]; \
+#define object_to_object_desc(object_)					\
+  ({									\
+    struct object *object__ = (object_);				\
+    /* Objects better be on a page boundary.  */			\
+    assert (((uintptr_t) (object__) & (PAGESIZE - 1)) == 0);		\
+    /* And they better be in memory.  */				\
+    assert (first_frame <= (uintptr_t) (object__));			\
+    assert ((uintptr_t) (object__) <= last_frame);			\
+									\
+    &object_descs[((uintptr_t) (object__) - first_frame) / PAGESIZE];	\
   })
 
 /* Return a cap referencing the object designated by OBJECT_DESC.  */
@@ -261,64 +302,57 @@ object_type (struct object *object)
 {
   return object_to_object_desc (object)->type;
 }
+
+/* Unmaps the object corresponding to DESC from all clients.  Returns
+   whether it was dirty.  */
+static inline bool
+object_desc_unmap (struct object_desc *desc)
+{
+  assert (desc->live);
+
+  struct object *object = object_desc_to_object (desc);
+
+  l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
+  l4_fpage_t unmap = l4_fpage_add_rights (flush, L4_FPAGE_FULLY_ACCESSIBLE);
+
+  desc->dirty |= l4_was_written (l4_unmap_fpage (unmap));
+
+  if (! desc->dirty)
+    /* We may have dirty it.  */
+    desc->dirty |= l4_was_written (l4_flush (flush));
+
+  return desc->dirty;
+}
 
-/* Like object_disown but does not adjust DESC->ACTIVITY->FRAMES.
-   (This is useful when removing multiple frames at once.)  */
-extern void object_desc_disown_simple (struct object_desc *desc);
+/* Transfer ownership of DESC to the activity ACTIVITY.  If ACTIVITY
+   is NULL, detaches DESC from lists (this functionality should only
+   be used by memory_object_destroy).  If UPDATE_ACCOUNTING is not
+   true, it is the caller's responsibility to update the accounting
+   information for the old owner and the new owner.  */
+extern void object_desc_claim (struct activity *activity,
+			       struct object_desc *desc,
+			       struct object_policy policy,
+			       bool update_accounting);
 
+/* See object_desc_claim.  */
 static inline void
-object_disown_simple (struct object *object)
+object_claim (struct activity *activity, struct object *object,
+	      struct object_policy policy, bool update_accounting)
 {
-  object_desc_disown_simple (object_to_object_desc (object));
+  object_desc_claim (activity, object_to_object_desc (object), policy,
+		     update_accounting);
 }
-
-extern inline void object_desc_disown_ (struct object_desc *desc);
-#define object_desc_disown(d)						\
-  ({ debug (5, "object_desc_disown: %p (%d)",				\
-	    d->activity, d->activity->frames_total);			\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-    object_desc_disown_ (d); })
-
-/* The activity to which OBJECT is accounted should no longer be
-   accounted OJBECT.  Attaches object to the DISOWNED list.  */
+
 static inline void
-object_disown_ (struct object *object)
+object_age (struct object_desc *desc)
 {
-  object_desc_disown_ (object_to_object_desc (object));
-}
-#define object_disown(o)						\
-  ({									\
-    debug (5, "object_disown: ");					\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-    object_disown_ (o);							\
-  })
+  /* The amount to age a frame when it is found to be active.  */
+#define AGE_DELTA (1 << 8)
 
-/* Transfer ownership of DESC to the activity ACTIVITY.  */
-extern void object_desc_claim_ (struct activity *activity,
-				struct object_desc *desc,
-				struct object_policy policy);
-#define object_desc_claim(__odc_a, __odc_o, __odc_p)			\
-  ({									\
-    debug (5, "object_desc_claim: %p (%d)",				\
-	   (__odc_a), (__odc_a)->frames_total);				\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-    object_desc_claim_ ((__odc_a), (__odc_o), (__odc_p));		\
-  })
-
-/* Transfer ownership of OBJECT to the activity ACTIVITY.  */
-static inline void
-object_claim_ (struct activity *activity, struct object *object,
-	       struct object_policy policy)
-{
-  object_desc_claim_ (activity, object_to_object_desc (object), policy);
+  /* Be careful with wrap around.  */
+  if ((typeof (desc->age)) (desc->age + AGE_DELTA) > desc->age)
+    desc->age += AGE_DELTA;
 }
-#define object_claim(__oc_a, __oc_o, __oc_p)				\
-  ({									\
-    debug (5, "object_claim: %p (%d)",					\
-	   (__oc_a), (__oc_a)->frames_total);				\
-    assert (! ss_mutex_trylock (&lru_lock));				\
-    object_claim_ ((__oc_a), (__oc_o));					\
-  })
 
 /* Allocate a folio to activity ACTIVITY.  POLICY is the new folio's
    initial storage policy.  Returns NULL if not possible.  Otherwise a
@@ -352,20 +386,37 @@ folio_object_free (struct activity *activity,
 		      OBJECT_POLICY_VOID, NULL);
 }
 
-/* Deallocate the object OBJECT.  */
-static inline void
-object_free (struct activity *activity, struct object *object)
+/* Return an object's position within its folio.  */
+static inline int
+objects_folio_offset (struct object *object)
+{
+  struct object_desc *desc = object_to_object_desc (object);
+
+  return (desc->oid % (1 + FOLIO_OBJECTS)) - 1;
+}
+
+/* Return the folio corresponding to the object OBJECT.  */
+static inline struct folio *
+objects_folio (struct activity *activity, struct object *object)
 {
   struct object_desc *odesc = object_to_object_desc (object);
 
-  int page = (odesc->oid % (1 + FOLIO_OBJECTS)) - 1;
+  int page = objects_folio_offset (object);
   oid_t foid = odesc->oid - page - 1;
 
   struct folio *folio = (struct folio *) object_find (activity, foid,
 						      OBJECT_POLICY_VOID);
   assert (folio);
 
-  folio_object_free (activity, folio, page);
+  return folio;
+}
+
+/* Deallocate the object OBJECT.  */
+static inline void
+object_free (struct activity *activity, struct object *object)
+{
+  folio_object_free (activity, objects_folio (activity, object),
+		     objects_folio_offset (object));
 }
 
 /* Get and set folio FOLIO's storage policy according to flags FLAGS,

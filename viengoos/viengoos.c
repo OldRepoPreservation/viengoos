@@ -200,7 +200,8 @@ memory_configure (void)
 void
 system_task_load (void)
 {
-  struct hurd_startup_data *startup_data = (void *) memory_frame_allocate ();
+  struct hurd_startup_data *startup_data
+    = (void *) memory_frame_allocate (NULL);
 
   bool boot_strapped = false;
 
@@ -300,10 +301,16 @@ system_task_load (void)
   root_activity = (struct activity *) cap_to_object (root_activity, &rt.cap);
   folio_parent (root_activity, folio);
 
+  object_claim (root_activity, (struct object *) root_activity,
+		OBJECT_POLICY_VOID, true);
+  object_claim (root_activity, (struct object *) folio,
+		OBJECT_POLICY_VOID, true);
+
   rt = allocate_object (cap_thread, startup_data->thread);
   startup_data->thread = rt.storage;
   thread = (struct thread *) cap_to_object (root_activity, &rt.cap);
   thread->activity = object_to_cap ((struct object *) root_activity);
+
 
   /* Insert the objects we've allocated so far into TASK's address
      space.  */

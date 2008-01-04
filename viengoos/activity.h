@@ -67,20 +67,33 @@ struct activity
   struct activity *sibling_next;
   struct activity *sibling_prev;
 
-  /* Objects owned by this activity.  */
-  struct object_activity_lru_list active;
-  struct object_activity_lru_list inactive_clean;
-  struct object_activity_lru_list inactive_dirty;
+  /* Objects owned by this activity whose priority is
+     OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
+     false.  */
+  struct activity_lru_list active;
+  struct activity_lru_list inactive_clean;
+  struct activity_lru_list inactive_dirty;
 
-  /* All objects owned by this activity whose priority is not
-     OBJECT_PRIORITY_LRU, keyed by priority.  */
+  /* Objects owned by this activity whose priority is not
+     OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
+     false.  Keyed by priority.  */
   hurd_btree_priorities_t priorities;
 
+  /* Objects that are owned by this activity and have been selected
+     for eviction (DESC->EVICTION_CANDIDATE is true).  These objects
+     do not appear on the active or inactive lists and do not
+     contribute to frames_local or frames_total.  */
+  struct eviction_list eviction_clean;
+  struct eviction_list eviction_dirty;
+
+  /* Number of frames allocated to this activity not counting
+     children.  */
   uint32_t frames_local;
   /* Number of frames allocated to this activity (including children).
      This is the sum of the number of objects on ACTIVE,
      INACTIVE_CLEAN and INACTIVE_DIRTY plus the number of frames
-     allocated to each child.  */
+     allocated to each child.  This does not include the number of
+     frames on the page out list.  */
   uint32_t frames_total;
 
   int dying;
@@ -135,12 +148,18 @@ static inline void
 activity_charge (struct activity *activity, int objects)
 {
   assert (activity);
+  if (objects < 0)
+    assertx (-objects <= activity->frames_local,
+	     "%d <= %d", -objects, activity->frames_local);
+
   activity->frames_local += objects;
   activity_for_each_ancestor (activity,
 			      ({
-				assert (activity->frames_total >= 0);
+				if (objects < 0)
+				  assertx (-objects <= activity->frames_total,
+					   "%d <= %d",
+					   -objects, activity->frames_total);
 				activity->frames_total += objects;
-				assert (activity->frames_total >= 0);
 			      }));
 }
 

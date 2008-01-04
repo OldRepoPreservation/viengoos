@@ -18,8 +18,10 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#include "zalloc.h"
 #include "memory.h"
+#include "pager.h"
+#include "activity.h"
+#include "zalloc.h"
 
 #include <string.h>
 
@@ -333,13 +335,22 @@ memory_grab (void)
 #else
   l4_word_t s;
   l4_fpage_t fpage;
+
+#if 0
+  /* We need the dirty bits at a page granularity due to our own
+     references.  This unfortunately means no large pages.  */
+
   /* Try with the largest fpage possible.  */
   for (s = L4_WORDSIZE - 1; s >= l4_min_page_size_log2 (); s --)
-    /* Keep getting pages of size 2^S.  */
-    while (! l4_is_nil_fpage (fpage = sigma0_get_any (s)))
-      /* FPAGE is an fpage of size 2^S.  Add each non-reserved base
-	 frame to the free list.  */
-      add (l4_address (fpage), l4_size (fpage));
+    ...;
+#endif
+
+  s = l4_min_page_size_log2 ();
+  /* Keep getting pages of size 2^S.  */
+  while (! l4_is_nil_fpage (fpage = sigma0_get_any (s)))
+    /* FPAGE is an fpage of size 2^S.  Add each non-reserved base
+       frame to the free list.  */
+    add (l4_address (fpage), l4_size (fpage));
 #endif
 
 #ifndef NDEBUG
@@ -348,10 +359,57 @@ memory_grab (void)
 #endif
 }
 
-l4_word_t
-memory_frame_allocate (void)
+uintptr_t
+memory_frame_allocate (struct activity *activity)
 {
-  l4_word_t f = zalloc (PAGESIZE);
+  uintptr_t f = zalloc (PAGESIZE);
+  if (! f)
+    {
+      bool collected = false;
+
+      for (;;)
+	{
+	  /* Check if there are any pages on the available list.  */
+	  ss_mutex_lock (&lru_lock);
+
+	  /* XXX: We avoid objects that require special treatment.
+	     Realize this special treatment.  */
+	  struct object_desc *desc = available_list_tail (&available);
+	  while (desc)
+	    {
+	      if (desc->type != cap_activity_control
+		  && desc->type != cap_thread)
+		break;
+
+	      desc = available_list_prev (&available);
+	    }
+
+	  if (desc)
+	    {
+	      assert (desc->live);
+	      assert (desc->eviction_candidate);
+	      assert (desc->activity);
+	      assert (object_type ((struct object *) desc->activity)
+		      == cap_activity_control);
+	      assert (! desc->dirty || desc->policy.discardable);
+
+	      struct object *object = object_desc_to_object (desc);
+	      memory_object_destroy (activity, object);
+
+	      f = (uintptr_t) object;
+	    }
+
+	  ss_mutex_unlock (&lru_lock);
+
+	  if (f || collected)
+	    break;
+
+	  /* Try collecting.  */
+	  pager_collect ();
+	  collected = true;
+	}
+    }
+
   if (! f)
     panic ("Out of memory");
 

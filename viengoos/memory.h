@@ -1,5 +1,5 @@
 /* memory.h - Basic memory management interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -23,6 +23,9 @@
 
 #include <stdint.h>
 #include <l4.h>
+
+/* Forward.  */
+struct activity;
 
 enum memory_reservation
   {
@@ -70,9 +73,9 @@ extern void memory_reservation_clear (enum memory_reservation reservation);
 /* Grab all the memory in the system.  */
 extern void memory_grab (void);
 
-/* Allocate a page of memory.  Returns NULL if there is no memory
-   available.  */
-extern l4_word_t memory_frame_allocate (void);
+/* Allocate a page of memory on behalf of activity ACTIVITY.  Returns
+   NULL if there is no memory available.  */
+extern uintptr_t memory_frame_allocate (struct activity *activity);
 
 /* Return the frame starting at address ADDR to the free pool.  */
 extern void memory_frame_free (l4_word_t addr);

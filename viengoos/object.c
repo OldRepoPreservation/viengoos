@@ -33,10 +33,8 @@ struct object_desc *object_descs;
 
 ss_mutex_t lru_lock;
 
-struct object_global_lru_list global_active;
-struct object_global_lru_list global_inactive_dirty;
-struct object_global_lru_list global_inactive_clean;
-struct object_activity_lru_list disowned;
+struct laundry_list laundry;
+struct available_list available;
 
 /* XXX: The number of in memory folios.  (Recall: one folio => 512kb
    storage.)  */
@@ -88,10 +86,11 @@ memory_object_alloc (struct activity *activity,
 {
   debug (5, "Allocating %llx(%d), %s", oid, version, cap_type_string (type));
 
+  assert (activity || ! root_activity);
   assert (type != cap_void);
   assert ((type == cap_folio) == ((oid % (FOLIO_OBJECTS + 1)) == 0));
 
-  struct object *object = (struct object *) memory_frame_allocate ();
+  struct object *object = (struct object *) memory_frame_allocate (activity);
   if (! object)
     {
       /* XXX: Do some garbage collection.  */
@@ -102,14 +101,12 @@ memory_object_alloc (struct activity *activity,
   /* Fill in the object descriptor.  */
 
   struct object_desc *odesc = object_to_object_desc (object);
+  assert (! odesc->live);
+  memset (odesc, 0, sizeof (*odesc));
+
   odesc->type = type;
   odesc->version = version;
   odesc->oid = oid;
-
-  odesc->dirty = 0;
-  odesc->lock = l4_nilthread;
-
-  assert (! odesc->activity);
 
   /* Add to OBJECTS.  */
   bool had_value;
@@ -119,71 +116,52 @@ memory_object_alloc (struct activity *activity,
   assert (err == 0);
   assert (! had_value);
 
-  /* Connect to object lists.  */
-
-  /* Give it a nominal age so that it is not immediately paged out.
-     Normally, the page will be immediately referenced.  */
-  odesc->age = 1;
-
-  ss_mutex_lock (&lru_lock);
-
-  odesc->global_lru.next = odesc->global_lru.prev = NULL;
-  odesc->activity_lru.next = odesc->activity_lru.prev = NULL;
-
-  object_global_lru_list_push (&global_active, odesc);
-  /* object_desc_claim wants to first unlink the descriptor.  To make
-     it happy, we initially connect the descriptor to the disowned
-     list.  */
-  object_activity_lru_list_push (&disowned, odesc);
+  /* Mark the object as live.  */
+  odesc->live = 1;
 
   if (! activity)
     /* This may only happen if we are initializing.  */
     assert (! root_activity);
   else
-    /* Account the memory to the activity ACTIVITY.  */
-    object_desc_claim (activity, odesc, policy);
+    {
+      ss_mutex_lock (&lru_lock);
 
-  ss_mutex_unlock (&lru_lock);
+      /* Account the memory to the activity ACTIVITY.  */
+      object_desc_claim (activity, odesc, policy, true);
+
+      ss_mutex_unlock (&lru_lock);
+    }
 
   return object;
 }
 
-/* Release the object.  */
-static void
+void
 memory_object_destroy (struct activity *activity, struct object *object)
 {
   assert (activity);
+  assert (! ss_mutex_trylock (&lru_lock));
 
   struct object_desc *desc = object_to_object_desc (object);
+
+  assert (desc->live);
 
   debug (5, "Destroy %s at 0x%llx (object %d)",
 	 cap_type_string (desc->type), desc->oid,
 	 ((uintptr_t) desc - (uintptr_t) object_descs)
 	 / sizeof (*desc));
 
+  if (desc->dirty && desc->policy.discardable)
+    /* Note that the page was discarded.  */
+    /* XXX: This doesn't really belong here.  */
+    {
+      struct folio *folio = objects_folio (activity, object);
+      folio->objects[objects_folio_offset (object)].content = 0;
+    }
+
   struct cap cap = object_desc_to_cap (desc);
   cap_shootdown (activity, &cap);
 
-  ss_mutex_lock (&lru_lock);
-  object_desc_disown (desc);
-
-  struct object_global_lru_list *global;
-  if (desc->age)
-    /* DESC is active.  */
-    global = &global_active;
-  else
-    /* DESC is inactive.  */
-    if (desc->dirty && ! desc->policy.discardable)
-      /* And dirty.  */
-      global = &global_inactive_dirty;
-    else
-      /* And clean.  */
-      global = &global_inactive_clean;
-
-  object_activity_lru_list_unlink (&disowned, desc);
-  object_global_lru_list_unlink (global, desc);
-
-  ss_mutex_unlock (&lru_lock);
+  object_desc_claim (NULL, desc, desc->policy, true);
 
   if (desc->type == cap_activity_control)
     {
@@ -199,8 +177,7 @@ memory_object_destroy (struct activity *activity, struct object *object)
   memset (desc, 0xde, sizeof (struct object_desc));
 #endif
 
-  /* Return the frame to the free pool.  */
-  memory_frame_free ((l4_word_t) object);
+  desc->live = 0;
 }
 
 struct object *
@@ -225,7 +202,7 @@ object_find_soft (struct activity *activity, oid_t oid,
        ownership.  */
     {
       ss_mutex_lock (&lru_lock);
-      object_desc_claim (activity, odesc, policy);
+      object_desc_claim (activity, odesc, policy, true);
       ss_mutex_unlock (&lru_lock);
     }
 
@@ -460,13 +437,6 @@ folio_free (struct activity *activity, struct folio *folio)
   folio->next.type = cap_void;
   folio->prev.type = cap_void;
 
-  /* Disown the frame.  */
-  owner = fdesc->activity;
-
-  ss_mutex_lock (&lru_lock);
-  object_disown ((struct object *) folio);
-  ss_mutex_unlock (&lru_lock);
-
   /* And free the folio.  */
   folio->folio_version = fdesc->version ++;
   bit_dealloc (folios, fdesc->oid / (FOLIO_OBJECTS + 1));
@@ -531,7 +501,13 @@ folio_object_alloc (struct activity *activity,
       if (type == cap_void)
 	/* We are deallocating the object: free associated memory.  */
 	{
+	  ss_mutex_lock (&lru_lock);
 	  memory_object_destroy (activity, object);
+	  ss_mutex_unlock (&lru_lock);
+
+	  /* Return the frame to the free pool.  */
+	  memory_frame_free ((l4_word_t) object);
+
 	  object = NULL;
 	}
       else
@@ -541,7 +517,7 @@ folio_object_alloc (struct activity *activity,
 	  cap_shootdown (activity, &cap);
 
 	  ss_mutex_lock (&lru_lock);
-	  object_desc_claim (activity, odesc, policy);
+	  object_desc_claim (activity, odesc, policy, true);
 	  ss_mutex_unlock (&lru_lock);
 	}
 
@@ -624,82 +600,96 @@ folio_policy (struct activity *activity,
 }
 
 void
-object_desc_disown_simple (struct object_desc *desc)
+object_desc_claim (struct activity *activity, struct object_desc *desc,
+		   struct object_policy policy, bool update_accounting)
 {
-  assert (! ss_mutex_trylock (&lru_lock));
-  assert (desc->activity);
+  assert (desc->activity || activity);
 
-  struct object_activity_lru_list *list;
-  if (desc->age)
-    /* DESC is active.  */
-    list = &desc->activity->active;
-  else
-    /* DESC is inactive.  */
-    if (desc->dirty && ! desc->policy.discardable)
-      /* And dirty.  */
-      list = &desc->activity->inactive_dirty;
-    else
-      /* And clean.  */
-      list = &desc->activity->inactive_clean;
-
-  object_activity_lru_list_unlink (list, desc);
-  object_activity_lru_list_push (&disowned, desc);
-
-  if (desc->policy.priority != OBJECT_PRIORITY_LRU)
-    hurd_btree_priorities_detach (&desc->activity->priorities, desc);
-
-  desc->activity = NULL;
-}
-
-void
-object_desc_disown_ (struct object_desc *desc)
-{
-  activity_charge (desc->activity, -1);
-  object_desc_disown_simple (desc);
-}
-
-void
-object_desc_claim_ (struct activity *activity, struct object_desc *desc,
-		    struct object_policy policy)
-{
-  assert (activity);
-
-  if (desc->activity == activity)
-    /* Same owner: update the policy.  */
+  if (desc->activity == activity
+      && ! desc->eviction_candidate
+      && desc->policy.priority == policy.priority)
+    /* The owner remains the same, the object is not an eviction
+       candidate and the priority didn't change; don't do any
+       unnecessary work.  */
     {
       desc->policy.discardable = policy.discardable;
-
-      if (desc->policy.priority == policy.priority)
-	/* The priority didn't change; don't do any unnecessary work.  */
-	return;
-
-      if (desc->policy.priority != OBJECT_PRIORITY_LRU)
-	hurd_btree_priorities_detach (&desc->activity->priorities, desc);
-
-      desc->policy.priority = policy.priority;
-
-      if (desc->policy.priority != OBJECT_PRIORITY_LRU)
-	hurd_btree_priorities_insert (&desc->activity->priorities, desc);
-
       return;
     }
 
+
+  /* We need to disconnect DESC from its old activity.  If DESC does
+     not have an activity, it being initialized.  */
   if (desc->activity)
-    /* Already claimed by another activity; first disown it.  */
-    object_desc_disown (desc);
-
-  /* DESC->ACTIVITY is NULL so DESC must be on DISOWNED.  */
-  object_activity_lru_list_unlink (&disowned, desc);
-  object_activity_lru_list_push (&activity->active, desc);
-  desc->activity = activity;
-  activity_charge (activity, 1);
-
-  desc->policy.discardable = policy.discardable;
-  desc->policy.priority = policy.priority;
-  if (policy.priority != OBJECT_PRIORITY_LRU)
-    /* Add to ACTIVITY's priority queue.  */
     {
-      void *ret = hurd_btree_priorities_insert (&activity->priorities, desc);
+      assert (object_type ((struct object *) desc->activity)
+	      == cap_activity_control);
+
+      if (desc->eviction_candidate)
+	/* DESC is an eviction candidate.  The act of claiming saves
+	   it.  */
+	{
+	  if (desc->dirty && ! desc->policy.discardable)
+	    {
+	      laundry_list_unlink (&laundry, desc);
+	      eviction_list_unlink (&desc->activity->eviction_dirty, desc);
+	    }
+	  else
+	    {
+	      available_list_unlink (&available, desc);
+	      eviction_list_unlink (&desc->activity->eviction_clean, desc);
+	    }
+	}
+      else
+	{
+	  if (desc->policy.priority != OBJECT_PRIORITY_LRU)
+	    hurd_btree_priorities_detach (&desc->activity->priorities, desc);
+	  else
+	    {
+	      struct activity_lru_list *list;
+	      if (desc->age)
+		/* DESC is active.  */
+		list = &desc->activity->active;
+	      else
+		/* DESC is inactive.  */
+		if (desc->dirty && ! desc->policy.discardable)
+		  /* And dirty.  */
+		  list = &desc->activity->inactive_dirty;
+		else
+		  /* And clean.  */
+		  list = &desc->activity->inactive_clean;
+
+	      activity_lru_list_unlink (list, desc);
+	    }
+
+	  if (activity != desc->activity && update_accounting)
+	    activity_charge (desc->activity, -1);
+	}
+    }
+
+  if (! activity)
+    return;
+
+  desc->policy.priority = policy.priority;
+
+  /* Assign to ACTIVITY.  */
+
+  /* We make the object active.  The invariants require that DESC->AGE
+     be non-zero.  */
+  object_age (desc);
+  if (desc->policy.priority != OBJECT_PRIORITY_LRU)
+    {
+      void *ret = hurd_btree_priorities_insert (&activity->priorities,
+						desc);
       assert (! ret);
     }
+  else
+    activity_lru_list_push (&activity->active, desc);
+
+  if ((desc->eviction_candidate || activity != desc->activity)
+      && update_accounting)
+    activity_charge (activity, 1);
+	
+  desc->eviction_candidate = false;
+  desc->activity = activity;
+  desc->policy.discardable = policy.discardable;
 }

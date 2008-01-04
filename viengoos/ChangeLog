@@ -1,5 +1,88 @@
 2008-01-04  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (struct activity): Add fields eviction_clean and
+	eviction_dirty.  Improve comments.
+	(activity_charge): Change asserts to account for unsignedness.
+	* activity.c (activity_destroy): Move all objects owned by VICTIM
+	to its parent.
+	(activity_deprepare): Add additional asserts.
+	(do_activity_dump): Don't assert that ACTIVITY->FRAMES_LOCAL is
+	the sum of the items on ACTIVITY's LRU lists.
+	* object.h (struct object_desc): Add fields eviction_candidate,
+	live, laundry_node and available_node.  Make priority_node a union
+	with activity_node, which replaces activity_lru.  Remove field
+	global_lru.
+	(object_activity_lru): Rename this list class...
+	(activity_lru): ... to this.  Update users.
+	(object_global_lru): Don't generate this list class.
+	(eviction): Generate new list class.
+	(available): Likewise.
+	(laundry): Likewise.
+	(global_active): Remove declaration.
+	(global_inactive_dirty): Likewise.
+	(global_inactive_clean): Likewise.
+	(disowned): Likewise.
+	(laundry): New declaration.
+	(available): Likewise.
+	(memory_object_destroy): Likewise.
+	(object_desc_disown_simple): Remove declaration.
+	(object_disown_simple): Remove function.
+	(object_desc_disown): Likewise.
+	(object_disown): Likewise.
+	(object_desc_claim): Take additional parameter update_accounting.
+	Update users.
+	(object_claim): Likewise.
+	(object_desc_unmap): New function.
+	(object_age): Likewise.
+	(objects_folio_offset): Likewise.
+	(objects_folio): Likewise.
+	(object_free): Implement in terms of the above two functions.
+	* object.c (global_active): Remove variable.
+	(global_inactive_dirty): Likewise.
+	(global_inactive_clean): Likewise.
+	(disowned): Likewise.
+	(laundry): New variable.
+	(available): Likewise.
+	(memory_object_alloc): Initialize ODESC to 0.  Call
+	object_desc_claim to attach it to the relevant lists.  Assert that
+	ODESC->LIVE is 0.  Set ODESC->LIVE to 1.
+	(memory_object_destroy): Remove static qualifier.  Require that
+	LRU_LOCK be held on entry.  Update users.  Use object_desc_claim
+	to disconnect DESC from any lists to which it is attached.  Don't
+	call memory_frame_free, that is now the caller's responsibility.
+	Update users. Set DESC->LIVE to 0.
+	(folio_free): Don't disown the folio header.
+	(folio_object_alloc): Call memory_frame_free to really free the
+	memory.
+	(object_desc_disown_simple): Remove function.
+	(object_desc_disown_): Likewise.
+	(object_desc_claim): Take additional parameter update_accounting.
+	If true, update the relevant activities' accounting information.
+	Update connect and disconnect code.  Only add an object to one of
+	the priority tree and the lru lists, but not both.
+	* viengoos.c (system_task_load): After allocating the
+	root activity, have the root activity claim it and FOLIO.
+	* ager.c: Include "zalloc.h".
+	(AGE_DELTA): Don't define.
+	(ager_loop): Rewrite to walk the object descriptors sequentially
+	rather than following a linked list.  Update object list
+	connection and disconnection code.
+	* pager.h: New file.
+	* pager.c: Likewise.
+	* Makefile.am (viengoos_SOURCES): Add pager.h and pager.c.
+	* memory.h (struct activity): Add forward.
+	(memory_frame_allocate): Take additional parameter activity.
+	Return a uintptr_t instead of an l4_word_t.  Update users.
+	* memory.c: Include "pager.h" and "activity.h".
+	(memory_grab): Always get base page sized pages.
+	(memory_frame_allocate): Take additional parameter activity.
+	Return a uintptr_t instead of an l4_word_t.  If zalloc fails,
+	check AVAILABLE_LIST.  If nothing is applicable, call
+	pager_collect and try again.
+	* t-environment.h (pager_collect): New function.
+
+2008-01-04  Neal H. Walfield  <neal@gnu.org>
+
 	* memory.c (memory_add): Add to MEMORY_TOTAL here.
 	(memory_grab): Never here.
 
