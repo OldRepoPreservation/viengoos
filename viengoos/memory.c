@@ -1,5 +1,5 @@
 /* memory.c - Basic memory management routines.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -263,6 +263,8 @@ memory_add (l4_word_t start, l4_word_t end)
 	  debug (5, "Adding physical memory 0x%x-0x%x",
 		 start, start_reservation - 1);
 	  zfree (start, start_reservation - start);
+
+	  memory_total += (start_reservation - start) / PAGESIZE;
 	}
 
       /* Set START to first page after the end of the reservation.  */
@@ -344,8 +346,6 @@ memory_grab (void)
   do_debug (3)
     zalloc_dump_zones (__func__);
 #endif
-
-  memory_total = zalloc_memory;
 }
 
 l4_word_t

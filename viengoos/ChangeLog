@@ -1,5 +1,10 @@
 2008-01-04  Neal H. Walfield  <neal@gnu.org>
 
+	* memory.c (memory_add): Add to MEMORY_TOTAL here.
+	(memory_grab): Never here.
+
+2008-01-04  Neal H. Walfield  <neal@gnu.org>
+
 	* list.h (struct list_node): Add comment that about initialization
 	requirements.
 	(list_unlink): Always set ITEM->NEXT and ITEM->PREV to NULL.
