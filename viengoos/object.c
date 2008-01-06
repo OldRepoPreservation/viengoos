@@ -197,7 +197,7 @@ object_find_soft (struct activity *activity, oid_t oid,
       return object;
     }
 
-  if (! odesc->activity || odesc->age == 0)
+  if (! odesc->activity || ! object_active (odesc))
     /* Either the object is unowned or it is inactive.  Claim
        ownership.  */
     {
@@ -646,7 +646,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 	  else
 	    {
 	      struct activity_lru_list *list;
-	      if (desc->age)
+	      if (object_active (desc))
 		/* DESC is active.  */
 		list = &desc->activity->active;
 	      else
@@ -675,7 +675,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 
   /* We make the object active.  The invariants require that DESC->AGE
      be non-zero.  */
-  object_age (desc);
+  object_age (desc, true);
   if (desc->policy.priority != OBJECT_PRIORITY_LRU)
     {
       void *ret = hurd_btree_priorities_insert (&activity->priorities,

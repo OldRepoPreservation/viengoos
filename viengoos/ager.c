@@ -157,55 +157,51 @@ ager_loop (l4_thread_id_t main_thread)
 		/* Dirty implies referenced.  */
 		assert (referenced);
 
-	      if (desc->age)
+	      if (object_active (desc))
 		/* The object was active.  */
 		{
 		  assert (desc->activity);
 
 		  desc->dirty |= dirty;
 
-		  if (referenced)
-		    object_age (desc);
-		  else
+		  object_age (desc, referenced);
+
+		  if (! object_active (desc)
+		      && desc->policy.priority == OBJECT_PRIORITY_LRU)
+		    /* The object has become inactive and needs to be
+		       moved.  */
 		    {
-		      desc->age >>= 1;
+		      retired ++;
 
-		      if (! desc->age
-			  && desc->policy.priority == OBJECT_PRIORITY_LRU)
-			/* The object has become inactive.  */
-			{
-			  retired ++;
+		      /* Detach from active list.  */
+		      activity_lru_list_unlink (&desc->activity->active,
+						desc);
 
-			  /* Detach from active list.  */
-			  activity_lru_list_unlink (&desc->activity->active,
-						    desc);
-
-			  /* Attach to appropriate inactive list.  */
-			  if (desc->dirty && ! desc->policy.discardable)
-			    activity_lru_list_push
-			      (&desc->activity->inactive_dirty, desc);
-			  else
-			    activity_lru_list_push
-			      (&desc->activity->inactive_clean, desc);
+		      /* Attach to appropriate inactive list.  */
+		      if (desc->dirty && ! desc->policy.discardable)
+			activity_lru_list_push
+			  (&desc->activity->inactive_dirty, desc);
+		      else
+			activity_lru_list_push
+			  (&desc->activity->inactive_clean, desc);
 
 #if UNMAP_INACTIVE
-			  l4_fpage_t f;
-			  f = l4_fpage_add_rights (fpage,
-						   L4_FPAGE_FULLY_ACCESSIBLE);
-			  l4_unmap_fpage (f);
+		      l4_fpage_t f;
+		      f = l4_fpage_add_rights (fpage,
+					       L4_FPAGE_FULLY_ACCESSIBLE);
+		      l4_unmap_fpage (f);
 #endif
-			}
 		    }
 		}
 	      else
 		/* The object was inactive.  */
 		{
+		  object_age (desc, referenced);
+
 		  if (referenced)
 		    /* The object has become active.  */
 		    {
 		      revived ++;
-
-		      desc->age = AGE_DELTA;
 
 		      if (desc->policy.priority == OBJECT_PRIORITY_LRU)
 			{
@@ -235,7 +231,7 @@ ager_loop (l4_thread_id_t main_thread)
 #if UNMAP_PERIODICALLY
       if (iterations == 8 * 5)
 	{
-	  debug (1, "Unmapping all (%d of %d). "
+	  debug (1, "Unmapping all (%d of %d free). "
 		 "last interation retired: %d, revived: %d",
 		 zalloc_memory, memory_total, retired, revived);
 

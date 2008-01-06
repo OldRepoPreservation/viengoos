@@ -344,14 +344,18 @@ object_claim (struct activity *activity, struct object *object,
 }
 
 static inline void
-object_age (struct object_desc *desc)
+object_age (struct object_desc *desc, bool referenced)
 {
-  /* The amount to age a frame when it is found to be active.  */
-#define AGE_DELTA (1 << 8)
+  desc->age >>= 1;
+  if (referenced)
+    desc->age |= 1 << (sizeof (desc->age) * 8 - 1);
+}
 
-  /* Be careful with wrap around.  */
-  if ((typeof (desc->age)) (desc->age + AGE_DELTA) > desc->age)
-    desc->age += AGE_DELTA;
+/* Return whether the object is active.  */
+static inline bool
+object_active (struct object_desc *desc)
+{
+  return desc->age;
 }
 
 /* Allocate a folio to activity ACTIVITY.  POLICY is the new folio's
