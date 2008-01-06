@@ -381,7 +381,7 @@ memory_frame_allocate (struct activity *activity)
 		  && desc->type != cap_thread)
 		break;
 
-	      desc = available_list_prev (&available);
+	      desc = available_list_prev (desc);
 	    }
 
 	  if (desc)

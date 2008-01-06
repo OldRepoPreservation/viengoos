@@ -1,3 +1,8 @@
+2008-01-06  Neal H. Walfield  <neal@gnu.org>
+
+	* memory.c (memory_frame_allocate): Pass the correct arguments to
+	available_list_prev.
+
 2008-01-04  Neal H. Walfield  <neal@gnu.org>
 
 	* activity.h (struct activity): Add fields eviction_clean and
