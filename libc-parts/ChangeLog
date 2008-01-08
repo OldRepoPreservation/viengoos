@@ -1,3 +1,18 @@
+2008-01-08  Neal H. Walfield  <neal@gnu.org>
+
+	* setjmp.h: New file.
+	* ia32-setjmp.S: New file.
+	* t-setjmp.c: New file.
+	* Makefile.am (ARCH_SOURCES): New variable.
+	[ARCH_IA32]: Set to ia32-setjmp.S.
+	(libc_parts_a_SOURCES): Add $(ARCH_SOURCES).
+	(COMMON_CPPFLAGS): New variable.
+	(libc_parts_a_CPPFLAGS): Set it to $(COMMON_CPPFLAGS).
+	(TESTS): New variable.
+	(check_PROGRAMS): Likewise.
+	(t_setjmp_CPPFLAGS): Likewise.
+	(t_setjmp_SOURCES): Likewise.
+
 2007-12-23  Neal H. Walfield  <neal@gnu.org>
 
 	* strtol.c: Don't inlcude <stdlib.h>.
