@@ -1,5 +1,5 @@
 /* ia32-exception-entry.S - Exception handler dispatcher.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -263,7 +263,7 @@ _exception_handler_end:
 	/* Remove our exception frame, which is at the top
 	of the exception frame stack.  */
 	mov EF_NEXT(%eax), %ecx
-	lock mov %ecx, EXCEPTION_STACK(%edx)
+	mov %ecx, EXCEPTION_STACK(%edx)
 
 	popl %eax
 	popl %ecx
