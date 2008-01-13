@@ -1,3 +1,10 @@
+2008-01-13  Neal H. Walfield  <neal@gnu.org>
+
+	* backtrace.c: New file.
+	* Makefile.am (libc_parts_a_SOURCES): Add backtrace.c.
+
+	* assert.h (assertx): Print a back trace.
+
 2008-01-08  Neal H. Walfield  <neal@gnu.org>
 
 	* setjmp.h: New file.

@@ -1,5 +1,5 @@
 /* assert.h - Assert declaration for libc-parts.
-   Copyright (C) 2003, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -40,22 +40,32 @@ int printf (const char *fmt, ...);
 # ifndef NDEBUG
 #include <l4/thread.h>
 
-#  define assertx(__ax_expr, __ax_fmt, ...)			\
-  do {								\
-    extern const char program_name[];				\
-    if (! (__ax_expr))						\
-      {								\
-	printf ("%s (%x):%s:%s:%d: %s failed",			\
-		program_name, l4_myself (),			\
-		__FILE__, __func__, __LINE__,			\
-		#__ax_expr);					\
-	if ((__ax_fmt) && *(__ax_fmt))				\
-	  {							\
-	    printf (": " __ax_fmt, ##__VA_ARGS__);		\
-	  }							\
-	printf ("\n");						\
-	for (;;);						\
-      }								\
+#  define assertx(__ax_expr, __ax_fmt, ...)				\
+  do {									\
+    extern const char program_name[];					\
+    if (! (__ax_expr))							\
+      {									\
+	printf ("%s (%x):%s:%s:%d: %s failed",				\
+		program_name, l4_myself (),				\
+		__FILE__, __func__, __LINE__,				\
+		#__ax_expr);						\
+	if ((__ax_fmt) && *(__ax_fmt))					\
+	  {								\
+	    printf (": " __ax_fmt, ##__VA_ARGS__);			\
+	  }								\
+	printf ("\n");							\
+									\
+	extern int backtrace (void **array, int size);			\
+									\
+	void *a[10];							\
+	int count = backtrace (a, sizeof (a) / sizeof (a[0]));		\
+	int i;								\
+	for (i = 0; i < count; i ++)					\
+	  printf ("Backtrace: %p%s", a[i], i == count - 1 ? "" : " -> "); \
+	printf ("\n");							\
+									\
+	for (;;);							\
+      }									\
   } while (0)
 
 #  define assert(__a_expr)				\

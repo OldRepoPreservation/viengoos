@@ -32,7 +32,7 @@ libc_parts_a_SOURCES = $(ARCH_SOURCES) 				\
 	assert.h ctype.h c-ctype.h c-ctype.c			\
 	errno.h errno.c						\
 	strtol.c strtoll.c strtoul.c strtoull.c			\
-	setjmp.h
+	setjmp.h backtrace.c
 
 # For the following routines we want to take the possibly optimized
 # versions from the target's GNU C library, rather than duplicating
