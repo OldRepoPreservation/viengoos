@@ -1,3 +1,7 @@
+2008-01-13  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Add -fno-stack-protector.
+
 2008-01-02  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac (CFLAGS): Make the default optimization level -O2.

@@ -35,7 +35,7 @@ AC_PROG_CC
 
 # FIXME: We should support setting the CFLAGS by the user.  But
 # -std=gnu99 and -O1 are required.
-CFLAGS="-std=gnu99 -Wall -g -O2 $CFLAGS"
+CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector $CFLAGS"
 AM_PROG_AS
 AC_PROG_RANLIB
 AC_CHECK_TOOL([AR], [ar], :)
