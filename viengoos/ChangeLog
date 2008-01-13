@@ -1,5 +1,18 @@
 2008-01-13  Neal H. Walfield  <neal@gnu.org>
 
+	* list.h (list_unlink): Cast LIST.
+
+2008-01-13  Neal H. Walfield  <neal@gnu.org>
+
+	* ager.c: Update statistics.
+
+	* activity.h (struct activity): New fields current_period and
+	stats.
+	(ACTIVITY_STATS): New macro.
+	(ACTIVITY_STAT_UPDATE): Likewise.
+
+2008-01-13  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.c (activity_destroy): When making a frame inactive, be
 	sure to reset its age to 0.
 

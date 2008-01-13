@@ -221,9 +221,9 @@ list_unlink (struct list *list, struct list_node *item)
 	  i = LIST_PTR (i->next);
 	assert (LIST_SENTINEL_P (i->next));
 
-	if (LIST_PTR (i->next) != list)
+	if (LIST_PTR (i->next) != (void *) list)
 	  debug (0, "%p appears on %p", item, LIST_PTR (i->next));
-	LIST_PTR (i->next) == list;
+	LIST_PTR (i->next) == (void *) list;
       }), "list: %p (%d), item: %p", list, list_count (list), item);
 
   if (LIST_SENTINEL_P (item->next) && LIST_SENTINEL_P (item->prev))
