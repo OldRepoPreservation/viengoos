@@ -129,6 +129,8 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
 	activity_lru_list_unlink (&victim->active, desc);
 
+	desc->age = 0;
+
 	if (desc->dirty && ! desc->policy.discardable)
 	  activity_lru_list_queue (&victim->parent->inactive_dirty, desc);
 	else
@@ -145,6 +147,8 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	assert (desc->activity == victim);
 
 	next = hurd_btree_priorities_next (desc);
+
+	desc->age = 0;
 
 	if (desc->dirty && ! desc->policy.discardable)
 	  activity_lru_list_queue (&victim->parent->inactive_dirty, desc);

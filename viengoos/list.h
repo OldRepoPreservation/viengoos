@@ -215,13 +215,16 @@ list_unlink (struct list *list, struct list_node *item)
   assert (item->prev);
 
   /* Ensure that ITEM appears on LIST.  */
-  assert ({
-      struct list_node *i;
-      for (i = list_head (list); i; i = list_next (i))
-	if (i == item)
-	  break;
-      i;
-    });
+  assertx (({
+	struct list_node *i = item;
+	while (! LIST_SENTINEL_P (i->next))
+	  i = LIST_PTR (i->next);
+	assert (LIST_SENTINEL_P (i->next));
+
+	if (LIST_PTR (i->next) != list)
+	  debug (0, "%p appears on %p", item, LIST_PTR (i->next));
+	LIST_PTR (i->next) == list;
+      }), "list: %p (%d), item: %p", list, list_count (list), item);
 
   if (LIST_SENTINEL_P (item->next) && LIST_SENTINEL_P (item->prev))
     /* The only item on the list.  */
