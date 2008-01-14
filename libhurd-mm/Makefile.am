@@ -37,6 +37,6 @@ libhurd_mm_a_SOURCES = mm.h			\
 	exceptions.c				\
 	pager.h pager.c				\
 	anonymous.h anonymous.c			\
-	mmap.c					\
+	mmap.c sbrk.c				\
 	mm-init.c				\
 	$(ARCH_SOURCES)
