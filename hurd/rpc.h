@@ -1,5 +1,5 @@
 /* rpc.h - RPC template definitions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -643,6 +643,30 @@
 		  (&msg, RPC_ARGUMENTS (ocount,				\
 					RPC_CHOP (icount, ##__VA_ARGS__))), \
 		  (&msg));						\
+  }									\
+
+/* Generate stubs for marshalling a reply and sending it (without
+   blocking).  */
+#define RPC_REPLY_(id, icount, ocount, ...)				\
+  static inline error_t							\
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply)				\
+    (l4_thread_id_t tid RPC_IF_COMMA (ocount) ()			\
+     RPC_GRAB2 (, ocount, RPC_CHOP (icount, ##__VA_ARGS__)))		\
+  {									\
+    l4_msg_tag_t tag;							\
+    l4_msg_t msg;							\
+									\
+    RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_marshal)			\
+      (&msg RPC_IF_COMMA (ocount) ()					\
+       RPC_ARGUMENTS(ocount, RPC_CHOP (icount, __VA_ARGS__)));		\
+									\
+    l4_msg_load (msg);							\
+    l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);				\
+									\
+    tag = l4_reply (tid);						\
+    if (l4_ipc_failed (tag))						\
+      return EHOSTDOWN;							\
+    return 0;								\
   }
 
 /* RPC template.  ID is the method name, ARGS is the list of arguments
@@ -657,13 +681,17 @@
   							\
   RPC_SIMPLE_(, id, icount, ocount, ##__VA_ARGS__)	\
   RPC_SIMPLE_(_send, id, icount, ocount, ##__VA_ARGS__)	\
-  RPC_(_call, id, icount, ocount, ##__VA_ARGS__)
+  RPC_(_call, id, icount, ocount, ##__VA_ARGS__)	\
+							\
+  RPC_REPLY_(id, icount, ocount, ##__VA_ARGS__)
 
 #define RPC(id, icount, ocount, ...)			\
   RPC_MARSHAL_GEN_(id, icount, ocount, ##__VA_ARGS__)	\
   							\
   RPC_(, id, icount, ocount, ##__VA_ARGS__)		\
   RPC_SIMPLE_(_send, id, icount, ocount, ##__VA_ARGS__)	\
-  RPC_(_call, id, icount, ocount, ##__VA_ARGS__)
+  RPC_(_call, id, icount, ocount, ##__VA_ARGS__)	\
+							\
+  RPC_REPLY_(id, icount, ocount, ##__VA_ARGS__)
 
 #endif
