@@ -25,6 +25,7 @@
 #include <hurd/exceptions.h>
 #include <hurd/thread.h>
 #include <hurd/activity.h>
+#include <hurd/futex.h>
 
 #include "server.h"
 
@@ -238,9 +239,10 @@ server_loop (void)
 				 type, require_writable ? &writable : NULL);
 	  if (type != -1 && ! cap_types_compatible (cap->type, type))
 	    {
-	      DEBUG (1, "Addr 0x%llx/%d does not reference object of type %s",
+	      DEBUG (1, "Addr 0x%llx/%d does not reference object of "
+		     "type %s but %s",
 		     addr_prefix (addr), addr_depth (addr),
-		     cap_type_string (type));
+		     cap_type_string (type), cap_type_string (cap->type));
 	      as_dump_from (activity, &thread->aspace, "");
 	      return ENOENT;
 	    }
@@ -795,6 +797,193 @@ server_loop (void)
 	    as_dump_from (principal, &t->aspace, "");
 
 	    rm_as_dump_reply_marshal (&msg);
+
+	    break;
+	  }
+
+	case RM_futex:
+	  {
+	    /* Helper function to wake and requeue waiters.  */
+	    int wake (int to_wake, struct object *object1, int offset1,
+		      int to_requeue, struct object *object2, int offset2)
+	    {
+	      int count = 0;
+	      struct thread *t;
+
+	      object_wait_queue_for_each (principal, object1, t)
+		if (t->futex_block && t->futex_offset == offset1)
+		  /* Got a match.  */
+		  {
+		    if (count < to_wake)
+		      {
+			object_wait_queue_dequeue (principal, t);
+
+			debug (5, "Waking thread %x", t->tid);
+
+			err = rm_futex_reply (t->tid, 0);
+			if (err)
+			  panic ("Error futex waking %x: %d", t->tid, err);
+
+			count ++;
+
+			if (count == to_wake && to_requeue == 0)
+			  break;
+		      }
+		    else
+		      {
+			object_wait_queue_dequeue (principal, t);
+
+			t->futex_offset = offset2;
+			object_wait_queue_enqueue (principal, object2, t);
+
+			count ++;
+
+			to_requeue --;
+			if (to_requeue == 0)
+			  break;
+		      }
+		  }
+	      return count;
+	    }
+
+	    void *addr1;
+	    int op;
+	    int val1;
+	    bool timeout;
+	    union futex_val2 val2;
+	    void *addr2;
+	    union futex_val3 val3;
+
+	    err = rm_futex_send_unmarshal (&msg, &principal_addr,
+					   &addr1, &op, &val1,
+					   &timeout, &val2,
+					   &addr2, &val3);
+	    if (err)
+	      REPLY (err);
+
+	    switch (op)
+	      {
+	      case FUTEX_WAIT:
+	      case FUTEX_WAKE_OP:
+	      case FUTEX_WAKE:
+	      case FUTEX_CMP_REQUEUE:
+		break;
+	      default:
+		REPLY (ENOSYS);
+	      };
+
+	    addr_t addr = addr_chop (PTR_TO_ADDR (addr1), PAGESIZE_LOG2);
+	    struct object *object1 = OBJECT (addr, cap_page, true);
+	    int offset1 = (uintptr_t) addr1 & (PAGESIZE - 1);
+	    int *vaddr1 = (void *) object1 + offset1;
+
+	    switch (op)
+	      {
+	      case FUTEX_WAIT:
+		if (*vaddr1 != val1)
+		  REPLY (EWOULDBLOCK);
+
+		if (timeout)
+		  panic ("Timeouts not yet supported");
+
+		thread->futex_block = 1;
+		thread->futex_offset = offset1;
+
+		object_wait_queue_enqueue (principal, object1, thread);
+
+		/* Don't reply.  */
+		do_reply = 0;
+		break;
+
+	      case FUTEX_WAKE:
+		/* Wake up VAL1 threads or, if there are less than
+		   VAL1 blocked threads, wake up all of them.  Return
+		   the number of threads woken up.  */
+
+		if (val1 <= 0)
+		  REPLY (EINVAL);
+
+		int count = wake (val1, object1, offset1, 0, 0, 0);
+		rm_futex_reply_marshal (&msg, count);
+		break;
+
+	      case FUTEX_WAKE_OP:
+		addr = addr_chop (PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
+		struct object *object2 = OBJECT (addr, cap_page, true);
+		int offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
+		int *vaddr2 = (void *) object2 + offset2;
+
+		int oldval = * (int *) vaddr2;
+		switch (val3.op)
+		  {
+		  case FUTEX_OP_SET:
+		    * (int *) vaddr2 = val3.oparg;
+		    break;
+		  case FUTEX_OP_ADD:
+		    * (int *) vaddr2 = oldval + val3.oparg;
+		    break;
+		  case FUTEX_OP_OR:
+		    * (int *) vaddr2 = oldval + val3.oparg;
+		    break;
+		  case FUTEX_OP_ANDN:
+		    * (int *) vaddr2 = oldval & ~val3.oparg;
+		    break;
+		  case FUTEX_OP_XOR:
+		    * (int *) vaddr2 = oldval ^ val3.oparg;
+		    break;
+		  }
+
+		count = wake (1, object1, offset1, 0, 0, 0);
+
+		bool comparison;
+		switch (val3.cmp)
+		  {
+		  case FUTEX_OP_CMP_EQ:
+		    comparison = oldval == val3.cmparg;
+		    break;
+		  case FUTEX_OP_CMP_NE:
+		    comparison = oldval != val3.cmparg;
+		    break;
+		  case FUTEX_OP_CMP_LT:
+		    comparison = oldval < val3.cmparg;
+		    break;
+		  case FUTEX_OP_CMP_LE:
+		    comparison = oldval <= val3.cmparg;
+		    break;
+		  case FUTEX_OP_CMP_GT:
+		    comparison = oldval > val3.cmparg;
+		    break;
+		  case FUTEX_OP_CMP_GE:
+		    comparison = oldval >= val3.cmparg;
+		    break;
+		  }
+
+		if (comparison)
+		  count += wake (val2.value, object2, offset2, 0, 0, 0);
+
+		rm_futex_reply_marshal (&msg, 0);
+		break;
+
+	      case FUTEX_CMP_REQUEUE:
+		/* Wake VAL1 waiters, or if there are less than VAL1
+		   waiters, all waiters.  If there waiters remain,
+		   requeue VAL2 waiters on ADDR2 or, if there are less
+		   than VAL2 remaining waiters.  Returns the total
+		   number of woken and requeued waiters.  */
+
+		if (* (int *) vaddr1 != val3.value)
+		  REPLY (EAGAIN);
+
+		/* Get the second object.  */
+		addr = addr_chop (PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
+		object2 = OBJECT (addr, cap_page, true);
+		offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
+
+		count = wake (val1, object1, offset1,
+			      val2.value, object2, offset2);
+		rm_futex_reply_marshal (&msg, count);
+		break;
+	      }
 
 	    break;
 	  }

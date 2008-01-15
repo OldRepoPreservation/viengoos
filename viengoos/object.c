@@ -693,3 +693,296 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   desc->activity = activity;
   desc->policy.discardable = policy.discardable;
 }
+
+/* Return the localtion of OBJECT's wait queue's pointer.  */
+static struct cap *
+object_wait_queue (struct activity *activity, struct object *object)
+{
+  struct folio *folio = objects_folio (activity, object);
+  int i = objects_folio_offset (object);
+
+  if (i == -1)
+    return &folio->wait_queue;
+  else
+    return &folio->objects[i].wait_queue;
+}
+
+/* Return the first waiter queued on object OBJECT.  */
+struct thread *
+object_wait_queue_head (struct activity *activity, struct object *object)
+{
+  struct cap *wait_queue = object_wait_queue (activity, object);
+  struct thread *head = (struct thread *) cap_to_object (activity, wait_queue);
+  if (! head)
+    return NULL;
+
+  assert (object_type ((struct object *) head) == cap_thread);
+  assert (head->wait_queue_head);
+
+  return head;
+}
+
+/* Return the last waiter queued on object OBJECT.  */
+struct thread *
+object_wait_queue_tail (struct activity *activity, struct object *object)
+{
+  struct thread *head = object_wait_queue_head (activity, object);
+  if (! head)
+    return NULL;
+
+  if (head->wait_queue_tail)
+    /* HEAD is also the list's tail.  */
+    return head;
+
+  struct thread *tail;
+  tail = (struct thread *) cap_to_object (activity, &head->wait_queue.prev);
+  assert (tail);
+  assert (object_type ((struct object *) tail) == cap_thread);
+  assert (tail->wait_queue_tail);
+
+  return tail;
+}
+
+/* Return the waiter following THREAD.  */
+struct thread *
+object_wait_queue_next (struct activity *activity, struct thread *t)
+{
+  if (t->wait_queue_tail)
+    return NULL;
+
+  struct thread *next;
+  next = (struct thread *) cap_to_object (activity, &t->wait_queue.next);
+  assert (next);
+  assert (object_type ((struct object *) next) == cap_thread);
+  assert (! next->wait_queue_head);
+
+  return next;
+}
+
+/* Return the waiter preceding THREAD.  */
+struct thread *
+object_wait_queue_prev (struct activity *activity, struct thread *t)
+{
+  if (t->wait_queue_head)
+    return NULL;
+
+  struct thread *prev;
+  prev = (struct thread *) cap_to_object (activity, &t->wait_queue.prev);
+  assert (prev);
+  assert (object_type ((struct object *) prev) == cap_thread);
+  assert (! prev->wait_queue_tail);
+
+  return prev;
+}
+
+static void
+object_wait_queue_check (struct activity *activity, struct thread *thread)
+{
+#ifndef NDEBUG
+  if (thread->wait_queue.next.type == cap_void)
+    {
+      assert (thread->wait_queue.prev.type == cap_void);
+      return;
+    }
+  assert (thread->wait_queue.prev.type != cap_void);
+
+  struct thread *last = thread;
+  struct thread *t;
+  for (;;)
+    {
+      if (last->wait_queue_tail)
+	break;
+
+      t = (struct thread *) cap_to_object (activity, &last->wait_queue.next);
+      assert (t);
+      assert (! t->wait_queue_head);
+      struct object *p = cap_to_object (activity, &t->wait_queue.prev);
+      assert (p == (struct object *) last);
+      
+      last = t;
+    }
+
+  assert (last->wait_queue_tail);
+
+  struct object *o = cap_to_object (activity, &last->wait_queue.next);
+  assert (o);
+
+  struct cap *wait_queue = object_wait_queue (activity, o);
+
+  struct thread *head;
+  head = (struct thread *) cap_to_object (activity, wait_queue);
+  if (! head)
+    return;
+  assert (head->wait_queue_head);
+
+  struct thread *tail;
+  tail = (struct thread *) cap_to_object (activity, &head->wait_queue.prev);
+  assert (tail);
+  assert (tail->wait_queue_tail);
+
+  assert (last == tail);
+
+  last = head;
+  while (last != thread)
+    {
+      assert (! last->wait_queue_tail);
+
+      t = (struct thread *) cap_to_object (activity, &last->wait_queue.next);
+      assert (t);
+      assert (! t->wait_queue_head);
+
+      struct object *p = cap_to_object (activity, &t->wait_queue.prev);
+      assert (p == (struct object *) last);
+      
+      last = t;
+    }
+#endif /* !NDEBUG */
+}
+
+/* Enqueue thread on object OBJECT's wait queue.  */
+void
+object_wait_queue_enqueue (struct activity *activity,
+			   struct object *object, struct thread *thread)
+{
+  debug (5, "Adding " OID_FMT " to %p",
+	 OID_PRINTF (object_to_object_desc ((struct object *) thread)->oid),
+	 object);
+
+  object_wait_queue_check (activity, thread);
+
+  assert (thread->wait_queue.next.type == cap_void);
+  assert (thread->wait_queue.prev.type == cap_void);
+
+  struct cap *wait_queue = object_wait_queue (activity, object);
+
+  struct thread *oldhead = object_wait_queue_head (activity, object);
+  if (oldhead)
+    {
+      assert (oldhead->wait_queue_head);
+
+      /* THREAD->PREV = TAIL.  */
+      thread->wait_queue.prev = oldhead->wait_queue.prev;
+
+      /* OLDHEAD->PREV = THREAD.  */
+      oldhead->wait_queue_head = 0;
+      oldhead->wait_queue.prev = object_to_cap ((struct object *) thread);
+
+      /* THREAD->NEXT = OLDHEAD.  */
+      thread->wait_queue.next = *wait_queue;
+
+      thread->wait_queue_tail = 0;
+    }
+  else
+    /* Empty list.  */
+    {
+      /* THREAD->PREV = THREAD.  */
+      thread->wait_queue.prev = object_to_cap ((struct object *) thread);
+
+      /* THREAD->NEXT = OBJECT.  */
+      thread->wait_queue_tail = 1;
+      thread->wait_queue.next = object_to_cap (object);
+    }
+
+  /* WAIT_QUEUE = THREAD.  */
+  thread->wait_queue_head = 1;
+  *wait_queue = object_to_cap ((struct object *) thread);
+
+  object_wait_queue_check (activity, thread);
+}
+
+/* Dequeue thread THREAD from its wait queue.  */
+void
+object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
+{
+  debug (5, "Removing " OID_FMT,
+	 OID_PRINTF (object_to_object_desc ((struct object *) thread)->oid));
+
+  object_wait_queue_check (activity, thread);
+
+  if (thread->wait_queue_tail)
+    /* THREAD is the tail.  THREAD->NEXT must be the object on which
+       we are queued.  */
+    {
+      struct object *object;
+      object = cap_to_object (activity, &thread->wait_queue.next);
+      assert (object);
+      assert (object_wait_queue_tail (activity, object) == thread);
+
+      if (thread->wait_queue_head)      
+	/* THREAD is also the head and thus the only item on the
+	   list.  */
+	{
+	  assert (cap_to_object (activity, &thread->wait_queue.prev)
+		  == (struct object *) thread);
+
+	  struct cap *wait_queue = object_wait_queue (activity, object);
+	  wait_queue->type = cap_void;
+	}
+      else
+	/* THREAD is not also the head.  */
+	{
+	  struct thread *head = object_wait_queue_head (activity, object);
+
+	  /* HEAD->PREV == TAIL.  */
+	  assert (cap_to_object (activity, &head->wait_queue.prev)
+		  == (struct object *) thread);
+
+	  /* HEAD->PREV = TAIL->PREV.  */
+	  head->wait_queue.prev = thread->wait_queue.prev;
+
+	  /* TAIL->PREV->NEXT = OBJECT.  */
+	  struct thread *prev;
+	  prev = (struct thread *) cap_to_object (activity,
+						  &thread->wait_queue.prev);
+	  assert (prev);
+	  assert (object_type ((struct object *) prev) == cap_thread);
+
+	  prev->wait_queue_tail = 1;
+	  prev->wait_queue.next = thread->wait_queue.next;
+	}
+    }
+  else
+    /* THREAD is not the tail.  */
+    {
+      struct thread *next = object_wait_queue_next (activity, thread);
+      assert (next);
+
+      struct object *p = cap_to_object (activity, &thread->wait_queue.prev);
+      assert (p);
+      assert (object_type (p) == cap_thread);
+      struct thread *prev = (struct thread *) p;
+
+      if (thread->wait_queue_head)
+	/* THREAD is the head.  */
+	{
+	  /* THREAD->PREV is the tail, TAIL->NEXT the object.  */
+	  struct thread *tail = prev;
+
+	  struct object *object = cap_to_object (activity,
+						 &tail->wait_queue.next);
+	  assert (object);
+	  assert (object_wait_queue_head (activity, object) == thread);
+
+
+	  /* OBJECT->WAIT_QUEUE = THREAD->NEXT.  */
+	  next->wait_queue_head = 1;
+
+	  struct cap *wait_queue = object_wait_queue (activity, object);
+	  *wait_queue = thread->wait_queue.next;
+	}
+      else
+	/* THREAD is neither the head nor the tail.  */
+	{
+	  /* THREAD->PREV->NEXT = THREAD->NEXT.  */
+	  prev->wait_queue.next = thread->wait_queue.next;
+	}
+
+      /* THREAD->NEXT->PREV = THREAD->PREV.  */
+      next->wait_queue.prev = thread->wait_queue.prev;
+    }
+
+  thread->wait_queue.next.type = cap_void;
+  thread->wait_queue.prev.type = cap_void;
+
+  object_wait_queue_check (activity, thread);
+}

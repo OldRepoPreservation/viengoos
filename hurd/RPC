@@ -8,4 +8,4 @@ RPC Method id Assignments
 500: exceptions
 600: thread
 700: activity
-
+800: futex

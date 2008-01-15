@@ -37,6 +37,7 @@
 
 /* Forward.  */
 struct activity;
+struct thread;
 
 /* Objects
    -------
@@ -429,5 +430,41 @@ extern void folio_policy (struct activity *activity,
 			  struct folio *folio,
 			  uintptr_t flags, struct folio_policy in,
 			  struct folio_policy *out);
+
+/* Return the first waiter queued on object OBJECT.  */
+extern struct thread *object_wait_queue_head (struct activity *activity,
+					      struct object *object);
+
+/* Return the last waiter queued on object OBJECT.  */
+extern struct thread *object_wait_queue_tail (struct activity *activity,
+					      struct object *object);
+
+/* Return the waiter following THREAD.  */
+extern struct thread *object_wait_queue_next (struct activity *activity,
+					      struct thread *thread);
+
+/* Return the waiter preceding THREAD.  */
+extern struct thread *object_wait_queue_prev (struct activity *activity,
+					      struct thread *thread);
+
+/* Enqueue thread on object OBJECT's wait queue.  */
+extern void object_wait_queue_enqueue (struct activity *activity,
+				       struct object *object,
+				       struct thread *thread);
+
+/* Dequeue thread THREAD from its wait queue.  */
+extern void object_wait_queue_dequeue (struct activity *activity,
+				       struct thread *thread);
+
+/* Iterate over each thread waiting on OBJECT.  It is safe to call
+   object_wait_queue_dequeue.  */
+#define object_wait_queue_for_each(__owqfe_activity, __owqfe_object,	\
+				   __owqfe_thread)			\
+  for (struct thread *__owqfe_next					\
+	 = object_wait_queue_head (__owqfe_activity, __owqfe_object);	\
+       (__owqfe_thread = __owqfe_next)					\
+	 && ((__owqfe_next = object_wait_queue_next (__owqfe_activity,	\
+						     __owqfe_thread))	\
+	     || 1); /* do nothing.  */)
 
 #endif

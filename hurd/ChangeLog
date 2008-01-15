@@ -1,5 +1,15 @@
 2008-01-15  Neal H. Walfield  <neal@gnu.org>
 
+	* futex.h (futex_wait): New file.
+	* Makefile.am (includehurd_HEADERS): Add futex.h.
+	* headers.m4: Link $(BUILDIR)/include/hurd/futex.h to futex.h.
+	* RPC: Add futex message id assignment.
+
+	* folio.h (struct folio): Add field wait_queue.  Remove field
+	checksum (for now).
+
+2008-01-15  Neal H. Walfield  <neal@gnu.org>
+
 	* rpc.h (RPC_REPLY_): New macro.
 	(RPC_SIMPLE): Generate reply stubs.
 	(RPC): Likewise.

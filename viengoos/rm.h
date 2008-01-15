@@ -26,6 +26,7 @@
 #include <hurd/exceptions.h>
 #include <hurd/thread.h>
 #include <hurd/activity.h>
+#include <hurd/futex.h>
 
 enum rm_method_id
   {
@@ -64,6 +65,8 @@ rm_method_id_string (int id)
       return "thread_exregs";
     case RM_activity_policy:
       return "activity_policy";
+    case RM_futex:
+      return "futex";
     default:
       return "unknown method id";
     }

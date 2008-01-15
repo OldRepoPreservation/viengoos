@@ -117,6 +117,9 @@ thread_deinit (struct activity *activity, struct thread *thread)
   if (thread->commissioned)
     thread_decommission (thread);
 
+  if (thread->wait_queue.next.type != cap_void)
+    object_wait_queue_dequeue (activity, thread);
+
   /* Free the thread id.  */
   bit_dealloc (thread_ids,
 	       l4_thread_no (thread->tid) - THREAD_ID_BASE);

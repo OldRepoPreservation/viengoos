@@ -35,8 +35,16 @@ enum
     THREAD_SLOTS = 3,
   };
 
+struct wait_queue_node
+{
+  struct cap next;
+  struct cap prev;
+};
+
 struct thread
 {
+  /* User accessible fields.  */
+
   /* Address space.  */
   struct cap aspace;
 
@@ -46,6 +54,8 @@ struct thread
 
   /* Capability identifying a page to use to store exceptions.  */
   struct cap exception_page;
+
+  /* Non-user accessible fields.  */
 
   /* Allocated thread id.  */
   l4_thread_id_t tid;
@@ -57,9 +67,25 @@ struct thread
   l4_word_t user_handle;
 
   /* Whether the thread data structure has been initialized.  */
-  l4_word_t init : 1;
+  uint32_t init : 1;
   /* Whether the thread has been commissioned (a tid allocated).  */
-  l4_word_t commissioned : 1;
+  uint32_t commissioned : 1;
+
+  /* Whether this thread is the head of the wait queue.  If so,
+     WAIT_QUEUE.PREV designates the object.  */
+  uint32_t wait_queue_head : 1;
+
+  /* Whether this thread is the tail of the wait queue.  If so,
+     WAIT_QUEUE.NEXT designates the object.  */
+  uint32_t wait_queue_tail : 1;
+
+  /* If waiting on a futex object.  */
+  uint32_t futex_block : 1;
+  /* The offset of the futex object.  */
+  uint32_t futex_offset : PAGESIZE_LOG2;
+
+  /* The object the thread is waiting on.  */
+  struct wait_queue_node wait_queue;
 };
 
 /* The hardwired base of the UTCB (2.5GB).  */

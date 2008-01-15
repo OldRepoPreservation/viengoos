@@ -1,5 +1,5 @@
 /* folio.h - Folio definitions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -105,12 +105,14 @@ struct folio
 
   struct folio_policy policy;
 
+  struct cap wait_queue;
+
   struct
   {
     /* Each object in the folio Disk version of each object.  */
     l4_uint32_t version : CAP_VERSION_BITS;
 
-    /* The type Page type.  */
+    /* The type.  */
     l4_uint32_t type : CAP_TYPE_BITS;
 
     /* Whether a page has any content (i.e., if it is not
@@ -126,16 +128,16 @@ struct folio
        (if there are any) are only in-memory.  */
     l4_uint32_t dhazard : 1;
 
-    /* In memory only.  */
-
-    /* If clear, we know that references (if there are any)
-       are only in-memory.  */
+    /* In memory only.  If clear, we know that references (if there
+       are any) are only in-memory.  */
     l4_uint32_t mhazard : 1;
 
     struct object_policy policy;
 
-    /* 128-bit md5sum of each object.  */
-    l4_uint64_t checksum[2];
+    /* List of objects waiting for some event on this object.  The
+       list is a circular list.  HEAD->PREV points to the tail.
+       TAIL->NEXT points to the OBJECT (NOT HEAD).  */
+    struct cap wait_queue;
 
     /* In memory only.  */
 

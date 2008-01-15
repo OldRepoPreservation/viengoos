@@ -32,6 +32,7 @@
 #include <hurd/as.h>
 #include <hurd/storage.h>
 #include <hurd/activity.h>
+#include <hurd/futex.h>
 
 #include <bit-array.h>
 #include <string.h>
@@ -348,6 +349,7 @@ main (int argc, char *argv[])
   {
     printf ("Checking pthread library... ");
 
+#undef N
 #define N 4
     pthread_t threads[N];
 
@@ -562,6 +564,81 @@ main (int argc, char *argv[])
     assert (out.folios == 10001);
 
     capfree (weak);
+
+    printf ("ok.\n");
+  }
+
+  {
+    printf ("Checking futex implementation... ");
+
+#undef N
+#define N 4
+#undef FACTOR
+#define FACTOR 10
+    pthread_t threads[N];
+
+    int futex1 = 0;
+    int futex2 = 1;
+
+    void *start (void *arg)
+    {
+      int i;
+
+      for (i = 0; i < FACTOR; i ++)
+	{
+	  long ret = futex_wait (&futex1, 0);
+	  assert (ret == 0);
+
+	  ret = futex_wait (&futex2, 1);
+	  assert (ret == 0);
+	}
+
+      return arg;
+    }
+
+    int i;
+    for (i = 0; i < N; i ++)
+      {
+	debug (5, "Creating thread %d", i);
+	error_t err = pthread_create (&threads[i], NULL, start,
+				      (void *) (uintptr_t) i);
+	assert (err == 0);
+      }
+
+    for (i = 0; i < FACTOR; i ++)
+      {
+	int count = 0;
+	while (count < N)
+	  {
+	    long ret = futex_wake (&futex1, 1);
+	    count += ret;
+
+	    ret = futex_wake (&futex1, N);
+	    count += ret;
+	  }
+	assert (count == N);
+
+	count = 0;
+	while (count < N)
+	  {
+	    long ret = futex_wake (&futex2, 1);
+	    count += ret;
+
+	    ret = futex_wake (&futex2, N);
+	    count += ret;
+	  }
+	assert (count == N);
+      }
+
+    for (i = 0; i < N; i ++)
+      {
+	void *status = (void *) 1;
+	debug (5, "Waiting on thread %d", i);
+	error_t err = pthread_join (threads[i], &status);
+	assert (err == 0);
+	assert ((uintptr_t) status == (uintptr_t) i);
+	debug (5, "Joined %d", i);
+      }
 
     printf ("ok.\n");
   }
