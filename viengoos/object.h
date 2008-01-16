@@ -373,13 +373,16 @@ extern void folio_free (struct activity *activity, struct folio *folio);
 
 /* Allocate an object of type TYPE using the PAGE page from the folio
    FOLIO.  This implicitly destroys any existing object in that page.
-   If TYPE is cap_void, this is equivalent to calling
-   folio_object_free.  If OBJECTP is not-NULL, then the in-memory
-   location of the object is returned in *OBJECTP.  */
+   If there were any waiters waiting for the descruction, they are
+   woken and passed RETURN_CODE.  If TYPE is cap_void, this is
+   equivalent to calling folio_object_free.  If OBJECTP is not-NULL,
+   then the in-memory location of the object is returned in
+   *OBJECTP.  */
 extern void folio_object_alloc (struct activity *activity,
 				struct folio *folio, int page,
 				enum cap_type type,
 				struct object_policy policy,
+				uintptr_t return_code,
 				struct object **objectp);
 
 /* Deallocate the object stored in page PAGE of folio FOLIO.  */
@@ -388,7 +391,7 @@ folio_object_free (struct activity *activity,
 		   struct folio *folio, int page)
 {
   folio_object_alloc (activity, folio, page, cap_void,
-		      OBJECT_POLICY_VOID, NULL);
+		      OBJECT_POLICY_VOID, 0, NULL);
 }
 
 /* Return an object's position within its folio.  */
@@ -456,8 +459,21 @@ extern void object_wait_queue_enqueue (struct activity *activity,
 extern void object_wait_queue_dequeue (struct activity *activity,
 				       struct thread *thread);
 
-/* Iterate over each thread waiting on OBJECT.  It is safe to call
-   object_wait_queue_dequeue.  */
+
+/* Iterate over each thread waiting on the object at IDX in FOLIO.  It
+   is safe to call object_wait_queue_dequeue.  */
+#define folio_object_wait_queue_for_each(__owqfe_activity,		\
+					 __owqfe_folio, __owqfe_idx,	\
+					 __owqfe_thread)		\
+  for (struct thread *__owqfe_next					\
+	 = (struct thread *)						\
+	 cap_to_object (__owqfe_activity,				\
+			&__owqfe_folio->objects[__owqfe_idx].wait_queue); \
+       (__owqfe_thread = __owqfe_next)					\
+	 && ((__owqfe_next = object_wait_queue_next (__owqfe_activity,	\
+						     __owqfe_thread))	\
+	     || 1); /* do nothing.  */)
+
 #define object_wait_queue_for_each(__owqfe_activity, __owqfe_object,	\
 				   __owqfe_thread)			\
   for (struct thread *__owqfe_next					\

@@ -1,3 +1,10 @@
+2008-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.c (shadow_setup): Update rm_folio_object_alloc use to
+	reflect API changes.
+	(storage_alloc_): Likewise.
+	(storage_free_): Likewise.
+
 2008-01-14  Neal H. Walfield  <neal@gnu.org>
 
 	* sbrk.c: New file.

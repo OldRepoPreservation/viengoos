@@ -1,3 +1,24 @@
+2008-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h (THREAD_WAIT_FUTEX): New define.
+	(THREAD_WAIT_DESTROY): Likewise.
+	(struct thread): Remove fields futex_block and futex_offset.  Add
+	fields wait_reason and wait_reason_arg.  Update users.
+	* object.h (folio_object_alloc): Take additional argument
+	return_code.  Update users.
+	(folio_object_wait_queue_for_each): New macro.
+	* object.c: Include <hurd/thread.h>.
+	(folio_object_alloc): Take additional argument return_code.
+	Wake any threads blocked on the object being destroyed.
+	* server.c (server_loop): Update folio_object_alloc method
+	implementation to new API.  Pass RETURN_CODE to the call to
+	folio_object_alloc.  Implement the thread_wait_object_destroyed
+	method.
+	* t-activity.c (allocate_object): Update rm_folio_object_alloc use to
+	reflect API changes.
+	(test): Likewise.
+	* t-as.c (allocate_object): Likewise.
+
 2008-01-15  Neal H. Walfield  <neal@gnu.org>
 
 	* object.h (struct thread): New forward.

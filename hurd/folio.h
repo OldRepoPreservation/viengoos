@@ -179,13 +179,16 @@ RPC(folio_alloc, 3, 0, addr_t, principal, addr_t, folio,
 RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
 
 /* Allocate INDEXth object in folio FOLIO as an object of type TYPE.
-   POLICY specifies the object's policy when accessed via the folio.
-   If OBJECT_SLOT is not ADDR_VOID, then stores a capability to the
-   allocated object in OBJECT_SLOT.  If OBJECT_WEAK_SLOT is not
-   ADDR_VOID, stores a weaken reference to the created object.  */
-RPC(folio_object_alloc, 7, 0, addr_t, principal,
+   (Passing cap_void as the value of type simply destroys any existing
+   object without allocating a new object.)  POLICY specifies the
+   object's policy when accessed via the folio.  If OBJECT_SLOT is not
+   ADDR_VOID, then stores a capability to the allocated object in
+   OBJECT_SLOT.  If OBJECT_WEAK_SLOT is not ADDR_VOID, stores a weaken
+   reference to the created object.  If an object is destroyed and
+   there are waiters, they are passed the return code RETURN_CODE.  */
+RPC(folio_object_alloc, 8, 0, addr_t, principal,
     addr_t, folio, l4_word_t, index, l4_word_t, type,
-    struct object_policy, policy,
+    struct object_policy, policy, uintptr_t, return_code,
     addr_t, object_slot, addr_t, object_weak_slot)
 
 /* Flags for folio_policy.  */

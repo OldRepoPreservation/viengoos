@@ -1,5 +1,13 @@
 2008-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (RM_thread_wait_object_destroyed): New define.
+	(thread_wait_object_destroyed): New method.
+
+	* folio.h (folio_object_alloc): Take additional parameter
+	return_code.
+
+2008-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* futex.h: Include <hurd/startup.h>.
 	(FUTEX_OP_CLEAR_WAKE_IF_GT_ONE): New marcro.
 	(struct futex_return): New structure.

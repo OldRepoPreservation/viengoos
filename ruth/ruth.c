@@ -149,7 +149,7 @@ main (int argc, char *argv[])
 	  panic ("capalloc");
 
 	err = rm_folio_object_alloc (activity, folio, i, cap_page,
-				     OBJECT_POLICY_DEFAULT,
+				     OBJECT_POLICY_DEFAULT, 0,
 				     addr, ADDR_VOID);
 	assert ((err == 0) == (0 <= i && i < FOLIO_OBJECTS));
 
@@ -438,7 +438,7 @@ main (int argc, char *argv[])
 	  a[i].child = capalloc ();
 	  err = rm_folio_object_alloc (activity, folio, obj ++,
 				       cap_activity_control,
-				       OBJECT_POLICY_DEFAULT,
+				       OBJECT_POLICY_DEFAULT, 0,
 				       a[i].child, ADDR_VOID);
 	  assert (err == 0);
 
@@ -449,7 +449,7 @@ main (int argc, char *argv[])
 
 	  a[i].page = capalloc ();
 	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 0, cap_page,
-				       OBJECT_POLICY_DEFAULT,
+				       OBJECT_POLICY_DEFAULT, 0,
 				       a[i].page, ADDR_VOID);
 	  assert (err == 0);
 
@@ -480,7 +480,7 @@ main (int argc, char *argv[])
 	     use the object.  If this fails, we assume that the folio was
 	     destroyed.  */
 	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 1, cap_page,
-				       OBJECT_POLICY_DEFAULT,
+				       OBJECT_POLICY_DEFAULT, 0,
 				       a[i].page, ADDR_VOID);
 	  assert (err);
 
@@ -644,6 +644,53 @@ main (int argc, char *argv[])
   }
 
   {
+    printf ("Checking thread_wait_object_destroy... ");
+
+    struct storage storage = storage_alloc (activity, cap_page,
+					    STORAGE_MEDIUM_LIVED,
+					    ADDR_VOID);
+    assert (! ADDR_IS_VOID (storage.addr));
+
+    void *start (void *arg)
+    {
+      uintptr_t ret = 0;
+      error_t err;
+      err = rm_thread_wait_object_destroyed (ADDR_VOID, storage.addr, &ret);
+      debug (5, "object destroy returned: err: %d, ret: %d", err, ret);
+      assert (err == 0);
+      assert (ret == 10);
+      return 0;
+    }
+
+    pthread_t tid;
+    error_t err = pthread_create (&tid, NULL, start, 0);
+    assert (err == 0);
+
+    int i;
+    for (i = 0; i < 100; i ++)
+      l4_yield ();
+
+    /* Deallocate the object.  */
+    debug (5, "Destroying object");
+    rm_folio_object_alloc (ADDR_VOID,
+			   addr_chop (storage.addr, FOLIO_OBJECTS_LOG2),
+			   addr_extract (storage.addr, FOLIO_OBJECTS_LOG2),
+			   cap_void,
+			   OBJECT_POLICY_VOID, 10, ADDR_VOID, ADDR_VOID);
+    /* Release the memory.  */
+    storage_free (storage.addr, true);
+
+    void *status;
+    err = pthread_join (tid, &status);
+    assert (err == 0);
+    debug (5, "Joined thread");
+
+    printf ("ok.\n");
+  }
+
+  {
+    printf ("Checking read-only pages... ");
+ 
     addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
     assert (! ADDR_IS_VOID (addr));
 

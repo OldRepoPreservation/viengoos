@@ -261,7 +261,7 @@ system_task_load (void)
       struct object *object;
       int index = folio_index ++;
       folio_object_alloc (root_activity, folio, index, type,
-			  OBJECT_POLICY_VOID, &object);
+			  OBJECT_POLICY_VOID, 0, &object);
 
       if (! (desc_count < desc_max))
 	panic ("Initial task too large.");

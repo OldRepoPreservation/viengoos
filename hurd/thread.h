@@ -29,6 +29,7 @@
 enum
   {
     RM_thread_exregs = 600,
+    RM_thread_wait_object_destroyed,
   };
 
 struct exception_frame
@@ -192,10 +193,6 @@ RPC (thread_exregs, 4, 1,
      /* Out: */
      struct hurd_thread_exregs_out, out)
 
-#undef RPC_STUB_PREFIX
-#undef RPC_ID_PREFIX
-#undef RPC_TARGET
-
 static inline error_t
 thread_stop (addr_t thread)
 {
@@ -206,5 +203,16 @@ thread_stop (addr_t thread)
 			   HURD_EXREGS_STOP | HURD_EXREGS_ABORT_IPC,
 			   in, &out);
 }
+
+/* Cause the caller to wait until OBJECT is destroyed.  Returns the
+   object's return code in RETURN_CODE.  */
+RPC(thread_wait_object_destroyed, 2, 1,
+    addr_t, principal, addr_t, object,
+    /* Out: */
+    uintptr_t, return_code);
+
+#undef RPC_STUB_PREFIX
+#undef RPC_ID_PREFIX
+#undef RPC_TARGET
 
 #endif

@@ -1,3 +1,8 @@
+2008-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Update rm_folio_object_alloc use to reflect API
+	changes.  Add test case for thread_wait_object_destroy.
+
 2008-01-15  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c: Include <hurd/futex.h>.

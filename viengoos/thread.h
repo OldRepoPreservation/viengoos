@@ -41,6 +41,17 @@ struct wait_queue_node
   struct cap prev;
 };
 
+enum
+  {
+    /* THREAD is blocked on an object wait for a futex.
+       WAIT_REASON_ARG holds the byte offset in the object on which it
+       is waiting.  */
+    THREAD_WAIT_FUTEX,
+    /* THREAD is blocked on an object waiting for the object to be
+       destroyed.  */
+    THREAD_WAIT_DESTROY,
+  };
+
 struct thread
 {
   /* User accessible fields.  */
@@ -79,10 +90,10 @@ struct thread
      WAIT_QUEUE.NEXT designates the object.  */
   uint32_t wait_queue_tail : 1;
 
-  /* If waiting on a futex object.  */
-  uint32_t futex_block : 1;
-  /* The offset of the futex object.  */
-  uint32_t futex_offset : PAGESIZE_LOG2;
+  /* The event the thread is interested in.  */
+  uint32_t wait_reason : 28;
+  /* More information about the reason.  */
+  uint32_t wait_reason_arg;
 
   /* The object the thread is waiting on.  */
   struct wait_queue_node wait_queue;

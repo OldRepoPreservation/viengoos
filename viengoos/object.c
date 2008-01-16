@@ -23,6 +23,7 @@
 #include <hurd/stddef.h>
 #include <hurd/ihash.h>
 #include <hurd/folio.h>
+#include <hurd/thread.h>
 #include <bit-array.h>
 
 #include "object.h"
@@ -448,6 +449,7 @@ folio_object_alloc (struct activity *activity,
 		    int idx,
 		    enum cap_type type,
 		    struct object_policy policy,
+		    uintptr_t return_code,
 		    struct object **objectp)
 {
   debug (4, "allocating %s at %d", cap_type_string (type), idx);
@@ -486,6 +488,15 @@ folio_object_alloc (struct activity *activity,
 	  assert (!"Object desc type does not match folio type.");
 	  break;
 	}
+    }
+
+  /* Wake any thread's waiting on this object.  We wake them even if
+     they are not waiting for this object's death.  */
+  struct thread *thread;
+  folio_object_wait_queue_for_each (activity, folio, idx, thread)
+    {
+      object_wait_queue_dequeue (activity, thread);
+      rm_thread_wait_object_destroyed_reply (thread->tid, return_code);
     }
 
   if (! object)

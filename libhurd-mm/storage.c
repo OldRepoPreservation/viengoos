@@ -1,5 +1,5 @@
 /* storage.c - Storage allocation functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -269,7 +269,7 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
 
       error_t err = rm_folio_object_alloc (meta_data_activity,
 					   storage->folio, idx, cap_page,
-					   OBJECT_POLICY_DEFAULT,
+					   OBJECT_POLICY_DEFAULT, 0,
 					   ADDR_VOID, ADDR_VOID);
       assert (err == 0);
       shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
@@ -518,7 +518,7 @@ storage_alloc_ (addr_t activity,
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
 				       folio, idx, type,
-				       OBJECT_POLICY_DEFAULT,
+				       OBJECT_POLICY_DEFAULT, 0,
 				       addr, ADDR_VOID);
   assert (! err);
 
@@ -652,7 +652,7 @@ storage_free_ (addr_t object, bool unmap_now)
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
 				       folio, idx, cap_void,
-				       OBJECT_POLICY_DEFAULT,
+				       OBJECT_POLICY_DEFAULT, 0,
 				       ADDR_VOID, ADDR_VOID);
   assert (err == 0);
 

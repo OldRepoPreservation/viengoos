@@ -396,12 +396,14 @@ server_loop (void)
 	    uint32_t idx;
 	    uint32_t type;
 	    struct object_policy policy;
+	    uintptr_t return_code;
 	    addr_t object_addr;
 	    addr_t object_weak_addr;
 
 	    err = rm_folio_object_alloc_send_unmarshal (&msg, &principal_addr,
 							&folio_addr, &idx,
 							&type, &policy,
+							&return_code,
 							&object_addr,
 							&object_weak_addr);
 	    if (err)
@@ -430,7 +432,8 @@ server_loop (void)
 		   addr_prefix (object_addr), addr_depth (object_addr));
 
 	    struct object *object;
-	    folio_object_alloc (principal, folio, idx, type, policy,
+	    folio_object_alloc (principal,
+				folio, idx, type, policy, return_code,
 				type == cap_void ? NULL : &object);
 
 	    if (type != cap_void)
@@ -732,6 +735,23 @@ server_loop (void)
 	    break;
 	  }
 
+	case RM_thread_wait_object_destroyed:
+	  {
+	    addr_t addr;
+	    err = rm_thread_wait_object_destroyed_send_unmarshal
+	      (&msg, &principal_addr, &addr);
+	    if (err)
+	      REPLY (err);
+
+	    struct object *object = OBJECT (addr, -1, true);
+
+	    thread->wait_reason = THREAD_WAIT_DESTROY;
+	    object_wait_queue_enqueue (principal, object, thread);
+
+	    do_reply = 0;
+	    break;
+	  }
+
 	case RM_activity_policy:
 	  {
 	    uintptr_t flags;
@@ -811,7 +831,8 @@ server_loop (void)
 	      struct thread *t;
 
 	      object_wait_queue_for_each (principal, object1, t)
-		if (t->futex_block && t->futex_offset == offset1)
+		if (t->wait_reason == THREAD_WAIT_FUTEX
+		    && t->wait_reason_arg == offset1)
 		  /* Got a match.  */
 		  {
 		    if (count < to_wake)
@@ -833,7 +854,7 @@ server_loop (void)
 		      {
 			object_wait_queue_dequeue (principal, t);
 
-			t->futex_offset = offset2;
+			t->wait_reason_arg = offset2;
 			object_wait_queue_enqueue (principal, object2, t);
 
 			count ++;
@@ -886,8 +907,8 @@ server_loop (void)
 		if (timeout)
 		  panic ("Timeouts not yet supported");
 
-		thread->futex_block = 1;
-		thread->futex_offset = offset1;
+		thread->wait_reason = THREAD_WAIT_FUTEX;
+		thread->wait_reason_arg = offset1;
 
 		object_wait_queue_enqueue (principal, object1, thread);
 
