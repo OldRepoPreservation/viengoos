@@ -1,3 +1,8 @@
+2008-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* rpc.h (ADD): Rename...
+	(CPP_ADD): ... to this.  Update users.
+
 2008-01-15  Neal H. Walfield  <neal@gnu.org>
 
 	* futex.h (futex_wait): New file.

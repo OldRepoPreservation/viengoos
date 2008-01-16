@@ -172,10 +172,10 @@
 #define CPP_SUCC_(x) CPP_SUCC_##x
 #define CPP_SUCC(x) CPP_SUCC_(x)
 
-/* We'd like to define ADD as:
+/* We'd like to define CPP_ADD as:
 
-    #define ADD(x, y) \
-      CPP_IFTHEN(y, ADD(SUCC(x), SUCC(y)), y)
+    #define CPP_ADD(x, y) \
+      CPP_IFTHEN(y, CPP_ADD(SUCC(x), SUCC(y)), y)
 
   This does not work as while a macro is being expanded, it becomes
   ineligible for expansion.  Thus, any references (including indirect
@@ -207,7 +207,7 @@
 #define CPP_APPLY24(x, y) x(CPP_APPLY23(x, y))
 #define CPP_APPLY25(x, y) x(CPP_APPLY24(x, y))
 
-#define ADD(x, y)				\
+#define CPP_ADD(x, y)				\
   CPP_IFTHEN(y, CPP_APPLY##y(CPP_SUCC, x), x)
 
 /* CPP treats commas specially so we have to be smart about how we
@@ -581,7 +581,7 @@
   RPC_EMPTY_LIST (RPC_CHOP (count, __VA_ARGS__))
 
 #define RPC_MARSHAL_GEN_(id, icount, ocount, ...)			\
-  RPC_ENSURE_ARGS(ADD (icount, ocount), ##__VA_ARGS__)			\
+  RPC_ENSURE_ARGS(CPP_ADD (icount, ocount), ##__VA_ARGS__)			\
 									\
   RPC_SEND_MARSHAL(id, icount, ##__VA_ARGS__)				\
   RPC_SEND_UNMARSHAL(id, icount, ##__VA_ARGS__)				\
@@ -618,7 +618,7 @@
   __attribute__((always_inline))					\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), postfix)				\
     (RPC_TARGET_ARG_							\
-     RPC_GRAB (ADD(icount, ocount),					\
+     RPC_GRAB (CPP_ADD(icount, ocount),					\
 	       RPC_GRAB2 (, icount, __VA_ARGS__) RPC_IF_COMMA(icount) () \
 	       RPC_GRAB2 (*, ocount, RPC_CHOP (icount, __VA_ARGS__))))	\
   {									\
