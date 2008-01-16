@@ -1,5 +1,14 @@
 2008-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* futex.h: Include <hurd/startup.h>.
+	(FUTEX_OP_CLEAR_WAKE_IF_GT_ONE): New marcro.
+	(struct futex_return): New structure.
+	(futex): Return a struct futex_return.  Don't panic, return the
+	error code.  Update users.
+	(futex_timed_wait): New function.
+
+2008-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* stddef.h (PAGE_SIZE): New macro.
 	(PAGE_SHIFT): Likewise.
 	(PAGE_MASK): Likewise.

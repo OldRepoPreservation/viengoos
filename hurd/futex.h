@@ -19,8 +19,9 @@
 #ifndef _HURD_FUTEX_H
 #define _HURD_FUTEX_H 1
 
-#include <errno.h>
 #include <hurd/addr.h>
+#include <hurd/startup.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <time.h>
 
@@ -98,6 +99,8 @@ union futex_val3
     int op: 4;
   };
 };
+#define FUTEX_OP_CLEAR_WAKE_IF_GT_ONE \
+  (union futex_val3) { { 1, 0, FUTEX_OP_CMP_GT, FUTEX_OP_SET } }
 
 RPC (futex, 8, 1,
      addr_t, principal,
@@ -112,42 +115,63 @@ RPC (futex, 8, 1,
 #undef RPC_TARGET
 
 #ifndef RM_INTERN
-/* Standard futex signatures.  See futex documentation, e.g., Futexes
-   are Tricky by Ulrich Drepper.  */
-static inline long
-futex (void *addr1, int op, int val1, struct timespec *timespec,
-       void *addr2, int val3)
+struct futex_return
 {
   error_t err;
   long ret;
+};
 
+/* Standard futex signatures.  See futex documentation, e.g., Futexes
+   are Tricky by Ulrich Drepper.  */
+static inline struct futex_return
+futex (void *addr1, int op, int val1, struct timespec *timespec,
+       void *addr2, int val3)
+{
   union futex_val2 val2;
   if (timespec)
     val2.timespec = *timespec;
   else
     __builtin_memset (&val2, 0, sizeof (val2));
 
+  error_t err;
+  long ret = 0; /* Elide gcc warning.  */
   err = rm_futex (ADDR_VOID,
 		  addr1, op, val1, !! timespec, val2, addr2,
 		  (union futex_val3) val3, &ret);
-  if (err)
-    panic ("rm_futex returned %d", err);
-
-  return ret;
+  return (struct futex_return) { err, ret };
 }
 
 /* If *F is VAL, wait until woken.  */
 static inline long
 futex_wait (int *f, int val)
 {
-  return futex (f, FUTEX_WAIT, val, NULL, 0, 0);
+  struct futex_return ret;
+  ret = futex (f, FUTEX_WAIT, val, NULL, 0, 0);
+  if (ret.err)
+    return 0;
+  return ret.ret;
+}
+
+/* If *F is VAL, wait until woken.  */
+static inline long
+futex_timed_wait (int *f, int val, struct timespec *timespec)
+{
+  struct futex_return ret;
+  ret = futex (f, FUTEX_WAIT, val, timespec, 0, 0);
+  if (ret.err)
+    return 0;
+  return ret.ret;
 }
 
 /* Signal NWAKE waiters waiting on futex F.  */
 static inline long
 futex_wake (int *f, int nwake)
 {
-  return futex (f, FUTEX_WAKE, nwake, NULL, 0, 0);
+  struct futex_return ret;
+  ret = futex (f, FUTEX_WAKE, nwake, NULL, 0, 0);
+  if (ret.err)
+    return 0;
+  return ret.ret;
 }
 #endif /* !RM_INTERN */
 
