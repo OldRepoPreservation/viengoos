@@ -694,4 +694,29 @@
 							\
   RPC_REPLY_(id, icount, ocount, ##__VA_ARGS__)
 
+/* Marshal a reply consisting of the error code ERR in *MSG.  */
+static inline void
+rpc_error_reply_marshal (l4_msg_t *msg, error_t err)
+{
+  l4_msg_clear (*msg);
+  l4_msg_put_word (*msg, 0, err);
+  l4_msg_set_untyped_words (*msg, 1);
+}
+
+/* Reply to the thread THREAD with error code ERROR.  */
+static inline error_t
+rpc_error_reply (l4_thread_id_t thread, error_t err)
+{
+  l4_msg_t msg;
+
+  rpc_error_reply_marshal (&msg, err);
+  l4_msg_load (msg);
+
+  l4_msg_tag_t tag;
+  tag = l4_reply (thread);
+  if (l4_ipc_failed (tag))
+    return EHOSTDOWN;
+  return 0;
+}
+
 #endif

@@ -1,3 +1,8 @@
+2008-01-17  Neal H. Walfield  <neal@gnu.org>
+
+	* rpc.h (rpc_error_reply_marshal): New function.
+	(rpc_error_reply): Likewise.
+
 2008-01-16  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (RM_thread_wait_object_destroyed): New define.
