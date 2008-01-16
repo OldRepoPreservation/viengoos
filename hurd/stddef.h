@@ -72,6 +72,11 @@ extern void __attribute__ ((__noreturn__))
 #else
 #error Not ported to this architecture.
 #endif
+
+/* Linux compatible names.  */
+#define PAGE_SIZE PAGESIZE
+#define PAGE_SHIFT PAGESIZE_LOG2
+#define PAGE_MASK (~(PAGE_SIZE-1))
 
 #define likely(expr) __builtin_expect ((expr), 1)
 #define unlikely(expr) __builtin_expect ((expr), 0)

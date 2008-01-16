@@ -1,5 +1,11 @@
 2008-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* stddef.h (PAGE_SIZE): New macro.
+	(PAGE_SHIFT): Likewise.
+	(PAGE_MASK): Likewise.
+
+2008-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* rpc.h (ADD): Rename...
 	(CPP_ADD): ... to this.  Update users.
 
