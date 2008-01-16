@@ -496,7 +496,10 @@ folio_object_alloc (struct activity *activity,
   folio_object_wait_queue_for_each (activity, folio, idx, thread)
     {
       object_wait_queue_dequeue (activity, thread);
-      rm_thread_wait_object_destroyed_reply (thread->tid, return_code);
+      if (thread->wait_reason == THREAD_WAIT_DESTROY)
+	rm_thread_wait_object_destroyed_reply (thread->tid, return_code);
+      else
+	rpc_error_reply (thread->tid, EFAULT);
     }
 
   if (! object)
