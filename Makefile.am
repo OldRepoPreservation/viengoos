@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for hurd-l4.
-# Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2005, 2007, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -24,11 +24,17 @@ else
   LIBC_SUBDIRS =
 endif
 
+if WITH_NEWLIB
+  NEWLIB_SUBDIRS = newlib
+else
+  NEWLIB_SUBDIRS =
+endif
+
 SUBDIRS = libl4 platform				\
 	hurd libhurd-ihash libhurd-btree libbitarray	\
 	libhurd-slab					\
 	libpthread					\
 	libhurd-mm					\
 	libc-parts laden viengoos ruth			\
-	$(LIBC_SUBDIRS)					\
+	$(LIBC_SUBDIRS)	$(NEWLIB_SUBDIRS)		\
 	doc

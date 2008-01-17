@@ -1,0 +1,9 @@
+This directory is only built if you specify "--with-newlib" at configure
+time.
+
+$ mkdir hurd-l4-build
+$ cd hurd-l4-build
+$ ../hurd-l4/configure --prefix=/l4 --with-newlib \
+	--enable-maintainer-mode --build=i686-linux --host=i686-gnu
+$ make
+

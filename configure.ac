@@ -42,6 +42,7 @@ AC_CHECK_TOOL([AR], [ar], :)
 AC_CHECK_TOOL([NM], [nm], :)
 AC_PATH_PROG([SED], [sed], :)
 AC_PATH_PROG([SORT], [sort], :)
+AC_PROG_LN_S
 
 # Required for building the documentation
 AC_PATH_PROG([LATEX], [latex], no)
@@ -180,6 +181,10 @@ AC_ARG_WITH([libc],
 [  --with-libc             compile with the GNU C library (see libc/README)])
 AM_CONDITIONAL(WITH_LIBC, test x"${with_libc-no}" != xno)
 
+AC_ARG_WITH([newlib],
+[  --with-newlib          compile with Newlib's C library (see newlib/README)])
+AM_CONDITIONAL(WITH_NEWLIB, test x"${with_newlib-no}" != xno)
+
 
 if test "x$missing_progs" != "x"; then
   AC_MSG_ERROR([The following programs were not found:$missing_progs])
@@ -206,6 +211,8 @@ AC_CONFIG_FILES([Makefile
                  laden/Makefile
 		 viengoos/Makefile
 		 libc/Makefile
+		 newlib/Makefile
                  ruth/Makefile
-		 doc/Makefile])
+		 doc/Makefile
+		 ])
 AC_OUTPUT
