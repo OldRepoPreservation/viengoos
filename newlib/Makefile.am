@@ -93,8 +93,12 @@ libc.a: newlib-build/libc.a
 libm.a: newlib-build/libm.a
 	ln -sf newlib-build/libm.a libm.a
 
-# clean:
-#	rm -fR libc.a newlib-build
-#
-# distclean:
-#	rm -fR libc
+clean-local:
+	rm -rf newlib-build
+CLEANFILES = newlib-configure-stamp
+
+distclean-local:
+	rm -rf $(srcdir)/newlib
+DISTCLEANFILES = $(srcdir)/$(newlib_tarball) $(srcdir)/newlib-stamp \
+	$(srcdir)/newlib-patch-stamp \
+	$(srcdir)/newlib-configure-stamp
