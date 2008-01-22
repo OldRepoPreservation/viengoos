@@ -1,3 +1,31 @@
+2008-01-22  Neal H. Walfield  <neal@gnu.org>
+
+	* mutex.h [RM_INTERN]: Raise an error.
+	[! __hurd_mutex_have_type]: Only define ss_mutex_t in this case.
+	Define __hurd_mutex_have_type.  Change ss_mutex_t to an int.
+	[__need_ss_mutex_t]: Undefine __need_ss_mutex_t.  Don't make the
+	rest of the file available.
+	[! __need_ss_mutex_t]: Include <hurd/futex.h>.
+	(_MUTEX_UNLOCKED): New define.
+	(_MUTEX_LOCKED): Likewise.
+	(_MUTEX_WAITERS): Likewise.
+	(ss_mutex_lock): Implement in terms of futexes.
+	(ss_mutex_unlock): Likewise.
+	(ss_mutex_trylock): Likewise.
+
+	* lock.h (SS_RMUTEX_LOCK): Define.
+	(SS_RMUTEX_LOCK_INC): Likewise.
+	(SS_RMUTEX_LOCK_WAIT): Likewise.
+	(SS_RMUTEX_UNLOCK): Likewise.
+	(SS_RMUTEX_UNLOCK_DEC): Likewise.
+	(SS_RMUTEX_TRYLOCK): Likewise.
+	(SS_RMUTEX_TRYLOCK_INC): Likewise.
+	(SS_RMUTEX_TRYLOCK_BLOCKED): Likewise.
+	(ss_lock_trace_dump): Handle the above new cases.
+	* rmutex.h: New file.
+	* Makefile.am (includehurd_HEADERS): Add rmutex.h.
+	* headers.m4: Link $(BUILDIR)/include/hurd/rmutex.h to rmutex.h.
+
 2008-01-17  Neal H. Walfield  <neal@gnu.org>
 
 	* rpc.h (rpc_error_reply_marshal): New function.

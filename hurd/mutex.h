@@ -18,6 +18,21 @@
    License along with GNU Hurd.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
+#ifdef RM_INTERN
+# error "This implementation is not appropriate for the kernel."
+#endif
+
+#ifndef __hurd_mutex_have_type
+#define __hurd_mutex_have_type
+typedef int ss_mutex_t;
+#endif
+
+/* If __need_ss_mutex_t is defined, then we only export the type
+   definition.  */
+#ifdef __need_ss_mutex_t
+# undef __need_ss_mutex_t
+#else
+
 #ifndef _HURD_MUTEX_H
 #define _HURD_MUTEX_H
 
@@ -25,31 +40,40 @@
 #include <atomic.h>
 #include <assert.h>
 #include <hurd/lock.h>
+#include <hurd/futex.h>
 
-typedef l4_thread_id_t ss_mutex_t;
+/* Unlocked.  */
+#define _MUTEX_UNLOCKED 0
+/* There the lock is locked.  */
+#define _MUTEX_LOCKED 1
+/* There there are waiters.  */
+#define _MUTEX_WAITERS 2
+
 
 static inline void
-ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lock)
+ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lockp)
 {
-  l4_thread_id_t owner;
-
-  for (;;)
+  int c;
+  c = atomic_compare_and_exchange_val_acq (lockp, _MUTEX_LOCKED,
+					   _MUTEX_UNLOCKED);
+  if (c != _MUTEX_UNLOCKED)
+    /* Someone else owns the lock.  */
     {
-      owner = atomic_exchange_acq (lock, l4_myself ());
-      if (owner == l4_nilthread)
+      ss_mutex_trace_add (SS_MUTEX_LOCK_WAIT, caller, line, lockp);
+
+      if (c != _MUTEX_WAITERS)
+	/* Note that there are waiters.  */
+	c = atomic_exchange_acq (lockp, _MUTEX_WAITERS);
+
+      /* Try to sleep but only if LOCKP is _MUTEX_WAITERS.  */
+      while (c != _MUTEX_UNLOCKED)
 	{
-	  ss_mutex_trace_add (SS_MUTEX_LOCK, caller, line, lock);
-	  return;
+	  futex_wait (lockp, _MUTEX_WAITERS);
+	  c = atomic_exchange_acq (lockp, _MUTEX_WAITERS);
 	}
-  
-      ss_mutex_trace_add (SS_MUTEX_LOCK_WAIT, caller, line, lock);
-
-      if (owner == l4_myself ())
-	ss_lock_trace_dump (lock);
-      assert (owner != l4_myself ());
-
-      __ss_lock_wait (owner);
     }
+
+  ss_mutex_trace_add (SS_MUTEX_LOCK, caller, line, lockp);
 }
 
 #define ss_mutex_lock(__sml_lockp)					\
@@ -61,22 +85,19 @@ ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lock)
   while (0)
 
 static inline void
-ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lock)
+ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lockp)
 {
-  l4_thread_id_t waiter;
+  /* We rely on the knowledge that unlocked is 0, locked and no
+     waiters is 1 and locked with waiters is 2.  Thus if *lockp is 1,
+     an atomic dec yields 0 and we know that there are no waiters.  */
+  if (! atomic_decrement_and_test (lockp))
+    /* There are waiters.  */
+    {
+      *lockp = 0;
+      futex_wake (lockp, 1);
+    }
 
-  waiter = atomic_exchange_acq (lock, l4_nilthread);
-  ss_mutex_trace_add (SS_MUTEX_UNLOCK, caller, line, lock);
-  if (waiter == l4_myself ())
-    /* No waiter.  */
-    return;
-
-  if (waiter == l4_nilthread)
-    ss_lock_trace_dump (lock);
-  assert (waiter != l4_nilthread);
-
-  /* Signal the waiter.  */
-  __ss_lock_wakeup (waiter);
+  ss_mutex_trace_add (SS_MUTEX_UNLOCK, caller, line, lockp);
 }
 
 #define ss_mutex_unlock(__smu_lockp)					\
@@ -88,19 +109,19 @@ ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lock)
   while (0)
 
 static inline bool
-ss_mutex_trylock (__const char *caller, int line, ss_mutex_t *lock)
+ss_mutex_trylock (__const char *caller, int line, ss_mutex_t *lockp)
 {
-  l4_thread_id_t owner;
-
-  owner = atomic_compare_and_exchange_val_acq (lock, l4_myself (),
-					       l4_nilthread);
-  if (owner == l4_nilthread)
+  int c;
+  c = atomic_compare_and_exchange_val_acq (lockp, _MUTEX_LOCKED,
+					   _MUTEX_UNLOCKED);
+  if (c == _MUTEX_UNLOCKED)
+    /* Got the lock.  */
     {
-      ss_mutex_trace_add (SS_MUTEX_TRYLOCK, caller, line, lock);
+      ss_mutex_trace_add (SS_MUTEX_TRYLOCK, caller, line, lockp);
       return true;
     }
 
-  ss_mutex_trace_add (SS_MUTEX_TRYLOCK_BLOCKED, caller, line, lock);
+  // ss_mutex_trace_add (SS_MUTEX_TRYLOCK_BLOCKED, caller, line, lockp);
 
   return false;
 }
@@ -114,3 +135,6 @@ ss_mutex_trylock (__const char *caller, int line, ss_mutex_t *lock)
   })
 
 #endif
+
+#endif /* __need_ss_mutex_t */
+

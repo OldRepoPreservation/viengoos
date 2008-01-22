@@ -31,21 +31,33 @@
 
 struct ss_lock_trace
 {
-  __const char *caller;
-  int line;
+  const char *caller;
+  unsigned int line : 28;
+  unsigned int func : 4;
   void *lock;
-  int func;
   l4_thread_id_t tid;
 };
 #define SS_LOCK_TRACE_COUNT 1000
 extern struct ss_lock_trace ss_lock_trace[SS_LOCK_TRACE_COUNT];
 extern int ss_lock_trace_count;
 
-#define SS_MUTEX_LOCK 1
-#define SS_MUTEX_LOCK_WAIT 2
-#define SS_MUTEX_UNLOCK 3
-#define SS_MUTEX_TRYLOCK 4
-#define SS_MUTEX_TRYLOCK_BLOCKED 5
+enum
+  {
+    SS_MUTEX_LOCK,
+    SS_MUTEX_LOCK_WAIT,
+    SS_MUTEX_UNLOCK,
+    SS_MUTEX_TRYLOCK,
+    SS_MUTEX_TRYLOCK_BLOCKED,
+
+    SS_RMUTEX_LOCK,
+    SS_RMUTEX_LOCK_INC,
+    SS_RMUTEX_LOCK_WAIT,
+    SS_RMUTEX_UNLOCK,
+    SS_RMUTEX_UNLOCK_DEC,
+    SS_RMUTEX_TRYLOCK,
+    SS_RMUTEX_TRYLOCK_INC,
+    SS_RMUTEX_TRYLOCK_BLOCKED,
+  };
 
 #endif /* NDEBUG */
 
@@ -83,6 +95,31 @@ ss_lock_trace_dump (void *lock)
 	  break;
 	case SS_MUTEX_TRYLOCK_BLOCKED:
 	  func = "trylock(blocked)";
+	  break;
+
+	case SS_RMUTEX_LOCK:
+	  func = "ss_rmutex_lock";
+	  break;
+	case SS_RMUTEX_LOCK_INC:
+	  func = "ss_rmutex_lock_inc";
+	  break;
+	case SS_RMUTEX_LOCK_WAIT:
+	  func = "ss_rmutex_lock_wait";
+	  break;
+	case SS_RMUTEX_UNLOCK:
+	  func = "ss_rmutex_unlock";
+	  break;
+	case SS_RMUTEX_UNLOCK_DEC:
+	  func = "ss_rmutex_unlock_dec";
+	  break;
+	case SS_RMUTEX_TRYLOCK:
+	  func = "ss_rmutex_trylock";
+	  break;
+	case SS_RMUTEX_TRYLOCK_INC:
+	  func = "ss_rmutex_trylock_inc";
+	  break;
+	case SS_RMUTEX_TRYLOCK_BLOCKED:
+	  func = "ss_rmutex_trylock_blocked";
 	  break;
 	}
       assert (func);
