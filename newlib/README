@@ -7,3 +7,21 @@ $ ../hurd-l4/configure --prefix=/l4 --with-newlib \
 	--enable-maintainer-mode --build=i686-linux --host=i686-gnu
 $ make
 
+
+
+Reentrancy
+----------
+
+newlib has a per-thread reentry structure.  We store a pointer to this
+structure in a thread's UTCB in slot _L4_UTCB_THREAD_WORD0.  See
+addon/newlib/libc/sys/hurd/getreent.c for details.
+
+errno
+-----
+
+Getting newlib to use a different errno location from that in its
+errno structure isn't easy: it's hard-wired all over the
+implementation.  Since the Hurd's run-time assigns to errno as well
+(see libhurd-mm/mmap.c and libhurd-mm/sbrk), to ensure correctness,
+they both need to use the same errno location.  This requires that
+libhurd-mm be compiled against Newlib's header files.

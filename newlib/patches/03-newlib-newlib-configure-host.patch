@@ -1,0 +1,27 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+Configure newlib for the Hurd.
+
+
+Index: newlib/configure.host
+===================================================================
+RCS file: /cvs/src/src/newlib/configure.host,v
+retrieving revision 1.97
+diff -u -p -r1.97 configure.host
+--- newlib/newlib/configure.host	7 Nov 2007 21:42:24 -0000	1.97
++++ newlib/newlib/configure.host	20 Jan 2008 20:03:05 -0000
+@@ -391,6 +391,12 @@ case "${host}" in
+   h8500-*-elf*)
+ 	sys_dir=h8500hms
+ 	;;
++  *-gnu*)
++	sys_dir=hurd
++	syscalls_dir=syscalls
++	newlib_cflags="${newlib_cflags} -Wall -DMALLOC_PROVIDED \
++	  -DHAVE_DD_LOCK -DREENTRANT_SYSCALLS_PROVIDED -D_GNU_SOURCE"
++	;;
+   i[34567]86-*-rdos*)
+ 	sys_dir=rdos
+ 	newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES"

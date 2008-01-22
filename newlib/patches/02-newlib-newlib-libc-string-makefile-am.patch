@@ -1,0 +1,19 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+Remove a trailing backslash, which confused autoconf.  This has
+already been applied to cvs.
+
+diff -upr newlib-1.16.0/newlib/libc/string/Makefile.am newlib/newlib/libc/string/Makefile.am
+--- newlib-1.16.0/newlib/libc/string/Makefile.am	2007-12-19 18:33:12.000000000 +0100
++++ newlib/newlib/libc/string/Makefile.am	2008-01-17 19:34:11.000000000 +0100
+@@ -84,7 +84,7 @@ ELIX_SOURCES = \
+ 	strcasestr.c \
+ 	strndup_r.c \
+ 	wcpcpy.c \
+-	wcpncpy.c \
++	wcpncpy.c
+ endif
+ 
+ libstring_la_LDFLAGS = -Xcompiler -nostdlib

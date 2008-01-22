@@ -1,3 +1,70 @@
+2008-01-22  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/Makefile.am: New file.
+	* addon/newlib/libc/sys/hurd/aclocal.m4: Likewise.
+	* addon/newlib/libc/sys/hurd/closer.c: Likewise.
+	* addon/newlib/libc/sys/hurd/configure: Likewise.
+	* addon/newlib/libc/sys/hurd/configure.ac: Likewise.
+	* addon/newlib/libc/sys/hurd/crt0.c: Likewise.
+	* addon/newlib/libc/sys/hurd/fcntlr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/fstatr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/getreent.c: Likewise.
+	* addon/newlib/libc/sys/hurd/gettimeofdayr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/linkr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/lock.c: Likewise.
+	* addon/newlib/libc/sys/hurd/lseekr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/malloc.c: Likewise.
+	* addon/newlib/libc/sys/hurd/mallocr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/openr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/readr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/reent.c: Likewise.
+	* addon/newlib/libc/sys/hurd/renamer.c: Likewise.
+	* addon/newlib/libc/sys/hurd/sbrkr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/signalr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/statr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/timesr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/unlinkr.c: Likewise.
+	* addon/newlib/libc/sys/hurd/writer.c: Likewise.
+	* addon/newlib/libc/sys/hurd/include/assert.h: Likewise.
+	* addon/newlib/libc/sys/hurd/include/pthread.h: Likewise.
+	* addon/newlib/libc/sys/hurd/sys/config.h: Likewise.
+	* addon/newlib/libc/sys/hurd/sys/lock.h: Likewise.
+	* patches/00-newlib-configure-ac.patch: Likewise.
+	* patches/01-newlib-libc-sys-configure-in.patch: Likewise.
+	* patches/02-newlib-newlib-libc-string-makefile-am.patch: Likewise.
+	* patches/03-newlib-newlib-configure-host.patch: Likewise.
+	* patches/04-newlib-newlib-configure-ac.patch: Likewise.
+	* Makefile.am (patch_files): Add 00-newlib-configure-ac.patch,
+	01-newlib-libc-sys-configure-in.patch,
+	02-newlib-newlib-libc-string-makefile-am.patch,
+	03-newlib-newlib-configure-host.patch, and
+	04-newlib-newlib-configure-ac.patch.
+	(addon): newlib/libc/sys/hurd/configure.ac,
+	newlib/libc/sys/hurd/configure, newlib/libc/sys/hurd/Makefile.am,
+	newlib/libc/sys/hurd/Makefile.in, newlib/libc/sys/hurd/aclocal.m4,
+	newlib/libc/sys/hurd/closer.c, newlib/libc/sys/hurd/reent.c,
+	newlib/libc/sys/hurd/fcntlr.c, newlib/libc/sys/hurd/fstatr.c,
+	newlib/libc/sys/hurd/gettimeofdayr.c,
+	newlib/libc/sys/hurd/linkr.c, newlib/libc/sys/hurd/lseekr.c,
+	newlib/libc/sys/hurd/openr.c, newlib/libc/sys/hurd/readr.c,
+	newlib/libc/sys/hurd/renamer.c, newlib/libc/sys/hurd/signalr.c,
+	newlib/libc/sys/hurd/sbrkr.c, newlib/libc/sys/hurd/statr.c,
+	newlib/libc/sys/hurd/timesr.c, newlib/libc/sys/hurd/unlinkr.c,
+	newlib/libc/sys/hurd/writer.c, newlib/libc/sys/hurd/getreent.c,
+	newlib/libc/sys/hurd/malloc.c, newlib/libc/sys/hurd/mallocr.c,
+	newlib/libc/sys/hurd/lock.c, newlib/libc/sys/hurd/crt0.c,
+	newlib/libc/sys/hurd/include/pthread.h,
+	newlib/libc/sys/hurd/include/assert.h,
+	newlib/libc/sys/hurd/sys/lock.h, and
+	newlib/libc/sys/hurd/sys/config.h.
+	(abs_top_srcdir): New variable.
+	(newlib-configure-stamp): Run autoreconf.  Add
+	-I$(abs_top_srcdir)/libc-parts to CPPFLAGS.  Set prefix to
+	newlib-install.  Add include --enable-newlib-multithread when
+	invoking configure.
+	(newlib-configure-stamp): Also run make install.
+	(include): Link to installed include directory.
+
 2008-01-17  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am: (patches): Remove variable.  Update users to use
