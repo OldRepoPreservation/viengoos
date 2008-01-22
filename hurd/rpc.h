@@ -234,7 +234,8 @@
       l4_word_t __rla_raw[(sizeof (__rla_type) + sizeof (l4_word_t) - 1) \
 		    / sizeof (l4_word_t)];				\
     } __rla_arg2 = { (__rla_arg) };					\
-    for (int __rla_i = 0;						\
+    int __rla_i;							\
+    for (__rla_i = 0;							\
 	 __rla_i < sizeof (__rla_arg2) / sizeof (l4_word_t);		\
 	 __rla_i ++)							\
       l4_msg_append_word (*msg, __rla_arg2.__rla_raw[__rla_i]);		\
@@ -280,7 +281,8 @@
       l4_word_t __rsa_raw[(sizeof (__rsa_type) + sizeof (l4_word_t) - 1) \
 			  / sizeof (l4_word_t)];			\
     } __rsa_arg2;							\
-    for (int __rsa_i = 0;						\
+    int __rsa_i;							\
+    for (__rsa_i = 0;							\
 	 __rsa_i < sizeof (__rsa_arg2) / sizeof (l4_word_t);		\
 	 __rsa_i ++)							\
       __rsa_arg2.__rsa_raw[__rsa_i] = l4_msg_word (*msg, __rsu_idx ++);	\

@@ -48,6 +48,7 @@ extern int output_debug;
   do								\
     {								\
       extern const char program_name[];				\
+      extern int printf (const char *, ...);			\
       do_debug (level)						\
         printf ("%s (%x):%s:%d: " fmt "\n",			\
 		program_name, l4_myself (), __func__, __LINE__,	\

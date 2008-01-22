@@ -1,5 +1,20 @@
 2008-01-22  Neal H. Walfield  <neal@gnu.org>
 
+	* addr.h: Don't include <l4/types.h>.  Include <stdint.h>.
+	(struct addr): Change field raw from a l4_uint64_t to a uint64_t.
+	(ADDR): Change p_ and d_ to uint64_t.
+	(addr_extend): Likewise.
+	(addr_prefix): Return a uint64_t.
+	(addr_extract): Likewise.
+	(addr_extend): Change prefix to a uint64_t.
+
+	* stddef.h (debug): Add declaration for printf.
+
+	* rpc.h (RPCLOADARG): Don't use c99 loop initializers.
+	(RPCSTOREARG): Likewise.
+
+2008-01-22  Neal H. Walfield  <neal@gnu.org>
+
 	* mutex.h [RM_INTERN]: Raise an error.
 	[! __hurd_mutex_have_type]: Only define ss_mutex_t in this case.
 	Define __hurd_mutex_have_type.  Change ss_mutex_t to an int.

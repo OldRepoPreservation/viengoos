@@ -1,5 +1,5 @@
 /* addr.h - Address definitions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -24,7 +24,7 @@
 
 #include <hurd/types.h>
 #include <l4/math.h>
-#include <l4/types.h>
+#include <stdint.h>
 
 #include <assert.h>
 
@@ -47,7 +47,7 @@
    0.  */
 struct addr
 {
-  l4_uint64_t raw;
+  uint64_t raw;
 };
 #define ADDR_BITS 63
 /* Client-side capability handle.  */
@@ -59,8 +59,8 @@ typedef struct addr addr_t;
 /* Create an address given a prefix and a depth.  */
 #define ADDR(prefix_, depth_) \
   ({ \
-    l4_uint64_t p_ = (prefix_); \
-    l4_uint64_t d_ = (depth_); \
+    uint64_t p_ = (prefix_); \
+    uint64_t d_ = (depth_); \
     assert (0 <= d_ && d_ <= ADDR_BITS); \
     assert ((p_ & ((1 << (ADDR_BITS - d_)) - 1)) == 0); \
     assert (p_ < (1ULL << ADDR_BITS)); \
@@ -84,7 +84,7 @@ addr_depth (addr_t addr)
 }
 
 /* Return ADDR's prefix.  */
-static inline l4_uint64_t
+static inline uint64_t
 addr_prefix (addr_t addr)
 {
   /* (Clear the boundary bit and shift right 1.)  */
@@ -95,7 +95,7 @@ addr_prefix (addr_t addr)
    PREFIX.  */
 #if 0
 static inline addr_t
-addr_extend (addr_t addr, l4_uint64_t prefix, int depth)
+addr_extend (addr_t addr, uint64_t prefix, int depth)
 {
   assertx (depth >= 0, "depth: %d", depth);
   assertx (addr_depth (addr) + depth <= ADDR_BITS,
@@ -110,7 +110,7 @@ addr_extend (addr_t addr, l4_uint64_t prefix, int depth)
 #define addr_extend(addr_, prefix_, depth_)				\
   ({									\
     addr_t a__ = (addr_);						\
-    l4_uint64_t p__ = (prefix_);					\
+    uint64_t p__ = (prefix_);					\
     int d__ = (depth_);							\
     assertx (d__ >= 0, "depth: %d", d__);				\
     assertx (addr_depth ((a__)) + (d__) <= ADDR_BITS,			\
@@ -134,7 +134,7 @@ addr_chop (addr_t addr, int depth)
 }
 
 /* Return the last WIDTH bits of address's ADDR prefix.  */
-static inline l4_uint64_t
+static inline uint64_t
 addr_extract (addr_t addr, int width)
 {
   assert (width <= addr_depth (addr));
