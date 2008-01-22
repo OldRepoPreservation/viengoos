@@ -20,7 +20,7 @@
 
 #include <l4/space.h>
 #include <l4/schedule.h>
-#include <hurd/mutex.h>
+#include "mutex.h"
 
 #include <assert.h>
 

@@ -13,7 +13,7 @@
    implementation to use.
 
    The latter section consists of start up code and convenience code.
-   Whatever file is the mail file should first define the
+   Whatever file is the main file should first define the
    _L4_TEST_MAIN macro and then include this file.  The program then
    need only define a test function.  */
 
@@ -178,7 +178,7 @@ static int opt_keep_going;
 /* True if a check failed.  */
 static int failed;
 
-#include <hurd/mutex.h>
+#include "mutex.h"
 struct ss_lock_trace ss_lock_trace[SS_LOCK_TRACE_COUNT];
 int ss_lock_trace_count;
 

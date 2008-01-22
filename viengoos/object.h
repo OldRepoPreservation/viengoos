@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <hurd/cap.h>
 #include <hurd/folio.h>
-#include <hurd/mutex.h>
+#include "mutex.h"
 #include <hurd/btree.h>
 #include <stdint.h>
 
