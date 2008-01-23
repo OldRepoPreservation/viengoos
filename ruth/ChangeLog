@@ -1,3 +1,8 @@
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
+	* panic.c (panic_): Print the thread id of the thread that called
+	panic.
+
 2008-01-16  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update rm_folio_object_alloc use to reflect API

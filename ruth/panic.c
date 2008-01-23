@@ -1,5 +1,5 @@
 /* panic.h - Panic interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -30,7 +30,7 @@ panic_ (const char *func, int line, const char *fmt, ...)
 
   va_start (ap, fmt);
 
-  printf ("%s:%s:%d error: ", program_name, func, line);
+  printf ("%s:%s:%d:%x: error: ", program_name, func, line, l4_myself ());
   vprintf (fmt, ap);
   putchar ('\n');
   va_end (ap);
