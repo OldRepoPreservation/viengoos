@@ -1,3 +1,8 @@
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
+	* sys/mman.h: New file based on Glibc's <sys/mman.h> and
+	<bits/mman.h>.
+
 2008-01-13  Neal H. Walfield  <neal@gnu.org>
 
 	* backtrace.c: New file.
