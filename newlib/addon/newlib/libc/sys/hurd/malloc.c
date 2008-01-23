@@ -4,6 +4,8 @@
 #define HAVE_MORECORE 0
 /* mmap allocates cleared memory.  */
 #define MMAP_CLEARS 1
+/* Don't use mremap.  */
+#define HAVE_MREMAP 0
 
 #define ABORT_ON_ASSERT_FAILURE 1
 

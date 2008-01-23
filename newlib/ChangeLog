@@ -1,5 +1,9 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* addon/newlib/libc/sys/hurd/malloc.c (HAVE_MREMAP): Define to 0.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* addon/newlib/libc/sys/hurd/Makefile.am (GENERAL_SOURCES): Add
 	lock.c.
 
