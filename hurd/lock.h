@@ -124,8 +124,8 @@ ss_lock_trace_dump (void *lock)
 	}
       assert (func);
 
-      printf ("%d: %s(%p) from %s:%d by %x\n",
-	      c --, func, lock, trace->caller, trace->line, trace->tid);
+      s_printf ("%d: %s(%p) from %s:%d by %x\n",
+		c --, func, lock, trace->caller, trace->line, trace->tid);
       if (c < -30)
 	/* Show about the last 30 transactions.  */
 	break;
