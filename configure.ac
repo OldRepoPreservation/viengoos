@@ -185,6 +185,28 @@ AC_ARG_WITH([newlib],
 [  --with-newlib          compile with Newlib's C library (see newlib/README)])
 AM_CONDITIONAL(WITH_NEWLIB, test x"${with_newlib-no}" != xno)
 
+ABS_BUILDDIR=$ac_pwd
+AC_SUBST([ABS_BUILDDIR])
+ABS_SRCDIR=`realpath $srcdir`
+AC_SUBST([ABS_SRCDIR])
+# Location of the installed headers and .a's.  We expect that
+# LIBC/libc.a and LIBC/include exists.
+LIBC=
+if test x"${with_libc-no}" != xno
+then
+	LIBC=$ABS_BUILDDIR/libc
+elif test x"${with_newlib-no}" != xno
+then
+	LIBC=$ABS_BUILDDIR/newlib
+fi
+AC_SUBST([LIBC])
+
+LIBC_A=
+if test x$LIBC != x
+then
+  LIBC_A=$LIBC/libc.a
+fi
+AC_SUBST([LIBC_A])
 
 if test "x$missing_progs" != "x"; then
   AC_MSG_ERROR([The following programs were not found:$missing_progs])
@@ -192,6 +214,7 @@ fi
 
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
+		 libc.a
 		 libl4/ia32/Makefile libl4/powerpc/Makefile
 		 libl4/v2/Makefile libl4/v2/ia32/Makefile
 		 libl4/x2/Makefile

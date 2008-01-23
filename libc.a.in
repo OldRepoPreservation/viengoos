@@ -1,0 +1,9 @@
+GROUP(@LIBC_A@
+      @ABS_BUILDDIR@/libhurd-mm/libhurd-mm.a
+      @ABS_BUILDDIR@/viengoos/libhurd-cap.a
+      @ABS_BUILDDIR@/libpthread/libpthread.a
+      @ABS_BUILDDIR@/libhurd-slab/libhurd-slab.a
+      @ABS_BUILDDIR@/libhurd-ihash/libhurd-ihash.a
+      @ABS_BUILDDIR@/libhurd-btree/libhurd-btree.a
+      @ABS_BUILDDIR@/libc-parts/libc-parts.a
+      -lgcc)

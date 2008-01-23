@@ -31,10 +31,11 @@ else
 endif
 
 SUBDIRS = libl4 platform				\
+	$(LIBC_SUBDIRS)	$(NEWLIB_SUBDIRS)		\
 	hurd libhurd-ihash libhurd-btree libbitarray	\
 	libhurd-slab					\
 	libpthread					\
 	libhurd-mm					\
-	libc-parts laden viengoos ruth			\
-	$(LIBC_SUBDIRS)	$(NEWLIB_SUBDIRS)		\
+	libc-parts laden viengoos			\
+	ruth						\
 	doc

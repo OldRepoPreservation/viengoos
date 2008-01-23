@@ -1,3 +1,17 @@
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
+	* libc.a.in: New file.
+	* configure.ac (LIBC): Set to location of C library files.
+	Substitute.
+	(LIBC_A): Set to location of C library archive.  Substitute.
+	(ABS_BUILDDIR): Set to absolute location of build directory.
+	Substitute.
+	(ABS_SRCDIR): Set to absolute location of source directory.
+	Substitute.
+	Generate libc.a.
+
+	* Makefile.am (SUBDIRS): Build C library as earlier.
+
 2008-01-17  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Check for ln.
