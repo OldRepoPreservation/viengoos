@@ -1,5 +1,11 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* configure.ac (LIBC_M): Set to location of C math library.
+	Substitute.
+	* libc.a.in: Add @LIBC_M@.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* libc.a.in: New file.
 	* configure.ac (LIBC): Set to location of C library files.
 	Substitute.

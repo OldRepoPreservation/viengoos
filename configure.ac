@@ -202,11 +202,14 @@ fi
 AC_SUBST([LIBC])
 
 LIBC_A=
+LIBC_M=
 if test x$LIBC != x
 then
   LIBC_A=$LIBC/libc.a
+  LIBC_M=$LIBC/libm.a
 fi
 AC_SUBST([LIBC_A])
+AC_SUBST([LIBC_M])
 
 if test "x$missing_progs" != "x"; then
   AC_MSG_ERROR([The following programs were not found:$missing_progs])
