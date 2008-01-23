@@ -1,3 +1,12 @@
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
+	* rmutex.h (ss_rmutex_lock): Don't use __lock_acquire or
+	__lock_release to lock or unlock LOCKP->LOCK, but ss_mutex_lock
+	and ss_mutex_unlock.
+	(ss_rmutex_unlock): Likewise.
+	(ss_rmutex_trylock): Don't use __lock_try_acquire to try and
+	obtain LOCKP->LOCK but ss_mutex_trylock.
+
 2008-01-22  Neal H. Walfield  <neal@gnu.org>
 
 	* addr.h: Don't include <l4/types.h>.  Include <stdint.h>.

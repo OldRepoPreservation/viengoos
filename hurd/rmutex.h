@@ -49,17 +49,17 @@ typedef struct ss_rmutex ss_rmutex_t;
 #define SS_RMUTEX_INIT { 0, 0, l4_nilthread }
 
 static inline void
-ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lock)
+ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lockp)
 {
   while (1)
     {
-      __lock_acquire (&lockp->lock);
+      ss_mutex_lock (&lockp->lock);
 
       if (lockp->owner == l4_myself ())
 	{
 	  assert (lockp->count != 0);
 
-	  ss_mutex_trace_add (SS_RMUTEX_LOCK_INC, caller, line, lock);
+	  ss_mutex_trace_add (SS_RMUTEX_LOCK_INC, caller, line, lockp);
 
 	  if (lockp->count > 0)
 	    lockp->count ++;
@@ -67,7 +67,7 @@ ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lock)
 	    /* Negative means there may be waiters.  */
 	    lockp->count --;
 
-	  __lock_release (&lockp->lock);
+	  ss_mutex_unlock (&lockp->lock);
 	  return;
 	}
 
@@ -75,11 +75,11 @@ ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lock)
 	{
 	  assert (lockp->count == 0);
 
-	  ss_mutex_trace_add (SS_RMUTEX_LOCK, caller, line, lock);
+	  ss_mutex_trace_add (SS_RMUTEX_LOCK, caller, line, lockp);
 
 	  lockp->count = 1;
 	  lockp->owner = l4_myself ();
-	  __lock_release (&lockp->lock);
+	  ss_mutex_unlock (&lockp->lock);
 	  return;
 	}
 
@@ -89,9 +89,9 @@ ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lock)
 	/* Note that there are waiters.  */
 	lockp->count = -lockp->count;
 
-      __lock_release (&lockp->lock);
+      ss_mutex_unlock (&lockp->lock);
 
-      ss_mutex_trace_add (SS_RMUTEX_LOCK, caller, line, lock);
+      ss_mutex_trace_add (SS_RMUTEX_LOCK, caller, line, lockp);
       futex_wait (&lockp->count, lockp->count);
     }
 }
@@ -105,9 +105,9 @@ ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lock)
   while (0)
 
 static inline void
-ss_rmutex_unlock (const char *caller, int line, ss_rmutex_t *lock)
+ss_rmutex_unlock (const char *caller, int line, ss_rmutex_t *lockp)
 {
-  __lock_acquire (&lockp->lock);
+  ss_mutex_lock (&lockp->lock);
 
   assert (lockp->owner == l4_myself ());
   assert (lockp->count != 0);
@@ -119,13 +119,13 @@ ss_rmutex_unlock (const char *caller, int line, ss_rmutex_t *lock)
     lockp->count ++;
 
   if (lockp->count == 0)
-    ss_mutex_trace_add (SS_RMUTEX_UNLOCK, caller, line, lock);
+    ss_mutex_trace_add (SS_RMUTEX_UNLOCK, caller, line, lockp);
   else
-    ss_mutex_trace_add (SS_RMUTEX_UNLOCK_DEC, caller, line, lock);
+    ss_mutex_trace_add (SS_RMUTEX_UNLOCK_DEC, caller, line, lockp);
 
   lockp->owner = l4_nilthread;
 
-  __lock_release (&lockp->lock);
+  ss_mutex_unlock (&lockp->lock);
 
   if (waiters)
     futex_wake (&lockp->count, 1);
@@ -140,14 +140,14 @@ ss_rmutex_unlock (const char *caller, int line, ss_rmutex_t *lock)
   while (0)
 
 static inline bool
-ss_rmutex_trylock (const char *caller, int line, ss_rmutex_t *lock)
+ss_rmutex_trylock (const char *caller, int line, ss_rmutex_t *lockp)
 {
   /* If someone holds the meta-lock then the lock is either held or
      about to be held.  */
-  if (__lock_try_acquire (&lockp->lock) == 1)
+  if (ss_mutex_trylock (&lockp->lock) == 1)
     /* Busy.  */
     {
-      ss_mutex_trace_add (SS_RMUTEX_TRYLOCK_BLOCKED, caller, line, lock);
+      ss_mutex_trace_add (SS_RMUTEX_TRYLOCK_BLOCKED, caller, line, lockp);
 
       return false;
     }
@@ -156,7 +156,7 @@ ss_rmutex_trylock (const char *caller, int line, ss_rmutex_t *lock)
     {
       assert (lockp->count != 0);
 
-      ss_mutex_trace_add (SS_RMUTEX_TRYLOCK_INC, caller, line, lock);
+      ss_mutex_trace_add (SS_RMUTEX_TRYLOCK_INC, caller, line, lockp);
 
       if (lockp->count > 0)
 	lockp->count ++;
@@ -164,24 +164,24 @@ ss_rmutex_trylock (const char *caller, int line, ss_rmutex_t *lock)
 	/* Negative means there may be waiters.  */
 	lockp->count --;
 
-      __lock_release (&lockp->lock);
+      ss_mutex_unlock (&lockp->lock);
       return true;
     }
 
   if (lockp->owner == l4_nilthread)
     {
-      ss_mutex_trace_add (SS_RMUTEX_TRYLOCK, caller, line, lock);
+      ss_mutex_trace_add (SS_RMUTEX_TRYLOCK, caller, line, lockp);
 
       assert (lockp->count == 0);
       lockp->count = 1;
       lockp->owner = l4_myself ();
-      __lock_release (&lockp->lock);
+      ss_mutex_unlock (&lockp->lock);
       return true;
     }
 
   assert (lockp->count != 0);
 
-  ss_mutex_trace_add (SS_RMUTEX_TRYLOCK_BLOCKED, caller, line, lock);
+  ss_mutex_trace_add (SS_RMUTEX_TRYLOCK_BLOCKED, caller, line, lockp);
 
   return false;
 }
