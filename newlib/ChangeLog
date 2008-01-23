@@ -1,3 +1,10 @@
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am ($(srcdir)/newlib $(srcdir)/newlib-stamp): When
+	extracting the tarball, remove the patch-applied stamps.
+	($(addsuffix -applied,$(patch_files))): Depend on
+	$(srcdir)/newlib, not $(srcdir)/newlib-stamp.
+
 2008-01-22  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/Makefile.am: New file.

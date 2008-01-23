@@ -77,6 +77,7 @@ $(srcdir)/newlib $(srcdir)/newlib-stamp: $(srcdir)/$(newlib_tarball)
 		echo "Refusing to extract over $(srcdir)/newlib"; \
 		exit 1; \
 	fi
+	rm -f $(builddir)/*-applied
 	( cd $(srcdir) \
 		&& tar xfvz $(newlib_tarball) \
 		&& mv $(subst .tar.gz,,$(newlib_tarball)) newlib )
@@ -84,7 +85,7 @@ $(srcdir)/newlib $(srcdir)/newlib-stamp: $(srcdir)/$(newlib_tarball)
 	touch $(srcdir)/newlib-stamp
 
 # Apply any local patches.  (Revert any applied older version.)
-$(addsuffix -applied,$(patch_files)): $(srcdir)/newlib-stamp
+$(addsuffix -applied,$(patch_files)): $(srcdir)/newlib
 $(addsuffix -applied,$(patch_files)): %-applied: patches/%
 	if test -e "$@"; \
 	then \
