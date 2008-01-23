@@ -1,3 +1,8 @@
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
+	* ihash.h (HURD_IHASH_NO_LOCP): Define to PTRDIFF_MIN rather than
+	INTPTR_MIN.
+
 2007-11-13  Neal H. Walfield  <neal@gnu.org>
 
 	* ihash.h (hurd_ihash_locp_remove): Fix comment.

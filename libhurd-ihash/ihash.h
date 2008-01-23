@@ -1,5 +1,5 @@
 /* ihash.h - Integer keyed hash table interface.
-   Copyright (C) 1995, 2003, 2004, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2003, 2004, 2007, 2008 Free Software Foundation, Inc.
    Written by Miles Bader <miles@gnu.org>.
    Revised by Marcus Brinkmann <marcus@gnu.org>.
 
@@ -98,7 +98,7 @@ typedef struct hurd_ihash *hurd_ihash_t;
 #define HURD_IHASH_MAX_LOAD_DEFAULT 80
 
 /* The LOCP_OFFS to use if no location pointer is available.  */
-#define HURD_IHASH_NO_LOCP	INTPTR_MIN
+#define HURD_IHASH_NO_LOCP	PTRDIFF_MIN
 
 /* The static initializer for a struct hurd_ihash.  */
 #define HURD_IHASH_INITIALIZER(locp_offs)				\
