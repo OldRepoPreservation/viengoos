@@ -1,5 +1,5 @@
 /* thread.c - Thread object implementation.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -31,6 +31,7 @@
 #include "object.h"
 #include "thread.h"
 #include "activity.h"
+#include "zalloc.h"
 
 #define THREAD_VERSION 2
 
@@ -55,8 +56,7 @@ static int thread_id_next;
    problematic the memory requirement is dynamic.  In a kernel that
    supported an end point abstraction with protected payload, we
    wouldn't need this.  */
-static struct hurd_ihash tid_to_thread
-  = HURD_IHASH_INITIALIZER (HURD_IHASH_NO_LOCP);
+static struct hurd_ihash tid_to_thread;
 
 struct thread *
 thread_lookup (l4_thread_id_t threadid)
@@ -82,6 +82,20 @@ thread_lookup (l4_thread_id_t threadid)
 void
 thread_init (struct thread *thread)
 {
+  static bool have_tid_to_thread_hash;
+  if (! have_tid_to_thread_hash)
+    {
+      size_t size = PAGESIZE * 10;
+      void *buffer = (void *) zalloc (size);
+      if (! buffer)
+	panic ("Failed to allocate memory for thread has.");
+
+      hurd_ihash_init_with_buffer (&tid_to_thread, HURD_IHASH_NO_LOCP,
+				   buffer, size);
+
+      have_tid_to_thread_hash = 1;
+    }
+
   /* Allocate a thread id.  */
   /* Find the next free thread id starting at thread_id_next.  */
   int tid;
@@ -99,7 +113,7 @@ thread_init (struct thread *thread)
   bool had_value;
   error_t err = hurd_ihash_replace (&tid_to_thread, tid, thread,
 				    &had_value, NULL);
-  assert (err == 0);
+  assertx (err == 0, "%d", err);
   assert (had_value == false);
 
   thread->init = true;

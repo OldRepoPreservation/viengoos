@@ -28,6 +28,7 @@ boot_PROGRAMS = viengoos
 COMMON_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
 	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE -Wall -std=gnu99 -g
 
+# We need the libc headers for errno.h -I$(LIBC)/include 
 viengoos_CPPFLAGS = $(COMMON_CPPFLAGS) -DRM_INTERN
 viengoos_SOURCES = $(ARCH_SOURCES)		\
 	output.h output.c output-none.c		\
@@ -35,7 +36,6 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	shutdown.h shutdown.c			\
 	panic.c					\
 	sigma0.h sigma0.c			\
-	malloc.h malloc-wrap.c			\
 	zalloc.h zalloc.c			\
 	mmap.c					\
 	rm.h					\
@@ -54,12 +54,9 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	pager.h pager.c				\
 	list.h
 
-# Doug Lea's malloc is included by malloc-wrap.c.
-EXTRA_viengoos_SOURCES = malloc.c
-
 viengoos_LDADD = -lgcc ../libc-parts/libc-parts.a \
 	../libhurd-btree/libhurd-btree.a \
-	../libhurd-ihash/libhurd-ihash.a
+	../libhurd-ihash/libhurd-ihash-nomalloc.a
 viengoos_LDFLAGS = -u_start -e_start -N -nostdlib \
 	-Ttext=@HURD_RM_LOAD_ADDRESS@
 

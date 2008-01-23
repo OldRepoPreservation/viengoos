@@ -1,3 +1,19 @@
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.c: Include "zalloc.h".
+	(thread_init): Initialize TID_TO_THREAD hash here.  Allocate using
+	zalloc.
+	* object.c: Include "zalloc.h".
+	(object_init): Allocate hash table and object_descs using zalloc.
+	* Makefile.am (viengoos_SOURCES): Remove malloc.h and
+	malloc-wrap.c.
+	(viengoos_LDADD): Use ../libhurd-ihash/libhurd-ihash-nomalloc.a
+	rather than ../libhurd-ihash/libhurd-ihash.a.
+	(EXTRA_viengoos_SOURCES): Remove variable.
+
+	* memory.c (memory_grab) [_L4_TEST_ENVIRONMENT]: Don't include
+	binary when calculating available memory.
+
 2008-01-22  Neal H. Walfield  <neal@gnu.org>
 
 	* mutex.h: New file, copy ../hurd/mutex.h.

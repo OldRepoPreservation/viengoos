@@ -1,5 +1,5 @@
 /* ihash.c - Integer-keyed hash table functions.
-   Copyright (C) 1993-1997, 2001, 2003, 2004, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1993-1997, 2001, 2003, 2004, 2007, 2008 Free Software Foundation, Inc.
    Written by Michael I. Bushnell.
    Revised by Miles Bader <miles@gnu.org>.
    Revised by Marcus Brinkmann <marcus@gnu.org>.
@@ -166,14 +166,31 @@ locp_remove (hurd_ihash_t ht, hurd_ihash_locp_t locp, bool cleanup)
 /* Construction and destruction of hash tables.  */
 
 /* Initialize the hash table at address HT.  */
-void
-hurd_ihash_init (hurd_ihash_t ht, intptr_t locp_offs)
+static void
+hurd_ihash_init_internal (hurd_ihash_t ht, intptr_t locp_offs)
 {
   ht->nr_items = 0;
   ht->size = 0;
   ht->locp_offset = locp_offs;
   ht->max_load = HURD_IHASH_MAX_LOAD_DEFAULT;
   ht->cleanup = 0;
+}
+
+#ifndef NO_MALLOC
+void
+hurd_ihash_init (hurd_ihash_t ht, intptr_t locp_offs)
+{
+  hurd_ihash_init_internal (ht, locp_offs);
+}
+#endif
+
+void
+hurd_ihash_init_with_buffer (hurd_ihash_t ht, intptr_t locp_offs,
+			     void *buffer, size_t size)
+{
+  hurd_ihash_init_internal (ht, locp_offs);
+  ht->items = buffer;
+  ht->size = size / sizeof (struct _hurd_ihash_item);
 }
 
 
@@ -192,13 +209,16 @@ hurd_ihash_destroy (hurd_ihash_t ht)
 	(*cleanup) (value, cleanup_data);
     }
 
+#ifndef NO_MALLOC
   if (ht->size > 0)
     free (ht->items);
+#endif
 }
 
 
 /* Create a hash table, initialize it and return it in HT.  If a
    memory allocation error occurs, ENOMEM is returned, otherwise 0.  */
+#ifndef NO_MALLOC
 error_t
 hurd_ihash_create (hurd_ihash_t *ht, intptr_t locp_offs)
 {
@@ -210,16 +230,19 @@ hurd_ihash_create (hurd_ihash_t *ht, intptr_t locp_offs)
 
   return 0;
 }
+#endif
 
 
 /* Destroy the hash table HT and release the memory allocated for it
    by hurd_ihash_create().  */
+#ifndef NO_MALLOC
 void
 hurd_ihash_free (hurd_ihash_t ht)
 {
   hurd_ihash_destroy (ht);
   free (ht);
 }
+#endif
 
 
 /* Set the cleanup function for the hash table HT to CLEANUP.  The
@@ -352,7 +375,32 @@ replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
   return 0;
 }
 
-  
+/* Return the size of a buffer (in bytes) that is appropriate for a
+   hash with COUNT elements and a load factor of LOAD_FACTOR
+   (LOAD_FACTOR must be between 1 and 100, a load factor of 0 implies
+   the default load factor).  */
+size_t
+hurd_ihash_buffer_size (size_t count, int max_load_factor)
+{
+  if (max_load_factor == 0)
+    max_load_factor = HURD_IHASH_MAX_LOAD_DEFAULT;
+  if (max_load_factor > 100)
+    max_load_factor = 100;
+  if (max_load_factor < 0)
+    max_load_factor = 1;
+
+  count = count * 100 / max_load_factor;
+
+  int i;
+  for (i = 0; i < ihash_nsizes; i++)
+    if (ihash_sizes[i] >= count)
+      break;
+  if (i == ihash_nsizes)
+    return SIZE_MAX;		/* Surely will be true momentarily.  */
+
+  return ihash_sizes[i] * sizeof (struct _hurd_ihash_item);
+}
+
 /* Add ITEM to the hash table HT under the key KEY.  If there already
    is an item under this key and OLD_VALUE is not NULL, then stores
    the value in *OLD_VALUE.  If there already is an item under this
@@ -366,28 +414,30 @@ hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key_t key,
 		    hurd_ihash_value_t item,
 		    bool *had_value, hurd_ihash_value_t  *old_value)
 {
-  struct hurd_ihash old_ht = *ht;
-  int was_added;
-  int i;
-
   if (ht->size)
     {
       /* Only fill the hash table up to its maximum load factor.  */
+#ifndef NO_MALLOC
       if (ht->nr_items * 100 / ht->size <= ht->max_load)
+#endif
 	if (replace_one (ht, key, item, had_value, old_value))
 	  return 0;
     }
 
+#ifdef NO_MALLOC
+  return ENOMEM;
+#else
+  struct hurd_ihash old_ht = *ht;
+  int was_added;
+  int i;
+
   /* The hash table is too small, and we have to increase it.  */
-  for (i = 0; i < ihash_nsizes; i++)
-    if (ihash_sizes[i] > old_ht.size)
-      break;
-  if (i == ihash_nsizes
-      || ihash_sizes[i] > SIZE_MAX / sizeof (struct _hurd_ihash_item))
+  size_t size = hurd_ihash_buffer_size (old_ht.size + 1, ht->max_load);
+  if (size >= SIZE_MAX)
     return ENOMEM;		/* Surely will be true momentarily.  */
 
   ht->nr_items = 0;
-  ht->size = ihash_sizes[i];
+  ht->size = size / sizeof (struct _hurd_ihash_item);
   /* calloc() will initialize all values to _HURD_IHASH_EMPTY implicitely.  */
   ht->items = calloc (ht->size, sizeof (struct _hurd_ihash_item));
 
@@ -418,6 +468,7 @@ hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key_t key,
     free (old_ht.items);
 
   return 0;
+#endif
 }
 
 

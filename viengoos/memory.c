@@ -35,6 +35,7 @@
 #include "sigma0.h"
 #endif
 
+/* This can account 4G pages * 4k = 16TB of memory.  */
 uint32_t memory_total;
 
 l4_word_t first_frame;
@@ -316,21 +317,13 @@ memory_grab (void)
     }
 
 #ifdef _L4_TEST_ENVIRONMENT
-  extern char _start;
-  extern char _end;
-
 #define SIZE 8 * 1024 * 1024
   void *m = mmap (NULL, SIZE, PROT_READ | PROT_WRITE,
 		  MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  assert_perror (errno);
   if (m == MAP_FAILED)
     panic ("No memory: %m");
+  assert_perror (errno);
   add ((l4_word_t) m, SIZE);
-
-  /* Add binary.  */
-  l4_word_t s = (l4_word_t) &_start & ~(PAGESIZE - 1);
-  l4_word_t e = ((((l4_word_t) &_end) + PAGESIZE) & ~(PAGESIZE - 1)) - 1;
-  add (s, e - s + 1);
 
 #else
   l4_word_t s;

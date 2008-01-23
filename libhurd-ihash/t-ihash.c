@@ -104,7 +104,7 @@ main (int argc, char *argv[])
     int value;
     hurd_ihash_locp_t locp;
   };
-  hurd_ihash_init (&hash, &(((struct s *)0)->locp));
+  hurd_ihash_init (&hash, (int) &(((struct s *)0)->locp));
 
   if (hurd_ihash_find (&hash, 1))
     F ("Found object with key 1 in otherwise empty hash");

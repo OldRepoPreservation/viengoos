@@ -1,5 +1,29 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* ihash.h (hurd_ihash_buffer_size): New declaration.
+	(hurd_ihash_init_with_buffer): Likewise.
+	(hurd_ihash_init): Add comment that this function is not provided
+	if the library is compiled with NO_MALLOC.
+	(hurd_ihash_create): Likewise.
+	(hurd_ihash_free): Likewise.
+	(hurd_ihash_destroy): Update comment.
+	* ihash.c (hurd_ihash_init_with_buffer): New function.
+	(hurd_ihash_destroy) [NO_MALLOC]: Don't free HT->ITEMS.
+	(hurd_ihash_create) [NO_MALLOC]: Just return ENOMEM;
+	(hurd_ihash_free) [NO_MALLOC]: Remove function.
+	(hurd_ihash_buffer_size): New function.
+	(hurd_ihash_replace) [NO_MALLOC]: Don't attempt to expand the hash
+	table.
+	[! NO_MALLOC]: Use hurd_ihash_buffer_size to calculate an
+	appropriate buffer size.
+	* Makefile.am (lib_LIBRARIES): Add libhurd-ihash-nomalloc.a.
+	(libhurd_ihash_nomalloc_a_CPPFLAGS): New variable.
+	(libhurd_ihash_nomalloc_a_SOURCES): Likewise.
+
+	* t-ihash.c (main): Cast locp offset calculation to elide warning.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (AM_CPPFLAGS): Add -I$(LIBC)/include.
 
 2008-01-23  Neal H. Walfield  <neal@gnu.org>

@@ -29,6 +29,7 @@
 #include "object.h"
 #include "activity.h"
 #include "thread.h"
+#include "zalloc.h"
 
 struct object_desc *object_descs;
 
@@ -68,13 +69,37 @@ object_init (void)
   assertx (sizeof (struct object) <= PAGESIZE, "%d", sizeof (struct object));
   assertx (sizeof (struct thread) <= PAGESIZE, "%d", sizeof (struct thread));
 
-  hurd_ihash_init (&objects, (int) (&((struct object_desc *)0)->locp));
 
-  /* Allocate enough object descriptors for the number of pages.  */
-  object_descs = calloc (sizeof (struct object_desc),
-			 ((last_frame - first_frame) / PAGESIZE + 1));
+  /* Allocate object hash.  */
+  int count = (last_frame - first_frame) / PAGESIZE + 1;
+
+  size_t size = hurd_ihash_buffer_size (count, 0);
+  /* Round up to a multiple of the page size.  */
+  size = (size + PAGESIZE - 1) & ~(PAGESIZE - 1);
+
+  void *buffer = (void *) zalloc (size);
+  if (! buffer)
+    panic ("Failed to allocate memory for object hash!\n");
+
+  memset (buffer, 0, size);
+
+  hurd_ihash_init_with_buffer (&objects,
+			       (int) (&((struct object_desc *)0)->locp),
+			       buffer, size);
+
+
+  /* Allocate object desc array: enough object descriptors for the
+     number of pages.  */
+  size = ((last_frame - first_frame) / PAGESIZE + 1)
+    * sizeof (struct object_desc);
+  /* Round up.  */
+  size = (size + PAGESIZE - 1) & ~(PAGESIZE - 1);
+
+  object_descs = (void *) zalloc (size);
   if (! object_descs)
-    panic ("Failed to allocate object descriptor array!\n");
+    panic ("Failed to allocate memory for object descriptor array!\n");
+
+  memset (object_descs, 0, size);
 }
 
 /* Allocate and set up a memory object.  TYPE, OID and VERSION must

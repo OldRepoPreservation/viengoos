@@ -110,12 +110,28 @@ typedef struct hurd_ihash *hurd_ihash_t;
    HURD_IHASH_NO_LOCP, then this is an offset (in bytes) from the
    address of a hash value where a location pointer can be found.  The
    location pointer must be of type hurd_ihash_locp_t and can be used
-   for fast removal with hurd_ihash_locp_remove().  */
+   for fast removal with hurd_ihash_locp_remove().  This function is
+   not provided if compiled with NO_MALLOC.  */
 void hurd_ihash_init (hurd_ihash_t ht, intptr_t locp_offs);
+
+/* Return the size of a buffer (in bytes) that is appropriate for a
+   hash with COUNT elements and a load factor of LOAD_FACTOR
+   (LOAD_FACTOR must be between 1 and 100, a load factor of 0 implies
+   the default load factor).  */
+size_t hurd_ihash_buffer_size (size_t count, int max_load_factor);
+
+/* Initialize a hash ala hurd_ihash_init but provide an initial buffer
+   BUFFER of size SIZE bytes.  If not compiled with NO_MALLOC, the
+   memory is assumed to be allocated with malloc and may be freed if
+   the hash must be grown or when hurd_ihash_destroy is called.  */
+void hurd_ihash_init_with_buffer (hurd_ihash_t ht, intptr_t locp_offs,
+				  void *buffer, size_t size);
 
 /* Destroy the hash table at address HT.  This first removes all
    elements which are still in the hash table, and calling the cleanup
-   function for them (if any).  */
+   function for them (if any).  If compiled with NO_MALLOC, it is the
+   caller's responsibility to free the originally provided buffer,
+   otherwise, any buffer in use if freed.  */
 void hurd_ihash_destroy (hurd_ihash_t ht);
 
 /* Create a hash table, initialize it and return it in HT.  If
@@ -124,11 +140,13 @@ void hurd_ihash_destroy (hurd_ihash_t ht);
    can be found.  The location pointer must be of type
    hurd_ihash_locp_t and can be used for fast removal with
    hurd_ihash_locp_remove().  If a memory allocation error occurs,
-   ENOMEM is returned, otherwise 0.  */
+   ENOMEM is returned, otherwise 0.  This function is not provided if
+   compiled with NO_MALLOC.  */
 error_t hurd_ihash_create (hurd_ihash_t *ht, intptr_t locp_offs);
 
 /* Destroy the hash table HT and release the memory allocated for it
-   by hurd_ihash_create().  */
+   by hurd_ihash_create().  This function is not provided if compiled
+   with NO_MALLOC.  */
 void hurd_ihash_free (hurd_ihash_t ht);
 
 
