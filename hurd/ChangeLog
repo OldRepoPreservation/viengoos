@@ -1,6 +1,6 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
-	* lock.h (ss_lock_trace_dump): Use s_printf rather than printf.
+	* lock.h (ss_lock_trace_dump): Use S_PRINTF rather than printf.
 
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
