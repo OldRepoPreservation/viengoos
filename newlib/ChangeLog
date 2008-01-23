@@ -1,3 +1,14 @@
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/getreent.c (reent_main): New
+	variable.
+	(reent_main_alloced): Likewise.
+	(reent_key_destroy): Clear utcb[_L4_UTCB_THREAD_WORD0].
+	(__getreent): If REENT_MAIN_ALLOCED is not true, then use
+	REENT_MAIN.  Otherwise, use the slab.  Only initialize the key if
+	we use the slab and then, only after we've initialized the new
+	structure and stashed it in utcb[_L4_UTCB_THREAD_WORD0].
+
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/isatty.c: New file.
