@@ -9,6 +9,7 @@
 const char program_name[] = "btree-test";
 
 // #define DEBUG
+#undef debug
 #ifdef DEBUG
 #define debug(fmt, ...) printf (fmt, ##__VA_ARGS__)
 #else

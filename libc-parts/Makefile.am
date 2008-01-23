@@ -61,5 +61,5 @@ $(routines_objects): %.$(OBJEXT): @STATIC_GLIBC@
 TESTS = t-setjmp
 check_PROGRAMS = $(TESTS)
 
-t_setjmp_CPPFLAGS = $(COMMON_CPPFLAGS) -D_L4_TEST_ENVIRONMENT
+t_setjmp_CPPFLAGS = $(COMMON_CPPFLAGS) -DS_PRINTF=printf
 t_setjmp_SOURCES = t-setjmp.c setjmp.h ia32-setjmp.S

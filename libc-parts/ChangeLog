@@ -1,5 +1,10 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (t_setjmp_CPPFLAGS): Remove -D_L4_TEST_ENVIRONMENT.
+	Add -DS_PRINTF=printf.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* assert.h: Include <hurd/stddef.h>.
 	(assertx): Use S_PRINTF rather than printf.
 
