@@ -24,12 +24,12 @@
 #include <stdarg.h>
 
 /* Print the single character CHR on the output device.  */
-int putchar (int chr);
+int s_putchar (int chr);
 
-int puts (const char *str);
+int s_puts (const char *str);
 
-int vprintf (const char *fmt, va_list ap);
+int s_vprintf (const char *fmt, va_list ap);
 
-int printf (const char *fmt, ...);
+int s_printf (const char *fmt, ...);
 
 #endif	/* _OUTPUT_H */

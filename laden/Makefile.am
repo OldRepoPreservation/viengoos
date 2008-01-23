@@ -27,7 +27,8 @@ bootdir = $(prefix)/boot
 boot_PROGRAMS = laden
 
 laden_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
-	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS)
+	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS) \
+	-DS_PRINTF=printf
 
 laden_SOURCES =  $(ARCH_SOURCES)				\
 	output.h output.c output-none.c				\

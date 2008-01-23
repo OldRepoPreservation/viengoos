@@ -22,17 +22,19 @@
 #ifndef _ASSERT_H
 #define _ASSERT_H 1
 
-int printf (const char *fmt, ...);
+#include <hurd/stddef.h>
 
 #ifdef _L4_TEST_ENVIRONMENT
 # include_next <assert.h>
-# define assertx(__ax_expr, __ax_fmt, ...) \
-  do					   \
-    {					   \
-      if (! (__ax_expr))		   \
-	printf (__ax_fmt, ##__VA_ARGS__);  \
-      assert (__ax_expr);		   \
-    }					   \
+# define assertx(__ax_expr, __ax_fmt, ...)		\
+  do							\
+    {							\
+      extern int S_PRINTF (const char *fmt, ...);	\
+      							\
+      if (! (__ax_expr))				\
+	S_PRINTF (__ax_fmt, ##__VA_ARGS__);		\
+      assert (__ax_expr);				\
+    }							\
   while (0)
 
 #else
@@ -43,17 +45,19 @@ int printf (const char *fmt, ...);
 #  define assertx(__ax_expr, __ax_fmt, ...)				\
   do {									\
     extern const char program_name[];					\
+    extern int S_PRINTF (const char *fmt, ...);				\
+    									\
     if (! (__ax_expr))							\
       {									\
-	printf ("%s (%x):%s:%s:%d: %s failed",				\
+	S_PRINTF ("%s (%x):%s:%s:%d: %s failed",			\
 		program_name, l4_myself (),				\
 		__FILE__, __func__, __LINE__,				\
 		#__ax_expr);						\
 	if ((__ax_fmt) && *(__ax_fmt))					\
 	  {								\
-	    printf (": " __ax_fmt, ##__VA_ARGS__);			\
+	    S_PRINTF (": " __ax_fmt, ##__VA_ARGS__);			\
 	  }								\
-	printf ("\n");							\
+	S_PRINTF ("\n");						\
 									\
 	extern int backtrace (void **array, int size);			\
 									\
@@ -61,8 +65,9 @@ int printf (const char *fmt, ...);
 	int count = backtrace (a, sizeof (a) / sizeof (a[0]));		\
 	int i;								\
 	for (i = 0; i < count; i ++)					\
-	  printf ("Backtrace: %p%s", a[i], i == count - 1 ? "" : " -> "); \
-	printf ("\n");							\
+	  S_PRINTF ("Backtrace: %p%s",					\
+		    a[i], i == count - 1 ? "" : " -> ");		\
+	S_PRINTF ("\n");						\
 									\
 	for (;;);							\
       }									\

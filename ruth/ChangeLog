@@ -1,3 +1,27 @@
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
+	* output.h (putchar): Rename from this...
+	(s_putchar): ... to this.
+	(puts): Rename from this...
+	(s_puts): ... to this.
+	(vprintf): Rename from this...
+	(s_vprintf): ... to this.
+	(printf): Rename from this...
+	(s_printf): ... to this.
+	* output.c (putchar): Rename from this...
+	(s_putchar): ... to this.  Update users.
+	(puts): Rename from this...
+	(s_puts): ... to this.  Update users.
+	(vprintf): Rename from this...
+	(s_vprintf): ... to this.  Update users.
+	(printf): Rename from this...
+	(s_printf): ... to this.
+	* Makefile.am (ruth_SOURCES): Add object.h and object.c.
+	* ia32-cmain.c: Include <stddef.h>.
+	(cmain): Use s_printf rather than printf.
+	* panic.c (panic_): Use s_printf and s_vprintf rather than printf
+	and vprintf.
+
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (COMMON_CPPFLAGS): Add -I$(LIBC)/include.

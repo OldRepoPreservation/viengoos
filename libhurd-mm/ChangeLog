@@ -1,3 +1,8 @@
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c (as_alloced_dump): Use s_printf rather than printf.
+	(as_walk): Likewise.
+
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (COMMON_CPPFLAGS): Add -I$(LIBC)/include.

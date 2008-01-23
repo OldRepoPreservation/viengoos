@@ -152,6 +152,7 @@ typedef BTREE_(node_t) *node;
 
 /* Routines to check tree invariants.  */
 
+#include <stdio.h>
 #include <assert.h>
 
 #define CHECK_TREE(a) check_tree(a)

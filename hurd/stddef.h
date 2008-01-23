@@ -24,6 +24,19 @@
 #include <l4/types.h>
 #include <assert.h>
 
+/* A safe-printf routine.  In particular, it doesn't call malloc and
+   works in place.  This makes it appropriate for situations in which
+   malloc is not yet working and when the state is suspected to be
+   compromised (e.g., assert or panic).  */
+#ifndef S_PRINTF
+# if defined(RM_INTERN) || defined(_L4_TEST_ENVIRONMENT)
+#  define S_PRINTF printf
+# else
+#  define S_PRINTF s_printf
+# endif
+#endif
+extern int S_PRINTF (const char *fmt, ...);
+
 /* Convenient debugging macros.  */
 #ifdef DEBUG_ELIDE
 
@@ -44,16 +57,16 @@ extern int output_debug;
 #include <l4/thread.h>
 
 /* Print a debug message if DEBUG_COND is true.  */
-#define debug(level, fmt, ...)					\
-  do								\
-    {								\
-      extern const char program_name[];				\
-      extern int printf (const char *, ...);			\
-      do_debug (level)						\
-        printf ("%s (%x):%s:%d: " fmt "\n",			\
-		program_name, l4_myself (), __func__, __LINE__,	\
-	        ##__VA_ARGS__);					\
-    }								\
+#define debug(level, fmt, ...)						\
+  do									\
+    {									\
+      extern const char program_name[];					\
+      extern int S_PRINTF (const char *, ...);				\
+      do_debug (level)							\
+        S_PRINTF ("%s (%x):%s:%d: " fmt "\n",				\
+		   program_name, l4_myself (), __func__, __LINE__,	\
+		   ##__VA_ARGS__);					\
+    }									\
   while (0)
 
 /* Print an error message and fail.  This function must be provided by

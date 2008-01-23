@@ -20,7 +20,9 @@
 
 #define _GNU_SOURCE
 
-extern const char program_name[] = "t-ihash";
+#include <stdio.h>
+
+const char program_name[] = "t-ihash";
 
 #if HAVE_CONFIG_H
 #include <config.h>

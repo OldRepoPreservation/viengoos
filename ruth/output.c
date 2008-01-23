@@ -45,7 +45,7 @@ shutdown (void)
 
 /* Print the single character CHR on the output device.  */
 int
-putchar (int chr)
+s_putchar (int chr)
 {
   rm_putchar (chr);
 
@@ -54,12 +54,12 @@ putchar (int chr)
 
 
 int
-puts (const char *str)
+s_puts (const char *str)
 {
   while (*str != '\0')
-    putchar (*(str++));
+    s_putchar (*(str++));
 
-  putchar ('\n');
+  s_putchar ('\n');
 
   return 0;
 }
@@ -81,7 +81,7 @@ print_nr (unsigned long long nr, int base)
 
   i--;
   while (i >= 0)
-    putchar (str[i--]);
+    s_putchar (str[i--]);
 }
   
 
@@ -92,7 +92,7 @@ print_signed_nr (long long nr, int base)
 
   if (nr < 0)
     {
-      putchar ('-');
+      s_putchar ('-');
       unr = -nr;
     }
   else
@@ -103,7 +103,7 @@ print_signed_nr (long long nr, int base)
   
 
 int
-vprintf (const char *fmt, va_list ap)
+s_vprintf (const char *fmt, va_list ap)
 {
   const char *p = fmt;
 
@@ -111,7 +111,7 @@ vprintf (const char *fmt, va_list ap)
     {
       if (*p != '%')
 	{
-	  putchar (*(p++));
+	  s_putchar (*(p++));
 	  continue;
 	}
 
@@ -119,7 +119,7 @@ vprintf (const char *fmt, va_list ap)
       switch (*p)
 	{
 	case '%':
-	  putchar ('%');
+	  s_putchar ('%');
 	  p++;
 	  break;
 
@@ -127,9 +127,9 @@ vprintf (const char *fmt, va_list ap)
 	  p++;
 	  if (*p != 'l')
 	    {
-	      putchar ('%');
-	      putchar ('l');
-	      putchar (*(p++));
+	      s_putchar ('%');
+	      s_putchar ('l');
+	      s_putchar (*(p++));
 	      continue;
 	    }
 	  p++;
@@ -158,10 +158,10 @@ vprintf (const char *fmt, va_list ap)
 	      break;
 
 	    default:
-	      putchar ('%');
-	      putchar ('l');
-	      putchar ('l');
-	      putchar (*(p++));
+	      s_putchar ('%');
+	      s_putchar ('l');
+	      s_putchar ('l');
+	      s_putchar (*(p++));
 	      break;
 	    }
 	  break;
@@ -189,15 +189,23 @@ vprintf (const char *fmt, va_list ap)
 	  break;
 
 	case 'c':
-	  putchar (va_arg (ap, int));
+	  s_putchar (va_arg (ap, int));
 	  p++;
 	  break;
 
 	case 's':
 	  {
 	    char *str = va_arg (ap, char *);
-	    while (*str)
-	      putchar (*(str++));
+	    if (str)
+	      while (*str)
+		s_putchar (*(str++));
+	    else
+	      {
+		s_putchar ('N');
+		s_putchar ('U');
+		s_putchar ('L');
+		s_putchar ('L');
+	      }
 	  }
 	  p++;
 	  break;
@@ -208,8 +216,8 @@ vprintf (const char *fmt, va_list ap)
 	  break;
 
 	default:
-	  putchar ('%');
-	  putchar (*p);
+	  s_putchar ('%');
+	  s_putchar (*p);
 	  p++;
 	  break;
 	}
@@ -219,12 +227,12 @@ vprintf (const char *fmt, va_list ap)
 }
 
 int
-printf (const char *fmt, ...)
+s_printf (const char *fmt, ...)
 {
   va_list ap;
 
   va_start (ap, fmt);
-  int r = vprintf (fmt, ap);
+  int r = s_vprintf (fmt, ap);
   va_end (ap);
   return r;
 }

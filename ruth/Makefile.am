@@ -32,6 +32,7 @@ COMMON_CPPFLAGS = -Wall -g -std=gnu99 -D_GNU_SOURCE -I$(srcdir)		\
 ruth_CPPFLAGS = $(COMMON_CPPFLAGS)
 ruth_SOURCES = $(ARCH_SOURCES)			\
 	panic.h panic.c				\
+	output.c output.h			\
 	ruth.h ruth.c
 
 ruth_LDFLAGS = -u_start -e_start -nostdlib

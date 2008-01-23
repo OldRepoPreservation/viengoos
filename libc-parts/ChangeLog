@@ -1,3 +1,8 @@
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
+	* assert.h: Include <hurd/stddef.h>.
+	(assertx): Use S_PRINTF rather than printf.
+
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
 	* sys/mman.h: New file based on Glibc's <sys/mman.h> and

@@ -31,9 +31,9 @@ panic_ (const char *func, int line, const char *fmt, ...)
 
   va_start (ap, fmt);
 
-  printf ("%s:%s:%d:%x: error: ", program_name, func, line, l4_myself ());
-  vprintf (fmt, ap);
-  putchar ('\n');
+  s_printf ("%s:%s:%d:%x: error: ", program_name, func, line, l4_myself ());
+  s_vprintf (fmt, ap);
+  s_printf ("\n");
   va_end (ap);
 
   for (;;);

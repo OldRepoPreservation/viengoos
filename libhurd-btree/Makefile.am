@@ -30,5 +30,6 @@ libhurd_btree_a_SOURCES = btree.h btree.c
 TESTS = btree-test
 
 check_PROGRAMS = btree-test
-btree_test_SOURCES = btree-test.c btree.h
-btree_test_LDADD = libhurd-btree.a
+btree_test_SOURCES = btree-test.c btree.h btree.c
+btree_test_CPPFLAGS = -DS_PRINTF=printf $(AM_CPPFLAGS)
+

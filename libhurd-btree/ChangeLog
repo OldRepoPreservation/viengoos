@@ -1,3 +1,11 @@
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (btree_test_CPPFLAGS): New variable.
+	(btree_test_LDADD): Remove.
+	(btree_test_SOURCES): Add btree.c.
+
+	* btree.c (node_t): Include <stdio.h>.
+
 2007-12-17  Neal H. Walfield  <neal@gnu.org>
 
 	* btree.h (BTREE_(check_tree_internal)): Take additional

@@ -34,6 +34,7 @@
 
 #include <hurd/startup.h>
 #include <hurd/mm.h>
+#include <hurd/stddef.h>
 
 
 /* Initialized by the machine-specific startup-code.  */
@@ -112,7 +113,7 @@ cmain (void)
   l4_init ();
   l4_init_stubs ();
 
-  printf ("In cmain\n");
+  s_printf ("In cmain\n");
 
   mm_init (__hurd_startup_data->activity);
 

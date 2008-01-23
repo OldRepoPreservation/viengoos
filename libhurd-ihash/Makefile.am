@@ -38,5 +38,5 @@ libhurd_ihash_nomalloc_a_SOURCES = ihash.h ihash.c
 TESTS = t-ihash
 
 check_PROGRAMS = t-ihash
-t_ihash_SOURCES = t-ihash.c ihash.h
-t_ihash_LDADD = libhurd-ihash.a
+t_ihash_SOURCES = t-ihash.c ihash.h ihash.c
+t_ihash_CPPFLAGS = -DS_PRINTF=printf $(AM_CPPFLAGS)

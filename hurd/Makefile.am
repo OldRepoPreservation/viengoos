@@ -28,12 +28,12 @@ includehurd_HEADERS = rpc.h startup.h stddef.h types.h addr.h \
 TESTS = t-addr t-addr-trans t-rpc
 check_PROGRAMS = $(TESTS)
 
-t_addr_CPPFLAGS = $(COMMON_CPPFLAGS)
+t_addr_CPPFLAGS = $(COMMON_CPPFLAGS) -DS_PRINTF=printf
 t_addr_SOURCES = t-addr.c
 
-t_addr_trans_CPPFLAGS = $(COMMON_CPPFLAGS)
+t_addr_trans_CPPFLAGS = $(COMMON_CPPFLAGS) -DS_PRINTF=printf
 t_addr_trans_SOURCES = t-addr-trans.c
 
-t_rpc_CPPFLAGS = $(COMMON_CPPFLAGS)
+t_rpc_CPPFLAGS = $(COMMON_CPPFLAGS) -DS_PRINTF=printf
 t_rpc_SOURCES = t-rpc.c
 

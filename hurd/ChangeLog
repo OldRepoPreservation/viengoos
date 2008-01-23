@@ -1,5 +1,13 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* stddef.h (S_PRINTF): New macro.
+	(debug): Use S_PRINTF rather than printf.
+	* Makefile.am (t_addr_CPPFLAGS): Add -DS_PRINTF=printf.
+	(t_addr_trans_CPPFLAGS): Likewise.
+	(t_rpc_CPPFLAGS): Likewise.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* mutex.h (ss_mutex_unlock): Correctly test whether there are
 	waiters.
 	* rmutex.h (ss_rmutex_lock): Save the value of LOCKP->COUNT before

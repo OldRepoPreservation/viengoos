@@ -1,5 +1,5 @@
 /* as.c - Address space construction utility functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -733,9 +733,9 @@ as_alloced_dump (const char *prefix)
   for (free_space = hurd_btree_free_space_first (&free_spaces);
        free_space;
        free_space = hurd_btree_free_space_next (free_space))
-    printf ("%s%s%llx-%llx\n",
-	    prefix ?: "", prefix ? ": " : "",
-	    free_space->region.start, free_space->region.end);
+    s_printf ("%s%s%llx-%llx\n",
+	      prefix ?: "", prefix ? ": " : "",
+	      free_space->region.start, free_space->region.end);
 
   ss_mutex_unlock (&free_spaces_lock);
 }
@@ -891,12 +891,12 @@ as_walk (int (*visit) (addr_t addr,
 
 	  do_debug (5)
 	    {
-	      printf ("Considering " ADDR_FMT "(%s): ",
-		      ADDR_PRINTF (addr), cap_type_string (type));
+	      s_printf ("Considering " ADDR_FMT "(%s): ",
+			ADDR_PRINTF (addr), cap_type_string (type));
 	      int i;
 	      for (i = 0; i < depth; i ++)
-		printf ("%s%d", i == 0 ? "" : " -> ", child[i]);
-	      printf (", depth: %d\n", depth);
+		s_printf ("%s%d", i == 0 ? "" : " -> ", child[i]);
+	      s_printf (", depth: %d\n", depth);
 	    }
 
 	  if (((1 << type) & types))
