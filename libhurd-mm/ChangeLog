@@ -1,3 +1,14 @@
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
+	* capalloc.c (link): Rename from this...
+	(list_link): ... to this.  Update users.
+	(unlink): Rename from this...
+	(list_unlink): ... to this.  Update users.
+	* storage.c (link): Rename from this...
+	(list_link): ... to this.  Update users.
+	(unlink): Rename from this...
+	(list_unlink): ... to this.  Update users.
+
 2008-01-16  Neal H. Walfield  <neal@gnu.org>
 
 	* storage.c (shadow_setup): Update rm_folio_object_alloc use to

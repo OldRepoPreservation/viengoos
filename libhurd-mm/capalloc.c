@@ -1,5 +1,5 @@
 /* capalloc.c - Capability allocation functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -51,7 +51,7 @@ struct cappage_desc
 };
 
 static void
-link (struct cappage_desc **list, struct cappage_desc *e)
+list_link (struct cappage_desc **list, struct cappage_desc *e)
 {
   e->next = *list;
   if (e->next)
@@ -61,7 +61,7 @@ link (struct cappage_desc **list, struct cappage_desc *e)
 }
 
 static void
-unlink (struct cappage_desc *e)
+list_unlink (struct cappage_desc *e)
 {
   assert (e->prevp);
 
@@ -218,7 +218,7 @@ capalloc (void)
       pthread_mutex_lock (&cappage_descs_lock);
       pthread_mutex_lock (&area->lock);
       if (area->free == 0)
-	unlink (area);
+	list_unlink (area);
       pthread_mutex_unlock (&area->lock);
       pthread_mutex_unlock (&cappage_descs_lock);
     }
@@ -231,7 +231,7 @@ capalloc (void)
     {
       pthread_mutex_lock (&cappage_descs_lock);
 
-      link (&nonempty, area);
+      list_link (&nonempty, area);
       hurd_btree_cappage_desc_insert (&cappage_descs, area);
 
       pthread_mutex_unlock (&cappage_descs_lock);
@@ -258,7 +258,7 @@ capfree (addr_t cap)
   if (desc->free == 1)
     /* The cappage is no longer full.  Add it back to the list of
        nonempty cappages.  */
-    link (&nonempty, desc);
+    list_link (&nonempty, desc);
   else if (desc->free == CAPPAGE_SLOTS)
     /* No slots in the cappage are allocated.  Free it if there is at
        least one cappage on NONEMPTY.  */
@@ -267,7 +267,7 @@ capfree (addr_t cap)
       if (nonempty->next)
 	{
 	  hurd_btree_cappage_desc_detach (&cappage_descs, desc);
-	  unlink (desc);
+	  list_unlink (desc);
 	  pthread_mutex_unlock (&cappage_descs_lock);
 
 	  struct object *shadow = cap_get_shadow (desc->cap);

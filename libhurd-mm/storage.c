@@ -87,7 +87,7 @@ struct storage_desc
 static ss_mutex_t storage_descs_lock;
 
 static void
-link (struct storage_desc **list, struct storage_desc *e)
+list_link (struct storage_desc **list, struct storage_desc *e)
 {
   /* Better be locked.  */
   assert (! ss_mutex_trylock (&storage_descs_lock));
@@ -106,7 +106,7 @@ link (struct storage_desc **list, struct storage_desc *e)
   })
 
 static void
-unlink (struct storage_desc *e)
+list_unlink (struct storage_desc *e)
 {
   /* Better be locked.  */
   assert (! ss_mutex_trylock (&storage_descs_lock));
@@ -287,7 +287,7 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
 	  /* STORAGE->FREE may be zero if someone came along and deallocated
 	     a page between our dropping and retaking the lock.  */
 	  if (storage->free == 0)
-	    unlink (storage);
+	    list_unlink (storage);
 
 	  ss_mutex_unlock (&storage->lock);
 	  ss_mutex_unlock (&storage_descs_lock);
@@ -398,12 +398,12 @@ storage_alloc_ (addr_t activity,
       if (expectancy == STORAGE_EPHEMERAL)
 	{
 	  s->mode = SHORT_LIVED;
-	  link (&short_lived, s);
+	  list_link (&short_lived, s);
 	}
       else
 	{
 	  s->mode = LONG_LIVED_ALLOCING;
-	  link (&long_lived_allocing, s);
+	  list_link (&long_lived_allocing, s);
 	}
 
       hurd_btree_storage_desc_insert (&storage_descs, s);
@@ -456,8 +456,8 @@ storage_alloc_ (addr_t activity,
 
 	  if (desc)
 	    {
-	      unlink (desc);
-	      link (&long_lived_allocing, desc);
+	      list_unlink (desc);
+	      list_link (&long_lived_allocing, desc);
 	    }
 	}
     }
@@ -534,7 +534,7 @@ storage_alloc_ (addr_t activity,
       /* DESC->FREE may be zero if someone came along and deallocated
 	 a page between our dropping and retaking the lock.  */
       if (desc->free == 0)
-	unlink (desc);
+	list_unlink (desc);
 
       ss_mutex_unlock (&desc->lock);
       ss_mutex_unlock (&storage_descs_lock);
@@ -593,7 +593,7 @@ storage_free_ (addr_t object, bool unmap_now)
 	{
 	  atomic_add (&free_count, - FOLIO_OBJECTS);
 
-	  unlink (storage);
+	  list_unlink (storage);
 	  hurd_btree_storage_desc_detach (&storage_descs, storage);
 
 	  ss_mutex_unlock (&storage_descs_lock);
@@ -630,9 +630,9 @@ storage_free_ (addr_t object, bool unmap_now)
       /* The folio is no longer completely full.  Return it to a
 	 list.  */
       if (storage->mode == STORAGE_EPHEMERAL)
-	link (&short_lived, storage);
+	list_link (&short_lived, storage);
       else
-	link (&long_lived_allocing, storage);
+	list_link (&long_lived_allocing, storage);
     }
 
   else if (storage->mode == LONG_LIVED_STABLE
@@ -640,9 +640,9 @@ storage_free_ (addr_t object, bool unmap_now)
     /* The folio is stable and is now less than half allocated.
        Change the folio's state to freeing.  */
     {
-      unlink (storage);
+      list_unlink (storage);
       storage->mode = LONG_LIVED_FREEING;
-      link (&long_lived_freeing, storage);
+      list_link (&long_lived_freeing, storage);
     }
 
   ss_mutex_unlock (&storage_descs_lock);
@@ -709,7 +709,7 @@ storage_init (void)
 	  sdesc->free = FOLIO_OBJECTS;
 	  sdesc->mode = LONG_LIVED_ALLOCING;
 
-	  link (&long_lived_allocing, sdesc);
+	  list_link (&long_lived_allocing, sdesc);
 
 	  hurd_btree_storage_desc_insert (&storage_descs, sdesc);
 
@@ -736,7 +736,7 @@ storage_init (void)
 	  free_count --;
 
 	  if (sdesc->free == 0)
-	    unlink (sdesc);
+	    list_unlink (sdesc);
 	}
     }
 
