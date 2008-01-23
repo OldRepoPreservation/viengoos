@@ -1,5 +1,15 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (COMMON_CPPFLAGS): Add -I$(LIBC)/include.
+	(ruth_SOURCES): Remove malloc-wrap.c, output.h and output.c.
+	(ruth_LDADD): Set to $(top_builddir)/libc.a.
+	* panic.c: Don't include "output.h".  Include <stdio.h>.
+	* ruth.h: Likewise.
+
+	* ruth.c (getpagesize): Return a size_t, not an int.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* panic.c (panic_): Print the thread id of the thread that called
 	panic.
 

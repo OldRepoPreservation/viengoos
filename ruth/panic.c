@@ -19,7 +19,8 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
 #include <hurd/stddef.h>
-#include "output.h"
+#include <stdio.h>
+#include <stdarg.h>
 
 extern const char program_name[];
 

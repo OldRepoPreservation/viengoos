@@ -72,7 +72,7 @@ abort (void)
 
 
 /* FIXME:  Should be elsewhere.  Needed by libhurd-slab.  */
-int
+size_t
 getpagesize()
 {
   return PAGESIZE;

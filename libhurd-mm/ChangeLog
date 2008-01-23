@@ -1,5 +1,9 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (COMMON_CPPFLAGS): Add -I$(LIBC)/include.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* capalloc.c (link): Rename from this...
 	(list_link): ... to this.  Update users.
 	(unlink): Rename from this...

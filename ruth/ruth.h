@@ -22,7 +22,7 @@
 
 #include <l4.h>
 
-#include "output.h"
+#include <stdio.h>
 
 
 /* The program name.  */

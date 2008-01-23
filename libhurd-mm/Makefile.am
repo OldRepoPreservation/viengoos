@@ -27,8 +27,9 @@ lib_LIBRARIES = libhurd-mm.a
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = mm.h storage.h as.h
 
-COMMON_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/libc-parts \
-	-D_GNU_SOURCE -Wall -std=gnu99 -g -O2 -mpreferred-stack-boundary=2
+COMMON_CPPFLAGS = -I$(LIBC)/include -I$(top_builddir)/include		\
+	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE -Wall -std=gnu99	\
+	-g -O2 -mpreferred-stack-boundary=2
 libhurd_mm_a_CPPFLAGS = $(COMMON_CPPFLAGS)
 libhurd_mm_a_SOURCES = mm.h			\
 	capalloc.h capalloc.c			\

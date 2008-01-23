@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for the ruth server.
-# Copyright (C) 2004, 2005 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2005, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -25,27 +25,15 @@ endif
 bootdir = $(prefix)/boot
 boot_PROGRAMS = ruth
 
-COMMON_CPPFLAGS = -Wall -g -std=gnu99 -I$(srcdir)	\
-	-I$(top_builddir)/include			\
-	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE
+COMMON_CPPFLAGS = -Wall -g -std=gnu99 -D_GNU_SOURCE -I$(srcdir)		\
+	-I$(top_builddir)/newlib/include -I$(top_builddir)/include	\
+	-I$(top_srcdir)/libc-parts
 
 ruth_CPPFLAGS = $(COMMON_CPPFLAGS)
 ruth_SOURCES = $(ARCH_SOURCES)			\
-	output.h output.c			\
 	panic.h panic.c				\
-	malloc-wrap.c				\
 	ruth.h ruth.c
-
-# Doug Lea's malloc is included by malloc-wrap.c.
-EXTRA_ruth_SOURCES = malloc.c
 
 ruth_LDFLAGS = -u_start -e_start -nostdlib
 
-ruth_LDADD =					\
-	../libhurd-mm/libhurd-mm.a		\
-	../viengoos/libhurd-cap.a		\
-	../libhurd-slab/libhurd-slab.a		\
-	../libpthread/libpthread.a		\
-	../libhurd-ihash/libhurd-ihash.a	\
-	../libhurd-btree/libhurd-btree.a	\
-	../libc-parts/libc-parts.a -lgcc
+ruth_LDADD = $(top_builddir)/libc.a
