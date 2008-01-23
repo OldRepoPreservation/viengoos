@@ -89,8 +89,9 @@ ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lockp)
 {
   /* We rely on the knowledge that unlocked is 0, locked and no
      waiters is 1 and locked with waiters is 2.  Thus if *lockp is 1,
-     an atomic dec yields 0 and we know that there are no waiters.  */
-  if (! atomic_decrement_and_test (lockp))
+     an atomic dec yields 1 (the old value) and we know that there are
+     no waiters.  */
+  if (atomic_decrement_and_test (lockp) != _MUTEX_LOCKED)
     /* There are waiters.  */
     {
       *lockp = 0;

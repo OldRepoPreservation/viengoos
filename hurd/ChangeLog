@@ -1,5 +1,15 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* mutex.h (ss_mutex_unlock): Correctly test whether there are
+	waiters.
+	* rmutex.h (ss_rmutex_lock): Save the value of LOCKP->COUNT before
+	unlocking the LOCKP->LOCK.  After unlocking, use the cached value.
+	(ss_rmutex_unlock): Improve assert.  Only clear LOCKP->OWNER and
+	wake a waiter if LOCKP->COUNT drops to 0.
+	(ss_rmutex_trylock): Correctly test whether we got LOCKP->LOCK.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* rmutex.h (ss_rmutex_lock): Don't use __lock_acquire or
 	__lock_release to lock or unlock LOCKP->LOCK, but ss_mutex_lock
 	and ss_mutex_unlock.
