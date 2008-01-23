@@ -1,5 +1,10 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* addon/newlib/libc/sys/hurd/Makefile.am (GENERAL_SOURCES): Add
+	lock.c.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am ($(srcdir)/newlib $(srcdir)/newlib-stamp): When
 	extracting the tarball, remove the patch-applied stamps.
 	($(addsuffix -applied,$(patch_files))): Depend on
