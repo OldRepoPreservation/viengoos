@@ -49,6 +49,7 @@ addon = newlib/libc/sys/hurd/configure.ac \
 	newlib/libc/sys/hurd/timesr.c \
 	newlib/libc/sys/hurd/unlinkr.c \
 	newlib/libc/sys/hurd/writer.c \
+	newlib/libc/sys/hurd/isatty.c \
 	newlib/libc/sys/hurd/getreent.c \
 	newlib/libc/sys/hurd/malloc.c \
 	newlib/libc/sys/hurd/mallocr.c \

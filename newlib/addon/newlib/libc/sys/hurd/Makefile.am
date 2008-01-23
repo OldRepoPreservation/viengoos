@@ -45,6 +45,7 @@ GENERAL_SOURCES = \
 	unlinkr.c \
 	writer.c \
 	getreent.c \
+	isatty.c \
 	lock.c \
 	malloc.c \
 	mallocr.c \

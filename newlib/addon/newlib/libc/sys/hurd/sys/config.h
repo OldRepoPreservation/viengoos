@@ -7,9 +7,12 @@
 #define HAVE_GETDATE
 #define _HAVE_SYSTYPES
 #define _READ_WRITE_RETURN_TYPE _ssize_t
+/* We do not currently support large files.  */
+#if 0
 #define __LARGE64_FILES 1
 /* we use some glibc header files so turn on glibc large file feature */
 #define _LARGEFILE64_SOURCE 1
+#endif
 
 /* This block should be kept in sync with GCC's limits.h.  The point
    of having these definitions here is to not include limits.h, which

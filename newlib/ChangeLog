@@ -1,5 +1,25 @@
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
+	* addon/newlib/libc/sys/hurd/isatty.c: New file.
+	* addon/newlib/libc/sys/hurd/Makefile.am (GENERAL_SOURCES): Add
+	isatty.c.
+	* Makefile.am (addon): Add newlib/libc/sys/hurd/isatty.c.
+
+	* addon/newlib/libc/sys/hurd/sys/config.h (_LARGEFILE64_SOURCE):
+	Don't define.
+	(__LARGE64_FILES): Likewise.
+
+	* addon/newlib/libc/sys/hurd/malloc.c: Include <sys/lock.h>
+	(MLOCK_T): Define.
+	(INITIAL_LOCK): Likewise.
+	(ACQUIRE_LOCK): Likewise.
+	(RELEASE_LOCK): Likewise.
+
+	* addon/newlib/libc/sys/hurd/writer.c: Include <hurd/rm.h>.
+	(_write_r): If FD is 1 or 2, then send the buffer to the console.
+
+2008-01-23  Neal H. Walfield  <neal@gnu.org>
+
 	* addon/newlib/libc/sys/hurd/malloc.c (HAVE_MREMAP): Define to 0.
 
 2008-01-23  Neal H. Walfield  <neal@gnu.org>

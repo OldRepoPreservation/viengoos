@@ -1,5 +1,14 @@
 /* Enable locking.  */
 #define USE_LOCKS 1
+
+/* Our locking functions.  */
+#include <sys/lock.h>
+
+#define MLOCK_T _LOCK_T
+#define INITIAL_LOCK(lock) __lock_init(*lock)
+#define ACQUIRE_LOCK(lock) (__lock_acquire(*lock), 0)
+#define RELEASE_LOCK(lock) (__lock_release(*lock), 0)
+
 /* Don't use sbrk.  */
 #define HAVE_MORECORE 0
 /* mmap allocates cleared memory.  */
