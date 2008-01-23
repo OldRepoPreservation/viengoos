@@ -1,3 +1,8 @@
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
+	* mmap.c: Remove file.
+	* Makefile.am (viengoos_SOURCES): Remove mmap.c.
+
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.c: Include "zalloc.h".

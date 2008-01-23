@@ -37,7 +37,6 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	panic.c					\
 	sigma0.h sigma0.c			\
 	zalloc.h zalloc.c			\
-	mmap.c					\
 	rm.h					\
 	viengoos.h viengoos.c			\
 	boot-modules.h boot-modules.c		\
