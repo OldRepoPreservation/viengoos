@@ -296,8 +296,9 @@ system_task_load (void)
 
      A way around this problem would be the approach that EROS takes:
      start with a hand-created system image.  */
-  rt = allocate_object (cap_activity_control, startup_data->activity);
-  startup_data->activity = rt.storage;
+  rt = allocate_object (cap_activity_control, ADDR_VOID);
+  startup_data->activity = descs[desc_count - 1].object = rt.storage;
+
   root_activity = (struct activity *) cap_to_object (root_activity, &rt.cap);
   folio_parent (root_activity, folio);
 
@@ -306,8 +307,8 @@ system_task_load (void)
   object_claim (root_activity, (struct object *) folio,
 		OBJECT_POLICY_VOID, true);
 
-  rt = allocate_object (cap_thread, startup_data->thread);
-  startup_data->thread = rt.storage;
+  rt = allocate_object (cap_thread, ADDR_VOID);
+  startup_data->thread = descs[desc_count - 1].object = rt.storage;
   thread = (struct thread *) cap_to_object (root_activity, &rt.cap);
   thread->activity = object_to_cap ((struct object *) root_activity);
 

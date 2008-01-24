@@ -1,5 +1,12 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (system_task_load): When allocating the activity and
+	thread, pass ADDR_VOID as the address to allocate_object.  On
+	return, set the object's descriptor to designate the allocated
+	storage.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (SLOT_): Take additional argument root.  Use it rather
 	than THREAD->ASPACE.  Update users.
 	(SLOT): Likewise.
