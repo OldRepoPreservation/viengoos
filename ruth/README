@@ -1,10 +1,7 @@
-The root server ruth
---------------------
+ruth
+----
 
-Ruth is a root server, but it is not _the_ root server.  It is only intended for
-testing and playing with the system.  Feel free to hack it to your liking.
+Ruth is a small test suite that exercises kernel functionality and and
+the system run-time.  If you modify the kernel or find a bug, here is
+a good place to add a test.
 
-The real root server will actually be a bootstrapping filesystem server, like
-ext2fs.
-
-Until that is available, this cheesy stub is all you get.

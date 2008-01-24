@@ -1,5 +1,9 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* README: Update.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (ARCH_SOURCES): Remove variable.
 	(ruth_SOURCES): Set to ruth.c.
 	(COMMON_CPPFLAGS): Remove -I$(top_builddir)/newlib/include, add
