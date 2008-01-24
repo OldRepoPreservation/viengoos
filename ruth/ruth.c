@@ -488,7 +488,7 @@ main (int argc, char *argv[])
     printf ("Checking activity_policy... ");
 
     addr_t weak = capalloc ();
-    error_t err = rm_cap_copy (activity, ADDR_VOID, weak, activity,
+    error_t err = rm_cap_copy (activity, ADDR_VOID, weak, ADDR_VOID, activity,
 			       CAP_COPY_WEAKEN, CAP_PROPERTIES_VOID);
     assert (! err);
 

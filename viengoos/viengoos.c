@@ -253,8 +253,10 @@ system_task_load (void)
 	  objects[i] = (struct object *) folio;
 
 	  if (boot_strapped)
-	    as_insert (root_activity, ADDR_VOID, &thread->aspace, folio_addr,
-		       object_to_cap ((struct object *) folio), ADDR_VOID,
+	    as_insert (root_activity,
+		       ADDR_VOID, &thread->aspace, folio_addr,
+		       ADDR_VOID, object_to_cap ((struct object *) folio),
+		       ADDR_VOID,
 		       allocate_object);
 	}
 
@@ -318,7 +320,7 @@ system_task_load (void)
   boot_strapped = true;
 
   as_insert (root_activity, ADDR_VOID, &thread->aspace, folio_addr,
-	     object_to_cap ((struct object *) folio), ADDR_VOID,
+	     ADDR_VOID, object_to_cap ((struct object *) folio), ADDR_VOID,
 	     allocate_object);
 
   /* Allocate the startup data object and copy the data from the
@@ -329,7 +331,8 @@ system_task_load (void)
   struct cap cap = allocate_object (cap_page, startup_data_addr).cap;
   struct object *startup_data_page = cap_to_object (root_activity, &cap);
   as_insert (root_activity, ADDR_VOID, &thread->aspace, startup_data_addr,
-	     object_to_cap (startup_data_page), ADDR_VOID, allocate_object);
+	     ADDR_VOID, object_to_cap (startup_data_page), ADDR_VOID,
+	     allocate_object);
   memcpy (startup_data_page, startup_data, PAGESIZE);
   /* Free the staging area.  */
   memory_frame_free ((l4_word_t) startup_data);

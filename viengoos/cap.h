@@ -33,7 +33,9 @@ static inline bool
 cap_set (struct activity *activity, struct cap *target, struct cap source)
 {
   /* This is kosher as we know the implementation of CAP_COPY.  */
-  return cap_copy (activity, ADDR_VOID, target, ADDR_VOID, source, ADDR_VOID);
+  return cap_copy (activity,
+		   ADDR_VOID, target, ADDR_VOID,
+		   ADDR_VOID, source, ADDR_VOID);
 }
 
 /* Invalidate all mappings that may depend on this object.  */

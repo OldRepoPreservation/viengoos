@@ -110,7 +110,7 @@ try (struct alloc *allocs, int count, bool dump)
 	memset (object, i, PAGESIZE);
 
       as_insert (root_activity, ADDR_VOID, &aspace, allocs[i].addr,
-		 object_to_cap (object), ADDR_VOID,
+		 ADDR_VOID, object_to_cap (object), ADDR_VOID,
 		 allocate_object);
 
       if (dump)

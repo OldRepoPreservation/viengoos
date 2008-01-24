@@ -383,9 +383,10 @@ as_build_internal (activity_t activity,
 	  CAP_ADDR_TRANS_SET_GUARD (&addr_trans,
 				    extract_bits64 (root_guard, 0, d), d);
 
-	  bool r = cap_copy_x (activity, as_root_addr,
-			       &cappage->caps[pivot_idx], pivot_addr,
-			       *root, root_addr,
+	  bool r = cap_copy_x (activity,
+			       as_root_addr, &cappage->caps[pivot_idx],
+			       pivot_addr,
+			       as_root_addr, *root, root_addr,
 			       CAP_COPY_COPY_ADDR_TRANS_GUARD,
 			       CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
 					       addr_trans));
@@ -403,8 +404,8 @@ as_build_internal (activity_t activity,
 						      - subpage_bits));
 	  assert (r);
 
-	  r = cap_copy_x (activity, as_root_addr,
-			  root, root_addr, rt.cap, rt.storage,
+	  r = cap_copy_x (activity, as_root_addr, root, root_addr,
+			  as_root_addr, rt.cap, rt.storage,
 			  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			  | CAP_COPY_COPY_ADDR_TRANS_GUARD,
 			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
@@ -443,7 +444,7 @@ as_build_internal (activity_t activity,
 						 0, 1);
       assert (r);
       r = cap_copy_x (activity, as_root_addr, root, addr_chop (a, gbits),
-		      *root, addr_chop (a, gbits),
+		      as_root_addr, *root, addr_chop (a, gbits),
 		      CAP_COPY_COPY_ADDR_TRANS_GUARD,
 		      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
       assert (r);
@@ -470,9 +471,9 @@ as_slot_ensure_full (activity_t activity,
 }
 
 void
-as_insert (activity_t activity, addr_t as_root_addr,
-	   struct cap *root, addr_t addr,
-	   struct cap entry, addr_t entry_addr,
+as_insert (activity_t activity,
+	   addr_t as_root_addr, struct cap *root, addr_t addr,
+	   addr_t entry_as, struct cap entry, addr_t entry_addr,
 	   struct as_insert_rt (*allocate_object) (enum cap_type type,
 						   addr_t addr))
 {
@@ -484,7 +485,7 @@ as_insert (activity_t activity, addr_t as_root_addr,
 					root, addr, allocate_object,
 					false);
   assert (slot);
-  cap_copy (activity, as_root_addr, slot, addr, entry, entry_addr);
+  cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
 
 #ifndef RM_INTERN
   pthread_rwlock_unlock (&as_lock);

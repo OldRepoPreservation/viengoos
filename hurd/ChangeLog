@@ -1,5 +1,19 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h (cap_copy): Rename ADDRESS_SPACE argument to
+	TARGET_ADDRESS_SPACE.  Take additional argument
+	SOURCE_ADDRESS_SPACE.  Update users.
+	(cap_copy_x): Likewise.
+	(cap_copy): Likewise.
+	(object_slot_copy_out): Rename ADDRESS_SPACE argument to
+	OBJECT_ADDRESS_SPACE.  Take additional argument
+	TARGET_ADDRESS_SPACE.  Update users.
+	(object_slot_copy_out): Rename ADDRESS_SPACE argument to
+	OBJECT_ADDRESS_SPACE.  Take additional argument
+	SOURCE_ADDRESS_SPACE.  Update users.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (cap_copy): Take additional argument ADDRESS_SPACE.
 	Update users.
 	(cap_read): Likewise.

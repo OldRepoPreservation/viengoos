@@ -1,5 +1,20 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (as_insert): Rename argument AS_ROOT_ADDR to TARGET_AS.
+	Take additional argument SOURCE_AS.  Update users.
+	* as.c (as_build_internal): Update use of cap_copy_x to be
+	consistent with new API.
+	(as_insert): Take additional argument ENTRY_AS.  Update use of
+	cap_copy to be consistent with new API.
+	* cap.h (cap_set): Update use of cap_copy to be consistent with
+	new API.
+	* thread.c (thread_exregs): Update use of cap_copy and cap_copy_x
+	to be consistent with new API.
+
+	* as.h (as_slot_ensure_full): New declaration.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (system_task_load): When allocating the activity and
 	thread, pass ADDR_VOID as the address to allocate_object.  On
 	return, set the object's descriptor to designate the allocated

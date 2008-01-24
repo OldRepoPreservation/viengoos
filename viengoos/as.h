@@ -142,16 +142,25 @@ struct as_insert_rt
 typedef struct as_insert_rt allocate_object_callback_t (enum cap_type type,
 							addr_t addr);
 
-/* Insert the object described by entry ENTRY at address ADDR into the
-   address space rooted at AS_ROOT_ADDR/ROOT.  ALLOC_OBJECT is a
-   callback to allocate an object of type TYPE at address ADDR.  The
-   callback should NOT insert the allocated object into the addresss
-   space.  */
+/* Copy the capability located at SOURCE_ADDR in the address space
+   rooted at SOURCE_AS to address ADDR in the address space rooted at
+   TARGET_AS.  Allocates any necessary page-tables in the target
+   address space.  ALLOC_OBJECT is a callback to allocate an object of
+   type TYPE at address ADDR.  The callback should NOT insert the
+   allocated object into the addresss space.  */
 extern void as_insert (activity_t activity,
-		       addr_t as_root_addr, struct cap *root,
-		       addr_t addr,
-		       struct cap entry, addr_t entry_addr,
+		       addr_t target_as, struct cap *t_as_cap, addr_t target,
+		       addr_t source_as, struct cap c_cap, addr_t source,
 		       allocate_object_callback_t alloc);
+
+/* Ensure that the slot designated by ADDR in the address space root
+   at AS is accessible by allocating any required page tables.  Return
+   the cap associated with ADDR.  */
+extern struct cap *as_slot_ensure_full
+  (activity_t activity,
+   addr_t as, struct cap *root, addr_t addr,
+   struct as_insert_rt
+     (*allocate_object) (enum cap_type type, addr_t addr));
 
 /* If debugging is enabled dump the address space described by ROOT.
    PREFIX is prefixed to each line of output.  */

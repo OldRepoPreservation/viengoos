@@ -365,17 +365,8 @@ as_slot_ensure (addr_t addr)
 {
   assert (as_init_done);
 
-  /* The implementation is provided by viengoos.  */
-  extern struct cap * as_slot_ensure_full (activity_t activity,
-					   addr_t as_root_addr,
-					   struct cap *root, addr_t a,
-					   struct as_insert_rt
-					   (*allocate_object)
-					   (enum cap_type type,
-					    addr_t addr));
-
-  return as_slot_ensure_full (meta_data_activity, ADDR_VOID,
-			      &shadow_root, addr,
+  return as_slot_ensure_full (meta_data_activity,
+			      ADDR_VOID, &shadow_root, addr,
 			      allocate_object);
 }
 
@@ -456,7 +447,7 @@ as_alloc_slow (int width)
 
   struct cap_properties properties = CAP_PROPERTIES_DEFAULT;
   CAP_ADDR_TRANS_SET_GUARD (&properties.addr_trans, 0, gbits);
-  err = rm_cap_copy (meta_data_activity, ADDR_VOID, slot, slot,
+  err = rm_cap_copy (meta_data_activity, ADDR_VOID, slot, ADDR_VOID, slot,
 		     CAP_COPY_COPY_ADDR_TRANS_GUARD, properties);
   if (err)
     panic ("failed to copy capability: %d", err);

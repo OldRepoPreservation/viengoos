@@ -84,12 +84,23 @@ struct as_insert_rt
   addr_t storage;
 };
 
-/* Insert the object described by the capability ENTRY into the
-   address space at address ADDR.  Creates any required page
-   tables.  */
+/* Ensure that the slot designated by ADDR in the address space root
+   at AS is accessible by allocating any required page tables.  Return
+   the cap associated with ADDR.  */
+extern struct cap *as_slot_ensure_full
+  (activity_t activity,
+   addr_t as, struct cap *root, addr_t addr,
+   struct as_insert_rt (*allocate_object) (enum cap_type type, addr_t addr));
+
+/* Copy the capability located at SOURCE_ADDR in the address space
+   rooted at SOURCE_AS to address ADDR in the address space rooted at
+   TARGET_AS.  Allocates any necessary page-tables in the target
+   address space.  ALLOC_OBJECT is a callback to allocate an object of
+   type TYPE at address ADDR.  The callback should NOT insert the
+   allocated object into the addresss space.  */
 extern void as_insert (activity_t activity,
-		       struct cap *root, addr_t addr,
-		       struct cap entry, addr_t entry_addr,
+		       addr_t target_as, struct cap *t_as_cap, addr_t target,
+		       addr_t source_as, struct cap c_cap, addr_t source,
 		       struct as_insert_rt (*allocate_object)
 		         (enum cap_type type, addr_t addr));
 

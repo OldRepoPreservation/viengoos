@@ -1,5 +1,15 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (as_slot_ensure_full): New declaration.
+	(as_insert): Take additional parameters SOURCE_AS and TARGET_AS.
+	* as.c (as_slot_ensure_full): Remove declaration.
+	(as_slot_ensure): Update use of as_slot_ensure full to be
+	consistent with the new API.
+	(as_alloc_slow): Update use of rm_cap_copy to be consistent with
+	new API.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (as_slot_ensure): Update use of as_slot_ensure_full to be
 	consistent with new API.
 	(as_alloc_slow): Update use of rm_cap_copy to be consistent with

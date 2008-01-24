@@ -113,7 +113,7 @@ loader_elf_load (allocate_object_callback_t alloc,
 	      struct cap cap = alloc (cap_page, loc).cap;
 	      page = cap_to_object (activity, &cap);
 	      as_insert (activity, ADDR_VOID, &thread->aspace, loc,
-			 object_to_cap (page), ADDR_VOID, alloc);
+			 ADDR_VOID, object_to_cap (page), ADDR_VOID, alloc);
 	    }
 
 	  /* Copy the data that belongs on the first page.  */
@@ -151,7 +151,7 @@ loader_elf_load (allocate_object_callback_t alloc,
 	      struct cap cap = alloc (cap_page, loc).cap;
 	      page = cap_to_object (activity, &cap);
 	      as_insert (activity, ADDR_VOID, &thread->aspace, loc,
-			 object_to_cap (page), ADDR_VOID, alloc);
+			 ADDR_VOID, object_to_cap (page), ADDR_VOID, alloc);
 	    }
 
 	  if (addr < ph->p_paddr + ph->p_filesz)
