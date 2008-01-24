@@ -3,10 +3,11 @@ The GNU Hurd
 
 This is not the GNU Hurd.  But it might become it at some day.
 
-The intention is to port the GNU Hurd to run on the L4 microkernel.
-
-This is work in progress.
-
+Although this is called the Hurd on L4, L4 is only used as a hardware
+abstraction: the kernel is Viengoos and no features of L4 are relied
+on in a manner inconsistent with Viengoos' design.  If the design
+proves tenable and is accepted by the community, the L4 dependency
+will eventually be removed.
 
 How to build
 ------------
@@ -14,7 +15,8 @@ How to build
 Building the code is straightforward:
 
 $ autoreconf -f -i -s
-$ ./configure --enable-maintainer-mode --prefix=/l4 --enable-l4-abi=x2
+$ ./configure --enable-maintainer-mode --prefix=/l4 --enable-l4-abi=x2 \
+	--build=i686-linux --host=i686-gnu --with-newlib
 $ make
 $ make install
 $ mkdir /l4/boot
@@ -28,12 +30,11 @@ You need at least automake 1.7 and autoconf 2.53.
 Installation on ia32
 --------------------
 
-Prerequisites: Pistachio-0.4 (or CVS) with the patch below.  You can
-find information about how to download the Pistachio source
-distribution (which includes the kernel and sigma0) at the following
-URL:
+Prerequisites: Pistachio from CVS with the patch below.  You can find
+information about how to download the Pistachio source distribution
+(which includes the kernel and sigma0) at the following URL:
 
-http://www.l4ka.org/projects/pistachio/download.php
+	http://www.l4ka.org/projects/pistachio/download.php
 
 Make sure that Kernel -> Experimental Features -> Pager ExchangeRegisters
 is enabled.

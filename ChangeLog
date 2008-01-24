@@ -1,3 +1,7 @@
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
+	* README: Update build instructions.
+
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac (LIBC_M): Set to location of C math library.
