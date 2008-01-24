@@ -51,8 +51,8 @@ libc_kernel_a_SOURCES =						\
 # versions from the target's GNU C library, rather than duplicating
 # the generic code here.
 routines := memcpy memmove memset bcopy bzero memchr rawmemchr	\
-	strstr strtok strchr strchrnul strcpy stpcpy strcat	\
-	strcmp strncmp strlen strnlen				\
+	strstr strtok strchr strrchr strchrnul strcpy stpcpy	\
+	strcat strcmp strncmp strlen strnlen			\
 	atoi atoll strtoimax strtoumax				\
 	htonl htons ntohl ntohs ffs
 

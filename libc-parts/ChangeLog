@@ -1,5 +1,11 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* ia32-cmain.c (finish): Only copy what comes after the last '/'
+	into program_name.
+	* Makefile.am (routines): Add strrchr.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (ARCH_SOURCES): Rename from this...
 	(ARCH_COMMON_SOURCES): ... to this.
 	(ARCH_USER_SOURCES): New variable.

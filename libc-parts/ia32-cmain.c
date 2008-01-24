@@ -105,12 +105,10 @@ finish (void)
 
   char *n = "unknown";
   if (argv[0])
-    n = argv[0];
+    n = strrchr (argv[0], '/') ? strrchr (argv[0], '/') + 1 : argv[0];
 
-  memcpy ((char *) program_name,  n,
-	  sizeof (program_name) > strlen (n)
-	  ? strlen (n) : sizeof (program_name));
-  ((char *) program_name)[sizeof (program_name)] = 0;
+  memset ((char *) program_name, 0, sizeof (program_name));
+  strncpy ((char *) program_name,  n, sizeof (program_name) - 1);
 
   /* Now invoke the main function.  */
   exit (main (argc, argv));
