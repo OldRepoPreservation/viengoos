@@ -1,5 +1,9 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.c (thread_init): Clear BUFFER.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* mmap.c: Remove file.
 	* Makefile.am (viengoos_SOURCES): Remove mmap.c.
 
