@@ -1,5 +1,25 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (ARCH_SOURCES): Remove variable.
+	(ruth_SOURCES): Set to ruth.c.
+	(COMMON_CPPFLAGS): Remove -I$(top_builddir)/newlib/include, add
+	-I$@LIBC@/include.
+	* output.c: Move to ../libc-parts/s_printf.c.
+	* output.h: Remove file.
+	* panic.c: Move to ../libc-parts/panic.c.
+	* ruth.h: Remove file.
+	* malloc.c: Likewise.
+	* malloc-wrap.c: Likewise.
+	* ia32-cmain.c: Move to ../libc-parts/ia32-cmain.c.
+	* ia32-crt0.S: Move to ../libc-parts/ia32-crt0.c.
+	* ruth.c: Include <stdio.h>.  Don't include "ruth.h".
+	(output_debug): Declare, don't define.
+	(exit): Remove function.
+	(abort): Likewise.
+	(getpagesize): Likewise.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* output.h (putchar): Rename from this...
 	(s_putchar): ... to this.
 	(puts): Rename from this...

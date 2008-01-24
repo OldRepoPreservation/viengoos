@@ -1,5 +1,10 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (viengoos_LDADD): Link with
+	../libc-parts/libc-kernel.a, not ../libc-parts/libc-parts.a
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.c (thread_init): Clear BUFFER.
 
 2008-01-24  Neal H. Walfield  <neal@gnu.org>

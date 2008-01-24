@@ -18,22 +18,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-if ARCH_IA32
-  ARCH_SOURCES = ia32-crt0.S ia32-cmain.c
-endif
-
 bootdir = $(prefix)/boot
 boot_PROGRAMS = ruth
 
 COMMON_CPPFLAGS = -Wall -g -std=gnu99 -D_GNU_SOURCE -I$(srcdir)		\
-	-I$(top_builddir)/newlib/include -I$(top_builddir)/include	\
+	-I$@LIBC@/include -I$(top_builddir)/include	\
 	-I$(top_srcdir)/libc-parts
 
 ruth_CPPFLAGS = $(COMMON_CPPFLAGS)
-ruth_SOURCES = $(ARCH_SOURCES)			\
-	panic.h panic.c				\
-	output.c output.h			\
-	ruth.h ruth.c
+ruth_SOURCES = ruth.h ruth.c
 
 ruth_LDFLAGS = -u_start -e_start -nostdlib
 

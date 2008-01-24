@@ -19,20 +19,33 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
 if ARCH_IA32
-  ARCH_SOURCES = ia32-setjmp.S
+  ARCH_COMMON_SOURCES = ia32-setjmp.S 
+  ARCH_USER_SOURCES = ia32-cmain.c ia32-crt0.S
+  ARCH_KERNEL_SOURCES =
 endif
 
 COMMON_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
 	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE -Wall -std=gnu99 -g
 
-noinst_LIBRARIES = libc-parts.a
+noinst_LIBRARIES = libc-parts.a libc-kernel.a
 
-libc_parts_a_CPPFLAGS = $(COMMON_CPPFLAGS)
-libc_parts_a_SOURCES = $(ARCH_SOURCES) 				\
-	assert.h ctype.h c-ctype.h c-ctype.c			\
-	errno.h errno.c						\
+common_sources = assert.h 					\
 	strtol.c strtoll.c strtoul.c strtoull.c			\
-	setjmp.h backtrace.c
+	setjmp.h backtrace.c s_printf.c startup.c		\
+	panic.c _exit.c
+
+libc_parts_a_CPPFLAGS = -I$(LIBC)/include $(COMMON_CPPFLAGS)
+libc_parts_a_SOURCES = 						\
+	$(ARCH_COMMON_SOURCES) $(ARCH_USER_SOURCES) 		\
+	ctype.h c-ctype.h c-ctype.c				\
+	getpagesize.c		 				\
+	$(common_sources)
+
+libc_kernel_a_CPPFLAGS = $(COMMON_CPPFLAGS) -DRM_INTERN
+libc_kernel_a_SOURCES =						\
+	$(ARCH_COMMON_SOURCES) $(ARCH_KERNEL_SOURCES) 		\
+	errno.h errno.c	 					\
+	$(common_sources)
 
 # For the following routines we want to take the possibly optimized
 # versions from the target's GNU C library, rather than duplicating
@@ -54,6 +67,7 @@ routines_objects := $(shell $(NM) --print-armap @STATIC_GLIBC@ 2>/dev/null \
 # routines_objects in Makefile.in by automake, which doesn't work at all.
 routines_varname := routines_objects
 libc_parts_a_LIBADD = $($(routines_varname))
+libc_kernel_a_LIBADD = $($(routines_varname))
 
 $(routines_objects): %.$(OBJEXT): @STATIC_GLIBC@
 	$(AR) -x $< $@

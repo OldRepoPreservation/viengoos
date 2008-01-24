@@ -24,6 +24,8 @@
 
 extern const char program_name[];
 
+extern void _exit (int);
+
 void
 panic_ (const char *func, int line, const char *fmt, ...)
 {
@@ -36,6 +38,8 @@ panic_ (const char *func, int line, const char *fmt, ...)
   s_printf ("\n");
   va_end (ap);
 
-  for (;;);
+  _exit (127);
+  for (;;)
+    l4_yield ();
 }
 

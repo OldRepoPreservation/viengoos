@@ -1,5 +1,33 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (ARCH_SOURCES): Rename from this...
+	(ARCH_COMMON_SOURCES): ... to this.
+	(ARCH_USER_SOURCES): New variable.
+	(ARCH_KERNEL_SOURCES): Likewise.
+	(noinst_LIBRARIES): Add libc-kernel.a.
+	(common_sources): New variable.
+	(libc_parts_a_SOURCES): Move most files to common_sources.  Add
+	$(ARCH_COMMON_SOURCES), $(ARCH_USER_SOURCES)
+	(libc_parts_a_CPPFLAGS): Add -I$(LIBC)/include.
+	(libc_kernel_a_SOURCES): New variable.
+	(libc_kernel_a_CPPFLAGS): Likewise.
+	(libc_kernel_a_LIBADD): Likewise.
+	* s_printf.c: Move from ../ruth/output.c.
+	(s_putchar) [RM_INTERN || _L4_TEST_ENVIRONMENT]: Add appropriate
+	implementation.
+	* _exit.c: New file.
+	* getpagesize.c: Likewise.
+	* ia32-cmain.c: Copied from ../ruth/ia32-cmain.c.  Removed dead
+	code.  Don't include "ruth.h".  Add prototype for main.
+	(program_name): New variable.
+	(finish): Setup program_name based on ARGV[0].
+	* ia32-crt0.S: Copied from ../ruth/ia32-crt0.c.
+	* panic.c: Copied from ../ruth/panic.c.
+	(panic_): Call _exit.
+	* startup.c: New file.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (t_setjmp_CPPFLAGS): Remove -D_L4_TEST_ENVIRONMENT.
 	Add -DS_PRINTF=printf.
 

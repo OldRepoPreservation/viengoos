@@ -1,5 +1,5 @@
-/* output.c - Output routines.
-   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
+/* s_printf.c - Simply output routines.
+   Copyright (C) 2003, 2007, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -18,40 +18,34 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
+/* This implementation of printf is special in that it works in place
+   and does not dynamically allocate memory.  This makes it
+   appropriate for use in debugging code before malloc is functional
+   or if the state is uncertain, for instance, if assert or panic is
+   called.  */
+
 #if HAVE_CONFIG_H
 #include <config.h>
 #endif
 
 #include <stdarg.h>
-
-#include <l4.h>
-
-#include "output.h"
-
 #include <hurd/rm.h>
 
-
-/* Send a shutdown request to the rootserver wortel.  */
-void
-__attribute__((__noreturn__))
-shutdown (void)
-{
-  while (1)
-    l4_sleep (L4_NEVER);
-
-  /* NOT REACHED.  */
-}
-
-
 /* Print the single character CHR on the output device.  */
 int
 s_putchar (int chr)
 {
+#if defined(RM_INTERN) || defined(_L4_TEST_ENVIRONMENT)
+  /* For Viengoos, use driver putchar routine.  For the test
+     environment, just use the stdio putchar.  */
+  extern int putchar (int chr);
+
+  return putchar (chr);
+#else
   rm_putchar (chr);
-
   return 0;
+#endif
 }
-
 
 int
 s_puts (const char *str)

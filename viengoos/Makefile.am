@@ -53,7 +53,7 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	pager.h pager.c				\
 	list.h
 
-viengoos_LDADD = -lgcc ../libc-parts/libc-parts.a \
+viengoos_LDADD = -lgcc ../libc-parts/libc-kernel.a \
 	../libhurd-btree/libhurd-btree.a \
 	../libhurd-ihash/libhurd-ihash-nomalloc.a
 viengoos_LDFLAGS = -u_start -e_start -N -nostdlib \

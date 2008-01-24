@@ -38,4 +38,4 @@ laden_SOURCES =  $(ARCH_SOURCES)				\
 
 laden_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=@HURD_LADEN_LOAD_ADDRESS@
 
-laden_LDADD = -lgcc ../libc-parts/libc-parts.a
+laden_LDADD = -lgcc ../libc-parts/libc-kernel.a

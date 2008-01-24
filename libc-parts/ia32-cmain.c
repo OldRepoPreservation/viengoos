@@ -1,5 +1,5 @@
 /* ia32-cmain.c - Startup code for the ia32.
-   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -24,13 +24,12 @@
 
 #include <alloca.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <l4/globals.h>
 #include <l4/init.h>
 #include <l4/stubs.h>
 #include <l4/stubs-init.h>
-
-#include "ruth.h"
 
 #include <hurd/startup.h>
 #include <hurd/mm.h>
@@ -42,6 +41,9 @@ extern struct hurd_startup_data *__hurd_startup_data;
 
 
 extern void exit (int status)  __attribute__ ((__noreturn__));
+extern int main (int, char *[]);
+
+const char program_name[30];
 
 static void
 finish (void)
@@ -101,6 +103,15 @@ finish (void)
       argv[1] = 0;
     }
 
+  char *n = "unknown";
+  if (argv[0])
+    n = argv[0];
+
+  memcpy ((char *) program_name,  n,
+	  sizeof (program_name) > strlen (n)
+	  ? strlen (n) : sizeof (program_name));
+  ((char *) program_name)[sizeof (program_name)] = 0;
+
   /* Now invoke the main function.  */
   exit (main (argc, argv));
 }
@@ -129,60 +140,4 @@ cmain (void)
     finish ();
 
   /* Never reached.  */
-}
-
-
-#define __thread_stack_pointer() ({					      \
-  void *__sp__;								      \
-  __asm__ ("movl %%esp, %0" : "=r" (__sp__));				      \
-  __sp__;								      \
-})
-
-
-#define __thread_set_stack_pointer(sp) ({				      \
-  __asm__ ("movl %0, %%esp" : : "r" (sp));				      \
-})
-
-
-/* Switch execution transparently to thread TO.  The thread FROM,
-   which must be the current thread, will be halted.  */
-void
-switch_thread (l4_thread_id_t from, l4_thread_id_t to)
-{
-  void *current_stack;
-  /* FIXME: Figure out how much we need.  Probably only one return
-     address.  */
-  char small_sub_stack[16];
-  unsigned int i;
-
-/* FIXME: FROM is an argument to force gcc to evaluate it before the
-   thread switch.  Maybe this can be done better, but it's
-   magical, so be careful.  */
-
-  /* Save the machine context.  */
-  __asm__ __volatile__ ("pusha");
-  __asm__ __volatile__ ("pushf");
-
-  /* Start the TO thread.  It will be eventually become a clone of our
-     thread.  */
-  current_stack = __thread_stack_pointer ();
-  l4_start_sp_ip (to, (l4_word_t) current_stack,
-		  (l4_word_t) &&thread_switch_entry);
-  
-  /* We need a bit of extra space on the stack for
-     l4_thread_switch.  */
-  __thread_set_stack_pointer (small_sub_stack + sizeof (small_sub_stack));
-
-  /* We can't use while(1), because then gcc will become clever and
-     optimize away everything after thread_switch_entry.  */
-  for (i = 1; i; i++)
-    l4_thread_switch (to);
-
- thread_switch_entry:
-  /* Restore the machine context.  */
-  __asm__ __volatile__ ("popf");
-  __asm__ __volatile__ ("popa");
-
-  /* The thread TO continues here.  */
-  l4_stop (from);
 }

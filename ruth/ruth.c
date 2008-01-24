@@ -39,10 +39,9 @@
 
 #include <sys/mman.h>
 #include <pthread.h>
+#include <stdio.h>
 
-#include "ruth.h"
-
-int output_debug;
+extern int output_debug;
 
 static addr_t activity;
 
@@ -55,28 +54,6 @@ const char program_name[] = "ruth";
 
 
 /* The following functions are required by pthread.  */
-
-void
-__attribute__ ((__noreturn__))
-exit (int __status)
-{
-  panic ("exit() called");
-}
-
-
-void
-abort (void)
-{
-  panic ("abort() called");
-}
-
-
-/* FIXME:  Should be elsewhere.  Needed by libhurd-slab.  */
-size_t
-getpagesize()
-{
-  return PAGESIZE;
-}
 
 
 int
