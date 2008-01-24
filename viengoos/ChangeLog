@@ -1,5 +1,27 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (SLOT_): Take additional argument root.  Use it rather
+	than THREAD->ASPACE.  Update users.
+	(SLOT): Likewise.
+	(CAP_): Likewise.
+	(CAP): Likewise.
+	(ROOT): New macro.
+	(server_loop): Update cap_read, object_slot_copy_out,
+	object_slot_copy_in, object_slot_read, cap_copy_x, and cap_copy
+	method implementations to new API.
+	* as.h (as_insert): Take additional argument AS_ROOT_ADDR.
+	Update users.
+	* as.c (as_build_internal): Take additional argument
+	AS_ROOT_ADDR.  Pass it to cap_copy_x.
+	(as_slot_ensure_full): Take additional argument AS_ROOT_ADDR.
+	Pass it to as_build_internal.
+	(as_insert): Likewise.
+	* thread.c (thread_exregs): Update use of cap_copy to conform
+	with new API.
+	* cap.h (cap_set): Likewise.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (viengoos_LDADD): Link with
 	../libc-parts/libc-kernel.a, not ../libc-parts/libc-parts.a
 

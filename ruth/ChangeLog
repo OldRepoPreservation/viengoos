@@ -1,5 +1,10 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* ruth.c (main): Update use of rm_cap_read to be consistent with
+	new API.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* README: Update.
 
 2008-01-24  Neal H. Walfield  <neal@gnu.org>

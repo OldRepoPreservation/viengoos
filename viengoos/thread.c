@@ -275,24 +275,30 @@ thread_exregs (struct activity *principal,
     }
 
   if ((control & HURD_EXREGS_GET_REGS) && aspace_out)
-    cap_copy (principal, aspace_out, ADDR_VOID, thread->aspace, ADDR_VOID);
+    cap_copy (principal, ADDR_VOID,
+	      aspace_out, ADDR_VOID, thread->aspace, ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_ASPACE))
-    cap_copy_x (principal, &thread->aspace, ADDR_VOID, *aspace, ADDR_VOID,
+    cap_copy_x (principal, ADDR_VOID,
+		&thread->aspace, ADDR_VOID, *aspace, ADDR_VOID,
 		flags, properties);
 
   if ((control & HURD_EXREGS_GET_REGS) && activity_out)
-    cap_copy (principal, activity_out, ADDR_VOID, thread->activity, ADDR_VOID);
+    cap_copy (principal, ADDR_VOID,
+	      activity_out, ADDR_VOID, thread->activity, ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_ACTIVITY))
-    cap_copy (principal, &thread->activity, ADDR_VOID, *activity, ADDR_VOID);
+    cap_copy (principal, ADDR_VOID,
+	      &thread->activity, ADDR_VOID, *activity, ADDR_VOID);
 
   if ((control & HURD_EXREGS_GET_REGS) && exception_page_out)
-    cap_copy (principal, exception_page_out, ADDR_VOID,
+    cap_copy (principal, ADDR_VOID,
+	      exception_page_out, ADDR_VOID,
 	      thread->exception_page, ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_EXCEPTION_PAGE))
-    cap_copy (principal, &thread->exception_page, ADDR_VOID,
+    cap_copy (principal, ADDR_VOID,
+	      &thread->exception_page, ADDR_VOID,
 	      *exception_page, ADDR_VOID);
 
   if (thread->commissioned)

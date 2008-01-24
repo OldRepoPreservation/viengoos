@@ -109,7 +109,7 @@ try (struct alloc *allocs, int count, bool dump)
       if (caps[i].type == cap_page)
 	memset (object, i, PAGESIZE);
 
-      as_insert (root_activity, &aspace, allocs[i].addr,
+      as_insert (root_activity, ADDR_VOID, &aspace, allocs[i].addr,
 		 object_to_cap (object), ADDR_VOID,
 		 allocate_object);
 

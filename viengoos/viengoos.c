@@ -253,7 +253,7 @@ system_task_load (void)
 	  objects[i] = (struct object *) folio;
 
 	  if (boot_strapped)
-	    as_insert (root_activity, &thread->aspace, folio_addr,
+	    as_insert (root_activity, ADDR_VOID, &thread->aspace, folio_addr,
 		       object_to_cap ((struct object *) folio), ADDR_VOID,
 		       allocate_object);
 	}
@@ -316,7 +316,7 @@ system_task_load (void)
      space.  */
   boot_strapped = true;
 
-  as_insert (root_activity, &thread->aspace, folio_addr,
+  as_insert (root_activity, ADDR_VOID, &thread->aspace, folio_addr,
 	     object_to_cap ((struct object *) folio), ADDR_VOID,
 	     allocate_object);
 
@@ -327,7 +327,7 @@ system_task_load (void)
 				   ADDR_BITS - PAGESIZE_LOG2);
   struct cap cap = allocate_object (cap_page, startup_data_addr).cap;
   struct object *startup_data_page = cap_to_object (root_activity, &cap);
-  as_insert (root_activity, &thread->aspace, startup_data_addr,
+  as_insert (root_activity, ADDR_VOID, &thread->aspace, startup_data_addr,
 	     object_to_cap (startup_data_page), ADDR_VOID, allocate_object);
   memcpy (startup_data_page, startup_data, PAGESIZE);
   /* Free the staging area.  */

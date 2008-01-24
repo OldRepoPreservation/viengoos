@@ -112,7 +112,7 @@ loader_elf_load (allocate_object_callback_t alloc,
 	    {
 	      struct cap cap = alloc (cap_page, loc).cap;
 	      page = cap_to_object (activity, &cap);
-	      as_insert (activity, &thread->aspace, loc,
+	      as_insert (activity, ADDR_VOID, &thread->aspace, loc,
 			 object_to_cap (page), ADDR_VOID, alloc);
 	    }
 
@@ -150,7 +150,7 @@ loader_elf_load (allocate_object_callback_t alloc,
 	    {
 	      struct cap cap = alloc (cap_page, loc).cap;
 	      page = cap_to_object (activity, &cap);
-	      as_insert (activity, &thread->aspace, loc,
+	      as_insert (activity, ADDR_VOID, &thread->aspace, loc,
 			 object_to_cap (page), ADDR_VOID, alloc);
 	    }
 

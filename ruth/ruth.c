@@ -134,7 +134,7 @@ main (int argc, char *argv[])
 	  {
 	    l4_word_t type;
 	    struct cap_properties properties;
-	    err = rm_cap_read (activity, addr, &type, &properties);
+	    err = rm_cap_read (activity, ADDR_VOID, addr, &type, &properties);
 	    assert (! err);
 	    assert (type == cap_page);
 	  }
@@ -183,7 +183,8 @@ main (int argc, char *argv[])
 	    l4_word_t type;
 	    struct cap_properties properties;
 
-	    error_t err = rm_cap_read (activity, addr_extend (root, j, bits),
+	    error_t err = rm_cap_read (activity, ADDR_VOID,
+				       addr_extend (root, j, bits),
 				       &type, &properties);
 	    assert (! err);
 	    assert (type == cap_folio);
@@ -433,7 +434,8 @@ main (int argc, char *argv[])
 	  l4_word_t type;
 	  struct cap_properties properties;
 
-	  err = rm_cap_read (a[i].child, a[i].page, &type, &properties);
+	  err = rm_cap_read (a[i].child, ADDR_VOID,
+			     a[i].page, &type, &properties);
 	  assert (err == 0);
 	  assert (type == cap_page);
 	}
@@ -486,7 +488,7 @@ main (int argc, char *argv[])
     printf ("Checking activity_policy... ");
 
     addr_t weak = capalloc ();
-    error_t err = rm_cap_copy (activity, weak, activity,
+    error_t err = rm_cap_copy (activity, ADDR_VOID, weak, activity,
 			       CAP_COPY_WEAKEN, CAP_PROPERTIES_VOID);
     assert (! err);
 

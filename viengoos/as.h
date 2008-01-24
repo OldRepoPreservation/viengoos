@@ -1,5 +1,5 @@
 /* as.h - Address space composition helper functions interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -143,17 +143,19 @@ typedef struct as_insert_rt allocate_object_callback_t (enum cap_type type,
 							addr_t addr);
 
 /* Insert the object described by entry ENTRY at address ADDR into the
-   address space rooted at ROOT.  ALLOC_OBJECT is a callback to
-   allocate an object of type TYPE at address ADDR.  The callback
-   should NOT insert the allocated object into the addresss space.  */
+   address space rooted at AS_ROOT_ADDR/ROOT.  ALLOC_OBJECT is a
+   callback to allocate an object of type TYPE at address ADDR.  The
+   callback should NOT insert the allocated object into the addresss
+   space.  */
 extern void as_insert (activity_t activity,
-		       struct cap *root, addr_t addr,
+		       addr_t as_root_addr, struct cap *root,
+		       addr_t addr,
 		       struct cap entry, addr_t entry_addr,
 		       allocate_object_callback_t alloc);
 
 /* If debugging is enabled dump the address space described by ROOT.
    PREFIX is prefixed to each line of output.  */
-extern void as_dump_from (activity_t activity,
-			  struct cap *root, const char *prefix);
+extern void as_dump_from (activity_t activity, struct cap *root,
+			  const char *prefix);
 
 #endif

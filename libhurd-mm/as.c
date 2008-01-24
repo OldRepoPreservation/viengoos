@@ -367,13 +367,14 @@ as_slot_ensure (addr_t addr)
 
   /* The implementation is provided by viengoos.  */
   extern struct cap * as_slot_ensure_full (activity_t activity,
+					   addr_t as_root_addr,
 					   struct cap *root, addr_t a,
 					   struct as_insert_rt
 					   (*allocate_object)
 					   (enum cap_type type,
 					    addr_t addr));
 
-  return as_slot_ensure_full (meta_data_activity,
+  return as_slot_ensure_full (meta_data_activity, ADDR_VOID,
 			      &shadow_root, addr,
 			      allocate_object);
 }
@@ -455,7 +456,7 @@ as_alloc_slow (int width)
 
   struct cap_properties properties = CAP_PROPERTIES_DEFAULT;
   CAP_ADDR_TRANS_SET_GUARD (&properties.addr_trans, 0, gbits);
-  err = rm_cap_copy (meta_data_activity, slot, slot,
+  err = rm_cap_copy (meta_data_activity, ADDR_VOID, slot, slot,
 		     CAP_COPY_COPY_ADDR_TRANS_GUARD, properties);
   if (err)
     panic ("failed to copy capability: %d", err);
@@ -581,7 +582,7 @@ as_init (void)
 	  addr_t slot_addr = addr_extend (addr, i, slots_log2);
 	  l4_word_t type;
 	  struct cap_properties properties;
-	  err = rm_cap_read (meta_data_activity, slot_addr,
+	  err = rm_cap_read (meta_data_activity, ADDR_VOID, slot_addr,
 			     &type, &properties);
 	  if (err)
 	    panic ("Error reading cap %d: %d", i, err);
@@ -611,7 +612,7 @@ as_init (void)
   /* Shadow the root capability.  */
   l4_word_t type;
   struct cap_properties properties;
-  err = rm_cap_read (meta_data_activity, ADDR (0, 0),
+  err = rm_cap_read (meta_data_activity, ADDR_VOID, ADDR (0, 0),
 		     &type, &properties);
   assert (err == 0);
   shadow_root.type = type;
@@ -800,7 +801,7 @@ as_walk (int (*visit) (addr_t addr,
       struct cap_properties root_properties;
       l4_word_t root_type;
 
-      err = rm_cap_read (meta_data_activity,
+      err = rm_cap_read (meta_data_activity, ADDR_VOID,
 			 ADDR (0, 0), &root_type, &root_properties);
       assert (err == 0);
 
@@ -822,7 +823,7 @@ as_walk (int (*visit) (addr_t addr,
 	    }
 	  else
 	    {
-	      err = rm_cap_read (meta_data_activity,
+	      err = rm_cap_read (meta_data_activity, ADDR_VOID,
 				 addr, &type, &properties);
 	      assert (err == 0);
 	    }
@@ -869,14 +870,14 @@ as_walk (int (*visit) (addr_t addr,
 	    }
 
 	  addr = addr_extend (addr, child[d], slots_log2);
-	  err = rm_cap_read (meta_data_activity,
+	  err = rm_cap_read (meta_data_activity, ADDR_VOID,
 			     addr, &type, &properties);
 	  assert (err == 0);
 	}
 
       for (;;)
 	{
-	  err = rm_cap_read (meta_data_activity,
+	  err = rm_cap_read (meta_data_activity, ADDR_VOID,
 			     addr, &type, &properties);
 	  if (err)
 	    /* Dangling pointer.  */

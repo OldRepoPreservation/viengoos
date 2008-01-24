@@ -358,7 +358,13 @@ enum
   CAP_COPY_PRIORITY_SET = 1 << 5,
 };
 
-/* Copy the capability in capability slot SOURCE to the slot TARGET.
+/* Copy the capability in capability slot SOURCE to the slot TARGET in
+   the address space rooted at ADDRESS_SPACE.  If ADDRESS_SPACE
+   identifies a thread, its address space root is used.  If
+   ADDRESS_SPACE is NULL, then the calling thread's address space
+   route is used.  (PRINCIPAL and ADDRESS_SPACE are looked up in the
+   context of the caller; TARGET and SOURCE are looked up in the
+   context of ADDRESS_SPACE.)
 
    By default, preserves SOURCE's subpage specification and TARGET's
    guard.
@@ -380,32 +386,33 @@ enum
 
    If CAP_COPY_PRIORITY_SET is set, then sets the priority based on
    the value in properties.  Otherwise, copies SOURCE's value.  */
-RPC(cap_copy, 5, 0, addr_t, principal, addr_t, target, addr_t, source,
+RPC(cap_copy, 6, 0, addr_t, principal, addr_t, address_space,
+    addr_t, target, addr_t, source,
     l4_word_t, flags, struct cap_properties, properties)
 
 /* Returns the public bits of the capability CAP in TYPE and
    CAP_PROPERTIES.  */
-RPC(cap_read, 2, 2, addr_t, principal, addr_t, cap,
+RPC(cap_read, 3, 2, addr_t, principal, addr_t, address_space, addr_t, cap,
     /* Out: */
     l4_word_t, type, struct cap_properties, properties)
 
 /* Copy the capability from slot SLOT of the object OBJECT (relative
    to the start of the object's subpage) to slot TARGET.  PROPERTIES
    are interpreted as per cap_copy.  */
-RPC(object_slot_copy_out, 6, 0, addr_t, principal,
+RPC(object_slot_copy_out, 7, 0, addr_t, principal, addr_t, address_space,
     addr_t, object, l4_word_t, slot, addr_t, target,
     l4_word_t, flags, struct cap_properties, properties)
 
 /* Copy the capability from slot SOURCE to slot INDEX of the object
    OBJECT (relative to the start of the object's subpage).  PROPERTIES
    are interpreted as per cap_copy.  */
-RPC(object_slot_copy_in, 6, 0, addr_t, principal,
+RPC(object_slot_copy_in, 7, 0, addr_t, principal, addr_t, address_space,
     addr_t, object, l4_word_t, index, addr_t, source,
     l4_word_t, flags, struct cap_properties, properties)
 
 /* Store the public bits of the capability slot SLOT of object OBJECT
    in TYPE and CAP_PROPERTIES.  */
-RPC(object_slot_read, 3, 2, addr_t, principal,
+RPC(object_slot_read, 4, 2, addr_t, principal, addr_t, address_space,
     addr_t, object, l4_word_t, slot,
     /* Out: */
     l4_word_t, type, struct cap_properties, properties)
@@ -473,7 +480,7 @@ cap_to_object (activity_t activity, struct cap *cap)
 /* Wrapper for the cap_copy method.  Also updates shadow
    capabilities.  */
 static inline bool
-cap_copy_x (activity_t activity,
+cap_copy_x (activity_t activity, addr_t address_space,
 	    struct cap *target, addr_t target_addr,
 	    struct cap source, addr_t source_addr,
 	    int flags, struct cap_properties properties)
@@ -594,7 +601,8 @@ cap_copy_x (activity_t activity,
   assert (! ADDR_IS_VOID (target_addr));
   assert (! ADDR_IS_VOID (source_addr));
 
-  error_t err = rm_cap_copy (activity, target_addr, source_addr,
+  error_t err = rm_cap_copy (activity, address_space,
+			     target_addr, source_addr,
 			     flags, properties);
   assert (err == 0);
 #endif
@@ -617,11 +625,11 @@ cap_copy_x (activity_t activity,
 /* Copy the capability SOURCE to capability TARGET.  Preserves
    SOURCE's subpage specification and TARGET's guard.  */
 static inline bool
-cap_copy (activity_t activity,
+cap_copy (activity_t activity, addr_t as_root_addr,
 	  struct cap *target, addr_t target_addr,
 	  struct cap source, addr_t source_addr)
 {
-  return cap_copy_x (activity, target, target_addr,
+  return cap_copy_x (activity, as_root_addr, target, target_addr,
 		     source, source_addr, 0, CAP_PROPERTIES_VOID);
 }
 
@@ -633,7 +641,7 @@ cap_copy (activity_t activity,
 extern pthread_rwlock_t as_lock;
 #endif
 
-/* Dump an address space where ROOT is a ROOT.  */
+/* Dump the address space rooted at ROOT.  */
 extern void as_dump_from (activity_t activity, struct cap *root,
 			  const char *prefix);
 

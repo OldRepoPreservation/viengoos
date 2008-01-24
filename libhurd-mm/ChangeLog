@@ -1,5 +1,14 @@
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (as_slot_ensure): Update use of as_slot_ensure_full to be
+	consistent with new API.
+	(as_alloc_slow): Update use of rm_cap_copy to be consistent with
+	new API.
+	(as_init): Likewise.
+	(as_walk): Likewise.
+
+2008-01-24  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (as_alloced_dump): Use s_printf rather than printf.
 	(as_walk): Likewise.
 
