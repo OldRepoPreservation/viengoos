@@ -412,7 +412,7 @@ system_task_load (void)
 		 ADDR_VOID, object_to_cap (page), ADDR_VOID,
 		 allocate_object);
 
-      memcpy (page, startup_data + i * PAGESIZE, PAGESIZE);
+      memcpy (page, (void *) startup_data + i * PAGESIZE, PAGESIZE);
     }
 
   /* As explained immediately above, update the count.  */

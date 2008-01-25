@@ -1,5 +1,9 @@
 2008-01-25  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (system_task_load): Correctly copy startup data.
+
+2008-01-25  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (system_task_load): Restructure to allow the use of
 	more than one page of start up data.
 
