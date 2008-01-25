@@ -520,9 +520,10 @@ server_loop (void)
 
 	case RM_object_slot_copy_out:
 	  {
-	    addr_t root_addr;
+	    addr_t source_as_addr;
 	    addr_t source_addr;
 	    struct cap source;
+	    addr_t target_as_addr;
 	    addr_t target_addr;
 	    struct cap *target;
 	    uint32_t idx;
@@ -533,27 +534,29 @@ server_loop (void)
 	    struct object *object;
 
 	    err = rm_object_slot_copy_out_send_unmarshal
-	      (&msg, &principal_addr, &root_addr,
-	       &source_addr, &idx, &target_addr, &flags, &properties);
+	      (&msg, &principal_addr, &source_as_addr, &source_addr, &idx,
+	       &target_as_addr, &target_addr, &flags, &properties);
 	    if (err)
 	      REPLY (err);
 
-	    struct cap root = ROOT (root_addr);
-
+	    struct cap root = ROOT (source_as_addr);
 	    object_cap = CAP (root, source_addr, -1, false);
+
+	    root = ROOT (target_as_addr);
 
 	    goto get_slot;
 
 	  case RM_object_slot_copy_in:
 	    err = rm_object_slot_copy_in_send_unmarshal
-	      (&msg, &principal_addr, &root_addr,
-	       &target_addr, &idx, &source_addr, &flags, &properties);
+	      (&msg, &principal_addr, &target_as_addr, &target_addr, &idx,
+	       &source_as_addr, &source_addr, &flags, &properties);
 	    if (err)
 	      REPLY (err);
 
-	    root = ROOT (root_addr);
-
+	    root = ROOT (target_as_addr);
 	    object_cap = CAP (root, target_addr, -1, true);
+
+	    root = ROOT (source_as_addr);
 
 	  get_slot:
 	    if (idx >= cap_type_num_slots[object_cap.type])
@@ -595,15 +598,17 @@ server_loop (void)
 
 	  case RM_cap_copy:
 	    err = rm_cap_copy_send_unmarshal (&msg,
-					      &principal_addr, &root_addr,
-					      &target_addr, &source_addr,
+					      &principal_addr,
+					      &target_as_addr, &target_addr,
+					      &source_as_addr, &source_addr,
 					      &flags, &properties);
 	    if (err)
 	      REPLY (err);
 
-	    root = ROOT (root_addr);
-
+	    root = ROOT (target_as_addr);
 	    target = SLOT (root, target_addr);
+
+	    root = ROOT (source_as_addr);
 	    source = CAP (root, source_addr, -1, false);
 
 	  cap_copy_body:;
@@ -630,8 +635,9 @@ server_loop (void)
 		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
 		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
 
-	    bool r = cap_copy_x (principal, ADDR_VOID,
-				 target, ADDR_VOID, source, ADDR_VOID,
+	    bool r = cap_copy_x (principal,
+				 ADDR_VOID, target, ADDR_VOID,
+				 ADDR_VOID, source, ADDR_VOID,
 				 flags, properties);
 	    if (! r)
 	      REPLY (EINVAL);
