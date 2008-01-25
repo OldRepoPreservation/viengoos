@@ -1,3 +1,12 @@
+2008-01-25  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.c (storage_init_done): New variable.
+	(storage_alloc_): Assert that storage_init_done is true.
+	(storage_init): Set storage_init_done to true.
+	
+	(storage_init): Count the number of folios allocated and report it
+	and the number of objects allocated.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* as.h (as_slot_ensure_full): New declaration.

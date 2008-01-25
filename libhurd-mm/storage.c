@@ -331,11 +331,15 @@ storage_shadow_setup (struct cap *cap, addr_t folio)
   shadow_setup (cap, sdesc);
 }
 
+static bool storage_init_done;
+
 struct storage
 storage_alloc_ (addr_t activity,
 		enum cap_type type, enum storage_expectancy expectancy,
 		addr_t addr)
 {
+  assert (storage_init_done);
+
   atomic_read_barrier ();
   if (unlikely (free_count <= MIN_FREE_PAGES))
     /* Insufficient storage reserve.  Allocate a new storage area.  */
@@ -688,6 +692,8 @@ storage_init (void)
      this lock is held.  */
   ss_mutex_lock (&storage_descs_lock);
 
+  int folio_count = 0;
+
   for (i = 0, odesc = &__hurd_startup_data->descs[0];
        i < __hurd_startup_data->desc_count;
        i ++, odesc ++)
@@ -703,6 +709,10 @@ storage_init (void)
       if (! sdesc)
 	/* Haven't seen this folio yet.  */
 	{
+	  debug (0, "Adding folio " ADDR_FMT, ADDR_PRINTF (folio));
+
+	  folio_count ++;
+
 	  sdesc = storage_desc_alloc ();
 	  sdesc->lock = (ss_mutex_t) 0;
 	  sdesc->folio = folio;
@@ -742,7 +752,11 @@ storage_init (void)
 
   ss_mutex_unlock (&storage_descs_lock);
 
-  debug (1, "Have %d initial free objects", free_count);
+  debug (1, "%d folios, %d objects used, %d free objects",
+	 folio_count, __hurd_startup_data->desc_count, free_count);
+
+  storage_init_done = true;
+
   /* XXX: We can only call this after initialization is complete.
      This presents a problem: we might require additional storage
      descriptors than a single pre-allocated page provides.  This is
