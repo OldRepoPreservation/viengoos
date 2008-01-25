@@ -1,5 +1,10 @@
 2008-01-25  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (system_task_load): Restructure to allow the use of
+	more than one page of start up data.
+
+2008-01-25  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c: Include <loader.h>.  Don't include "loader.h".
 	(system_task_load): Update user of loader_elf_load to new API.
 	* loader.h: Move to ../libc-parts.

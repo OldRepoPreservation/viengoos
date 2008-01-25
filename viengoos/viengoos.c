@@ -201,25 +201,59 @@ memory_configure (void)
 void
 system_task_load (void)
 {
+  /* The address space is empty.  This is as good a place to put it as
+     any in particular as it is unlikely that the binary will try to
+     load something here.  */
+#define STARTUP_DATA_ADDR 0x1000
+  /* This should be enough for an ~64 MB binary.  The memory has to be
+     continuous.  We start putting folios at 512kb so if we put this
+     at 4k, then we can use a maximum of 127 pages for the memory.  */
+#define STARTUP_DATA_MAX_SIZE (100 * PAGESIZE)
   struct hurd_startup_data *startup_data
-    = (void *) memory_frame_allocate (NULL);
+    = (void *) zalloc (STARTUP_DATA_MAX_SIZE);
 
-  bool boot_strapped = false;
+  /* Add the argument vector.  If it would overflow the space, we
+     truncate it (which is useless but we'll error out soon).  */
+  startup_data->argz_len = strlen (boot_modules[0].command_line) + 1;
 
-  struct thread *thread;
+  int offset = sizeof (struct hurd_startup_data);
+  int space = STARTUP_DATA_MAX_SIZE - offset;
+  if (space < startup_data->argz_len)
+    {
+      printf ("Truncating command line from %d to %d characters\n",
+	      startup_data->argz_len, space);
+      startup_data->argz_len = space;
+    }
+  memcpy ((void *) startup_data + offset, boot_modules[0].command_line,
+	  startup_data->argz_len - 1);
 
-  /* The area where we will store the hurd object descriptors won't be
-     ready until after we have already allocated some objects.  We
-     allocate a few descriptors, which should be more than enough.  */
-  struct hurd_object_desc *descs = (void *) &startup_data[1];
-  int desc_max = ((PAGESIZE - sizeof (struct hurd_startup_data))
+  startup_data->argz = (void *) STARTUP_DATA_ADDR + offset;
+
+
+  /* Point the descriptors after the argument string at the next
+     properly aligned address.  */
+  offset = (sizeof (struct hurd_startup_data) + startup_data->argz_len
+	    + __alignof__ (uintptr_t) - 1)
+    & ~(__alignof__ (uintptr_t) - 1);
+
+  struct hurd_object_desc *descs = (void *) startup_data + offset;
+  int desc_max = ((STARTUP_DATA_MAX_SIZE - offset)
 		  / sizeof (struct hurd_object_desc));
-  struct object *objects[desc_max];
   int desc_count = 0;
+
+  startup_data->version_major = HURD_STARTUP_VERSION_MAJOR;
+  startup_data->version_minor = HURD_STARTUP_VERSION_MINOR;
+  startup_data->utcb_area = UTCB_AREA_BASE;
+  startup_data->rm = l4_myself ();
+  startup_data->descs = (void *) STARTUP_DATA_ADDR + offset;
+
 
   struct folio *folio = NULL;
   int folio_index;
   addr_t folio_addr;
+
+  bool boot_strapped = false;
+  struct thread *thread;
 
   struct as_insert_rt allocate_object (enum cap_type type, addr_t addr)
     {
@@ -251,8 +285,6 @@ system_task_load (void)
 	  f ++;
 	  desc->type = cap_folio;
 
-	  objects[i] = (struct object *) folio;
-
 	  if (boot_strapped)
 	    as_insert (root_activity,
 		       ADDR_VOID, &thread->aspace, folio_addr,
@@ -270,7 +302,6 @@ system_task_load (void)
 	panic ("Initial task too large.");
 
       int i = desc_count ++;
-      objects[i] = object;
       struct hurd_object_desc *desc = &descs[i];
 
       desc->object = addr;
@@ -324,32 +355,6 @@ system_task_load (void)
 	     ADDR_VOID, object_to_cap ((struct object *) folio), ADDR_VOID,
 	     allocate_object);
 
-  /* Allocate the startup data object and copy the data from the
-     temporary page, updating any necessary pointers.  */
-#define STARTUP_DATA_ADDR 0x1000
-  addr_t startup_data_addr = ADDR (STARTUP_DATA_ADDR,
-				   ADDR_BITS - PAGESIZE_LOG2);
-  struct cap cap = allocate_object (cap_page, startup_data_addr).cap;
-  struct object *startup_data_page = cap_to_object (root_activity, &cap);
-  as_insert (root_activity, ADDR_VOID, &thread->aspace, startup_data_addr,
-	     ADDR_VOID, object_to_cap (startup_data_page), ADDR_VOID,
-	     allocate_object);
-  memcpy (startup_data_page, startup_data, PAGESIZE);
-  /* Free the staging area.  */
-  memory_frame_free ((l4_word_t) startup_data);
-  startup_data = (void *) startup_data_page;
-  descs = (void *) &startup_data[1];  
-
-  startup_data = (struct hurd_startup_data *) startup_data_page;
-  startup_data->version_major = HURD_STARTUP_VERSION_MAJOR;
-  startup_data->version_minor = HURD_STARTUP_VERSION_MINOR;
-  startup_data->utcb_area = UTCB_AREA_BASE;
-  startup_data->rm = l4_myself ();
-  startup_data->descs
-    = (void *) STARTUP_DATA_ADDR + (sizeof (struct hurd_startup_data));
-
-  thread->sp = STARTUP_DATA_ADDR;
-
   /* Load the binary.  */
   {
     void *alloc (uintptr_t ptr)
@@ -383,29 +388,47 @@ system_task_load (void)
   }
 
 
-  /* Add the argument vector.  If it would overflow the page, we
-     truncate it.  */
-  startup_data->argz_len = strlen (boot_modules[0].command_line) + 1;
-
-  int offset = sizeof (struct hurd_startup_data)
-    + desc_count * sizeof (struct hurd_object_desc);
-  int space = PAGESIZE - offset;
-  if (space < startup_data->argz_len)
+  /* Allocate memory for the startup data object and copy it from from
+     the temporary storage to the task's storage.  Because inserting
+     the objects into the AS can allocate more descriptors, we need to
+     update the desc count at the end.  */
+  struct object *first = NULL;
+  int i;
+  for (i = 0;
+       i * PAGESIZE < (((uintptr_t) &descs[desc_count]
+			- (uintptr_t) startup_data + PAGESIZE - 1)
+		       & ~(PAGESIZE - 1));
+       i ++)
     {
-      printf ("Truncating command line from %d to %d characters\n",
-	      startup_data->argz_len, space);
-      startup_data->argz_len = space;
-    }
-  memcpy ((void *) startup_data + offset, boot_modules[0].command_line,
-	  startup_data->argz_len - 1);
-  startup_data->argz = (void *) STARTUP_DATA_ADDR + offset;
+      addr_t addr = ADDR (STARTUP_DATA_ADDR + i * PAGESIZE,
+			  ADDR_BITS - PAGESIZE_LOG2);
+      struct cap cap = allocate_object (cap_page, addr).cap;
+      struct object *page = cap_to_object (root_activity, &cap);
 
-  startup_data->desc_count = desc_count;
+      if (! first)
+	first = page;
+
+      as_insert (root_activity, ADDR_VOID, &thread->aspace, addr,
+		 ADDR_VOID, object_to_cap (page), ADDR_VOID,
+		 allocate_object);
+
+      memcpy (page, startup_data + i * PAGESIZE, PAGESIZE);
+    }
+
+  /* As explained immediately above, update the count.  */
+  assert (first);
+  ((struct hurd_startup_data *) first)->desc_count = desc_count;
+
+  /* Free the staging area.  */
+  zfree ((uintptr_t) startup_data, STARTUP_DATA_MAX_SIZE);
+
+  /* Per the API (cf. <hurd/startup.h>).  */
+  thread->sp = STARTUP_DATA_ADDR;
 
   /* Release the memory used by the binary.  */
   memory_reservation_clear (memory_reservation_system_executable);
 
-  do_debug (3)
+  do_debug (4)
     /* Dump the system task's address space before we start it
        running.  */
     {
