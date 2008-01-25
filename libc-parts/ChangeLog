@@ -1,3 +1,24 @@
+2008-01-25  Neal H. Walfield  <neal@gnu.org>
+
+	* loader.h: Include <stdint.h> and <stdbool.h>.  Don't include
+	<l4/types.h>, "cap.h", or "as.h".
+	(struct activity): Remove forward.
+	(struct thread): Remove forward.
+	(loader_allocate_object_callback_t): New definition.
+	(loader_lookup_object_callback_t): New definition.
+	(loader_elf_load): Change prototype to take an allocation, a
+	lookup, a start, an end, and an entry arguments.  Return a
+	boolean.
+	* loader.c: Don't include "cap.h", "object.h", "as.h" or
+	"thread.h".  Include <l4.h>.
+	(loader_elf_load): Change prototype to take an
+	allocation, a lookup, a start, an end, and an entry arguments.
+	Return a boolean.  Don't panic on an error.  Instead, print some
+	debugging output and return false.  On success, return true.
+	Update to use alloc and lookup callback functions.
+	* elf.h: Move here from ../viengoos.
+	* Makefile.am (common_sources): Add elf.h, loader.h and loader.c.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* ia32-cmain.c (finish): Only copy what comes after the last '/'

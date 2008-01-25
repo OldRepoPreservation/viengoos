@@ -48,7 +48,6 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	ager.h ager.c				\
 	as.h as.c				\
 	bits.h					\
-	elf.h loader.h loader.c			\
 	server.h server.c			\
 	pager.h pager.c				\
 	list.h

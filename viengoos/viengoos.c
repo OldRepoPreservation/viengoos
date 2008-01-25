@@ -41,11 +41,12 @@ int ss_lock_trace_count;
 #include <hurd/stddef.h>
 #include <hurd/thread.h>
 
+#include <loader.h>
+
 #include "viengoos.h"
 #include "sigma0.h"
 #include "memory.h"
 #include "boot-modules.h"
-#include "loader.h"
 #include "cap.h"
 #include "object.h"
 #include "activity.h"
@@ -350,9 +351,36 @@ system_task_load (void)
   thread->sp = STARTUP_DATA_ADDR;
 
   /* Load the binary.  */
-  loader_elf_load (allocate_object, root_activity, thread,
-		   "system", boot_modules[0].start, boot_modules[0].end,
-		   &thread->ip);
+  {
+    void *alloc (uintptr_t ptr)
+    {
+      addr_t addr = addr_chop (PTR_TO_ADDR (ptr), PAGESIZE_LOG2);
+
+      struct cap cap = allocate_object (cap_page, addr).cap;
+
+      struct object *page = cap_to_object (root_activity, &cap);
+      as_insert (root_activity, ADDR_VOID, &thread->aspace, addr,
+		 ADDR_VOID, object_to_cap (page), ADDR_VOID, allocate_object);
+
+      return page;
+    }
+
+    void *lookup (uintptr_t ptr)
+    {
+      addr_t addr = addr_chop (PTR_TO_ADDR (ptr), PAGESIZE_LOG2);
+
+      struct cap cap = object_lookup_rel (root_activity,
+					  &thread->aspace, addr,
+					  cap_page, NULL);
+      return cap_to_object (root_activity, &cap);
+    }
+
+    if (! loader_elf_load (alloc, lookup,
+			   (void *) boot_modules[0].start,
+			   (void *) boot_modules[0].end,
+			   &thread->ip))
+      panic ("Failed to binary %s", boot_modules[0].command_line);
+  }
 
 
   /* Add the argument vector.  If it would overflow the page, we

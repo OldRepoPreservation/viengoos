@@ -1,5 +1,15 @@
 2008-01-25  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c: Include <loader.h>.  Don't include "loader.h".
+	(system_task_load): Update user of loader_elf_load to new API.
+	* loader.h: Move to ../libc-parts.
+	* loader.c: Move to ../libc-parts.
+	* elf.h: Move to ../libc-parts.
+	* Makefile.am (viengoos_SOURCES): Remove elf.h, loader.h and
+	loader.c.
+
+2008-01-25  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (viengoos_LDADD): Fix link order.
 
 2008-01-24  Neal H. Walfield  <neal@gnu.org>

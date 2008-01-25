@@ -32,7 +32,8 @@ noinst_LIBRARIES = libc-parts.a libc-kernel.a
 common_sources = assert.h 					\
 	strtol.c strtoll.c strtoul.c strtoull.c			\
 	setjmp.h backtrace.c s_printf.c startup.c		\
-	panic.c _exit.c
+	panic.c _exit.c						\
+	elf.h loader.h loader.c
 
 libc_parts_a_CPPFLAGS = -I$(LIBC)/include $(COMMON_CPPFLAGS)
 libc_parts_a_SOURCES = 						\
