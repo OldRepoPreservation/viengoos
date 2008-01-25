@@ -118,7 +118,7 @@ newlib-configure-stamp: $(addsuffix -applied,$(patch_files)) \
 	(cd newlib-build && $(abs_srcdir)/newlib/newlib/configure \
 	--enable-maintainer-mode \
 	CPPFLAGS=-I$(abs_top_builddir)/include\ -I$(abs_top_srcdir)/libc-parts \
-	CFLAGS=-nostdinc\ -nostdlib \
+	CFLAGS=-nostdinc\ -nostdlib\ -fno-stack-protector \
 	--disable-shared --disable-newlib-iconv --disable-multilib \
 	--enable-newlib-hw-fp --enable-newlib-io-pos-args \
 	--enable-newlib-io-c99-formats --enable-newlib-io-long-long \

@@ -1,3 +1,8 @@
+2008-01-25  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (newlib-configure-stamp): Add -fno-stack-protector
+	to the configure invocation.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/getreent.c (reent_main): New
