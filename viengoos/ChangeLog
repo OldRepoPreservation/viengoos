@@ -1,3 +1,7 @@
+2008-01-25  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (viengoos_LDADD): Fix link order.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* as.h (as_insert): Rename argument AS_ROOT_ADDR to TARGET_AS.
