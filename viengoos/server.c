@@ -321,7 +321,7 @@ server_loop (void)
 		root_ = &((struct thread *) t_)->aspace;		\
 	      }								\
 	  }								\
-	DEBUG (0, "root: " CAP_FMT, CAP_PRINTF (root_));		\
+	DEBUG (4, "root: " CAP_FMT, CAP_PRINTF (root_));		\
 									\
 	root_;								\
       })

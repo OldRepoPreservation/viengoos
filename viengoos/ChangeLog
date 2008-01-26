@@ -1,5 +1,9 @@
 2008-01-26  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (ROOT): Reduce debugging output.
+
+2008-01-26  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (SLOT): Take a pointer to the root of the address
 	space.  Update users.
 	(CAP): Likewise.
