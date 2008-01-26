@@ -5,9 +5,9 @@
 #include <sys/lock.h>
 
 #define MLOCK_T _LOCK_T
-#define INITIAL_LOCK(lock) __lock_init(*lock)
-#define ACQUIRE_LOCK(lock) (__lock_acquire(*lock), 0)
-#define RELEASE_LOCK(lock) (__lock_release(*lock), 0)
+#define INITIAL_LOCK(lock) __lock_init(*(lock))
+#define ACQUIRE_LOCK(lock) (__lock_acquire(*(lock)), 0)
+#define RELEASE_LOCK(lock) (__lock_release(*(lock)), 0)
 
 /* Don't use sbrk.  */
 #define HAVE_MORECORE 0
@@ -1403,9 +1403,13 @@ static int win32munmap(void* ptr, size_t size) {
    The four mandatory macros are:
 
      MLOCK_T: Defined to the type of a lock.
-     INITIAL_LOCK(lock): Define to function that initializes LOCK.
-     ACQUIRE_LOCK(lock): Define to function that acquires LOCK.
-     RELEASE_LOCK(lock): Define to function that releases LOCK.
+
+     INITIAL_LOCK(lockp): Define to function that initializes *LOCKP,
+       return 0 on success.
+     ACQUIRE_LOCK(lockp): Define to function that acquires *LOCKP,
+       return 0 on success.
+     RELEASE_LOCK(lockp): Define to function that releases *LOCKP,
+       return 0 on success.
 
    The optional macro is:
 
@@ -1441,6 +1445,7 @@ static int win32munmap(void* ptr, size_t size) {
 /* By default use posix locks */
 #include <pthread.h>
 #define MLOCK_T pthread_mutex_t
+#define MLOCK_T_INIT	     PTHREAD_MUTEX_INITIALIZER
 #define INITIAL_LOCK(l)      pthread_mutex_init(l, NULL)
 #define ACQUIRE_LOCK(l)      pthread_mutex_lock(l)
 #define RELEASE_LOCK(l)      pthread_mutex_unlock(l)
@@ -1469,7 +1474,6 @@ static void win32_release_lock (MLOCK_T *sl) {
   InterlockedExchange (sl, 0);
 }
 
-#define MLOCK_T_INIT	     0
 #define INITIAL_LOCK(l)      *(l)=MLOCK_T_INIT
 #define ACQUIRE_LOCK(l)      win32_acquire_lock(l)
 #define RELEASE_LOCK(l)      win32_release_lock(l)

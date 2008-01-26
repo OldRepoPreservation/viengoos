@@ -1,3 +1,10 @@
+2008-01-26  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/malloc.c (INITIAL_LOCK): Correctly
+	parenthesize use of LOCK.
+	(ACQUIRE_LOCK): Likewise.
+	(RELEASE_LOCK): Likewise.
+
 2008-01-26  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am (abs_top_builddir, abs_srcdir, abs_top_srcdir): Use
