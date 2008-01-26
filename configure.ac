@@ -187,7 +187,7 @@ AM_CONDITIONAL(WITH_NEWLIB, test x"${with_newlib-no}" != xno)
 
 ABS_BUILDDIR=$ac_pwd
 AC_SUBST([ABS_BUILDDIR])
-ABS_SRCDIR=`realpath $srcdir`
+ABS_SRCDIR=`readlink -f $srcdir`
 AC_SUBST([ABS_SRCDIR])
 # Location of the installed headers and .a's.  We expect that
 # LIBC/libc.a and LIBC/include exists.
