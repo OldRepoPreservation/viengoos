@@ -45,17 +45,13 @@ AC_PATH_PROG([SORT], [sort], :)
 AC_PROG_LN_S
 
 # Required for building the documentation
-AC_PATH_PROG([LATEX], [latex], no)
-if test "x$LATEX" = xno; then
-  missing_progs="$missing_progs latex"
+AC_PATH_PROG([PDFLATEX], [pdflatex], no)
+if test "x$PDFLATEX" = xno; then
+  missing_progs="$missing_progs pdflatex"
 fi
-AC_PATH_PROG([DVIPS], [dvips], no)
-if test "x$DVIPS" = xno; then
-  missing_progs="$missing_progs dvips"
-fi
-AC_PATH_PROG([PS2PDF], [ps2pdf], no)
-if test "x$PS2PDF" = xno; then
-  missing_progs="$missing_progs ps2pdf"
+AC_PATH_PROG([BIBTEX], [bibtex], no)
+if test "x$BIBTEX" = xno; then
+  missing_progs="$missing_progs bibtex"
 fi
 AC_PATH_PROG([FIG2DEV], [fig2dev], no)
 if test "x$FIG2DEV" = xno; then

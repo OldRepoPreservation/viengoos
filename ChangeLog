@@ -1,3 +1,8 @@
+2008-01-26  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Don't check for latex, dvips or ps2pdf.  Check for
+	pdflatex and bibtex.
+
 2008-01-26  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* configure.ac (ABS_SRCDIR): Use ``readlink -f'' instead of
