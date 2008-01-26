@@ -119,8 +119,6 @@ newlib-configure-stamp: $(addsuffix -applied,$(patch_files)) \
 	mkdir newlib-build
 	(cd newlib-build && $(abs_srcdir)/newlib/newlib/configure \
 	--enable-maintainer-mode \
-	CPPFLAGS=-I$(abs_top_builddir)/include\ -I$(abs_top_srcdir)/libc-parts \
-	CFLAGS=-nostdinc\ -nostdlib\ -fno-stack-protector \
 	--disable-shared --disable-newlib-iconv --disable-multilib \
 	--enable-newlib-hw-fp --enable-newlib-io-pos-args \
 	--enable-newlib-io-c99-formats --enable-newlib-io-long-long \
@@ -130,8 +128,20 @@ newlib-configure-stamp: $(addsuffix -applied,$(patch_files)) \
 	--build=$(build_alias) --host=$(host_alias))
 	touch newlib-configure-stamp
 
+# Ripped from glibc.
+ccheaders := $(shell $(CC) -print-file-name=include)
+SYSINCLUDES := -nostdinc -isystem $(ccheaders) -isystem $(ccheaders)-fixed
+
 newlib-build/libc.a newlib-build/libc.m: newlib-configure-stamp
-	cd newlib-build && make all install
+	cd newlib-build && \
+	  make \
+	    TARGET_CFLAGS='\
+	      -I$(abs_top_builddir)/include \
+	      -I$(abs_top_srcdir)/libc-parts \
+	      $(SYSINCLUDES) \
+	      -nostdlib \
+	      -fno-stack-protector' \
+	    all install
 
 libc.a: newlib-build/libc.a
 	ln -sf newlib-build/libc.a libc.a

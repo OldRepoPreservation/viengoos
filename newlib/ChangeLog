@@ -1,3 +1,10 @@
+2008-01-26  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (newlib-configure-stamp): Don't pass CPPFLAGS and CFLAGS.
+	(ccheaders, SYSINCLUDES): New variables.
+	(newlib-build/libc.a): Pass TARGET_CFLAGS (summing up all the above
+	flags) to the make invocation.
+
 2008-01-26  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/malloc.c (INITIAL_LOCK): Correctly
