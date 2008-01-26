@@ -1,3 +1,10 @@
+2008-01-26  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (SLOT): Take a pointer to the root of the address
+	space.  Update users.
+	(CAP): Likewise.
+	(OBJECT): Likewise.
+
 2008-01-25  Neal H. Walfield  <neal@gnu.org>
 
 	* viengoos.c (system_task_load): Correctly copy startup data.

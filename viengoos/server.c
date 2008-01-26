@@ -200,23 +200,23 @@ server_loop (void)
 
       /* Return the capability slot corresponding to address ADDR in
 	 the address space rooted at ROOT.  */
-      error_t SLOT_ (struct cap root, addr_t addr, struct cap **capp)
+      error_t SLOT_ (struct cap *root, addr_t addr, struct cap **capp)
 	{
 	  bool writable;
-	  *capp = slot_lookup_rel (activity, &root,
+	  *capp = slot_lookup_rel (activity, root,
 				   addr, -1, &writable);
 	  if (! *capp)
 	    {
 	      DEBUG (1, "No capability slot at 0x%llx/%d",
 		     addr_prefix (addr), addr_depth (addr));
-	      as_dump_from (activity, &root, "");
+	      as_dump_from (activity, root, "");
 	      return ENOENT;
 	    }
 	  if (! writable)
 	    {
 	      DEBUG (1, "Capability slot at 0x%llx/%d not writable",
 		     addr_prefix (addr), addr_depth (addr));
-	      as_dump_from (activity, &root, "");
+	      as_dump_from (activity, root, "");
 	      return EPERM;
 	    }
 
@@ -234,12 +234,12 @@ server_loop (void)
       /* Return a cap referencing the object at address ADDR of the
 	 callers capability space if it is of type TYPE (-1 = don't care).
 	 Whether the object is writable is stored in *WRITABLEP_.  */
-      error_t CAP_ (struct cap root,
+      error_t CAP_ (struct cap *root,
 		    addr_t addr, int type, bool require_writable,
 		    struct cap *cap)
 	{
 	  bool writable = true;
-	  *cap = cap_lookup_rel (principal, &root, addr,
+	  *cap = cap_lookup_rel (principal, root, addr,
 				 type, require_writable ? &writable : NULL);
 	  if (type != -1 && ! cap_types_compatible (cap->type, type))
 	    {
@@ -247,7 +247,7 @@ server_loop (void)
 		     "type %s but %s",
 		     addr_prefix (addr), addr_depth (addr),
 		     cap_type_string (type), cap_type_string (cap->type));
-	      as_dump_from (activity, &root, "");
+	      as_dump_from (activity, root, "");
 	      return ENOENT;
 	    }
 
@@ -270,7 +270,7 @@ server_loop (void)
 	CAP_ret;							\
       })
 
-      error_t OBJECT_ (struct cap root,
+      error_t OBJECT_ (struct cap *root,
 		       addr_t addr, int type, bool require_writable,
 		       struct object **objectp)
 	{
@@ -305,22 +305,23 @@ server_loop (void)
 	 it's address space root.  */
 #define ROOT(root_addr_)						\
       ({								\
-	struct cap root_;						\
+	struct cap *root_;						\
 	if (ADDR_IS_VOID (root_addr_))					\
-	  root_ = thread->aspace;					\
+	  root_ = &thread->aspace;					\
 	else								\
 	  {								\
-	    root_ = CAP (thread->aspace, root_addr_, -1, true);		\
-	    if (root_.type == cap_thread)				\
+	    root_ = SLOT (&thread->aspace, root_addr_);			\
+	    if (root_->type == cap_thread)				\
 	      {								\
-		struct object *t_ = cap_to_object (principal, &root_);	\
+		struct object *t_ = cap_to_object (principal, root_);	\
 		if (! t_)						\
 		  REPLY (EINVAL);					\
 		assert (object_type (t_) == cap_thread);		\
 									\
-		root_ = ((struct thread *) t_)->aspace;			\
+		root_ = &((struct thread *) t_)->aspace;		\
 	      }								\
 	  }								\
+	DEBUG (0, "root: " CAP_FMT, CAP_PRINTF (root_));		\
 									\
 	root_;								\
       })
@@ -364,7 +365,7 @@ server_loop (void)
       struct cap principal_cap;
       if (! ADDR_IS_VOID (principal_addr))
 	{
-	  principal_cap = CAP (thread->aspace,
+	  principal_cap = CAP (&thread->aspace,
 			       principal_addr, cap_activity, false);
 	  principal = (struct activity *) cap_to_object (principal,
 							 &principal_cap);
@@ -395,7 +396,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    struct cap *folio_slot = SLOT (thread->aspace, folio_addr);
+	    struct cap *folio_slot = SLOT (&thread->aspace, folio_addr);
 
 	    struct folio *folio = folio_alloc (principal, policy);
 	    if (! folio)
@@ -418,7 +419,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    struct folio *folio = (struct folio *) OBJECT (thread->aspace,
+	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
 							   folio_addr,
 							   cap_folio, true);
 	    folio_free (principal, folio);
@@ -446,7 +447,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    struct folio *folio = (struct folio *) OBJECT (thread->aspace,
+	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
 							   folio_addr,
 							   cap_folio, true);
 
@@ -458,11 +459,11 @@ server_loop (void)
 
 	    struct cap *object_slot = NULL;
 	    if (! ADDR_IS_VOID (object_addr))
-	      object_slot = SLOT (thread->aspace, object_addr);
+	      object_slot = SLOT (&thread->aspace, object_addr);
 
 	    struct cap *object_weak_slot = NULL;
 	    if (! ADDR_IS_VOID (object_weak_addr))
-	      object_weak_slot = SLOT (thread->aspace, object_weak_addr);
+	      object_weak_slot = SLOT (&thread->aspace, object_weak_addr);
 
 	    DEBUG (4, "(folio: %llx/%d, idx: %d, type: %s, target: %llx/%d)",
 		   addr_prefix (folio_addr), addr_depth (folio_addr),
@@ -508,7 +509,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    struct folio *folio = (struct folio *) OBJECT (thread->aspace,
+	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
 							   folio_addr,
 							   cap_folio, true);
 
@@ -539,7 +540,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    struct cap root = ROOT (source_as_addr);
+	    struct cap *root = ROOT (source_as_addr);
 	    object_cap = CAP (root, source_addr, -1, false);
 
 	    root = ROOT (target_as_addr);
@@ -621,9 +622,11 @@ server_loop (void)
 			   | CAP_COPY_PRIORITY_SET)))
 	      REPLY (EINVAL);
 
-	    DEBUG (4, "(target: " ADDR_FMT ", source: " ADDR_FMT ", "
+	    DEBUG (4, "(target: (" ADDR_FMT ") " ADDR_FMT ", "
+		   "source: (" ADDR_FMT ") " ADDR_FMT ", "
 		   "%s|%s, %s {%llx/%d %d/%d})",
-		   ADDR_PRINTF (target_addr), ADDR_PRINTF (source_addr),
+		   ADDR_PRINTF (target_as_addr), ADDR_PRINTF (target_addr),
+		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
 		   flags & CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
 		   : (flags & CAP_COPY_COPY_SOURCE_GUARD ? "source"
 		      : "preserve"),
@@ -670,7 +673,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    struct cap root = ROOT (root_addr);
+	    struct cap *root = ROOT (root_addr);
 
 	    /* We don't look up the argument directly as we need to
 	       respect any subpag specification for cappages.  */
@@ -710,7 +713,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    struct cap root = ROOT (root_addr);
+	    struct cap *root = ROOT (root_addr);
 
 	    struct cap source = CAP (root, source_addr, -1, false);
 
@@ -731,14 +734,14 @@ server_loop (void)
 	      REPLY (err);
 
 	    struct thread *t
-	      = (struct thread *) OBJECT (thread->aspace,
+	      = (struct thread *) OBJECT (&thread->aspace,
 					  target, cap_thread, true);
 
 	    struct cap *aspace = NULL;
 	    struct cap aspace_cap;
 	    if ((HURD_EXREGS_SET_ASPACE & control))
 	      {
-		aspace_cap = CAP (thread->aspace, in.aspace, -1, false);
+		aspace_cap = CAP (&thread->aspace, in.aspace, -1, false);
 		aspace = &aspace_cap;
 	      }
 
@@ -750,7 +753,7 @@ server_loop (void)
 		  a = &thread->activity;
 		else
 		  {
-		    a_cap = CAP (thread->aspace,
+		    a_cap = CAP (&thread->aspace,
 				 in.activity, cap_activity, false);
 		    a = &a_cap;
 		  }
@@ -760,7 +763,7 @@ server_loop (void)
 	    struct cap exception_page_cap;
 	    if ((HURD_EXREGS_SET_EXCEPTION_PAGE & control))
 	      {
-		exception_page_cap = CAP (thread->aspace,
+		exception_page_cap = CAP (&thread->aspace,
 					  in.exception_page, cap_page, true);
 		exception_page = &exception_page_cap;
 	      }
@@ -768,17 +771,17 @@ server_loop (void)
 	    struct cap *aspace_out = NULL;
 	    if ((HURD_EXREGS_GET_REGS & control)
 		&& ! ADDR_IS_VOID (in.aspace_out))
-	      aspace_out = SLOT (thread->aspace, in.aspace_out);
+	      aspace_out = SLOT (&thread->aspace, in.aspace_out);
 
 	    struct cap *activity_out = NULL;
 	    if ((HURD_EXREGS_GET_REGS & control)
 		&& ! ADDR_IS_VOID (in.activity_out))
-	      activity_out = SLOT (thread->aspace, in.activity_out);
+	      activity_out = SLOT (&thread->aspace, in.activity_out);
 
 	    struct cap *exception_page_out = NULL;
 	    if ((HURD_EXREGS_GET_REGS & control)
 		&& ! ADDR_IS_VOID (in.exception_page_out))
-	      exception_page_out = SLOT (thread->aspace,
+	      exception_page_out = SLOT (&thread->aspace,
 					 in.exception_page_out);
 
 	    struct hurd_thread_exregs_out out;
@@ -810,7 +813,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    struct object *object = OBJECT (thread->aspace, addr, -1, true);
+	    struct object *object = OBJECT (&thread->aspace, addr, -1, true);
 
 	    thread->wait_reason = THREAD_WAIT_DESTROY;
 	    object_wait_queue_enqueue (principal, object, thread);
@@ -879,7 +882,7 @@ server_loop (void)
 	    if (ADDR_IS_VOID (thread_addr))
 	      t = thread;
 	    else
-	      t = (struct thread *) OBJECT (thread->aspace,
+	      t = (struct thread *) OBJECT (&thread->aspace,
 					    thread_addr, cap_thread, true);
 
 	    as_dump_from (principal, &t->aspace, "");
@@ -962,7 +965,7 @@ server_loop (void)
 	      };
 
 	    addr_t addr = addr_chop (PTR_TO_ADDR (addr1), PAGESIZE_LOG2);
-	    struct object *object1 = OBJECT (thread->aspace,
+	    struct object *object1 = OBJECT (&thread->aspace,
 					     addr, cap_page, true);
 	    int offset1 = (uintptr_t) addr1 & (PAGESIZE - 1);
 	    int *vaddr1 = (void *) object1 + offset1;
@@ -999,7 +1002,7 @@ server_loop (void)
 
 	      case FUTEX_WAKE_OP:
 		addr = addr_chop (PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
-		struct object *object2 = OBJECT (thread->aspace,
+		struct object *object2 = OBJECT (&thread->aspace,
 						 addr, cap_page, true);
 		int offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 		int *vaddr2 = (void *) object2 + offset2;
@@ -1067,7 +1070,7 @@ server_loop (void)
 
 		/* Get the second object.  */
 		addr = addr_chop (PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
-		object2 = OBJECT (thread->aspace, addr, cap_page, true);
+		object2 = OBJECT (&thread->aspace, addr, cap_page, true);
 		offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 
 		count = wake (val1, object1, offset1,
