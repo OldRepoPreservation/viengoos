@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for platform.
-# Copyright (C) 2004 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -19,10 +19,10 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
 if ARCH_ALPHA
-  ARCH_ALPHA = alpha
+  ARCH_SUBDIR = alpha
 endif
 if ARCH_AMD64
-  ARCH_AMD64 = amd64
+  ARCH_SUBDIR = amd64
 endif
 if ARCH_IA32
   ARCH_SUBDIR = ia32

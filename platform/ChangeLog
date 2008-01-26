@@ -1,3 +1,7 @@
+2008-01-26  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am: Typo fixes.
+
 2004-11-30  Neal H. Walfield  <neal@gnu.org>
 
 	* compiler.h: New file.
