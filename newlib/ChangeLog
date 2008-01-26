@@ -1,5 +1,8 @@
 2008-01-26  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* Makefile.am (abs_top_builddir, abs_srcdir, abs_top_srcdir): Use
+	on-demand evaluation.
+
 	* patches/04-newlib-newlib-configure-ac.patch: Use ``readlink -f''
 	instead of ``realpath''.
 

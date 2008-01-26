@@ -100,9 +100,11 @@ rpatch:
 		(cd $(srcdir)/newlib; sh ../$(srcdir)/$${p} -R) || exit 1 ; \
 	done
 
-abs_top_builddir := $(abspath $(top_builddir))
-abs_srcdir := $(abspath $(srcdir))
-abs_top_srcdir := $(abspath $(top_srcdir))
+# Don't use in-place evaluation, as the referenced values may not yet be
+# available.
+abs_top_builddir = $(abspath $(top_builddir))
+abs_srcdir = $(abspath $(srcdir))
+abs_top_srcdir = $(abspath $(top_srcdir))
 
 # Link the addon files into the source tree.
 $(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib-stamp
