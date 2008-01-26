@@ -84,7 +84,7 @@ More intelligently populate the targ-include directory.
 +	      for header in $(srcdir)/libc/$$dir/$$include/$$subdir/*.h; do \
 +	        f=targ-include/$${subdir}/`basename $$header`; \
 +	        if [ "x$${header##*/}" != x'*.h' -a ! -e "$$f" ]; then \
-+	          $(LN_S) `realpath $$header` "$$f"; \
++	          $(LN_S) `readlink -f $$header` "$$f"; \
 +	        fi; \
 +	      done; \
 +	    done; \
