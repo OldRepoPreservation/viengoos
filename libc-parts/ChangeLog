@@ -1,3 +1,15 @@
+2008-01-26  Neal H. Walfield  <neal@gnu.org>
+
+	* features.h: Don't include <gnu/stubs.h>.
+	(__GNU_LIBRARY__): Don't define.
+	(__GLIBC__): Likewise.
+	(__GLIBC_MINOR__): Likewise.
+	(__GLIBC_PREREQ): Likewise.
+	(__USE_LARGEFILE): Likewise.
+	(__USE_LARGEFILE64): Likewise.
+	(__USE_EXTERN_INLINES): Define even if __extern_inline is not
+	defined.
+
 2008-01-26  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* features.h: New file, from today's glibc CVS HEAD.

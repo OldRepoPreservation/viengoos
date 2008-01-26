@@ -157,8 +157,10 @@
 # define _XOPEN_SOURCE	600
 # undef  _XOPEN_SOURCE_EXTENDED
 # define _XOPEN_SOURCE_EXTENDED	1
+#if not_for_us
 # undef	 _LARGEFILE64_SOURCE
 # define _LARGEFILE64_SOURCE	1
+#endif
 # undef  _BSD_SOURCE
 # define _BSD_SOURCE	1
 # undef  _SVID_SOURCE
@@ -299,6 +301,7 @@
 /* wchar_t uses ISO 10646-1 (2nd ed., published 2000-09-15) / Unicode 3.1.  */
 #define __STDC_ISO_10646__		200009L
 
+#ifdef not_for_us
 /* This macro indicates that the installed library is the GNU C Library.
    For historic reasons the value now is 6 and this will stay from now
    on.  The use of this variable is deprecated.  Use __GLIBC__ and
@@ -315,6 +318,7 @@
 
 #define __GLIBC_PREREQ(maj, min) \
 	((__GLIBC__ << 16) + __GLIBC_MINOR__ >= ((maj) << 16) + (min))
+#endif
 
 /* Decide whether a compiler supports the long long datatypes.  */
 #if defined __GNUC__ \
@@ -330,28 +334,30 @@
 #  include <sys/cdefs.h>
 # endif
 
+#ifdef not_for_us
 /* If we don't have __REDIRECT, prototypes will be missing if
    __USE_FILE_OFFSET64 but not __USE_LARGEFILE[64]. */
 # if defined __USE_FILE_OFFSET64 && !defined __REDIRECT
 #  define __USE_LARGEFILE	1
 #  define __USE_LARGEFILE64	1
 # endif
+#endif
 
 #endif	/* !ASSEMBLER */
 
 /* Decide whether we can define 'extern inline' functions in headers.  */
 #if __GNUC_PREREQ (2, 7) && defined __OPTIMIZE__ \
-    && !defined __OPTIMIZE_SIZE__ && !defined __NO_INLINE__ \
-    && defined __extern_inline
+    && !defined __OPTIMIZE_SIZE__ && !defined __NO_INLINE__
 # define __USE_EXTERN_INLINES	1
 #endif
 
 
+#ifdef not_for_us
 /* This is here only because every header file already includes this one.
    Get the definitions of all the appropriate `__stub_FUNCTION' symbols.
    <gnu/stubs.h> contains `#define __stub_FUNCTION' when FUNCTION is a stub
    that will always return failure (and set errno to ENOSYS).  */
 #include <gnu/stubs.h>
-
+#endif
 
 #endif	/* features.h  */
