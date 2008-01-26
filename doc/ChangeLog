@@ -1,3 +1,34 @@
+2008-01-26  Neal H. Walfield  <neal@gnu.org>
+
+	* reference-guide.tex: New file.
+	* runtime.tex: Likewise.
+	* viengoos.tex: Likewise.
+	* bib.bib: Likewise.
+	* booting.tex: Remove file.
+	* ddf_insert_event.fig: Likewise.
+	* ddf_several_plms.fig: Likewise.
+	* debugging.tex: Likewise.
+	* device-drivers.tex: Likewise.
+	* hurd-on-l4.tex: Likewise.
+	* introduction.tex: Likewise.
+	* ipc.tex: Likewise.
+	* posix.tex: Likewise.
+	* threads-tasks.tex: Likewise.
+	* vmm.tex: Likewise.
+	* Makefile.am (pkgdata_DATA): Set to reference-guide.pdf.
+	(EXTRA_DIST): Remove hurd-on-l4.ps and hurd-on-l4.pdf.  Add
+	reference-guide.pdf.
+	(tex_files): Set to 'reference-guide.tex viengoos.tex runtime.tex'.
+	(bib_files): New variable.
+	(fig_files): Set to empty string.
+	(hurd-on-l4.dvi): Remove target.
+	(reference-guide.pdf): New target.
+	(.tex.dvi): Remove suffix rule.
+	(.dvi.ps): Likewise.
+	(.ps.pdf): Likewise.
+	(%.pdf: %.tex): New rule.
+	(clean): Add additional auxiliary files.
+	
 2005-03-01  Marcus Brinkmann  <marcus@gnu.org>
 
 	* threads-tasks.tex (Task manager capability): Fix number of

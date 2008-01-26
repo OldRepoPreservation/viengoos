@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for the manual.
-# Copyright (C) 2003 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2008 Free Software Foundation, Inc.
 # Written by Neal H. Walfield
 #
 # This file is part of the GNU Hurd.
@@ -18,48 +18,34 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-pkgdata_DATA = hurd-on-l4.dvi hurd-on-l4.ps hurd-on-l4.pdf
+pkgdata_DATA = reference-guide.pdf
 
-EXTRA_DIST=${fig_files} ${eps_files} ${tex_files} hurd-on-l4.ps hurd-on-l4.pdf
+EXTRA_DIST=${fig_files} ${eps_files} ${tex_files} \
+	reference-guide.pdf
 
-tex_files= hurd-on-l4.tex \
-	introduction.tex \
-	booting.tex \
-	ipc.tex \
-	threads-tasks.tex \
-	vmm.tex \
-	posix.tex \
-	debugging.tex \
-	device-drivers.tex
+tex_files = reference-guide.tex viengoos.tex runtime.tex
+bib_files = bib.bib
 
-fig_files=ddf_insert_event.fig ddf_several_plms.fig
+fig_files =
 
 eps_files=$(patsubst %.fig,%.eps,${fig_files})
 eps_cleanfiles=${eps_files}
 
 # _DEPENDENCIES does not work with _DATA.
-hurd-on-l4.dvi: ${eps_files} ${tex_files}
+reference-guide.pdf: ${eps_files} ${tex_files} ${bib_files}
 
-SUFFIXES = .ps .dvi .tex .eps .fig .pdf
+SUFFIXES = .tex .eps .fig .pdf
 
-.tex.dvi:
-	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(LATEX) $< -o $@ ; \
-	while egrep "^LaTeX Warning:.*Rerun to" \
-	    `echo $< | sed -e 's/.*\///' -e 's/.tex$$/.log/'`; do \
-	  rm -f $(subst $<,.tex,.log); \
-	  TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(LATEX) $< -o $@; \
-	done
-
-.dvi.ps:
-	$(DVIPS) -o $@ $<
-
-.ps.pdf:
-	$(PS2PDF) $<
+%.pdf: %.tex
+	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) $< -o $@ ; \
+	BIBINPUTS="$(srcdir):$(BIBINPUTS)" $(BIBTEX) $* ; \
+	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) $< -o $@ ; \
+	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) $< -o $@ ;
 
 .fig.eps:
 	$(FIG2DEV) -L eps $< $@
 
 clean:
-	rm -f *.aux *.ps *.dvi *.pdf *.log *.toc
+	rm -f *.aux *.ps *.dvi *.pdf *.log *.toc *.bbl *.brf *.blg *.out
 
 MAINTAINERCLEANFILES=${eps_cleanfiles}

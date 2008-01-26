@@ -1,0 +1,79 @@
+\documentclass[12pt,a4paper]{book}
+\usepackage[english]{babel}
+\usepackage[latin1]{inputenc}
+\usepackage{times}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{makeidx}
+\usepackage{tocbibind}
+\usepackage[pagebackref,plainpages=false]{hyperref}
+
+\newenvironment{comment}{\footnotesize \begin{quote}}{\end{quote}}
+
+\newenvironment{code}
+	       {\begin{quote}}
+	       {\end{quote}}
+\newcommand{\keyword}[1]{\texttt{#1}}
+\newcommand{\function}[1]{\texttt{#1}}
+\newcommand{\variable}[1]{\emph{#1}}
+\newcommand{\constant}[1]{\texttt{#1}}
+\newcommand{\errno}[1]{\texttt{#1}}
+
+
+\title{Viengoos Developer Reference}
+\author{Neal H. Walfield}
+\date{January 2008}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+\tableofcontents
+
+\mainmatter
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1ex plus 0.5ex minus 0.2ex}
+
+\chapter{Introduction}
+
+Viengoos is an extensibility, object-capability system, ala Hydra
+\cite{wulf74hydra} and EROS \cite{shapiro99eros}.  
+
+Viengoos was built on the following ideas:
+
+\begin{itemize}
+\item object based,
+\item no kernel dynamic allocation,
+\item resource accountability,
+\item atomic methods,
+\item object statelessness \cite{tullmann96userlevel-checkpointing-through-exportable-kernel-state},
+\item caching \cite{cheriton94caching-model-of-os-kernel-functionality}
+\item interrupt model \cite{ford99interface-and-execution-models},
+\item activation-based \cite{roscoe95structure-of-a-multi-service-os}, and
+\item resilience to destructive interference \cite{miller06robust-composition}
+\end{itemize}
+
+This reference is divided into two parts.  The first describes the
+kernel, how object addressing works, the primordial objects and
+resource management mechanisms and policies.  The second part
+describes the sample run-time environment shipped with Viengoos.
+
+\include{viengoos}
+\include{runtime}
+
+% XXX: Without this \part, the bibliograph shows up as a chapter in
+% the run-time \part.  With the \part, it at least shows up on the
+% first level of the table of contents, although we then waste two
+% pages and repeat \bibliography.
+\part{Bibliograph}
+
+\bibliographystyle{alpha}
+\bibliography{bib}
+
+\backmatter
+
+% \printindex
+
+\end{document}

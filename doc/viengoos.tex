@@ -1,0 +1,199 @@
+\part{Viengoos}
+
+\chapter{Addressing}
+
+Viengoos provides two complementary addressing mechanisms:
+capabilities and address spaces.  A capability is a kernel-protected,
+unforgeable reference to an object.  Address spaces allow the
+designation of capabilities.  When a thread generates an address on
+the address bus, Viengoos resolves the address in the context of the
+faulter's address space.
+
+\section{Capabilities}
+
+A capability both \emph{designates} an object and \emph{authorizes}
+access to it.  (The importance of this is best illustrated with the
+Confused Deputy problem \cite{hardy88confused-deputy}.)  Capabilities
+are unforgeable in that they are kernel protected and can only be
+transferred via authorized channels.
+
+To sense or modify an object, a capability designating it is
+\emph{invoked}.  Invocation causes a message to be sent to the object.
+The exact semantics of an invocation depend on the object's
+implementation.
+
+A capability may be delegated by transferring it in an object
+invocation.  When a capability is transferred in such a way, the
+capability is copied to the receipient's message buffer.  Copying does
+not require allocation.
+
+The only way to revoke access is to destroy the
+object.\footnote{Revocation can be implemented by way of Redell's
+  Caretaker but so far, this mechanism has not been required.}  By
+destroying the object, the capability becomes a dangling pointer and
+acts as if it designated the VOID object.
+
+Viengoos allows user-object implementations.  A user-object is
+implemented by a process.  The process associates the object with an
+end point and provides clients capabilities that designate a
+send-facet of the end point.  When a process invokes an end point, the
+kernel transfers the message to the receiving process.
+
+As user objects are accessed in the same way as kernel objects, it
+is\footnote{Or, should be.  This has yet been tried so there may be
+  nits in the interfaces; these should be considered bugs.}  possible
+to interpose on specific objects or to fully emulate the kernel from
+user-space.
+
+\subsection{Implementation}
+
+A capability is 128-bits wide and consists of the following:
+
+\begin{itemize}
+\item an object identifier (OID),
+\item a version number,
+\item a weak predicate,
+\item address translation directives,
+  \begin{itemize}
+  \item a guard, and
+  \item a sub-page descriptor
+  \end{itemize}
+\item an object memory policy,
+  \begin{itemize}
+  \item a discardability predicate,
+  \item and a priority
+  \end{itemize}
+\end{itemize}
+
+\subsubsection{Object Identification}
+
+The object identifier and version fields are used to identify object
+instances.  Objects are stored on backing store and the OID identifies
+the location of the object.  Viengoos controls the page-in and
+page-out paths and brings objects into core on demand.
+
+When an object is destroyed, all outstanding references to the object
+must be invalidated.  The version fields allows for the fast
+invalidation of the capabilities: if, when an object is deallocated,
+there are outstanding capabilities to the object that are not easily
+reclaimed, the the version number is incremented.  When a capability
+is created from an object instance, the object instance's version is
+stored in the capability.  Then, whenever it is used to reference the
+object, the version number is first compared with the object's
+version.  If they do not match, then the reference is known to not be
+valid and the VOID object is returned instead of the object instance.
+
+Because the version space is limited, it is imperative to only bump
+the version of an object when required.  EROS has demonstrated that by
+controlling the page-out path, this can be rate-limited so that it is
+not a practical problem \cite{citation-needed}.
+
+\subsubsection{Object Facets}
+
+A number of kernel objects provide two interfaces: a strong interface
+and a weak interface.  For instance, a capability designating a data
+page without the weak predicated set authorized read and write.
+Another capability designating the same object but with the weak
+predicate set only authorizes read-only access.
+
+\subsubsection{Address Translation}
+
+In Viengoos, address spaces are composed through the arrangement of
+capability pages.  That is, capability pages can act as page-tables.
+To facilitate this, a capability contains two fields: the guard and
+the subpage descriptor.
+
+\subsubsection{Object Memory Policy}
+
+To allow the specification of how memory is handled, each capability
+contains two fields, which describe the discardability and the
+priority of the designated object.
+
+\section{Address Space}
+
+Each thread consists of a virtual address space.  The virtual address
+space translates local names to capabilities and thus objects.
+
+When a thread issues an address on the address bus, Viengoos resolves
+the address by walking the address space of the Each thread object has
+a
+
+\subsection{Addresses}
+
+\subsection{Resolution}
+
+\subsection{Composition}
+
+\subsubsection{Guards}
+
+\subsubsection{Subpages}
+
+
+
+
+\chapter{Primordial Objects}
+
+This chapter describes the primordial objects implemented by the
+microkernel.  They include folios, the unit of storage allocation,
+data and capability pages, threads, message buffers, end points, and
+activities.
+
+\cleardoublepage
+\section{Folios}
+
+A folio is the unit of backing store allocation.  A folio consists of
+129 4k pages.  128 may be used to allocate objects.  The remainder is
+a header that describes the folio itself and the individual objects.
+It holds
+
+\subsection{Methods}
+
+\subsection{Convenience Functions}
+
+\cleardoublepage
+\section{Pages}
+
+Data pages and capabilities pages.
+
+\subsection{Methods}
+
+\subsection{Convenience Functions}
+
+\cleardoublepage
+\section{Threads}
+
+\subsection{Methods}
+
+\subsection{Convenience Functions}
+
+\cleardoublepage
+\section{Message Buffers}
+
+\subsection{Methods}
+
+\subsection{Convenience Functions}
+
+\cleardoublepage
+\section{Endpoints}
+
+Endpoints are where message transfer occurs.  When a thread queues a
+message buffer on an end point, 
+
+\subsection{Methods}
+
+\subsection{Convenience Functions}
+
+\cleardoublepage
+\section{Activities}
+
+An activity is a resource principal.
+
+\subsection{Methods}
+
+\subsection{Convenience Functions}
+
+\chapter{Exceptions}
+
+Exception handling mechanism.
+
+\chapter{Resource Management}
