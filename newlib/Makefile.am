@@ -64,7 +64,7 @@ EXTRA_DIST = $(addprefix patches/, $(patch_files)) \
 	$(addprefix addon/, $(addon))
 
 
-# The GNU C library version that we build against.
+# The newlib C library version that we build against.
 newlib_tarball = newlib-1.16.0.tar.gz
 newlib_snapshot = ftp://sources.redhat.com/pub/newlib/$(newlib_tarball)
 
@@ -132,7 +132,7 @@ newlib-configure-stamp: $(addsuffix -applied,$(patch_files)) \
 ccheaders := $(shell $(CC) -print-file-name=include)
 SYSINCLUDES := -nostdinc -isystem $(ccheaders) -isystem $(ccheaders)-fixed
 
-newlib-build/libc.a newlib-build/libc.m: newlib-configure-stamp
+newlib-build/libc.a newlib-build/libm.a: newlib-configure-stamp
 	cd newlib-build && \
 	  make \
 	    TARGET_CFLAGS='\
