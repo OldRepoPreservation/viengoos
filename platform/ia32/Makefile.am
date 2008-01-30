@@ -20,4 +20,5 @@
 
 noinst_HEADERS = \
 	bits/atomic.h \
+	bits/endian.h \
 	bits/wordsize.h

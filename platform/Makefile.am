@@ -39,4 +39,6 @@ endif
 SUBDIRS =  $(ARCH_SUBDIR)
 
 # Main platform header files.
-noinst_HEADERS = atomic.h
+noinst_HEADERS = \
+	atomic.h \
+	endian.h

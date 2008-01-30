@@ -1,5 +1,14 @@
 2008-01-30  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* amd64/bits/endian.h: New file, from today's glibc CVS HEAD.
+	* amd64/Makefile.am (noinst_HEADERS): Add it.
+	* ia32/bits/endian.h: New file, from today's glibc CVS HEAD.
+	* ia32/Makefile.am (noinst_HEADERS): Add it.
+	* endian.h: New file, from today's glibc CVS HEAD.
+	* Makefile.am (noinst_HEADERS): Add it.
+	* headers.m4: Link them.
+	* README: Document them.
+
 	* amd64/bits/wordsize.h: New file, from today's glibc CVS HEAD.
 	* amd64/Makefile.am (noinst_HEADERS): Add it.
 	* ia32/bits/wordsize.h: New file, from today's glibc CVS HEAD.

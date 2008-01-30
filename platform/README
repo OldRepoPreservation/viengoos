@@ -19,4 +19,8 @@ CVS snapshot from 2008-01-30:
 ${glibc}/sysdeps/wordsize-32/bits/wordsize.h	ia32/bits/wordsize.h
 ${glibc}/sysdeps/x86_64/bits/wordsize.h		amd64/bits/wordsize.h
 
+${glibc}/string/endian.h			endian.h
+${glibc}/sysdeps/i386/bits/endian.h		ia32/bits/endian.h
+${glibc}/sysdeps/x86_64/bits/endian.h		amd64/bits/endian.h
+
 Other architectures not supported for now.
