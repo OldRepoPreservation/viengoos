@@ -1,5 +1,5 @@
 # headers.m4 - Autoconf snippets to install links for header files.
-# Copyright 2004 Free Software Foundation, Inc.
+# Copyright 2004, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann <marcus@gnu.org>.
 #
 # This file is free software; as a special exception the author gives
@@ -10,8 +10,11 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
+# glibc allows for more complicated sysdep constructs, which are used, e.g.,
+# for the <bits/wordsize.h> case.  We'll go for a simple solution for now.
 AC_CONFIG_LINKS([
   include/atomic.h:platform/atomic.h
   include/bits/atomic.h:platform/${arch}/bits/atomic.h
+  include/bits/wordsize.h:platform/${arch}/bits/wordsize.h
   include/compiler.h:platform/compiler.h
 ])

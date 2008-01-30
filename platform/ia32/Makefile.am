@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for platform/ia32.
-# Copyright (C) 2004 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -18,4 +18,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-noinst_HEADERS = bits/atomic.h
+noinst_HEADERS = \
+	bits/atomic.h \
+	bits/wordsize.h

@@ -13,3 +13,10 @@ ${glibc}/sysdeps/powerpc/powerpc64/bits/atomic.h powerpc64/bits/atomic.h
 ${glibc}/sysdeps/powerpc/bits/atomic.h		powerpc/bits/atomic.h
 						powerpc64/bits/atomic.h
 ${glibc}/sysdeps/x86_64/bits/atomic.h		amd64/bits/atomic.h
+
+CVS snapshot from 2008-01-30:
+
+${glibc}/sysdeps/wordsize-32/bits/wordsize.h	ia32/bits/wordsize.h
+${glibc}/sysdeps/x86_64/bits/wordsize.h		amd64/bits/wordsize.h
+
+Other architectures not supported for now.

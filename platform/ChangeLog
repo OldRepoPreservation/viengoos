@@ -1,3 +1,12 @@
+2008-01-30  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* amd64/bits/wordsize.h: New file, from today's glibc CVS HEAD.
+	* amd64/Makefile.am (noinst_HEADERS): Add it.
+	* ia32/bits/wordsize.h: New file, from today's glibc CVS HEAD.
+	* ia32/Makefile.am (noinst_HEADERS): Add it.
+	* headers.m4: Link it.
+	* README: Document it.
+
 2008-01-26  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am: Typo fixes.
