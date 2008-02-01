@@ -1,3 +1,7 @@
+2008-02-01  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Don't check for fig2dev.  Check for inkscape.
+
 2008-01-26  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Don't check for latex, dvips or ps2pdf.  Check for

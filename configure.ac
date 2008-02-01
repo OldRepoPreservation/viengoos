@@ -53,10 +53,10 @@ AC_PATH_PROG([BIBTEX], [bibtex], no)
 if test "x$BIBTEX" = xno; then
   missing_progs="$missing_progs bibtex"
 fi
-AC_PATH_PROG([FIG2DEV], [fig2dev], no)
-if test "x$FIG2DEV" = xno; then
+AC_PATH_PROG([INKSCAPE], [inkscape], no)
+if test "x$INKSCAPE" = xno; then
   if test "x$maintainer_mode" = xyes; then
-    missing_progs="missing_progs fig2dev"
+    missing_progs="missing_progs inkscape"
   fi
 fi
 

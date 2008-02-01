@@ -1,3 +1,14 @@
+2008-02-01  Neal H. Walfield  <neal@gnu.org>
+
+	* gpt.svg: New file.
+	* Makefile.am (svg_files): New variable.
+	(pdf_files): Likewise.
+	(%.pdf: %.svg): New suffix rule.
+	(EXTRA_DIST): Add ${pdf_files}.
+	(reference-guide.pdf): Likewise.
+
+	* bib.bib, reference-guide.tex, viengoos.tex: Update.
+
 2008-01-26  Neal H. Walfield  <neal@gnu.org>
 
 	* reference-guide.tex: New file.

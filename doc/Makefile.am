@@ -20,7 +20,7 @@
 
 pkgdata_DATA = reference-guide.pdf
 
-EXTRA_DIST=${fig_files} ${eps_files} ${tex_files} \
+EXTRA_DIST=${fig_files} ${eps_files} ${pdf_files} ${tex_files} \
 	reference-guide.pdf
 
 tex_files = reference-guide.tex viengoos.tex runtime.tex
@@ -31,8 +31,15 @@ fig_files =
 eps_files=$(patsubst %.fig,%.eps,${fig_files})
 eps_cleanfiles=${eps_files}
 
+svg_files = gpt.svg
+
+pdf_files = $(patsubst %.svg,%.pdf,${svg_files})
+
+%.pdf: %.svg
+	$(INKSCAPE) --without-gui --export-area-drawing $< --export-pdf=$@
+
 # _DEPENDENCIES does not work with _DATA.
-reference-guide.pdf: ${eps_files} ${tex_files} ${bib_files}
+reference-guide.pdf: ${eps_files} ${pdf_files} ${tex_files} ${bib_files}
 
 SUFFIXES = .tex .eps .fig .pdf
 

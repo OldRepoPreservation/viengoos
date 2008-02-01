@@ -4,22 +4,75 @@
 \usepackage{times}
 \usepackage{url}
 \usepackage{graphicx}
-\usepackage{subfigure}
+
+\usepackage[noend]{algorithmic}
+
+% Laying out data structures.
+
+\usepackage{bytefield}
+% We use the bytefield package for describing data structures.  By
+% default, it lays out fields from left to right.  We want the
+% reverse.  It's easy enough to fix the bit header, however, when
+% laying out a word, we have to put the first field in a word last.
+%
+% For example:
+%
+%   [  foo  | bar |    baz   ]
+%
+% is: foo % bar % baz
+%
+% even though baz starts at bit position 0.
+% An environment for describing a struct.
+
+% The default width per-bit is not large enough for a single letter.
+% We want to be able to store a single capital letters.  This is good:
+%
+% \AtBeginDocument{\settowidth{\bitwidth}{W}}
+%
+% This maximizes the space according to the page width.
+\AtBeginDocument{\setlength{\bitwidth}{0.98\textwidth / 32}}
+
+\newcounter{structfoo}
+\newenvironment{struct}[1]
+        {\begin{center}\begin{bytefield}{#1}\setcounter{structfoo}{#1 - 1}\bitheader[b]{0,\value{structfoo}}\\}
+        {\end{bytefield}\end{center}}
+
+% Wrapper for the \bitbox macro that also displays the bit field's
+% length.
+\newcommand{\bits}[2]{\bitbox{#1}{\small{#2}\tiny{$_{(#1)}$}}}
+% Name as above but the second argument is the label to use for
+% displaying the bits.
+\newcommand{\bitsl}[3]{\bitbox{#1}{\small{#3}\tiny{$_{(#2)}$}}}
+% Wrapper for the \bitbox macro that also displays the bit field's
+% length for 32-bit and 64-bit hosts.
+\newcommand{\bitsx}[3]{\bitbox{#1}{\small{#3}\tiny{$_{(#1/#2)}$}}}
+% Wrapper for the \bitbox macro that also displays the bit field's length.
+\newcommand{\bit}[1]{\bitbox{1}{\small{#1}}}
+\newcommand{\dontcare}[0]{$\sim$}
+
+
+% Code snippets.
+
+\usepackage{listings}
+\lstloadlanguages{C}
+\lstset{language={C}, columns=fullflexible}
+\lstset{morekeywords={uint32_t, int32_t, uint16_t, int16_t,
+    uintptr_t, intptr_t, bool, errot_t}}
+\lstset{morekeywords={addr_t, addr_trans, object_policy, cap_properties}}
+
+% Some convenience macros.
+\newcommand{\keyword}[1]{\lstinline!#1!}
+\newcommand{\func}[1]{\lstinline!#1!}
+\newcommand{\var}[1]{\emph{#1}}
+\newcommand{\type}[1]{\lstinline!#1!}
+\newcommand{\const}[1]{\lstinline!#1!}
+\newcommand{\errno}[1]{\lstinline!#1!}
+
+
+
 \usepackage{makeidx}
 \usepackage{tocbibind}
 \usepackage[pagebackref,plainpages=false]{hyperref}
-
-\newenvironment{comment}{\footnotesize \begin{quote}}{\end{quote}}
-
-\newenvironment{code}
-	       {\begin{quote}}
-	       {\end{quote}}
-\newcommand{\keyword}[1]{\texttt{#1}}
-\newcommand{\function}[1]{\texttt{#1}}
-\newcommand{\variable}[1]{\emph{#1}}
-\newcommand{\constant}[1]{\texttt{#1}}
-\newcommand{\errno}[1]{\texttt{#1}}
-
 
 \title{Viengoos Developer Reference}
 \author{Neal H. Walfield}
@@ -38,6 +91,17 @@
 
 \chapter{Introduction}
 
+The text you are reading describes the Viengoos virtual machine.  This
+text is an attempt to provide a normative reference for Viengoos, to
+enumerate its interfaces and to describe their behavior.  It also
+attempts to explain the interfaces, to illustrate the motivation
+behind some decisions and to show the interfaces' intended uses.  This
+interleaving of the prescriptive with the descriptive may be a source
+of confusion.  This is unintentional and as this document evolves,
+such confusion will hopefully be eliminated.
+
+\section{Overview}
+
 Viengoos is an extensibility, object-capability system, ala Hydra
 \cite{wulf74hydra} and EROS \cite{shapiro99eros}.  
 
@@ -45,15 +109,114 @@ Viengoos was built on the following ideas:
 
 \begin{itemize}
 \item object based,
+\item virtualizable interfaces,
+\item object statelessness \cite{tullmann96userlevel-checkpointing-through-exportable-kernel-state},
 \item no kernel dynamic allocation,
 \item resource accountability,
 \item atomic methods,
-\item object statelessness \cite{tullmann96userlevel-checkpointing-through-exportable-kernel-state},
 \item caching \cite{cheriton94caching-model-of-os-kernel-functionality}
 \item interrupt model \cite{ford99interface-and-execution-models},
 \item activation-based \cite{roscoe95structure-of-a-multi-service-os}, and
 \item resilience to destructive interference \cite{miller06robust-composition}
 \end{itemize}
+
+\subsection{Virtualizable Interfaces}
+
+By virtualizable interfaces, we mean that all kernel implemented
+objects can be easily proxied by a user-space task in such a way that
+the proxy behaves in a manner indistinguishable from the kernel
+implementation.
+
+The idea is perhaps more easily explained through an example of a
+familiar object that is not easily virtualizable.  Consider how files
+are implemented on Unix-like systems and suppose that one process
+wishes to proxy access to a file.  The proxy can open the file itself
+and then provide another file descriptor to its clients.  The question
+is what sort of file descriptor.  A pipe could be used.  In this case,
+the proxy will see the clients' reads and writes, however, a pipe does
+not support seeking and the kernel provides no way for the proxy to
+interpose on this operation and provide its own implementation.
+
+\subsection{Object Statelessness}
+
+Continuing the previous example, supposing that there was a way to
+cause such file invocations to be redirected to the proxy, another
+problem arises: proxying a file is non-trivial as the object's state
+machine is quite complicated.  For instance, the proxy must maintain a
+file pointer for each client.  This is because each client expects
+that the file descriptor it designates the normal file and that the
+file pointer is private.  To work around this, the proxy must maintain
+a private file pointer for each client and then serialize access to
+the object and adjust the object's file pointer using the seek method
+before invoking the read method.  This is required even if the proxy
+only wants to do some sort of bounds checking.  To simplify
+virtualization, objects should avoid maintaining sessions: as much as
+is feasible, interfaces should be so designed such that a method
+either senses or transforms the state of the object.
+
+\section{Future Directions or TODO}
+
+The objects and interfaces described in this document (mostly) reflect
+the current implementation.  There are a number of limitations
+requiring some thought.  The issues are outlined here.
+
+\subsection{Virtualization}
+
+Many of the methods are not virtualizable.  Indeed, two of them are
+not even methods: cap\_copy and cap\_read are not invoked on an object
+but are essentially system calls.  These should perhaps be modelled as
+thread object methods.
+
+However, there is a more complicated problem and that is: the kernel
+walks the cappages and other objects to resolve an address but what
+should it do when it encounters an end point?  The kernel cannot
+invoke it as then it must wait for a reply and this provides an
+opportunity for destructive interference.  The kernel also cannot
+reply and to tell the client to revert to some other method of
+resolution (or can it?).  If we just fault, a process can determine
+whether an object is kernel or user-implemented by installing it in
+its address space and then trying to access it.  Perhaps, the process
+that does the virtualization can do some tricks to provide a
+user-object but when the user tries to use it in its address space, by
+interposing on the thread object, it can the install an appropriate
+cappage.
+
+As for the rest, to be able to virtualize a kernel object, the
+implementation needs to have access to all the information that the
+kernel implementation requires.  This means that we either have to
+deliver more information or we have to adapt the interfaces.
+
+An example of the former is to virtualize object\_slot\_copy\_in, the
+implementation needs access to the source capability's subpage
+descriptor, policy and the weak predicates.  This does not pose a
+fundamental problem: making this information available to the object
+does not violate POLA.  It does require that when a message is
+delivered, any transferred capabilities must also include this
+information.
+
+Another example is invoking an object: the object implementation also
+needs this information, in particular, the weak predicate and the
+subpage descriptor. 
+
+One place where the interfaces need to be change in a more fundamental
+way is object\_slot\_copy\_out.  The kernel implementation of this
+method does a bit copy from the designated source slot to the
+designated target slot.  A user-implementation cannot do such a bit
+copy; it needs to return the capability in the reply message.  To fix
+this, the target parameter needs to be a return value and
+object\_slot\_copy\_out simply returns an appropriate capability.
+This raises another problem: how to then store the capability.  If we
+store it in the receive buffer, then we still need another copy to get
+it where we want.  If we store it directly in the address space (using
+a scatter/gather technique), then we need to consider the case where
+the target object is virtualized.
+
+Also, for end points, we use the weak predicate to determine whether
+the capability interface designates the send facet or the receive
+facet.  To properly virtualize a kernel object, we need to allow the
+user to control the weak predicate as normal.
+
+\section{Outline}
 
 This reference is divided into two parts.  The first describes the
 kernel, how object addressing works, the primordial objects and
