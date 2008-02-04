@@ -25,7 +25,7 @@
 	* malloc.c: Likewise.
 	* malloc-wrap.c: Likewise.
 	* ia32-cmain.c: Move to ../libc-parts/ia32-cmain.c.
-	* ia32-crt0.S: Move to ../libc-parts/ia32-crt0.c.
+	* ia32-crt0.S: Move to ../libc-parts/ia32-crt0.S.
 	* ruth.c: Include <stdio.h>.  Don't include "ruth.h".
 	(output_debug): Declare, don't define.
 	(exit): Remove function.

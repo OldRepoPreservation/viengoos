@@ -64,7 +64,7 @@
 	code.  Don't include "ruth.h".  Add prototype for main.
 	(program_name): New variable.
 	(finish): Setup program_name based on ARGV[0].
-	* ia32-crt0.S: Copied from ../ruth/ia32-crt0.c.
+	* ia32-crt0.S: Copied from ../ruth/ia32-crt0.S.
 	* panic.c: Copied from ../ruth/panic.c.
 	(panic_): Call _exit.
 	* startup.c: New file.
