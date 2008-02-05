@@ -1,3 +1,9 @@
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/features.h [_L4_COMPAT]: Enable the L4 compatability
+	interface.
+	[! _L4_COMPAT]: Enable the GNU interface.
+
 2007-12-23  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/compat/kip.h (L4_ApiVersion): Cast result of

@@ -1,5 +1,5 @@
 /* l4/features.h - Public interface to the L4 library.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -23,22 +23,13 @@
 #define _L4_FEATURES_H	1
 
 
-/* If _GNU_SOURCE is defined, we always enable the GNU interface,
-   because it is convenient to do so.  */
-#ifdef _GNU_SOURCE
-#ifndef _L4_INTERFACE_GNU
+/* We define the GNU interface if _L4_COMPAT is not explicitly
+   requested.  */
+#ifdef _L4_COMPAT
+#define _L4_INTERFACE_L4	1
+#else
 #define _L4_INTERFACE_GNU	1
 #endif
-#endif
-
-/* The official L4 interface is always enabled unless _L4_NOT_COMPAT
-   is defined.  */
-#ifndef _L4_NOT_COMPAT
-#ifndef _L4_INTERFACE_L4
-#define _L4_INTERFACE_L4	1
-#endif
-#endif
-
 
 /* The rest of the file is here because every other header file
    includes this one.  */
