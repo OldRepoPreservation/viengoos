@@ -502,6 +502,8 @@ main (int argc, char *argv[])
 {
   parse_args (argc, argv);
 
+  debug (1, "If the following fails, you failed to patch L4 or libl4.  "
+	 "Reread the README.");
   debug (1, "%s " PACKAGE_VERSION " (%x)", program_name, l4_my_global_id ());
 
   /* Assert that the size of a cap is a power of 2.  */

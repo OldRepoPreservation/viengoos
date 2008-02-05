@@ -1,5 +1,9 @@
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (main): Add additional debugging output.
+
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (struct activity): Add fields current_period and
 	stats.
 	(ACTIVITY_STATS): New macro.
