@@ -1,3 +1,8 @@
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
+	* addr-trans.h (CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS): Change to 22.
+	(CAP_ADDR_TRANS_GDEPTH_BITS): Change to 6.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (cap_copy): Rename ADDRESS_SPACE argument to

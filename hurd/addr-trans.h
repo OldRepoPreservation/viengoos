@@ -1,5 +1,5 @@
 /* addr-trans.h - Address translation functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -29,9 +29,9 @@
    how the page table walker translates bits when passing through this
    capability.  */
 
-#define CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS 21
+#define CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS 22
 #define CAP_ADDR_TRANS_SUBPAGES_BITS 4
-#define CAP_ADDR_TRANS_GDEPTH_BITS 7
+#define CAP_ADDR_TRANS_GDEPTH_BITS 6
 
 struct cap_addr_trans
 {
