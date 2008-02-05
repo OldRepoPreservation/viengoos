@@ -298,6 +298,12 @@ object_to_cap (struct object *object)
   return object_desc_to_cap (object_to_object_desc (object));
 }
 
+static inline oid_t
+object_oid (struct object *object)
+{
+  return object_to_object_desc (object)->oid;
+}
+
 static inline enum cap_type
 object_type (struct object *object)
 {
@@ -467,8 +473,12 @@ extern void object_wait_queue_dequeue (struct activity *activity,
 					 __owqfe_thread)		\
   for (struct thread *__owqfe_next					\
 	 = (struct thread *)						\
-	 cap_to_object (__owqfe_activity,				\
-			&__owqfe_folio->objects[__owqfe_idx].wait_queue); \
+	 (folio_object_wait_queue_p (__owqfe_folio, __owqfe_idx)	\
+	  ? object_find (__owqfe_activity,				\
+			 folio_object_wait_queue (__owqfe_folio,	\
+						  __owqfe_idx),		\
+			 OBJECT_POLICY_VOID)				\
+	  : NULL);							\
        (__owqfe_thread = __owqfe_next)					\
 	 && ((__owqfe_next = object_wait_queue_next (__owqfe_activity,	\
 						     __owqfe_thread))	\

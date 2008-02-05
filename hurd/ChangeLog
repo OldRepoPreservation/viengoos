@@ -1,5 +1,23 @@
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
+	* folio.h (struct folio) [RM_INTERN]: Remove field dhazard,
+	mhazard.  Add field checksums.  Rearrange data structure.
+	(folio_object_type): New function.
+	(folio_object_type_set): Likewise.
+	(folio_object_policy): Likewise.
+	(folio_object_policy_set): Likewise.
+	[RM_INTERN]: Include <bit-array.h>.
+	(folio_object_wait_queue_p) [RM_INTERN]:New function.
+	(folio_object_wait_queue_p_set) [RM_INTERN]:Likewise.
+	(folio_object_wait_queue) [RM_INTERN]:Likewise.
+	(folio_object_wait_queue_set) [RM_INTERN]:Likewise.
+	(folio_object_version) [RM_INTERN]:Likewise.
+	(folio_object_version_set) [RM_INTERN]:Likewise.
+	(folio_object_content) [RM_INTERN]:Likewise.
+	(folio_object_content_set) [RM_INTERN]:Likewise.
+
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
 	* error.h: New file.
 	* Makefile.am (includehurd_HEADERS): Add error.h.
 	* headers.m4: Link $(BUILDIR)/include/hurd/error.h to error.h.

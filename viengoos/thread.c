@@ -133,7 +133,8 @@ thread_deinit (struct activity *activity, struct thread *thread)
   if (thread->commissioned)
     thread_decommission (thread);
 
-  if (thread->wait_queue.next.type != cap_void)
+  if (thread->wait_queue_p)
+    /* THREAD is attached to a wait queue.  Detach it.  */
     object_wait_queue_dequeue (activity, thread);
 
   /* Free the thread id.  */

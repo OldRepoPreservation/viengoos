@@ -100,55 +100,181 @@ struct folio
   struct cap next;
   struct cap prev;
 
-  /* The folio's version.  */
-  l4_word_t folio_version;
-
+  /* The storage policy.  */
   struct folio_policy policy;
-
-  struct cap wait_queue;
 
   struct
   {
     /* Each object in the folio Disk version of each object.  */
-    l4_uint32_t version : CAP_VERSION_BITS;
-
-    /* The type.  */
-    l4_uint32_t type : CAP_TYPE_BITS;
+    uint32_t version : CAP_VERSION_BITS;
 
     /* Whether a page has any content (i.e., if it is not
        uninitialized).  */
-    l4_uint32_t content : 1;
+    uint32_t content : 1;
 
-    /* We only need to bump the object's version when we can't easily
-       reclaim all references.  If there are no references or if the
-       only references are in memory and thus easy to find, we can just
-       destroy them.  */
-    /* Where a capability pointing to this object is written to disk, we
-       set the hazard bit.  If it is clear, then we know that references
-       (if there are any) are only in-memory.  */
-    l4_uint32_t dhazard : 1;
+    /* The object's memory policy when accessed via the folio.  */
+    uint32_t discardable : 1;
+    int32_t priority : OBJECT_PRIORITY_BITS;
+  } misc[1 + FOLIO_OBJECTS];
 
-    /* In memory only.  If clear, we know that references (if there
-       are any) are only in-memory.  */
-    l4_uint32_t mhazard : 1;
+  /* The type.  */
+  uint8_t types[FOLIO_OBJECTS];
 
-    struct object_policy policy;
+  /* Bit array indicating whether the an object has a non-empty wait
+     queue.  */
+  uint8_t wait_queues_p[(1 + FOLIO_OBJECTS + 8) / 8];
 
-    /* List of objects waiting for some event on this object.  The
-       list is a circular list.  HEAD->PREV points to the tail.
-       TAIL->NEXT points to the OBJECT (NOT HEAD).  */
-    struct cap wait_queue;
+  /* Head of the list of objects waiting for some event on this
+     object.  An element of this array is only valid if the
+     corresponding element of WAIT_QUEUES_P is true.  The list is a
+     circular list.  HEAD->PREV points to the tail.  TAIL->NEXT points
+     to the OBJECT (NOT HEAD).  */
+  oid_t wait_queues[1 + FOLIO_OBJECTS];
 
-    /* In memory only.  */
-
-    /* The in-memory version.  */
-    l4_word_t mversion;
-  } objects[FOLIO_OBJECTS];
+  uint64_t checksums[1 + FOLIO_OBJECTS][2];
 #else
   /* User-space folio.  */
   struct cap objects[FOLIO_OBJECTS];
 #endif
 };
+
+/* OBJECT is from -1 to FOLIO_OBJECTS.  */
+static inline enum cap_type
+folio_object_type (struct folio *folio, int object)
+{
+#ifdef RM_INTERN
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  if (object == -1)
+    return cap_folio;
+  return folio->types[object];
+#else
+  assert (object >= 0 && object <= FOLIO_OBJECTS);
+  return folio->objects[object].type;
+#endif
+}
+
+static inline void
+folio_object_type_set (struct folio *folio, int object, enum cap_type type)
+{
+  assert (object >= 0 && object <= FOLIO_OBJECTS);
+
+#ifdef RM_INTERN
+  folio->types[object] = type;
+#else
+  folio->objects[object].type = type;
+#endif
+}
+
+static inline struct object_policy
+folio_object_policy (struct folio *folio, int object)
+{
+  struct object_policy policy;
+
+#ifdef RM_INTERN
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  policy.discardable = folio->misc[object + 1].discardable;
+  policy.priority = folio->misc[object + 1].priority;
+#else
+  assert (object >= 0 && object <= FOLIO_OBJECTS);
+
+  policy.discardable = folio->objects[object].discardable;
+  policy.priority = folio->objects[object].priority;
+#endif
+
+  return policy;
+}
+
+static inline void
+folio_object_policy_set (struct folio *folio, int object,
+			 struct object_policy policy)
+{
+#ifdef RM_INTERN
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  folio->misc[object + 1].discardable = policy.discardable;
+  folio->misc[object + 1].priority = policy.priority;
+#else
+  assert (object >= 0 && object <= FOLIO_OBJECTS);
+
+  folio->objects[object].discardable = policy.discardable;
+  folio->objects[object].priority = policy.priority;
+#endif
+}
+
+#ifdef RM_INTERN
+#include <bit-array.h>
+
+static inline bool
+folio_object_wait_queue_p (struct folio *folio, int object)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  return bit_test (folio->wait_queues_p, object);
+}
+
+static inline void
+folio_object_wait_queue_p_set (struct folio *folio, int object,
+			       bool valid)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  bit_set_to (folio->wait_queues_p, sizeof (folio->wait_queues_p),
+	      object, valid);
+}
+
+static inline oid_t
+folio_object_wait_queue (struct folio *folio, int object)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  return folio->wait_queues[object + 1];
+}
+
+static inline void
+folio_object_wait_queue_set (struct folio *folio, int object,
+			     oid_t head)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  folio->wait_queues[object + 1] = head;
+}
+
+static inline uint32_t
+folio_object_version (struct folio *folio, int object)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  return folio->misc[object + 1].version;
+}
+
+static inline void
+folio_object_version_set (struct folio *folio, int object,
+			  uint32_t version)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  folio->misc[object + 1].version = version;
+}
+
+static inline bool
+folio_object_content (struct folio *folio, int object)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  return folio->misc[object + 1].content;
+}
+
+static inline void
+folio_object_content_set (struct folio *folio, int object,
+			  bool content)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  folio->misc[object + 1].content = content;
+}
+#endif /* RM_INTERN  */
 
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM

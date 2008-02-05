@@ -1,5 +1,31 @@
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (struct wait_queue_node): Remove structure.
+	(struct thread): Add field wait_queue_p.  Make the wait queue next
+	and previous pointers oid_t's and not struct cap's.  Update users.
+	* object.h (object_oid): New function.
+	* as.c (as_build_internal): Don't access a folio's fields
+	directly; use the accessor functions.
+	* cap.c (cap_shootdown): Likewise.
+	* cap-lookup.c (lookup): Likewise.
+	* object.c (memory_object_destroy): Likewise.
+	(object_find): Likewise.
+	(folio_free): Likewise.
+	(folio_object_alloc): Likewise.
+	(object_wait_queue): Remove function.
+	(object_wait_queue_head): Don't access a folio's fields directly;
+	use the accessor functions.  Update implementation to reflect
+	struct thread changes.
+	(object_wait_queue_tail): Likewise.
+	(object_wait_queue_next): Likewise.
+	(object_wait_queue_prev): Likewise.
+	(object_wait_queue_check): Likewise.
+	(object_wait_queue_enqueue): Likewise.
+	(object_wait_queue_dequeue): Likewise.
+	* object.h (folio_object_wait_queue_for_each): Likewise.
+
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (main): Add additional debugging output.
 
 2008-02-05  Neal H. Walfield  <neal@gnu.org>

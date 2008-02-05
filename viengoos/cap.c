@@ -1,5 +1,5 @@
 /* cap.c - Basic capability framework.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -147,15 +147,15 @@ cap_shootdown (struct activity *activity, struct cap *cap)
 	  remaining -= FOLIO_OBJECTS_LOG2;
 
 	  for (i = 0; i < FOLIO_OBJECTS_LOG2; i ++)
-	    if (folio->objects[i].type == cap_page
-		|| folio->objects[i].type == cap_rpage
-		|| folio->objects[i].type == cap_cappage
-		|| folio->objects[i].type == cap_rcappage)
+	    if (folio_object_type (folio, i) == cap_page
+		|| folio_object_type (folio, i) == cap_rpage
+		|| folio_object_type (folio, i) == cap_cappage
+		|| folio_object_type (folio, i) == cap_rcappage)
 	      {
 		struct cap cap;
 
-		cap.version = folio->objects[i].version;
-		cap.type = folio->objects[i].type;
+		cap.version = folio_object_version (folio, i);
+		cap.type = folio_object_type (folio, i);
 		cap.addr_trans = CAP_ADDR_TRANS_VOID;
 		cap.oid = foid + 1 + i;
 

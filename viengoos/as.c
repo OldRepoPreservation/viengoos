@@ -187,7 +187,7 @@ as_build_internal (activity_t activity,
 
 		int i = extract_bits64_inv (addr,
 					    remaining - 1, FOLIO_OBJECTS_LOG2);
-		if (folio->objects[i].type == cap_void)
+		if (folio_object_type (folio, i) == cap_void)
 		  panic ("Translating %llx/%d; indexed folio /%d object void",
 			 addr_prefix (a), addr_depth (a),
 			 ADDR_BITS - remaining);
@@ -198,8 +198,8 @@ as_build_internal (activity_t activity,
 		struct object_desc *fdesc;
 		fdesc = object_to_object_desc (object);
 
-		object = object_find (activity, fdesc->oid + i + 1,
-				      folio->objects[i].policy);
+		object = object_find (activity, fdesc->oid + 1 + i,
+				      folio_object_policy (folio, i));
 		assert (object);
 		*root = object_to_cap (object);
 #else

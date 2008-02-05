@@ -35,12 +35,6 @@ enum
     THREAD_SLOTS = 3,
   };
 
-struct wait_queue_node
-{
-  struct cap next;
-  struct cap prev;
-};
-
 enum
   {
     /* THREAD is blocked on an object wait for a futex.
@@ -82,6 +76,11 @@ struct thread
   /* Whether the thread has been commissioned (a tid allocated).  */
   uint32_t commissioned : 1;
 
+  /* Whether the object is attached to a wait queue.  (This is
+     different from the value of folio_object_wait_queue_p which
+     specifies if there are objects on this thread's wait queue.)  */
+  bool wait_queue_p;
+
   /* Whether this thread is the head of the wait queue.  If so,
      WAIT_QUEUE.PREV designates the object.  */
   uint32_t wait_queue_head : 1;
@@ -95,8 +94,15 @@ struct thread
   /* More information about the reason.  */
   uint32_t wait_reason_arg;
 
-  /* The object the thread is waiting on.  */
-  struct wait_queue_node wait_queue;
+  /* The object the thread is waiting on.  Only meaningful if
+     WAIT_QUEUE_P is true.  */
+  struct
+  {
+    /* We don't need versioning as we automatically collect on object
+       destruction.  */
+    oid_t next;
+    oid_t prev;
+  } wait_queue;
 };
 
 /* The hardwired base of the UTCB (2.5GB).  */

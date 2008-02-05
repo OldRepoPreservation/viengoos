@@ -217,7 +217,7 @@ lookup (activity_t activity,
 	  int i = extract_bits64_inv (addr, remaining - 1, FOLIO_OBJECTS_LOG2);
 #ifdef RM_INTERN
 	  root = &fake_slot;
-	  if (folio->objects[i].type == cap_void)
+	  if (folio_object_type (folio, i) == cap_void)
 	    {
 	      memset (root, 0, sizeof (*root));
 	      root->type = cap_void;
@@ -228,7 +228,7 @@ lookup (activity_t activity,
 	      fdesc = object_to_object_desc (object);
 
 	      object = object_find (activity, fdesc->oid + i + 1,
-				    folio->objects[i].policy);
+				    folio_object_policy (folio, i));
 	      assert (object);
 	      *root = object_to_cap (object);
 	    }

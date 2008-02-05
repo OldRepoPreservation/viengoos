@@ -181,7 +181,7 @@ memory_object_destroy (struct activity *activity, struct object *object)
     /* XXX: This doesn't really belong here.  */
     {
       struct folio *folio = objects_folio (activity, object);
-      folio->objects[objects_folio_offset (object)].content = 0;
+      folio_object_content_set (folio, objects_folio_offset (object), false);
     }
 
   struct cap cap = object_desc_to_cap (desc);
@@ -267,14 +267,14 @@ object_find (struct activity *activity, oid_t oid,
 					    OBJECT_POLICY_DEFAULT);
       assert (folio);
 
-      if (folio->objects[page].type == cap_void)
+      if (folio_object_type (folio, page) == cap_void)
 	return NULL;
 
-      if (! folio->objects[page].content)
+      if (! folio_object_content (folio, page))
 	/* The object is a zero page.  No need to read anything from
 	   backing store: just allocate a page and zero it.  */
-	return memory_object_alloc (activity, folio->objects[page].type,
-				    oid, folio->objects[page].version,
+	return memory_object_alloc (activity, folio_object_type (folio, page),
+				    oid, folio_object_version (folio, page),
 				    policy);
     }
   
@@ -464,7 +464,7 @@ folio_free (struct activity *activity, struct folio *folio)
   folio->prev.type = cap_void;
 
   /* And free the folio.  */
-  folio->folio_version = fdesc->version ++;
+  folio_object_version_set (folio, -1, folio_object_version (folio, -1) + 1);
   bit_dealloc (folios, fdesc->oid / (FOLIO_OBJECTS + 1));
 }
 
@@ -491,15 +491,15 @@ folio_object_alloc (struct activity *activity,
 
   /* Deallocate any existing object.  */
 
-  if (folio->objects[idx].type == cap_activity_control
-      || folio->objects[idx].type == cap_thread)
+  if (folio_object_type (folio, idx) == cap_activity_control
+      || folio_object_type (folio, idx) == cap_thread)
     /* These object types have state that needs to be explicitly
        destroyed.  */
     {
       object = object_find (activity, oid, OBJECT_POLICY_DEFAULT);
 
       /* See if we need to destroy the object.  */
-      switch (folio->objects[idx].type)
+      switch (folio_object_type (folio, idx))
 	{
 	case cap_activity_control:
 	  debug (4, "Destroying activity at %llx", oid);
@@ -535,7 +535,7 @@ folio_object_alloc (struct activity *activity,
     {
       struct object_desc *odesc = object_to_object_desc (object);
       assert (odesc->oid == oid);
-      assert (odesc->type == folio->objects[idx].type);
+      assert (odesc->type == folio_object_type (folio, idx));
 
       if (type == cap_void)
 	/* We are deallocating the object: free associated memory.  */
@@ -561,10 +561,10 @@ folio_object_alloc (struct activity *activity,
 	}
 
       odesc->type = type;
-      odesc->version = folio->objects[idx].version;
+      odesc->version = folio_object_version (folio, idx);
     }
 
-  if (folio->objects[idx].type != cap_void)
+  if (folio_object_type (folio, idx) != cap_void)
     /* We know that if an object's type is void then there are no
        extant pointers to it.  If there are only pointers in memory,
        then we need to bump the memory version.  Otherwise, we need to
@@ -573,15 +573,13 @@ folio_object_alloc (struct activity *activity,
       /* XXX: Check if we can just bump the in-memory version.  */
 
       /* Bump the disk version.  */
-      folio->objects[idx].version ++;
+      folio_object_version_set (folio, idx,
+				folio_object_version (folio, idx) + 1);
     }
 
-  /* Set the object's new type.  */
-  folio->objects[idx].type = type;
-  /* Mark it as being empty.  */
-  folio->objects[idx].content = 0;
-
-  folio->objects[idx].policy = policy;
+  folio_object_type_set (folio, idx, type);
+  folio_object_content_set (folio, idx, false);
+  folio_object_policy_set (folio, idx, policy);
 
   switch (type)
     {
@@ -733,32 +731,24 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   desc->policy.discardable = policy.discardable;
 }
 
-/* Return the localtion of OBJECT's wait queue's pointer.  */
-static struct cap *
-object_wait_queue (struct activity *activity, struct object *object)
-{
-  struct folio *folio = objects_folio (activity, object);
-  int i = objects_folio_offset (object);
-
-  if (i == -1)
-    return &folio->wait_queue;
-  else
-    return &folio->objects[i].wait_queue;
-}
-
 /* Return the first waiter queued on object OBJECT.  */
 struct thread *
 object_wait_queue_head (struct activity *activity, struct object *object)
 {
-  struct cap *wait_queue = object_wait_queue (activity, object);
-  struct thread *head = (struct thread *) cap_to_object (activity, wait_queue);
-  if (! head)
+  struct folio *folio = objects_folio (activity, object);
+  int i = objects_folio_offset (object);
+
+  if (! folio_object_wait_queue_p (folio, i))
     return NULL;
 
-  assert (object_type ((struct object *) head) == cap_thread);
-  assert (head->wait_queue_head);
+  oid_t h = folio_object_wait_queue (folio, i);
+  struct object *head = object_find (activity, h, OBJECT_POLICY_DEFAULT);
+  assert (head);
+  assert (object_type (head) == cap_thread);
+  assert (((struct thread *) head)->wait_queue_p);
+  assert (((struct thread *) head)->wait_queue_head);
 
-  return head;
+  return (struct thread *) head;
 }
 
 /* Return the last waiter queued on object OBJECT.  */
@@ -774,9 +764,11 @@ object_wait_queue_tail (struct activity *activity, struct object *object)
     return head;
 
   struct thread *tail;
-  tail = (struct thread *) cap_to_object (activity, &head->wait_queue.prev);
+  tail = (struct thread *) object_find (activity, head->wait_queue.prev,
+					OBJECT_POLICY_DEFAULT);
   assert (tail);
   assert (object_type ((struct object *) tail) == cap_thread);
+  assert (tail->wait_queue_p);
   assert (tail->wait_queue_tail);
 
   return tail;
@@ -790,9 +782,11 @@ object_wait_queue_next (struct activity *activity, struct thread *t)
     return NULL;
 
   struct thread *next;
-  next = (struct thread *) cap_to_object (activity, &t->wait_queue.next);
+  next = (struct thread *) object_find (activity, t->wait_queue.next,
+					OBJECT_POLICY_DEFAULT);
   assert (next);
   assert (object_type ((struct object *) next) == cap_thread);
+  assert (next->wait_queue_p);
   assert (! next->wait_queue_head);
 
   return next;
@@ -806,9 +800,11 @@ object_wait_queue_prev (struct activity *activity, struct thread *t)
     return NULL;
 
   struct thread *prev;
-  prev = (struct thread *) cap_to_object (activity, &t->wait_queue.prev);
+  prev = (struct thread *) object_find (activity, t->wait_queue.prev,
+					OBJECT_POLICY_DEFAULT);
   assert (prev);
   assert (object_type ((struct object *) prev) == cap_thread);
+  assert (prev->wait_queue_p);
   assert (! prev->wait_queue_tail);
 
   return prev;
@@ -818,12 +814,8 @@ static void
 object_wait_queue_check (struct activity *activity, struct thread *thread)
 {
 #ifndef NDEBUG
-  if (thread->wait_queue.next.type == cap_void)
-    {
-      assert (thread->wait_queue.prev.type == cap_void);
-      return;
-    }
-  assert (thread->wait_queue.prev.type != cap_void);
+  if (! thread->wait_queue_p)
+    return;
 
   struct thread *last = thread;
   struct thread *t;
@@ -832,10 +824,13 @@ object_wait_queue_check (struct activity *activity, struct thread *thread)
       if (last->wait_queue_tail)
 	break;
 
-      t = (struct thread *) cap_to_object (activity, &last->wait_queue.next);
+      t = (struct thread *) object_find (activity, last->wait_queue.next,
+					 OBJECT_POLICY_DEFAULT);
       assert (t);
+      assert (t->wait_queue_p);
       assert (! t->wait_queue_head);
-      struct object *p = cap_to_object (activity, &t->wait_queue.prev);
+      struct object *p = object_find (activity, t->wait_queue.prev,
+					OBJECT_POLICY_DEFAULT);
       assert (p == (struct object *) last);
       
       last = t;
@@ -843,19 +838,20 @@ object_wait_queue_check (struct activity *activity, struct thread *thread)
 
   assert (last->wait_queue_tail);
 
-  struct object *o = cap_to_object (activity, &last->wait_queue.next);
+  struct object *o = object_find (activity, last->wait_queue.next,
+				  OBJECT_POLICY_DEFAULT);
   assert (o);
+  assert (folio_object_wait_queue_p (objects_folio (activity, o),
+				     objects_folio_offset (o)));
 
-  struct cap *wait_queue = object_wait_queue (activity, o);
-
-  struct thread *head;
-  head = (struct thread *) cap_to_object (activity, wait_queue);
+  struct thread *head = object_wait_queue_head (activity, o);
   if (! head)
     return;
   assert (head->wait_queue_head);
 
   struct thread *tail;
-  tail = (struct thread *) cap_to_object (activity, &head->wait_queue.prev);
+  tail = (struct thread *) object_find (activity, head->wait_queue.prev,
+					OBJECT_POLICY_DEFAULT);
   assert (tail);
   assert (tail->wait_queue_tail);
 
@@ -866,11 +862,14 @@ object_wait_queue_check (struct activity *activity, struct thread *thread)
     {
       assert (! last->wait_queue_tail);
 
-      t = (struct thread *) cap_to_object (activity, &last->wait_queue.next);
+      t = (struct thread *) object_find (activity, last->wait_queue.next,
+					 OBJECT_POLICY_DEFAULT);
       assert (t);
+      assert (t->wait_queue_p);
       assert (! t->wait_queue_head);
 
-      struct object *p = cap_to_object (activity, &t->wait_queue.prev);
+      struct object *p = object_find (activity, t->wait_queue.prev,
+				      OBJECT_POLICY_DEFAULT);
       assert (p == (struct object *) last);
       
       last = t;
@@ -878,7 +877,7 @@ object_wait_queue_check (struct activity *activity, struct thread *thread)
 #endif /* !NDEBUG */
 }
 
-/* Enqueue thread on object OBJECT's wait queue.  */
+/* Enqueue the thread THREAD on object OBJECT's wait queue.  */
 void
 object_wait_queue_enqueue (struct activity *activity,
 			   struct object *object, struct thread *thread)
@@ -889,10 +888,7 @@ object_wait_queue_enqueue (struct activity *activity,
 
   object_wait_queue_check (activity, thread);
 
-  assert (thread->wait_queue.next.type == cap_void);
-  assert (thread->wait_queue.prev.type == cap_void);
-
-  struct cap *wait_queue = object_wait_queue (activity, object);
+  assert (! thread->wait_queue_p);
 
   struct thread *oldhead = object_wait_queue_head (activity, object);
   if (oldhead)
@@ -904,27 +900,35 @@ object_wait_queue_enqueue (struct activity *activity,
 
       /* OLDHEAD->PREV = THREAD.  */
       oldhead->wait_queue_head = 0;
-      oldhead->wait_queue.prev = object_to_cap ((struct object *) thread);
+      oldhead->wait_queue.prev = object_oid ((struct object *) thread);
 
       /* THREAD->NEXT = OLDHEAD.  */
-      thread->wait_queue.next = *wait_queue;
+      thread->wait_queue.next = object_oid ((struct object *) oldhead);
 
       thread->wait_queue_tail = 0;
     }
   else
     /* Empty list.  */
     {
+      folio_object_wait_queue_p_set (objects_folio (activity, object),
+				     objects_folio_offset (object),
+				     true);
+
       /* THREAD->PREV = THREAD.  */
-      thread->wait_queue.prev = object_to_cap ((struct object *) thread);
+      thread->wait_queue.prev = object_oid ((struct object *) thread);
 
       /* THREAD->NEXT = OBJECT.  */
       thread->wait_queue_tail = 1;
-      thread->wait_queue.next = object_to_cap (object);
+      thread->wait_queue.next = object_oid (object);
     }
+
+  thread->wait_queue_p = true;
 
   /* WAIT_QUEUE = THREAD.  */
   thread->wait_queue_head = 1;
-  *wait_queue = object_to_cap ((struct object *) thread);
+  folio_object_wait_queue_set (objects_folio (activity, object),
+			       objects_folio_offset (object),
+			       object_oid ((struct object *) thread));
 
   object_wait_queue_check (activity, thread);
 }
@@ -936,6 +940,8 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
   debug (5, "Removing " OID_FMT,
 	 OID_PRINTF (object_to_object_desc ((struct object *) thread)->oid));
 
+  assert (thread->wait_queue_p);
+
   object_wait_queue_check (activity, thread);
 
   if (thread->wait_queue_tail)
@@ -943,19 +949,24 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
        we are queued.  */
     {
       struct object *object;
-      object = cap_to_object (activity, &thread->wait_queue.next);
+      object = object_find (activity, thread->wait_queue.next,
+			    OBJECT_POLICY_DEFAULT);
       assert (object);
+      assert (folio_object_wait_queue_p (objects_folio (activity, object),
+					 objects_folio_offset (object)));
       assert (object_wait_queue_tail (activity, object) == thread);
 
       if (thread->wait_queue_head)      
 	/* THREAD is also the head and thus the only item on the
 	   list.  */
 	{
-	  assert (cap_to_object (activity, &thread->wait_queue.prev)
+	  assert (object_find (activity, thread->wait_queue.prev,
+			       OBJECT_POLICY_DEFAULT)
 		  == (struct object *) thread);
 
-	  struct cap *wait_queue = object_wait_queue (activity, object);
-	  wait_queue->type = cap_void;
+	  folio_object_wait_queue_p_set (objects_folio (activity, object),
+					 objects_folio_offset (object),
+					 false);
 	}
       else
 	/* THREAD is not also the head.  */
@@ -963,7 +974,8 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
 	  struct thread *head = object_wait_queue_head (activity, object);
 
 	  /* HEAD->PREV == TAIL.  */
-	  assert (cap_to_object (activity, &head->wait_queue.prev)
+	  assert (object_find (activity, head->wait_queue.prev,
+			       OBJECT_POLICY_DEFAULT)
 		  == (struct object *) thread);
 
 	  /* HEAD->PREV = TAIL->PREV.  */
@@ -971,8 +983,9 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
 
 	  /* TAIL->PREV->NEXT = OBJECT.  */
 	  struct thread *prev;
-	  prev = (struct thread *) cap_to_object (activity,
-						  &thread->wait_queue.prev);
+	  prev = (struct thread *) object_find (activity,
+						thread->wait_queue.prev,
+						OBJECT_POLICY_DEFAULT);
 	  assert (prev);
 	  assert (object_type ((struct object *) prev) == cap_thread);
 
@@ -986,7 +999,8 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
       struct thread *next = object_wait_queue_next (activity, thread);
       assert (next);
 
-      struct object *p = cap_to_object (activity, &thread->wait_queue.prev);
+      struct object *p = object_find (activity, thread->wait_queue.prev,
+				      OBJECT_POLICY_DEFAULT);
       assert (p);
       assert (object_type (p) == cap_thread);
       struct thread *prev = (struct thread *) p;
@@ -997,8 +1011,8 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
 	  /* THREAD->PREV is the tail, TAIL->NEXT the object.  */
 	  struct thread *tail = prev;
 
-	  struct object *object = cap_to_object (activity,
-						 &tail->wait_queue.next);
+	  struct object *object = object_find (activity, tail->wait_queue.next,
+					       OBJECT_POLICY_DEFAULT);
 	  assert (object);
 	  assert (object_wait_queue_head (activity, object) == thread);
 
@@ -1006,8 +1020,9 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
 	  /* OBJECT->WAIT_QUEUE = THREAD->NEXT.  */
 	  next->wait_queue_head = 1;
 
-	  struct cap *wait_queue = object_wait_queue (activity, object);
-	  *wait_queue = thread->wait_queue.next;
+	  folio_object_wait_queue_set (objects_folio (activity, object),
+				       objects_folio_offset (object),
+				       thread->wait_queue.next);
 	}
       else
 	/* THREAD is neither the head nor the tail.  */
@@ -1020,8 +1035,7 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
       next->wait_queue.prev = thread->wait_queue.prev;
     }
 
-  thread->wait_queue.next.type = cap_void;
-  thread->wait_queue.prev.type = cap_void;
+  thread->wait_queue_p = false;
 
   object_wait_queue_check (activity, thread);
 }
