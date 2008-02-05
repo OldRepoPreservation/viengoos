@@ -21,7 +21,7 @@
 
 #include <hurd/addr.h>
 #include <hurd/startup.h>
-#include <errno.h>
+#include <hurd/error.h>
 #include <stdbool.h>
 #include <time.h>
 

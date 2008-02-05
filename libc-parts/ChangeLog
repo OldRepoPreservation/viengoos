@@ -1,3 +1,10 @@
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
+	* errno.h: Protect from multiple inclusion.  Don't include the
+	next errno.h.  Include <hurd/error.h>.
+	(errno): Don't undef.
+	(error_t): Define.
+
 2008-01-26  Neal H. Walfield  <neal@gnu.org>
 
 	* features.h: Don't include <gnu/stubs.h>.

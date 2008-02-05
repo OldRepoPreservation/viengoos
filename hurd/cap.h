@@ -25,7 +25,7 @@
 #include <hurd/stddef.h>
 #include <hurd/addr-trans.h>
 #include <hurd/startup.h>
-#include <errno.h>
+#include <hurd/error.h>
 #include <stdint.h>
 
 /* Capabilities.

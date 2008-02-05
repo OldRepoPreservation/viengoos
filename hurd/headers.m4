@@ -25,4 +25,5 @@ AC_CONFIG_LINKS([include/hurd/stddef.h:hurd/stddef.h
 		 include/hurd/mutex.h:hurd/mutex.h
 		 include/hurd/rmutex.h:hurd/rmutex.h
 		 include/hurd/futex.h:hurd/futex.h
+		 include/hurd/error.h:hurd/error.h
 		])

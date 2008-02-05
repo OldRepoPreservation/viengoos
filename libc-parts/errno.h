@@ -19,10 +19,18 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#include_next <errno.h>
+#ifndef _ERRNO_H
+#define _ERRNO_H
 
-/* The GNU Hurd defines errno as a macro to access a per-thread
-   variable.  Redefine it to an external variable here.  */
+/* This file is only used by Viengoos.  It's operation depends on the
+   error codes and error_t.  However, Viengoos also uses errno, but
+   only for strtol, etc. (and only during startup).  Thus, this
+   definition suffices.  */
 
-#undef errno
+#include <hurd/error.h>
+
 extern int errno;
+
+typedef int error_t;
+
+#endif

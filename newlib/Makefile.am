@@ -58,7 +58,8 @@ addon = newlib/libc/sys/hurd/configure.ac \
 	newlib/libc/sys/hurd/include/pthread.h \
 	newlib/libc/sys/hurd/include/assert.h \
 	newlib/libc/sys/hurd/sys/lock.h \
-	newlib/libc/sys/hurd/sys/config.h
+	newlib/libc/sys/hurd/sys/config.h \
+	newlib/libc/sys/hurd/sys/errno.h
 
 EXTRA_DIST = $(addprefix patches/, $(patch_files)) \
 	$(addprefix addon/, $(addon))

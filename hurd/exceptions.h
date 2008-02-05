@@ -1,5 +1,5 @@
 /* exceptions.h - Exception handling definitions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -25,7 +25,7 @@
 #include <hurd/cap.h>
 #include <hurd/thread.h>
 #include <l4/thread.h>
-#include <errno.h>
+#include <hurd/error.h>
 
 #define RPC_STUB_PREFIX exception
 #define RPC_ID_PREFIX EXCEPTION

@@ -1,3 +1,8 @@
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/sys/errno.h: New file.
+	* Makefile.am (addon): Add newlib/libc/sys/hurd/sys/errno.h.
+
 2008-01-27  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am: Typo fixes.

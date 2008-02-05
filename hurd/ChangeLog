@@ -1,5 +1,14 @@
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
+	* error.h: New file.
+	* Makefile.am (includehurd_HEADERS): Add error.h.
+	* headers.m4: Link $(BUILDIR)/include/hurd/error.h to error.h.
+	* cap.h: Don't include <errno.h>.  Include <hurd/error.h>.
+	* exceptions.h: Likewise.
+	* futex.h: Likewise.
+
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (struct activity_stats): New structure.
 
 2008-02-05  Neal H. Walfield  <neal@gnu.org>

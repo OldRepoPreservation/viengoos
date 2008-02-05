@@ -23,7 +23,7 @@ COMMON_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = rpc.h startup.h stddef.h types.h addr.h \
 	addr-trans.h cap.h folio.h exceptions.h thread.h activity.h \
-	lock.h mutex.h rmutex.h futex.h
+	lock.h mutex.h rmutex.h futex.h error.h
 
 TESTS = t-addr t-addr-trans t-rpc
 check_PROGRAMS = $(TESTS)
