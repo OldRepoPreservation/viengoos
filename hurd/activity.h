@@ -1,5 +1,5 @@
 /* activity.h - Activity definitions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -62,6 +62,88 @@ struct activity_policy
      limit.  The parent activity, for instance, may impose a limit.)
      May only be set via an activity control capability.  */
   uint32_t folios;
+};
+
+/* Activity statistics.  These are approximate and in some cases
+   represent averages.  */
+#define ACTIVITY_STATS_PERIODS 8
+struct activity_stats
+{
+  /* The maximum number of frames this activity could currently
+     allocate assuming other allocations do not otherwise change.
+     This implies stealing from others.  */
+  uint32_t available;
+  
+  /* The maximum amount of memory that the user of this activity ought
+     to allocate in the next few seconds.  If negative, the amount of
+     memory the activity ought to consider freeing.  */
+  int32_t damping_factor;
+
+  /* If pressure is non-zero, then this activity is causing PRESSURE.
+
+     PRESSURE is calculated as follows: if 
+
+       1) this activity is within its entitlement
+       2) its working set is significantly smaller than its allocation
+          (as determined by the size of inactive relative to active), and
+       3) other activities are being held back (i.e., paging) due to this
+          activity,
+
+     then this represents the amount of memory it would be nice to see
+     this activity free.  This activity will not be penalized by the
+     system if it does not yield memory.  However, if the activity has
+     memory which is yielding a low return, it would be friendly of it
+     to return it.  */
+  uint32_t pressure;
+
+  /* The number of clean and dirty frames that are accounted to this
+     activity.  (Does not include frames scheduled for eviction.)  The
+     total number of frames accounted to this activity is thus CLEAN +
+     DIRTY.  */
+  uint32_t clean;
+  uint32_t dirty;
+
+
+  /* Based on recency information, the number of active frames
+     accounted to this activity.  The number of inactive frames is
+     approximately CLEAN + DIRTY - ACTIVE.  */
+  uint32_t active;
+
+  /* Number of frames that were active in the last period that become
+     inactive in this period.  */
+  uint32_t became_active;
+  /* Number of frames that were inactive in the last period that
+     become active in this period.  */
+  uint32_t became_inactive;
+
+
+  /* Number of frames that were not accounted to this activity in the
+     last period and are now accounted to it.  */
+  uint32_t claimed;
+  /* Number of frames that were accounted to this activity in the last
+     period and are no longer accounted to it.  */
+  uint32_t disowned;
+
+  /* The number of frames that this activity referenced but which are
+     accounted to some other activity.  */
+  uint32_t freeloading;
+  /* The sum of the references by other processes to the frames that
+     are accounted to this activity.  (A single frame may account
+     for multiple references.)  */
+  uint32_t freeloaded;
+
+
+  /* Number of frames that were accounted to this activity and
+     scheduled for eviction.  */
+  uint32_t evicted;
+  /* Number of frames paged-in on behalf of this activity.  This does
+     not include pages marked empty that do not require disk
+     activity.  */
+  uint32_t pagedin;
+  /* Number of frames that were referenced before being completely
+     freed.  (If evicted is significant and saved approximates
+     evicted, then the process is trashing.)  */
+  uint32_t saved;
 };
 
 #define ACTIVITY_POLICY(__ap_sibling_rel, __ap_child_rel, __ap_storage) \

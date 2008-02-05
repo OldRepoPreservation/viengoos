@@ -63,9 +63,7 @@ ager_loop (l4_thread_id_t main_thread)
   /* 125 ms (=> ~8Hz).  */
   l4_time_t timeout = l4_time_period (1 << 17);
 
-#if UNMAP_PERIODICALLY
   int iterations = 0;
-#endif
 
   int frames = (last_frame - first_frame + PAGESIZE) / PAGESIZE;
 
@@ -125,8 +123,8 @@ ager_loop (l4_thread_id_t main_thread)
 	return count;
       }
 
-      int retired = 0;
-      int revived = 0;
+      int became_inactive = 0;
+      int became_active = 0;
 
       while (frame < frames)
 	{
@@ -161,6 +159,7 @@ ager_loop (l4_thread_id_t main_thread)
 		/* The object was active.  */
 		{
 		  assert (desc->activity);
+		  assert (desc->age);
 
 		  desc->dirty |= dirty;
 
@@ -171,7 +170,9 @@ ager_loop (l4_thread_id_t main_thread)
 		    /* The object has become inactive and needs to be
 		       moved.  */
 		    {
-		      retired ++;
+		      ACTIVITY_STAT_UPDATE (desc->activity, became_inactive, 1);
+
+		      became_inactive ++;
 
 		      /* Detach from active list.  */
 		      activity_lru_list_unlink (&desc->activity->active,
@@ -192,6 +193,8 @@ ager_loop (l4_thread_id_t main_thread)
 		      l4_unmap_fpage (f);
 #endif
 		    }
+		  else
+		    ACTIVITY_STAT_UPDATE (desc->activity, active, 1);
 		}
 	      else
 		/* The object was inactive.  */
@@ -201,7 +204,9 @@ ager_loop (l4_thread_id_t main_thread)
 		  if (referenced)
 		    /* The object has become active.  */
 		    {
-		      revived ++;
+		      ACTIVITY_STAT_UPDATE (desc->activity, became_active, 1);
+
+		      became_active ++;
 
 		      if (desc->policy.priority == OBJECT_PRIORITY_LRU)
 			{
@@ -222,26 +227,43 @@ ager_loop (l4_thread_id_t main_thread)
 		    }
 		}
 
+	      if (desc->dirty && ! desc->policy.discardable)
+		ACTIVITY_STAT_UPDATE (desc->activity, dirty, 1);
+	      else
+		ACTIVITY_STAT_UPDATE (desc->activity, clean, 1);
+
 	      ss_mutex_unlock (&desc->lock);
 	    }
 
 	  ss_mutex_unlock (&lru_lock);
 	}
 
-#if UNMAP_PERIODICALLY
-      if (iterations == 8 * 5)
+      /* Upmap everything every two seconds.  */
+#define SAMPLES sizeof (((struct object_desc *)0)->age) * 8
+      if (iterations == SAMPLES)
 	{
+#if 0
+	  /* XXX: Update the statistics.  We need to average some of
+	     the fields including the number of active, inactive,
+	     clean and dirty pages.  Also, we need to calculate each
+	     activity's allocation, a damping factor and the
+	     pressure.  */
+#endif
+#if UNMAP_PERIODICALLY
+	  /* XXX: Walk all in-memory activities, advance the stat
+	     structure and average the fields that need averaging.  */
+
 	  debug (1, "Unmapping all (%d of %d free). "
-		 "last interation retired: %d, revived: %d",
-		 zalloc_memory, memory_total, retired, revived);
+		 "last interation now inactive: %d, now active: %d",
+		 zalloc_memory, memory_total, became_inactive, became_active);
 
 	  l4_unmap_fpage (l4_fpage_add_rights (L4_COMPLETE_ADDRESS_SPACE,
 					       L4_FPAGE_FULLY_ACCESSIBLE));
 	  iterations = 0;
+#endif
 	}
       else
 	iterations ++;
-#endif
 
       /* Wait TIMEOUT or until we are interrupted by the main
 	 thread.  */

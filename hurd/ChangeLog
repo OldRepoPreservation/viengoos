@@ -1,5 +1,9 @@
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (struct activity_stats): New structure.
+
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
 	* addr-trans.h (CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS): Change to 22.
 	(CAP_ADDR_TRANS_GDEPTH_BITS): Change to 6.
 

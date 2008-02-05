@@ -366,6 +366,8 @@ pager_collect (void)
 	}
     }
 
+  ACTIVITY_STAT_UPDATE (victim, evicted, count);
+
   debug (0, "Goal: %d, %d in laundry, %d made available",
 	 goal, laundry_count, count - laundry_count);
 

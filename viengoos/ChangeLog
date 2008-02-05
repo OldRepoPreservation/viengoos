@@ -1,3 +1,12 @@
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h (struct activity): Add fields current_period and
+	stats.
+	(ACTIVITY_STATS): New macro.
+	(ACTIVITY_STAT_UPDATE): Likewise.
+	* ager.c (ager_loop): Gather statistics.
+	* pager.c (pager_collect): Likewise.
+
 2008-01-26  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (ROOT): Reduce debugging output.

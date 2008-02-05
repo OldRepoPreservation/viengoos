@@ -96,12 +96,27 @@ struct activity
      frames on the page out list.  */
   uint32_t frames_total;
 
-  int dying;
+  /* Whether the activity has been marked as dead (and thus will be
+     shortly deallocated).  */
+  unsigned char dying;
+
+  /* Statistics.  */
+  /* The current period.  */
+  unsigned char current_period;
+  struct activity_stats stats[ACTIVITY_STATS_PERIODS + 1];
 };
 
+/* Return the current activity stat structure.  */
+#define ACTIVITY_STATS(__as_activity)					\
+  ({									\
+    assert ((__as_activity)->current_period < ACTIVITY_STATS_PERIODS);	\
+									\
+    &(__as_activity)->stats[(__as_activity)->current_period];		\
+  })
+
 /* The root activity.  */
 extern struct activity *root_activity;
-
+
 /* Initialize an activity.  Charge to activity PARENT, which is the
    parent.  FOLIO specifies the capability slot in CALLER's address
    space that contains the folio to use to allocate the storage and
@@ -162,6 +177,18 @@ activity_charge (struct activity *activity, int objects)
 				activity->frames_total += objects;
 			      }));
 }
+
+#define ACTIVITY_STAT_UPDATE(__asu_activity, __asu_field, __asu_delta)	\
+  do									\
+    {									\
+      struct activity *__asu_a = (__asu_activity);			\
+      activity_for_each_ancestor					\
+	(__asu_a,							\
+	 ({								\
+	   ACTIVITY_STATS (__asu_a)->__asu_field += __asu_delta;	\
+	 }));								\
+    }									\
+  while (0)
 
 /* For each child of ACTIVITY, set to CHILD and execute code.  The
    caller may destroy CHILD, however, it may not destroy any siblings.
