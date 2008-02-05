@@ -1,3 +1,7 @@
+2008-02-05  Neal H. Walfield  <neal@gnu.org>
+
+	* bit-array.h (bit_set_to): New function.
+
 2007-10-17  Neal H. Walfield  <neal@gnu.org>
 
 	* ChangeLog: New file.

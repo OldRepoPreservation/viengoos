@@ -1,5 +1,5 @@
 /* bit-array.h - Bit array manipulation functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -38,6 +38,19 @@ bit_set (unsigned char *array, int size, int bit)
 
   array[bit / 8] |= 1 << (bit & 0x7);
   return true;  
+}
+
+/* Set bit BIT in array ARRAY (which is SIZE bytes long) to VALUE.  */
+static inline void
+bit_set_to (unsigned char *array, int size, int bit, int value)
+{
+  assert (bit >= 0);
+  assert (bit < size * 8);
+
+  if (value)
+    array[bit / 8] |= 1 << (bit & 0x7);
+  else
+    array[bit / 8] &= ~(1 << (bit & 0x7));
 }
 
 /* Allocate the first free (zero) bit starting at bit START_BIT.  SIZE
