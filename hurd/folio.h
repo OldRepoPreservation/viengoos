@@ -287,7 +287,6 @@ folio_object_content_set (struct folio *folio, int object,
     __foc_cap.type = folio_object_type (__foc_folio, __foc_object);	\
     __foc_cap.version = folio_object_version (__foc_folio,		\
 					      __foc_object);		\
-    __foc_cap.weak_p = false;						\
     									\
     struct cap_properties __foc_cap_properties				\
       = CAP_PROPERTIES (folio_object_policy (__foc_folio, __foc_object), \
