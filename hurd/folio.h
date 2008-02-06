@@ -275,6 +275,39 @@ folio_object_content_set (struct folio *folio, int object,
   folio->misc[object + 1].content = content;
 }
 #endif /* RM_INTERN  */
+
+/* Return a cap designating folio FOLIO's OBJECT'th object.  */
+#ifdef RM_INTERN
+/* This needs to be a macro as we use object_to_object_desc which is
+   made available by object.h but object.h includes this file.  */
+#define folio_object_cap(__foc_folio, __foc_object)			\
+  ({									\
+    struct cap __foc_cap;						\
+									\
+    __foc_cap.type = folio_object_type (__foc_folio, __foc_object);	\
+    __foc_cap.version = folio_object_version (__foc_folio,		\
+					      __foc_object);		\
+    __foc_cap.weak_p = false;						\
+    									\
+    struct cap_properties __foc_cap_properties				\
+      = CAP_PROPERTIES (folio_object_policy (__foc_folio, __foc_object), \
+			CAP_ADDR_TRANS_VOID);				\
+    CAP_PROPERTIES_SET (&__foc_cap, __foc_cap_properties);		\
+									\
+    __foc_cap.oid							\
+      = object_to_object_desc ((struct object *) __foc_folio)->oid	\
+      + 1 + __foc_object;						\
+									\
+    __foc_cap;								\
+  })
+#else
+static inline struct cap
+folio_object_cap (struct folio *folio, int object)
+{
+  assert (0 <= object && object < FOLIO_OBJECTS);
+  return folio->objects[object];
+}
+#endif
 
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM

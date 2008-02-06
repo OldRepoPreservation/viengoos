@@ -1,5 +1,11 @@
 2008-02-06  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (do_index): New function.
+	(as_build_internal): Don't index a page table directly.  Instead,
+	use the above new function.
+
+2008-02-06  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (as_build_internal): Improve comments.  Do some variable
 	renaming.
 

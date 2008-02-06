@@ -1,3 +1,7 @@
+2008-02-06  Neal H. Walfield  <neal@gnu.org>
+
+	* folio.h (folio_object_cap): New function.
+
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
 	* folio.h (struct folio) [RM_INTERN]: Remove field dhazard,

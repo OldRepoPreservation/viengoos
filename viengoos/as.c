@@ -69,6 +69,51 @@ ensure_stack(int i)
 
 #endif
 
+/* Index the object designed by PTE, which is at address ADDR return
+   the location of the idx'th capability slot.  If the capability is
+   implicit, return a fabricated capability in *FAKE_SLOT and return
+   FAKE_SLOT.  Return NULL on failure.  */
+static inline struct cap *
+do_index (activity_t activity, addr_t addr, struct cap *pte, int idx,
+	  struct cap *fake_slot)
+{
+  assert (pte->type == cap_cappage || pte->type == cap_rcappage
+	  || pte->type == cap_folio);
+
+  /* Load the referenced object.  */
+  struct object *pt = cap_to_object (activity, pte);
+  if (! pt)
+    /* PTE's type was not void but its designation was invalid.  This
+       can only happen if we inserted an object and subsequently
+       destroyed it.  */
+    {
+      /* The type should now have been set to cap_void.  */
+      assert (pte->type == cap_void);
+      panic ("No object at " ADDR_FMT, ADDR_PRINTF (addr));
+    }
+
+  switch (pte->type)
+    {
+    case cap_cappage:
+    case cap_rcappage:
+      return &pt->caps[CAP_SUBPAGE_OFFSET (pte) + idx];
+
+    case cap_folio:;
+      struct folio *folio = (struct folio *) pt;
+
+      if (folio_object_type (folio, idx) == cap_void)
+	panic ("Can't use void object at " ADDR_FMT " for address translation",
+	       ADDR_PRINTF (addr));
+
+      *fake_slot = folio_object_cap (folio, idx);
+
+      return fake_slot;
+
+    default:
+      return NULL;
+    }
+}
+
 /* Build up the address space at AS_ROOT_ADDR such that there is a
    capability slot at address ADDR.  Returns the address of the
    capability slot.
@@ -109,8 +154,6 @@ as_build_internal (activity_t activity,
 
   do
     {
-      struct object *pt = NULL;
-
       uint64_t pte_guard = CAP_GUARD (pte);
       int pte_gbits = CAP_GUARD_BITS (pte);
 
@@ -154,87 +197,7 @@ as_build_internal (activity_t activity,
 		     addr_prefix (addr), addr_depth (addr));
 	    }
 
-	  switch (pte->type)
-	    {
-	    case cap_cappage:
-	    case cap_rcappage:
-	      /* Load the referenced object.  */
-	      pt = cap_to_object (activity, pte);
-	      if (! pt)
-		/* PTE's type was not void but its designation was
-		   invalid.  This can only happen if we inserted an object
-		   and subsequently destroyed it.  */
-		{
-		  /* The type should now have been set to cap_void.  */
-		  assert (pte->type == cap_void);
-		  AS_DUMP;
-		  panic ("Lost object at %llx/%d",
-			 addr_prefix (addr), addr_depth (addr) - remaining);
-		}
-
-	      /* We index PT below.  */
-	      break;
-
-	    case cap_folio:
-	      {
-		if (remaining < FOLIO_OBJECTS_LOG2)
-		  panic ("Translating " ADDR_FMT "; not enough bits (%d) "
-			 "to index folio at " ADDR_FMT,
-			 ADDR_PRINTF (addr), remaining,
-			 ADDR_PRINTF (addr_chop (addr, remaining)));
-
-		struct object *object = cap_to_object (activity, pte);
-#ifdef RM_INTERN
-		if (! object)
-		  {
-		    debug (1, "Failed to get object with OID " OID_FMT,
-			   OID_PRINTF (pte->oid));
-		    return false;
-		  }
-#else
-		assert (object);
-#endif
-
-		struct folio *folio = (struct folio *) object;
-
-		int i = extract_bits64_inv (prefix,
-					    remaining - 1, FOLIO_OBJECTS_LOG2);
-		if (folio_object_type (folio, i) == cap_void)
-		  panic ("Translating " ADDR_FMT "; indexed folio at "
-			 ADDR_FMT ": void object",
-			 ADDR_PRINTF (addr),
-			 ADDR_PRINTF (addr_chop (addr, remaining)));
-
-		pte = &fake_slot;
-
-#ifdef RM_INTERN
-		struct object_desc *fdesc;
-		fdesc = object_to_object_desc (object);
-
-		object = object_find (activity, fdesc->oid + 1 + i,
-				      folio_object_policy (folio, i));
-		assert (object);
-		*pte = object_to_cap (object);
-#else
-		/* We don't use cap_copy as we just need a byte
-		   copy.  */
-		*pte = folio->objects[i];
-#endif
-
-		remaining -= FOLIO_OBJECTS_LOG2;
-
-		/* Fall through means we index PT.  But we just did
-		   that.  Continue at the start of the loop.  */
-		continue;
-	      }
-
-	    default:
-	      AS_DUMP;
-	      panic ("Can't insert object at " ADDR_FMT ": "
-		     "%s at " ADDR_FMT " does not translate address bits",
-		     ADDR_PRINTF (addr), cap_type_string (pte->type),
-		     ADDR_PRINTF (addr_chop (addr, remaining)));
-	    }
+	  /* We index the object designated by PTE below.  */
 	}
       else
 	/* There are two scenarios that lead us here: (1) the pte is
@@ -386,13 +349,15 @@ as_build_internal (activity_t activity,
 	    /* No memory.  */
 	    return NULL;
 
-	  pt = cap_to_object (activity, &rt.cap);
-
 	  /* Indirect access to the object designated by PTE via the
 	     appropriate slot in new cappage (the pivot).  */
 	  int pivot_idx = extract_bits_inv (pte_guard,
 					    pte_gbits - gbits - 1,
 					    subpage_bits);
+
+	  struct cap *pivot_cap = do_index (activity, cappage_addr,
+					    &rt.cap, pivot_idx, &fake_slot);
+	  assert (pivot_cap != &fake_slot);
 
 	  addr_t pivot_addr = addr_extend (rt.storage,
 					   pivot_idx,
@@ -405,7 +370,7 @@ as_build_internal (activity_t activity,
 				    extract_bits64 (pte_guard, 0, d), d);
 
 	  bool r = cap_copy_x (activity,
-			       ADDR_VOID, &pt->caps[pivot_idx], pivot_addr,
+			       ADDR_VOID, pivot_cap, pivot_addr,
 			       as_root_addr, *pte, pte_addr,
 			       CAP_COPY_COPY_ADDR_TRANS_GUARD,
 			       CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
@@ -414,7 +379,7 @@ as_build_internal (activity_t activity,
 
 	  /* Finally, set the slot at PTE to point to PT.  */
 	  pte_guard = extract_bits64_inv (pte_guard,
-					   pte_gbits - 1, gbits);
+					  pte_gbits - 1, gbits);
 	  r = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans,
 						pte_guard, gbits,
 						0 /* We always use the
@@ -429,14 +394,31 @@ as_build_internal (activity_t activity,
 			  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			  | CAP_COPY_COPY_ADDR_TRANS_GUARD,
 			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
-
 	  assert (r);
 	}
 
-      /* Index PT finding the next PTE.  */
+      /* Index the object designated by PTE to find the next PTE.  The
+	 guard has already been translated.  */
+      int width;
+      switch (pte->type)
+	{
+	case cap_cappage:
+	case cap_rcappage:
+	  width = CAP_SUBPAGE_SIZE_LOG2 (pte);
+	  break;
 
-      /* The cappage referenced by PTE translates WIDTH bits.  */
-      int width = CAP_SUBPAGE_SIZE_LOG2 (pte);
+	case cap_folio:
+	  width = FOLIO_OBJECTS_LOG2;
+	  break;
+
+	default:
+	  AS_DUMP;
+	  panic ("Can't insert object at " ADDR_FMT ": "
+		 "%s at " ADDR_FMT " does not translate address bits",
+		 ADDR_PRINTF (addr), cap_type_string (pte->type),
+		 ADDR_PRINTF (addr_chop (addr, remaining)));
+	}
+
       /* That should not be more than we have left to translate.  */
       if (width > remaining)
 	{
@@ -445,8 +427,14 @@ as_build_internal (activity_t activity,
 		 "not enough bits (%d)",
 		 ADDR_PRINTF (addr), width, remaining);
 	}
+
       int idx = extract_bits64_inv (prefix, remaining - 1, width);
-      pte = &pt->caps[CAP_SUBPAGE_OFFSET (pte) + idx];
+
+      pte = do_index (activity, addr_chop (addr, remaining), pte, idx,
+		      &fake_slot);
+      if (! pte)
+	panic ("Failed to index object at " ADDR_FMT,
+	       ADDR_PRINTF (addr_chop (addr, remaining)));
 
       remaining -= width;
     }
