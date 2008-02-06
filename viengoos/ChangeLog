@@ -1,5 +1,10 @@
 2008-02-06  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (as_build_internal): Improve comments.  Do some variable
+	renaming.
+
+2008-02-06  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (as_build_internal): When addressing capability pages, use
 	the thread's address space, not AS_ROOT_ADDR.
 
