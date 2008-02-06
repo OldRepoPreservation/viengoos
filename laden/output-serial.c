@@ -1,5 +1,5 @@
 /* output-serial.c - A serial port output driver.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2008 Free Software Foundation, Inc.
    Written by Daniel Wagner.
 
    This file is part of the GNU Hurd.
@@ -65,16 +65,22 @@ static unsigned short int uart_base = UART1_BASE;
 static void
 serial_init (const char *driver_cfg)
 {
-  static const char delimiters[] = ",";
   /* Twice the desired UART speed, to allow for .5 values.  */
   unsigned int uart_speed = 2 * UART_SPEED_DEFAULT;
   unsigned int divider;
   volatile int busy_wait_var;
 
   if (driver_cfg)
-    {      
+    {
       char *cfg = strdupa (driver_cfg);
-      char *token = strtok (cfg, delimiters);
+
+      char *token = cfg;
+      bool done = false;
+      while (*cfg && *cfg != ',' )
+	cfg ++;
+      if (*cfg == 0)
+	done = true;
+      *cfg = 0;
 
       while (token)
 	{
@@ -101,7 +107,17 @@ serial_init (const char *driver_cfg)
 		  && new_speed > UART_SPEED_MIN && new_speed < UART_SPEED_MAX)
 		uart_speed = new_speed;
 	    }
-	  token = strtok (NULL, delimiters);
+
+	  if (done)
+	    token = NULL;
+	  else
+	    {
+	      while (*cfg && *cfg != ',' )
+		cfg ++;
+	      if (*cfg == 0)
+		done = true;
+	      *cfg = 0;
+	    }
 	}
     }
 

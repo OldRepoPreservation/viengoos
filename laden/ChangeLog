@@ -1,3 +1,8 @@
+2008-02-06  Neal H. Walfield  <neal@gnu.org>
+
+	* output-serial.c (serial_init): Rewrite command-line parser to
+	not use strtok.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (laden_LDADD): Set to ../libc-parts/libc-kernel.a,
