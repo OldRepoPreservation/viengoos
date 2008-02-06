@@ -464,7 +464,11 @@ folio_free (struct activity *activity, struct folio *folio)
   folio->prev.type = cap_void;
 
   /* And free the folio.  */
-  folio_object_version_set (folio, -1, folio_object_version (folio, -1) + 1);
+
+  /* XXX: We need to now schedule the folio for page-out: it contains
+     previous data including version information.  */
+  fdesc->version = folio_object_version (folio, -1) + 1;
+  folio_object_version_set (folio, -1, fdesc->version);
   bit_dealloc (folios, fdesc->oid / (FOLIO_OBJECTS + 1));
 }
 
@@ -527,13 +531,15 @@ folio_object_alloc (struct activity *activity,
 	rpc_error_reply (thread->tid, EFAULT);
     }
 
+  struct object_desc *odesc;
+
   if (! object)
     object = object_find_soft (activity, oid, policy);
   if (object)
     /* The object is in memory.  Update its descriptor and revoke any
        references to the old object.  */
     {
-      struct object_desc *odesc = object_to_object_desc (object);
+      odesc = object_to_object_desc (object);
       assert (odesc->oid == oid);
       assert (odesc->type == folio_object_type (folio, idx));
 
@@ -558,10 +564,9 @@ folio_object_alloc (struct activity *activity,
 	  ss_mutex_lock (&lru_lock);
 	  object_desc_claim (activity, odesc, policy, true);
 	  ss_mutex_unlock (&lru_lock);
-	}
 
-      odesc->type = type;
-      odesc->version = folio_object_version (folio, idx);
+	  odesc->type = type;
+	}
     }
 
   if (folio_object_type (folio, idx) != cap_void)
@@ -575,6 +580,8 @@ folio_object_alloc (struct activity *activity,
       /* Bump the disk version.  */
       folio_object_version_set (folio, idx,
 				folio_object_version (folio, idx) + 1);
+      if (object)
+	odesc->version = folio_object_version (folio, idx);
     }
 
   folio_object_type_set (folio, idx, type);
