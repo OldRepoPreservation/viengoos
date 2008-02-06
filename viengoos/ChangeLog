@@ -1,5 +1,10 @@
 2008-02-06  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (as_build_internal): When addressing capability pages, use
+	the thread's address space, not AS_ROOT_ADDR.
+
+2008-02-06  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (folio_free): Synchronize the in-memory descriptor with
 	the on-disk data.
 	(folio_object_alloc): Likewise.

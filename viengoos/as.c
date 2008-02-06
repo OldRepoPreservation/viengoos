@@ -384,8 +384,7 @@ as_build_internal (activity_t activity,
 				    extract_bits64 (root_guard, 0, d), d);
 
 	  bool r = cap_copy_x (activity,
-			       as_root_addr, &cappage->caps[pivot_idx],
-			       pivot_addr,
+			       ADDR_VOID, &cappage->caps[pivot_idx], pivot_addr,
 			       as_root_addr, *root, root_addr,
 			       CAP_COPY_COPY_ADDR_TRANS_GUARD,
 			       CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
@@ -405,7 +404,7 @@ as_build_internal (activity_t activity,
 	  assert (r);
 
 	  r = cap_copy_x (activity, as_root_addr, root, root_addr,
-			  as_root_addr, rt.cap, rt.storage,
+			  ADDR_VOID, rt.cap, rt.storage,
 			  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			  | CAP_COPY_COPY_ADDR_TRANS_GUARD,
 			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
