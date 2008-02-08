@@ -99,12 +99,6 @@ list_link (struct storage_desc **list, struct storage_desc *e)
   *list = e;
 }
 
-#define LINK(l, e) \
-  ({ \
-    debug (1, "link(%p, %p)", (l), (e)); \
-    LINK ((l), (e)); \
-  })
-
 static void
 list_unlink (struct storage_desc *e)
 {
@@ -123,12 +117,6 @@ list_unlink (struct storage_desc *e)
   e->prevp = NULL;
 #endif
 }
-
-#define UNLINK(e) \
-  ({ \
-    debug (1, "unlink(%p)", (e)); \
-    UNLINK ((e)); \
-  })
 
 static int
 addr_compare (const addr_t *a, const addr_t *b)
