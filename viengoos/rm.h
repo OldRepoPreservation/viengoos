@@ -86,7 +86,7 @@ rm_method_id_string (int id)
 /* Echo the character CHR on the manager console.  */
 RPC_SIMPLE(putchar, 1, 0, int, chr)
 
-/* Dump THREAD's address space.  */
-RPC(as_dump, 2, 0, addr_t, principal, addr_t, thread)
+/* Dump the address space rooted at ROOT.  */
+RPC(as_dump, 2, 0, addr_t, principal, addr_t, root)
 
 #endif

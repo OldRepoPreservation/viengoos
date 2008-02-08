@@ -308,16 +308,21 @@ server_loop (void)
 	  root_ = &thread->aspace;					\
 	else								\
 	  {								\
-	    root_ = SLOT (&thread->aspace, root_addr_);			\
-	    if (root_->type == cap_thread)				\
+	    /* This is annoying: a thread could be in a folio so we	\
+	       can't directly lookup the slot.  */                      \
+	    struct cap cap_ = CAP (&thread->aspace, root_addr_,		\
+				   -1, true);				\
+	    if (cap_.type == cap_thread)				\
 	      {								\
-		struct object *t_ = cap_to_object (principal, root_);	\
+		struct object *t_ = cap_to_object (principal, &cap_);	\
 		if (! t_)						\
 		  REPLY (EINVAL);					\
 		assert (object_type (t_) == cap_thread);		\
 									\
 		root_ = &((struct thread *) t_)->aspace;		\
 	      }								\
+	    else							\
+	      root_ = SLOT (&thread->aspace, root_addr_);		\
 	  }								\
 	DEBUG (4, "root: " CAP_FMT, CAP_PRINTF (root_));		\
 									\
@@ -869,21 +874,15 @@ server_loop (void)
 
 	case RM_as_dump:
 	  {
-	    addr_t thread_addr;
+	    addr_t root_addr;
 	    err = rm_as_dump_send_unmarshal (&msg, &principal_addr,
-					     &thread_addr);
+					     &root_addr);
 	    if (err)
 	      REPLY (err);
 
-	    struct thread *t;
+	    struct cap *root = ROOT (root_addr);
 
-	    if (ADDR_IS_VOID (thread_addr))
-	      t = thread;
-	    else
-	      t = (struct thread *) OBJECT (&thread->aspace,
-					    thread_addr, cap_thread, true);
-
-	    as_dump_from (principal, &t->aspace, "");
+	    as_dump_from (principal, root, "");
 
 	    rm_as_dump_reply_marshal (&msg);
 

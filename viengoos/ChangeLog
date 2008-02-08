@@ -1,5 +1,15 @@
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
+	* rm.h (as_dump): Change parameter to specify the root of an
+	address space, not necessarily a thread object.
+	* server.c (server_loop): Update as_dump implementation to be
+	consistent with the new as_dump API.
+
+	* server.c (ROOT): First lookup the capability using CAP.  If it
+	is not a thread object, only then get the slot.
+
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Add debugging output to futex
 	implementation.
 
