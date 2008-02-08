@@ -1,5 +1,10 @@
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Add debugging output to futex
+	implementation.
+
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (DEBUG): Print the caller's thread id.
 	(server_loop): When using DEBUG, don't include the caller's thread
 	id.

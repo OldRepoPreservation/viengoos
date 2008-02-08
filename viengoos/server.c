@@ -951,6 +951,45 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
+	    do_debug (0)
+	      {
+		const char *op_string = "unknown";
+		switch (op)
+		  {
+		  case FUTEX_WAIT:
+		    op_string = "wait";
+		    break;
+		  case FUTEX_WAKE_OP:
+		    op_string = "wake op";
+		    break;
+		  case FUTEX_WAKE:
+		    op_string = "wake";
+		    break;
+		  case FUTEX_CMP_REQUEUE:
+		    op_string = "cmp requeue";
+		    break;
+		  }
+
+		char *mode = "unknown";
+
+		struct object *page = cap_to_object (activity,
+						     &thread->exception_page);
+		if (page && object_type (page) == cap_page)
+		  {
+		    struct exception_page *exception_page
+		      = (struct exception_page *) page;
+
+		    if (exception_page->activated_mode)
+		      mode = "activated";
+		    else
+		      mode = "normal";
+		  }
+
+		DEBUG (0, "(%p, %s, 0x%x, %d, %p, %d) (thread in %s)",
+		       addr1, op_string, val1, val2.value, addr2, val3.value,
+		       mode);
+	      }
+
 	    switch (op)
 	      {
 	      case FUTEX_WAIT:
