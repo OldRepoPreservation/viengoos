@@ -78,7 +78,7 @@ object_init (void)
 
   memset (buffer, 0, size);
 
-  hurd_ihash_init_with_buffer (&objects,
+  hurd_ihash_init_with_buffer (&objects, true,
 			       (int) (&((struct object_desc *)0)->locp),
 			       buffer, size);
 
