@@ -23,6 +23,7 @@
 #include <hurd/startup.h>
 #include <hurd/error.h>
 #include <stdbool.h>
+#define __need_timespec
 #include <time.h>
 
 /* The interface to the kernel futex implementation.  This is only
