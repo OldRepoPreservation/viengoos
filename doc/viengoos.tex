@@ -326,7 +326,7 @@ allow the easy designation of the capability that designates the
 object at some address, if there are not bits remaining to translate
 after translating the guard, the capability is returned.
 
-\section{Data Types}
+\section{Data Structures}
 
 \subsection{\type{addr}}
 
@@ -450,21 +450,40 @@ are interpreted as per cap\_copy.
 
 \begin{lstlisting}
 object_slot_read (addr_t principal, addr_t address_space,
-                    addr_t object, uint8_t slot,
-                    struct cap_properties *properties)
+    addr_t object, uint32_t slot,
+    struct cap_properties properties)
 \end{lstlisting}
 
 Store the public bits of the capability slot \var{slot} of object
 \var{object} in *\var{cap\_properties}.  Capability slots are numbered
-starting at 0.
+starting from 0.
 
 \clearpage
 \section{Folios}
 
 A folio is the unit of backing store allocation.  A folio consists of
-129 4k pages.  128 may be used to allocate objects.  The remainder is
-a header that describes the folio itself and the individual objects.
-It holds
+129 4k pages.  128 may be used to allocate objects and the remainder
+is a header that describes the folio itself and the individual
+objects.
+
+The header holds a
+
+\subsection{Data Structures}
+
+\subsubsection{folio\_priority}
+
+\begin{struct}{32}
+  \bit{\dontcare} & \bits{15}{priority} & \bits{15}{group} &
+  \bit{D}
+\end{struct}
+
+\var{D} is the discardability predicate.
+
+\begin{struct}{32}
+  \bits{5}{\dontcare} & \bit{C} & \bits{6}{type} & \bits{20}{version} \\
+  \wordbox{2}{wait\_queue\_next}
+  \wordbox{2}{wait\_queue\_prev}
+\end{struct}
 
 \subsection{Methods}
 

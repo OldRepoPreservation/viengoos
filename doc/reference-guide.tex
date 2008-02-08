@@ -109,7 +109,7 @@ Viengoos was built on the following ideas:
 
 \begin{itemize}
 \item object based,
-\item virtualizable interfaces,
+\item recursively virtualizable interfaces \cite{popek74requirements-for-virtualizable-architectures},
 \item object statelessness \cite{tullmann96userlevel-checkpointing-through-exportable-kernel-state},
 \item no kernel dynamic allocation,
 \item resource accountability,
@@ -144,15 +144,16 @@ cause such file invocations to be redirected to the proxy, another
 problem arises: proxying a file is non-trivial as the object's state
 machine is quite complicated.  For instance, the proxy must maintain a
 file pointer for each client.  This is because each client expects
-that the file descriptor it designates the normal file and that the
-file pointer is private.  To work around this, the proxy must maintain
-a private file pointer for each client and then serialize access to
-the object and adjust the object's file pointer using the seek method
-before invoking the read method.  This is required even if the proxy
-only wants to do some sort of bounds checking.  To simplify
-virtualization, objects should avoid maintaining sessions: as much as
-is feasible, interfaces should be so designed such that a method
-either senses or transforms the state of the object.
+that the file descriptor it designates acts like a normal file
+descriptor, that is, that the file pointer is private.  To work around
+this, the proxy must maintain a private file pointer for each client
+and then serialize access to the object and adjust the object's file
+pointer using the seek method before invoking the read method.  This
+is required even if the proxy only wants to do some sort of bounds
+checking.  To simplify virtualization, objects should avoid
+maintaining sessions: as much as is feasible, interfaces should be so
+designed such that a method either senses or transforms the state of
+the object.
 
 \section{Future Directions or TODO}
 
@@ -172,14 +173,13 @@ walks the cappages and other objects to resolve an address but what
 should it do when it encounters an end point?  The kernel cannot
 invoke it as then it must wait for a reply and this provides an
 opportunity for destructive interference.  The kernel also cannot
-reply and to tell the client to revert to some other method of
-resolution (or can it?).  If we just fault, a process can determine
-whether an object is kernel or user-implemented by installing it in
-its address space and then trying to access it.  Perhaps, the process
-that does the virtualization can do some tricks to provide a
-user-object but when the user tries to use it in its address space, by
-interposing on the thread object, it can the install an appropriate
-cappage.
+reply and tell the client to revert to some other method of resolution
+(or can it?).  If we just fault, a process can determine whether an
+object is kernel or user-implemented by installing it in its address
+space and then trying to access it.  Perhaps, the process that does
+the virtualization can do some tricks to provide a user-object but
+when the user tries to use it in its address space, by interposing on
+the thread object, it can the install an appropriate cappage.
 
 As for the rest, to be able to virtualize a kernel object, the
 implementation needs to have access to all the information that the
