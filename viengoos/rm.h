@@ -63,6 +63,8 @@ rm_method_id_string (int id)
       return "exception_collect";
     case RM_thread_exregs:
       return "thread_exregs";
+    case RM_thread_wait_object_destroyed:
+      return "thread_wait_object_destroyed";
     case RM_activity_policy:
       return "activity_policy";
     case RM_futex:
