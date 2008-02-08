@@ -20,6 +20,8 @@
 #include <hurd/rmutex.h>
 #include <sys/lock.h>
 
+int __newlib_trace_locks;
+
 void
 __lock_release_ (_LOCK_T *lockp)
 {

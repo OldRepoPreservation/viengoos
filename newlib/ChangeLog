@@ -1,3 +1,16 @@
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/sys/lock.h: Include <hurd/stddef.h>.
+	(__newlib_trace_locks): New declaration.
+	(__lock_release): Add debugging output.
+	(__lock_acquire): Likewise.
+	(__lock_try_acquire): Likewise.
+	(__lock_acquire_recursive): Likewise.
+	(__lock_try_acquire_recursive): Likewise.
+	(__lock_release_recursive): Likewise.
+	* addon/newlib/libc/sys/hurd/lock.c (__newlib_trace_locks): New
+	definition.
+
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/sys/errno.h: New file.
