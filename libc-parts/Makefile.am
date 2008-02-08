@@ -48,31 +48,6 @@ libc_kernel_a_SOURCES =						\
 	errno.h errno.c	 					\
 	$(common_sources)
 
-# For the following routines we want to take the possibly optimized
-# versions from the target's GNU C library, rather than duplicating
-# the generic code here.
-routines := memcpy memmove memset bcopy bzero memchr rawmemchr	\
-	strstr strtok strchr strrchr strchrnul strcpy stpcpy	\
-	strcat strcmp strncmp strlen strnlen			\
-	atoi atoll strtoimax strtoumax				\
-	htonl htons ntohl ntohs ffs
-
-# We have to find all modules in the archive which contain the above
-# functions.
-routines_subexp := 's/^\($(shell echo $(routines) \
-	| $(SED) -e 's/ \+/\\|/g')\) in \(.*\)$$/\2/p'
-routines_objects := $(shell $(NM) --print-armap @STATIC_GLIBC@ 2>/dev/null \
-	| $(SED) -n -e $(routines_subexp) | $(SORT) -u)
-
-# This stupid trick seems to be necessary to avoid early expansion of
-# routines_objects in Makefile.in by automake, which doesn't work at all.
-routines_varname := routines_objects
-libc_parts_a_LIBADD = $($(routines_varname))
-libc_kernel_a_LIBADD = $($(routines_varname))
-
-$(routines_objects): %.$(OBJEXT): @STATIC_GLIBC@
-	$(AR) -x $< $@
-
 TESTS = t-setjmp
 check_PROGRAMS = $(TESTS)
 

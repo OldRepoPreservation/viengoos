@@ -1,3 +1,9 @@
+2008-02-08  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (routines, routines_subexp, routines_objects)
+	(routines_varname, $(routines_objects)): Remove.  Partially moved to
+	newlib.
+
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
 	* errno.h: Protect from multiple inclusion.  Don't include the

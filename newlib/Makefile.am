@@ -18,7 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-noinst_LIBRARIES = libc.a libm.a
+noinst_LIBRARIES = libc.a libm.a libc-routines.a
 
 # Patches to apply to newlib's source tree.
 patch_files = 00-newlib-configure-ac.patch \
@@ -149,6 +149,37 @@ libc.a: newlib-build/libc.a
 libm.a: newlib-build/libm.a
 	ln -sf newlib-build/libm.a libm.a
 
+# The following routines (should be) fine to be used in non-libc-linked code as
+# well, so there's no need in duplicating their code somewhere else.
+#routines := \
+#	memcpy memmove memset bcopy bzero memchr rawmemchr	\
+#	strstr strtok strchr strrchr strchrnul strcpy stpcpy	\
+#	strcat strcmp strncmp strlen strnlen			\
+#	atoi atoll strtoimax strtoumax				\
+#	htonl htons ntohl ntohs ffs
+routines := \
+	memcpy memmove memset \
+	strcmp strncmp strlen
+# We have to find all modules in the archive which contain the above functions.
+routines_subexp := 's/^\($(shell echo $(routines) \
+	| $(SED) -e 's/ \+/\\|/g')\) in \(.*\)$$/\2/p'
+libc-routines.a: libc.a Makefile
+	rm -rf '$@'.d
+	mkdir '$@'.d
+	{ $(NM) --print-armap '$<' \
+	  || echo CHOKE/ME; } | \
+	  { $(SED) -n -e $(routines_subexp) \
+	    || echo CHOKE/ME/2; } | \
+	    { $(SORT) -u \
+	      || echo CHOKE/ME/3; } | \
+	      ( cd '$@'.d/ && \
+	        xargs $(AR) -x ../'$<' \
+	      )
+	$(AR) qc '$@'.new '$@'.d/*
+	rm -rf '$@'.d
+	$(RANLIB) '$@'.new
+	mv -f '$@'.new '$@'
+
 all: include
 include: newlib-configure-stamp
 	ln -sf newlib-install/$(host_alias)/include include
@@ -157,6 +188,7 @@ clean-local:
 	rm -rf newlib-build
 	rm -rf newlib-install
 	rm -rf $(srcdir)/newlib
+	rm -rf libc-routines.a libc-routines.a.d
 CLEANFILES = newlib-configure-stamp \
 	$(srcdir)/newlib-stamp $(addsuffix -applied,$(patch_files)) \
 	include

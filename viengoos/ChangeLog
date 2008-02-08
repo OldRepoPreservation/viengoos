@@ -1,3 +1,8 @@
+2008-02-08  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (viengoos_LDADD): Link against newlib's
+	`libc-routines.a'.
+
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
 	* object.h (memory_object_destroy): Update comment to indicate

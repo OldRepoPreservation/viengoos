@@ -64,30 +64,6 @@ fi
 
 AC_CANONICAL_HOST
 
-# Checks for libraries.
-
-AC_MSG_CHECKING([for static GNU C library])
-static_libc=libc.a
-case $host_os in
-  gnu*)
-    # On the GNU/Hurd, libc.a is a linker script, the real C library
-    # can be found in libcrt.a instead.  But fall back on libc.a for
-    # cheap cross-compilation.
-    libcrta=`$CC -print-file-name=libcrt.a`
-    if test "x$libcrta" != "xlibcrt.a"; then
-      static_libc=libcrt.a
-    fi
-    ;;
-esac
-STATIC_GLIBC=`$CC -print-file-name=$static_libc`
-if test "x$STATIC_GLIBC" = "x$static_libc"; then
-  AC_MSG_RESULT([none])
-  AC_MSG_ERROR([Could not find static version of the GNU C library])
-else
-  AC_MSG_RESULT([$STATIC_GLIBC])
-fi
-AC_SUBST(STATIC_GLIBC)
-
 
 # Checks for header files.
 

@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for laden.
-# Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -38,4 +38,7 @@ laden_SOURCES =  $(ARCH_SOURCES)				\
 
 laden_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=@HURD_LADEN_LOAD_ADDRESS@
 
-laden_LDADD = -lgcc ../libc-parts/libc-kernel.a
+laden_LDADD = \
+	../libc-parts/libc-kernel.a \
+	../newlib/libc-routines.a \
+	-lgcc

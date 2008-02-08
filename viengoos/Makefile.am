@@ -56,6 +56,7 @@ viengoos_LDADD = \
 	../libhurd-btree/libhurd-btree.a \
 	../libhurd-ihash/libhurd-ihash-nomalloc.a \
 	../libc-parts/libc-kernel.a \
+	../newlib/libc-routines.a \
 	-lgcc
 viengoos_LDFLAGS = -u_start -e_start -N -nostdlib \
 	-Ttext=@HURD_RM_LOAD_ADDRESS@

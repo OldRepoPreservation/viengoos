@@ -1,3 +1,7 @@
+2008-02-08  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (laden_LDADD): Link against newlib's `libc-routines.a'.
+
 2008-02-06  Neal H. Walfield  <neal@gnu.org>
 
 	* output-serial.c (serial_init): Rewrite command-line parser to
