@@ -1,5 +1,10 @@
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.c (__attribute__): New function.
+	(pager_fault): Call it before taking PAGERS_LOCK.
+
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (LINK): Remove dead code.
 	(UNLINK): Likewise.
 

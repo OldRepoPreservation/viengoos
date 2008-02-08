@@ -90,6 +90,18 @@ pager_deinstall (struct pager *pager)
   hurd_btree_pager_detach (&pagers, pager);
 }
 
+static void __attribute__ ((noinline))
+ensure_stack(int i)
+{
+  /* XXX: If we fault on the stack while we have PAGERS_LOCK, we
+     deadlock.  Ensure that we have some stack space and hope it is
+     enough.  (This can't be too much as we may be running on the
+     exception handler's stack.)  */
+  volatile char space[1024 + 512];
+  space[0] = 0;
+  space[sizeof (space) - 1] = 0;
+}
+
 bool
 pager_fault (addr_t addr, uintptr_t ip, struct exception_info info)
 {
@@ -97,6 +109,8 @@ pager_fault (addr_t addr, uintptr_t ip, struct exception_info info)
   struct pager_region region;
   region.start = addr;
   region.count = 1;
+
+  ensure_stack (1);
 
   ss_mutex_lock (&pagers_lock);
 
