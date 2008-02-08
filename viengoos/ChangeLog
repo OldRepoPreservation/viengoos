@@ -1,3 +1,8 @@
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): Raise debugging level of futex debugging
+	output.
+
 2008-02-08  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am (viengoos_LDADD): Link against newlib's

@@ -950,7 +950,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    do_debug (0)
+	    do_debug (5)
 	      {
 		const char *op_string = "unknown";
 		switch (op)
