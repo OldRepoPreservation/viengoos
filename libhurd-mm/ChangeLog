@@ -1,3 +1,9 @@
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
+	* as.h (as_object_index_t): New definition.
+	(as_slot_ensure_full_custom): New declaration.
+	(as_insert_custom): Likewise.
+
 2008-01-25  Neal H. Walfield  <neal@gnu.org>
 
 	* storage.c (storage_init_done): New variable.

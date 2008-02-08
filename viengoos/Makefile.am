@@ -104,5 +104,5 @@ t_guard_SOURCES = t-guard.c			\
 lib_LIBRARIES = libhurd-cap.a
 # Use a small stack alignment to decrease stack usage.
 libhurd_cap_a_CPPFLAGS = $(COMMON_CPPFLAGS) -mpreferred-stack-boundary=2
-libhurd_cap_a_SOURCES = cap-lookup.c as.c as.h
+libhurd_cap_a_SOURCES = cap-lookup.c as.c as.h as-custom.c
 

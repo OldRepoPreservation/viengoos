@@ -29,15 +29,12 @@
 #include "as.h"
 #include "bits.h"
 #include "rm.h"
-#include "output.h"
 
 #ifdef RM_INTERN
 #include "object.h"
 #endif
 
 #ifndef RM_INTERN
-pthread_rwlock_t as_lock = __PTHREAD_RWLOCK_INITIALIZER;
-
 static void __attribute__ ((noinline))
 ensure_stack(int i)
 {
@@ -50,16 +47,30 @@ ensure_stack(int i)
   space[sizeof (space) - 1] = 0;
 }
 
-# define AS_LOCK					\
-  do							\
-    {							\
-      ensure_stack (1);					\
-      pthread_rwlock_wrlock (&as_lock);			\
-    }							\
-  while (0)
+# ifndef AS_LOCK
+#  define AS_LOCK						\
+  do								\
+     {								\
+       extern pthread_rwlock_t as_lock;				\
+								\
+       ensure_stack (1);					\
+       pthread_rwlock_wrlock (&as_lock);			\
+     }								\
+   while (0)
+# endif
 
-# define AS_UNLOCK pthread_rwlock_unlock (&as_lock)
-# define AS_DUMP rm_as_dump (ADDR_VOID, ADDR_VOID)
+# ifndef AS_UNLOCK
+#  define AS_UNLOCK				\
+  do						\
+    {						\
+      extern pthread_rwlock_t as_lock;		\
+						\
+      pthread_rwlock_unlock (&as_lock);		\
+    }						\
+  while (0)
+# endif
+
+# define AS_DUMP rm_as_dump (ADDR_VOID, as_root_addr)
 
 #else
 
@@ -69,12 +80,40 @@ ensure_stack(int i)
 
 #endif
 
-/* Index the object designed by PTE, which is at address ADDR return
-   the location of the idx'th capability slot.  If the capability is
-   implicit, return a fabricated capability in *FAKE_SLOT and return
-   FAKE_SLOT.  Return NULL on failure.  */
+/* The following macros allow providing specialized address-space
+   construction functions.  */
+
+/* The suffix to append to as_slot_ensure_full_ and as_insert_.  */
+#ifdef ID_SUFFIX
+# define ID__(a, b) a ## _ ## b
+# define ID_(a, b) ID__(a, b)
+# define ID(a) ID_(a, ID_SUFFIX)
+#else
+# define ID(a) a
+#endif
+
+/* The callback signature.  For instance:
+
+    #define OBJECT_INDEX_ARG_TYPE index_callback_t
+ */
+#ifdef OBJECT_INDEX_ARG_TYPE
+# define OBJECT_INDEX_PARAM , OBJECT_INDEX_ARG_TYPE do_index
+# define OBJECT_INDEX_ARG do_index,
+#else
+
+/* When there is no user-supplied callback, we default to traversing
+   kernel objects/shadow objects.  */
+
+# define OBJECT_INDEX_PARAM
+# define OBJECT_INDEX_ARG
+
+/* PT designates a cappage or a folio.  The cappage or folio is at
+   address PT_ADDR.  Index the object designed by PTE returning the
+   location of the idx'th capability slot.  If the capability is
+   implicit (in the case of a folio), return a fabricated capability
+   in *FAKE_SLOT and return FAKE_SLOT.  Return NULL on failure.  */
 static inline struct cap *
-do_index (activity_t activity, addr_t addr, struct cap *pte, int idx,
+do_index (activity_t activity, struct cap *pte, addr_t pt_addr, int idx,
 	  struct cap *fake_slot)
 {
   assert (pte->type == cap_cappage || pte->type == cap_rcappage
@@ -89,7 +128,7 @@ do_index (activity_t activity, addr_t addr, struct cap *pte, int idx,
     {
       /* The type should now have been set to cap_void.  */
       assert (pte->type == cap_void);
-      panic ("No object at " ADDR_FMT, ADDR_PRINTF (addr));
+      panic ("No object at " ADDR_FMT, ADDR_PRINTF (pt_addr));
     }
 
   switch (pte->type)
@@ -103,7 +142,7 @@ do_index (activity_t activity, addr_t addr, struct cap *pte, int idx,
 
       if (folio_object_type (folio, idx) == cap_void)
 	panic ("Can't use void object at " ADDR_FMT " for address translation",
-	       ADDR_PRINTF (addr));
+	       ADDR_PRINTF (pt_addr));
 
       *fake_slot = folio_object_cap (folio, idx);
 
@@ -113,6 +152,7 @@ do_index (activity_t activity, addr_t addr, struct cap *pte, int idx,
       return NULL;
     }
 }
+#endif
 
 /* Build up the address space at AS_ROOT_ADDR such that there is a
    capability slot at address ADDR.  Returns the address of the
@@ -128,11 +168,13 @@ do_index (activity_t activity, addr_t addr, struct cap *pte, int idx,
    capability.  Otherwise, only capability slots containing a void
    capability are used.  */
 static struct cap *
-as_build_internal (activity_t activity,
-		   addr_t as_root_addr, struct cap *as_root, addr_t addr,
-		   struct as_insert_rt (*allocate_object) (enum cap_type type,
-							   addr_t addr),
-		   bool may_overwrite)
+ID (as_build_internal) (activity_t activity,
+			addr_t as_root_addr, struct cap *as_root, addr_t addr,
+			struct as_insert_rt (*allocate_object) (enum cap_type
+								type,
+								addr_t addr)
+			OBJECT_INDEX_PARAM,
+			bool may_overwrite)
 {
   struct cap *pte = as_root;
 
@@ -336,33 +378,66 @@ as_build_internal (activity_t activity,
 	  assert (subpage_bits >= 0);
 	  assert (subpage_bits <= CAPPAGE_SLOTS_LOG2);
 
-	  /* Allocate new cappage and rearrange the tree.  */
+	  /* Allocate a new page table.  */
 	  /* XXX: If we use a subpage, we just ignore the rest of the
 	     page.  This is a bit of a waste but makes the code
 	     simpler.  */
 	  /* ALLOCATE_OBJECT wants the number of significant bits
 	     translated to this object; REMAINING is number of bits
 	     remaining to translate.  */
-	  addr_t cappage_addr = addr_chop (addr, remaining);
-	  struct as_insert_rt rt = allocate_object (cap_cappage, cappage_addr);
+	  addr_t pt_addr = addr_chop (addr, remaining);
+	  struct as_insert_rt rt = allocate_object (cap_cappage, pt_addr);
 	  if (rt.cap.type == cap_void)
 	    /* No memory.  */
 	    return NULL;
 
-	  /* Indirect access to the object designated by PTE via the
-	     appropriate slot in new cappage (the pivot).  */
+	  /* We've now allocated a new page table.  
+
+	     * - PTE
+	     & - pivot
+	     $ - new PTE
+
+	     Before:                      After:
+
+                   [ |*| | | | ]            [ |*| | | | ]
+                      |                        |   <- shortened guard
+                      |  <- orig. guard        v
+                      v                        [ |&| | |$| ] <- new page table
+	              [ | | | | | ]               |
+	                                          v
+	                                          [ | | | | | ]
+
+	    Algorithm:
+
+	      1) Copy contents of PTE to pivot.
+	      2) Set PTE to point to new page table.
+	      3) Index new page table to continue address translation
+	         (note: the new PTE may be the same as the pivot).
+	  */
+
+	  /* 1.a) Get the pivot PTE.  */
 	  int pivot_idx = extract_bits_inv (pte_guard,
 					    pte_gbits - gbits - 1,
 					    subpage_bits);
 
-	  struct cap *pivot_cap = do_index (activity, cappage_addr,
-					    &rt.cap, pivot_idx, &fake_slot);
+	  /* do_index requires that the subpage specification be
+	     correct.  */
+	  struct cap pt_cap = rt.cap;
+	  CAP_SET_SUBPAGE (&pt_cap,
+			   0, 1 << (CAPPAGE_SLOTS_LOG2 - subpage_bits));
+
+	  struct cap *pivot_cap = do_index (activity,
+					    &pt_cap, pt_addr,
+					    pivot_idx, &fake_slot);
 	  assert (pivot_cap != &fake_slot);
 
 	  addr_t pivot_addr = addr_extend (rt.storage,
 					   pivot_idx,
 					   CAPPAGE_SLOTS_LOG2);
-	  addr_t pte_addr = addr_chop (cappage_addr, gbits);
+
+	  /* 1.b) Make the pivot designate the object the PTE
+	     currently designates.  */
+	  addr_t pte_addr = addr_chop (pt_addr, gbits);
 
 	  struct cap_addr_trans addr_trans = pte->addr_trans;
 	  int d = tilobject - gbits - subpage_bits;
@@ -377,7 +452,7 @@ as_build_internal (activity_t activity,
 					       addr_trans));
 	  assert (r);
 
-	  /* Finally, set the slot at PTE to point to PT.  */
+	  /* 2) Set PTE to point to PT.  */
 	  pte_guard = extract_bits64_inv (pte_guard,
 					  pte_gbits - 1, gbits);
 	  r = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans,
@@ -390,7 +465,7 @@ as_build_internal (activity_t activity,
 	  assert (r);
 
 	  r = cap_copy_x (activity, as_root_addr, pte, pte_addr,
-			  ADDR_VOID, rt.cap, rt.storage,
+			  ADDR_VOID, pt_cap, rt.storage,
 			  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			  | CAP_COPY_COPY_ADDR_TRANS_GUARD,
 			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
@@ -423,25 +498,34 @@ as_build_internal (activity_t activity,
       if (width > remaining)
 	{
 	  AS_DUMP;
-	  panic ("Translating " ADDR_FMT ": can't index %d-bit cappage; "
-		 "not enough bits (%d)",
-		 ADDR_PRINTF (addr), width, remaining);
+	  panic ("Translating " ADDR_FMT ": can't index %d-bit %s at "
+		 ADDR_FMT "; not enough bits (%d)",
+		 ADDR_PRINTF (addr), width, cap_type_string (pte->type),
+		 ADDR_PRINTF (addr_chop (addr, remaining)), remaining);
 	}
 
       int idx = extract_bits64_inv (prefix, remaining - 1, width);
 
-      pte = do_index (activity, addr_chop (addr, remaining), pte, idx,
+      enum cap_type type = pte->type;
+      pte = do_index (activity, pte, addr_chop (addr, remaining), idx,
 		      &fake_slot);
       if (! pte)
 	panic ("Failed to index object at " ADDR_FMT,
 	       ADDR_PRINTF (addr_chop (addr, remaining)));
+
+      if (type == cap_folio)
+	assert (pte == &fake_slot);
+      else
+	assert (pte != &fake_slot);
 
       remaining -= width;
     }
   while (remaining > 0);
 
   if (! may_overwrite)
-    assert (pte->type == cap_void);
+    assertx (pte->type == cap_void,
+	     ADDR_FMT " contains a %s but may not overwrite",
+	     ADDR_PRINTF (addr), cap_type_string (pte->type));
 
   int gbits = remaining;
   /* It is safe to use an int as a guard has a most 22 bits.  */
@@ -464,15 +548,17 @@ as_build_internal (activity_t activity,
 
 /* Ensure that the slot designated by A is accessible.  */
 struct cap *
-as_slot_ensure_full (activity_t activity,
-		     addr_t as_root_addr, struct cap *root, addr_t a,
-		     struct as_insert_rt
-		     (*allocate_object) (enum cap_type type, addr_t addr))
+ID (as_slot_ensure_full) (activity_t activity,
+			  addr_t as_root_addr, struct cap *root, addr_t a,
+			  struct as_insert_rt
+			  (*allocate_object) (enum cap_type type, addr_t addr)
+			  OBJECT_INDEX_PARAM)
 {
   AS_LOCK;
 
-  struct cap *cap = as_build_internal (activity, as_root_addr, root, a,
-				       allocate_object, true);
+  struct cap *cap = ID (as_build_internal) (activity, as_root_addr, root, a,
+					    allocate_object, OBJECT_INDEX_ARG
+					    true);
 
   AS_UNLOCK;
 
@@ -480,147 +566,20 @@ as_slot_ensure_full (activity_t activity,
 }
 
 void
-as_insert (activity_t activity,
-	   addr_t as_root_addr, struct cap *root, addr_t addr,
-	   addr_t entry_as, struct cap entry, addr_t entry_addr,
-	   struct as_insert_rt (*allocate_object) (enum cap_type type,
-						   addr_t addr))
+ID (as_insert) (activity_t activity,
+		addr_t as_root_addr, struct cap *root, addr_t addr,
+		addr_t entry_as, struct cap entry, addr_t entry_addr,
+		struct as_insert_rt (*allocate_object) (enum cap_type type,
+							addr_t addr)
+		OBJECT_INDEX_PARAM)
 {
-#ifndef RM_INTERN
-  pthread_rwlock_wrlock (&as_lock);
-#endif
+  AS_LOCK;
 
-  struct cap *slot = as_build_internal (activity, as_root_addr,
-					root, addr, allocate_object,
-					false);
+  struct cap *slot = ID (as_build_internal) (activity, as_root_addr,
+					     root, addr, allocate_object,
+					     OBJECT_INDEX_ARG false);
   assert (slot);
   cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
 
-#ifndef RM_INTERN
-  pthread_rwlock_unlock (&as_lock);
-#endif
-}
-
-static void
-print_nr (int width, l4_int64_t nr, bool hex)
-{
-  extern int putchar (int chr);
-
-  int base = 10;
-  if (hex)
-    base = 16;
-
-  l4_int64_t v = nr;
-  int w = 0;
-  if (v < 0)
-    {
-      v = -v;
-      w ++;
-    }
-  do
-    {
-      w ++;
-      v /= base;
-    }
-  while (v > 0);
-
-  int i;
-  for (i = w; i < width; i ++)
-    putchar (' ');
-
-  if (hex)
-    printf ("0x%llx", nr);
-  else
-    printf ("%lld", nr);
-}
-
-static void
-do_walk (activity_t activity, int index,
-	 struct cap *root, addr_t addr,
-	 int indent, const char *output_prefix)
-{
-  int i;
-
-  struct cap cap = cap_lookup_rel (activity, root, addr, -1, NULL);
-  if (cap.type == cap_void)
-    return;
-
-  if (! cap_to_object (activity, &cap))
-    /* Cap is there but the object has been deallocated.  */
-    return;
-
-  if (output_prefix)
-    printf ("%s: ", output_prefix);
-  for (i = 0; i < indent; i ++)
-    printf (".");
-
-  printf ("[ ");
-  if (index != -1)
-    print_nr (3, index, false);
-  else
-    printf ("root");
-  printf (" ] ");
-
-  print_nr (12, addr_prefix (addr), true);
-  printf ("/%d ", addr_depth (addr));
-  if (CAP_GUARD_BITS (&cap))
-    printf ("| 0x%llx/%d ", CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
-  if (CAP_SUBPAGES (&cap) != 1)
-    printf ("(%d/%d) ", CAP_SUBPAGE (&cap), CAP_SUBPAGES (&cap));
-
-  if (CAP_GUARD_BITS (&cap)
-      && ADDR_BITS - addr_depth (addr) >= CAP_GUARD_BITS (&cap))
-    printf ("=> 0x%llx/%d ",
-	    addr_prefix (addr_extend (addr,
-				      CAP_GUARD (&cap),
-				      CAP_GUARD_BITS (&cap))),
-	    addr_depth (addr) + CAP_GUARD_BITS (&cap));
-
-#ifdef RM_INTERN
-  printf ("@" OID_FMT " ", OID_PRINTF (cap.oid));
-#endif
-  printf ("%s", cap_type_string (cap.type));
-
-  printf ("\n");
-
-  if (addr_depth (addr) + CAP_GUARD_BITS (&cap) > ADDR_BITS)
-    return;
-
-  addr = addr_extend (addr, CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
-
-  switch (cap.type)
-    {
-    case cap_cappage:
-    case cap_rcappage:
-      if (addr_depth (addr) + CAP_SUBPAGE_SIZE_LOG2 (&cap) > ADDR_BITS)
-	return;
-
-      for (i = 0; i < CAP_SUBPAGE_SIZE (&cap); i ++)
-	do_walk (activity, i, root,
-		 addr_extend (addr, i, CAP_SUBPAGE_SIZE_LOG2 (&cap)),
-		 indent + 1, output_prefix);
-
-      return;
-
-    case cap_folio:
-      if (addr_depth (addr) + FOLIO_OBJECTS_LOG2 > ADDR_BITS)
-	return;
-
-      for (i = 0; i < FOLIO_OBJECTS; i ++)
-	do_walk (activity, i, root,
-		 addr_extend (addr, i, FOLIO_OBJECTS_LOG2),
-		 indent + 1, output_prefix);
-
-      return;
-
-    default:
-      return;
-    }
-}
-
-/* AS_LOCK must not be held.  */
-void
-as_dump_from (activity_t activity, struct cap *root, const char *prefix)
-{
-  do_walk (activity, -1, root, ADDR (0, 0), 0, prefix);
+  AS_UNLOCK;
 }

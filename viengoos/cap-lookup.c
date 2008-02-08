@@ -44,6 +44,8 @@ enum lookup_mode
 
 #ifndef RM_INTERN
 
+pthread_rwlock_t as_lock = __PTHREAD_RWLOCK_INITIALIZER;
+
 static void __attribute__ ((noinline))
 ensure_stack(void)
 {
@@ -373,3 +375,128 @@ slot_lookup_rel (activity_t activity,
   return rt.capp;
 }
 
+extern int printf (const char *fmt, ...);
+
+static void
+print_nr (int width, l4_int64_t nr, bool hex)
+{
+  extern int putchar (int chr);
+
+  int base = 10;
+  if (hex)
+    base = 16;
+
+  l4_int64_t v = nr;
+  int w = 0;
+  if (v < 0)
+    {
+      v = -v;
+      w ++;
+    }
+  do
+    {
+      w ++;
+      v /= base;
+    }
+  while (v > 0);
+
+  int i;
+  for (i = w; i < width; i ++)
+    putchar (' ');
+
+  if (hex)
+    printf ("0x%llx", nr);
+  else
+    printf ("%lld", nr);
+}
+
+static void
+do_walk (activity_t activity, int index,
+	 struct cap *root, addr_t addr,
+	 int indent, const char *output_prefix)
+{
+  int i;
+
+  struct cap cap = cap_lookup_rel (activity, root, addr, -1, NULL);
+  if (cap.type == cap_void)
+    return;
+
+  if (! cap_to_object (activity, &cap))
+    /* Cap is there but the object has been deallocated.  */
+    return;
+
+  if (output_prefix)
+    printf ("%s: ", output_prefix);
+  for (i = 0; i < indent; i ++)
+    printf (".");
+
+  printf ("[ ");
+  if (index != -1)
+    print_nr (3, index, false);
+  else
+    printf ("root");
+  printf (" ] ");
+
+  print_nr (12, addr_prefix (addr), true);
+  printf ("/%d ", addr_depth (addr));
+  if (CAP_GUARD_BITS (&cap))
+    printf ("| 0x%llx/%d ", CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
+  if (CAP_SUBPAGES (&cap) != 1)
+    printf ("(%d/%d) ", CAP_SUBPAGE (&cap), CAP_SUBPAGES (&cap));
+
+  if (CAP_GUARD_BITS (&cap)
+      && ADDR_BITS - addr_depth (addr) >= CAP_GUARD_BITS (&cap))
+    printf ("=> 0x%llx/%d ",
+	    addr_prefix (addr_extend (addr,
+				      CAP_GUARD (&cap),
+				      CAP_GUARD_BITS (&cap))),
+	    addr_depth (addr) + CAP_GUARD_BITS (&cap));
+
+#ifdef RM_INTERN
+  printf ("@" OID_FMT " ", OID_PRINTF (cap.oid));
+#endif
+  printf ("%s", cap_type_string (cap.type));
+
+  printf ("\n");
+
+  if (addr_depth (addr) + CAP_GUARD_BITS (&cap) > ADDR_BITS)
+    return;
+
+  addr = addr_extend (addr, CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
+
+  switch (cap.type)
+    {
+    case cap_cappage:
+    case cap_rcappage:
+      if (addr_depth (addr) + CAP_SUBPAGE_SIZE_LOG2 (&cap) > ADDR_BITS)
+	return;
+
+      for (i = 0; i < CAP_SUBPAGE_SIZE (&cap); i ++)
+	do_walk (activity, i, root,
+		 addr_extend (addr, i, CAP_SUBPAGE_SIZE_LOG2 (&cap)),
+		 indent + 1, output_prefix);
+
+      return;
+
+    case cap_folio:
+      if (addr_depth (addr) + FOLIO_OBJECTS_LOG2 > ADDR_BITS)
+	return;
+
+      for (i = 0; i < FOLIO_OBJECTS; i ++)
+	do_walk (activity, i, root,
+		 addr_extend (addr, i, FOLIO_OBJECTS_LOG2),
+		 indent + 1, output_prefix);
+
+      return;
+
+    default:
+      return;
+    }
+}
+
+/* AS_LOCK must not be held.  */
+void
+as_dump_from (activity_t activity, struct cap *root, const char *prefix)
+{
+  do_walk (activity, -1, root, ADDR (0, 0), 0, prefix);
+}

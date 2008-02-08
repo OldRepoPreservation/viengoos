@@ -1,5 +1,35 @@
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c: Don't include "output.h".
+	(AS_LOCK) [! RM_INTERN]: Only define if not already defined.
+	(AS_UNLOCK) [! RM_INTERN]: Likewise.
+	(AS_DUMP): Pass AS_ROOT_ADDR to the invocation of rm_as_dump.
+	(ID): New macro.
+	(OBJECT_INDEX_PARAM): New macro.
+	(OBJECT_INDEX_ARG): Likewise.
+	(do_index): Reverse order of pte and addr arguments.  Update
+	users.
+	(as_build_internal): Wrap function name with ID.  Add
+	OBJECT_INDEX_PARAM to formal arguments.  Set the subpage size of
+	the capability before calling do_index.  Add additional asserts
+	and comments.
+	(as_slot_ensure_full): Wrap function name with ID.  Add
+	OBJECT_INDEX_PARAM to formal arguments.  Include OBJECT_INDEX_ARG
+	when invoking as_build_internal.
+	(as_insert): Likewise.
+	* as.c (as_lock): Move from here...
+	* cap-lookup.c: ... to here.
+	* as.c (print_nr): Move from here...
+	* cap-lookup.c: ... to here.
+	* as.c (do_walk): Move from here...
+	* cap-lookup.c: ... to here.
+	* as.c (as_dump_from): Move from here...
+	* cap-lookup.c: ... to here.
+	* as-custom.c: New file customizing as.c.
+	* Makefile.am (libhurd_cap_a_SOURCES): Add as-custom.c.
+
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h (rm_method_id_string): Handle
 	RM_thread_wait_object_destroyed.
 

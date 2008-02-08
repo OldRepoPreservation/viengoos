@@ -103,6 +103,37 @@ extern void as_insert (activity_t activity,
 		       addr_t source_as, struct cap c_cap, addr_t source,
 		       struct as_insert_rt (*allocate_object)
 		         (enum cap_type type, addr_t addr));
+
+/* Function signature of the call back used by
+   as_slot_ensure_full_custom and as_insert_custom.
+
+   PT designates a cappage or a folio.  The cappage or folio is at
+   address PT_ADDR.  Index the object designed by PTE returning the
+   location of the idx'th capability slot.  If the capability is
+   implicit (in the case of a folio), return a fabricated capability
+   in *FAKE_SLOT and return FAKE_SLOT.  Return NULL on failure.  */
+typedef struct cap *(*as_object_index_t) (activity_t activity,
+					  struct cap *pt,
+					  addr_t pt_addr, int idx,
+					  struct cap *fake_slot);
+
+/* Variant of as_slot_ensure_full that doesn't use the shadow page
+   tables but calls the callback OBJECT_INDEX to retrieve the
+   capability slot.  */
+extern struct cap *as_slot_ensure_full_custom
+  (activity_t activity,
+   addr_t as, struct cap *root, addr_t addr,
+   struct as_insert_rt (*allocate_object) (enum cap_type type, addr_t addr),
+   as_object_index_t object_index);
+
+/* Variant of as_insert that doesn't use the shadow page tables but
+   calls the callback OBJECT_INDEX to retrieve capability slots.  */
+extern void as_insert_custom
+  (activity_t activity,
+   addr_t target_as, struct cap *t_as_cap, addr_t target,
+   addr_t source_as, struct cap c_cap, addr_t source,
+   struct as_insert_rt (*allocate_object) (enum cap_type type, addr_t addr),
+   as_object_index_t object_index);
 
 /* Return the value of the capability at ADDR or, if an object, the
    value of the capability designating the object.
