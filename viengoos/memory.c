@@ -378,6 +378,11 @@ memory_frame_allocate (struct activity *activity)
 	    }
 
 	  if (desc)
+	    ss_mutex_lock (&desc->lock);
+
+	  ss_mutex_unlock (&lru_lock);
+
+	  if (desc)
 	    {
 	      assert (desc->live);
 	      assert (desc->eviction_candidate);
@@ -391,8 +396,6 @@ memory_frame_allocate (struct activity *activity)
 
 	      f = (uintptr_t) object;
 	    }
-
-	  ss_mutex_unlock (&lru_lock);
 
 	  if (f || collected)
 	    break;

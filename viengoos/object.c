@@ -160,7 +160,6 @@ void
 memory_object_destroy (struct activity *activity, struct object *object)
 {
   assert (activity);
-  assert (! ss_mutex_trylock (&lru_lock));
 
   struct object_desc *desc = object_to_object_desc (object);
 
@@ -182,7 +181,9 @@ memory_object_destroy (struct activity *activity, struct object *object)
   struct cap cap = object_desc_to_cap (desc);
   cap_shootdown (activity, &cap);
 
+  ss_mutex_lock (&lru_lock);
   object_desc_claim (NULL, desc, desc->policy, true);
+  ss_mutex_unlock (&lru_lock);
 
   if (desc->type == cap_activity_control)
     {
@@ -640,6 +641,7 @@ void
 object_desc_claim (struct activity *activity, struct object_desc *desc,
 		   struct object_policy policy, bool update_accounting)
 {
+  assert (! ss_mutex_trylock (&lru_lock));
   assert (desc->activity || activity);
 
   if (desc->activity == activity

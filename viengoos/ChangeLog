@@ -1,5 +1,20 @@
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (memory_object_destroy): Update comment to indicate
+	that LRU_LOCK must not be held by the caller.
+	(object_desc_claim): Update comment to indicate that LRU_LOCK must
+	be held by the caller.
+	* object.c (memory_object_destroy): Don't assert that LRU_LOCK is
+	held.  Take the lock before calling object_desc_claim.
+	(object_desc_claim): Assert that LRU_LOCK is held.
+	* viengoos.c (system_task_load): Take LRU_LOCK before calling
+	object_claim.
+
+	* memory.c (memory_frame_allocate): After getting an object, lock
+	it and then drop LRU_LOCK.
+
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c: Don't include "output.h".
 	(AS_LOCK) [! RM_INTERN]: Only define if not already defined.
 	(AS_UNLOCK) [! RM_INTERN]: Likewise.

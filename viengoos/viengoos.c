@@ -336,10 +336,15 @@ system_task_load (void)
   root_activity = (struct activity *) cap_to_object (root_activity, &rt.cap);
   folio_parent (root_activity, folio);
 
+  /* We know that we are the only one who can access the data
+     structure, however, the object_claim asserts that this lock is
+     held.  */
+  ss_mutex_lock (&lru_lock);
   object_claim (root_activity, (struct object *) root_activity,
 		OBJECT_POLICY_VOID, true);
   object_claim (root_activity, (struct object *) folio,
 		OBJECT_POLICY_VOID, true);
+  ss_mutex_unlock (&lru_lock);
 
   rt = allocate_object (cap_thread, ADDR_VOID);
   startup_data->thread = descs[desc_count - 1].object = rt.storage;

@@ -240,9 +240,10 @@ extern struct object *object_find_soft (struct activity *activity,
 					struct object_policy policy);
 
 /* Destroy the object OBJECT.  Any changes must have already been
-   flushed to disk.  LRU_LOCK must be held.  Does NOT release the
-   memory.  It is the caller's responsibility to ensure that
-   memory_frame_free is eventually called.  */
+   flushed to disk.  LRU_LOCK must not be held, this function will
+   take it.  Does NOT release the memory.  It is the caller's
+   responsibility to ensure that memory_frame_free is eventually
+   called.  */
 extern void memory_object_destroy (struct activity *activity,
 				   struct object *object);
 
@@ -335,7 +336,8 @@ object_desc_unmap (struct object_desc *desc)
    is NULL, detaches DESC from lists (this functionality should only
    be used by memory_object_destroy).  If UPDATE_ACCOUNTING is not
    true, it is the caller's responsibility to update the accounting
-   information for the old owner and the new owner.  */
+   information for the old owner and the new owner.  LRU_LOCK must be
+   held.  */
 extern void object_desc_claim (struct activity *activity,
 			       struct object_desc *desc,
 			       struct object_policy policy,
