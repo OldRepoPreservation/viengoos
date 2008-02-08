@@ -46,11 +46,6 @@ static unsigned char folios[FOLIOS_CORE / 8];
 /* Given an OID, we need a way to find 1) whether the object is
    memory, and 2) if so, where.  We achieve this using a hash.  The
    hash maps object OIDs to struct object_desc *s.  */
-/* XXX: Although the current implementation of the hash function
-   dynamically allocates memory according to demand, the maximum
-   amount of required memory can be calculated at startup.  */
-/* XXX: A hash is key'd by a machine word, however, an oid is
-   64-bits.  */
 /* XXX: When dereferencing a capability slot, we look up the object
    using the hash and then check that the version number stored in the
    capability slot matchs that in the object.  This likely incurs a
@@ -73,7 +68,7 @@ object_init (void)
   /* Allocate object hash.  */
   int count = (last_frame - first_frame) / PAGESIZE + 1;
 
-  size_t size = hurd_ihash_buffer_size (count, 0);
+  size_t size = hurd_ihash_buffer_size (count, true, 0);
   /* Round up to a multiple of the page size.  */
   size = (size + PAGESIZE - 1) & ~(PAGESIZE - 1);
 
@@ -546,9 +541,7 @@ folio_object_alloc (struct activity *activity,
       if (type == cap_void)
 	/* We are deallocating the object: free associated memory.  */
 	{
-	  ss_mutex_lock (&lru_lock);
 	  memory_object_destroy (activity, object);
-	  ss_mutex_unlock (&lru_lock);
 
 	  /* Return the frame to the free pool.  */
 	  memory_frame_free ((l4_word_t) object);

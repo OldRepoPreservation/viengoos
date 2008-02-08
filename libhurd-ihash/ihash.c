@@ -82,22 +82,42 @@ static const unsigned int ihash_nsizes = (sizeof ihash_sizes
 					  / sizeof ihash_sizes[0]);
 
 
+#define ITEM(ht, idx)						\
+  (_HURD_IHASH_LARGE (ht)					\
+   ? (void *) &((_hurd_ihash_item64_t) (ht)->items)[idx]	\
+   : (void *) &((_hurd_ihash_item_t) (ht)->items)[idx])
+
+#define VALUE(ht, idx)					\
+  (_HURD_IHASH_LARGE (ht)				\
+   ? ((_hurd_ihash_item64_t) ITEM (ht, idx))->value	\
+   : ((_hurd_ihash_item_t) ITEM (ht, idx))->value)
+
+#define KEY(ht, idx)					\
+  (_HURD_IHASH_LARGE (ht)				\
+   ? ((_hurd_ihash_item64_t) ITEM (ht, idx))->key	\
+   : ((_hurd_ihash_item_t) ITEM (ht, idx))->key)
+
+#define ITEM_SIZE(large)						\
+  ((large)								\
+   ? sizeof (struct _hurd_ihash_item64)					\
+   : sizeof (struct _hurd_ihash_item))
+
 /* Return 1 if the slot with the index IDX in the hash table HT is
    empty, and 0 otherwise.  */
 static inline int
 index_empty (hurd_ihash_t ht, unsigned int idx)
 {
-  return ht->items[idx].value == _HURD_IHASH_EMPTY
-    || ht->items[idx].value == _HURD_IHASH_DELETED;
+  return VALUE (ht, idx) == _HURD_IHASH_EMPTY
+    || VALUE (ht, idx) == _HURD_IHASH_DELETED;
 }
 
 
 /* Return 1 if the index IDX in the hash table HT is occupied by the
    element with the key KEY.  */
 static inline int
-index_valid (hurd_ihash_t ht, unsigned int idx, hurd_ihash_key_t key)
+index_valid (hurd_ihash_t ht, unsigned int idx, hurd_ihash_key64_t key)
 {
-  return !index_empty (ht, idx) && ht->items[idx].key == key;
+  return !index_empty (ht, idx) && KEY (ht, idx) == key;
 }
 
 
@@ -105,7 +125,7 @@ index_valid (hurd_ihash_t ht, unsigned int idx, hurd_ihash_key_t key)
    of that key.  You must subsequently check with index_valid() if the
    returned index is valid.  */
 static inline int
-find_index (hurd_ihash_t ht, hurd_ihash_key_t key)
+find_index (hurd_ihash_t ht, hurd_ihash_key64_t key)
 {
   unsigned int idx;
   unsigned int i;
@@ -114,7 +134,7 @@ find_index (hurd_ihash_t ht, hurd_ihash_key_t key)
 
   idx = key % ht->size;
 
-  if (ht->items[idx].value == _HURD_IHASH_EMPTY || ht->items[idx].key == key)
+  if (VALUE (ht, idx) == _HURD_IHASH_EMPTY || KEY (ht, idx) == key)
     return idx;
 
   /* Instead of calculating idx + 1, idx + 4, idx + 9, ..., idx + i^2,
@@ -127,15 +147,15 @@ find_index (hurd_ihash_t ht, hurd_ihash_key_t key)
   do
     {
       up_idx = (up_idx + i) % ht->size;
-      if (ht->items[up_idx].value == _HURD_IHASH_EMPTY
-	  || ht->items[up_idx].key == key)
+      if (VALUE (ht, up_idx) == _HURD_IHASH_EMPTY
+	  || KEY (ht, up_idx) == key)
 	return up_idx;
 
       if (down_idx < i)
 	down_idx += ht->size;
       down_idx = (down_idx - i) % ht->size;
-      if (ht->items[down_idx].value == _HURD_IHASH_EMPTY
-	  || ht->items[down_idx].key == key)
+      if (VALUE (ht, down_idx) == _HURD_IHASH_EMPTY
+	  || KEY (ht, down_idx) == key)
 	return down_idx;
 
       /* After (ht->size - 1) / 2 iterations, this will be 0.  */
@@ -167,8 +187,11 @@ locp_remove (hurd_ihash_t ht, hurd_ihash_locp_t locp, bool cleanup)
 
 /* Initialize the hash table at address HT.  */
 static void
-hurd_ihash_init_internal (hurd_ihash_t ht, intptr_t locp_offs)
+hurd_ihash_init_internal (hurd_ihash_t ht, bool large, intptr_t locp_offs)
 {
+#if __WORDSIZE == 32
+  ht->large = large;
+#endif
   ht->nr_items = 0;
   ht->size = 0;
   ht->locp_offset = locp_offs;
@@ -178,19 +201,20 @@ hurd_ihash_init_internal (hurd_ihash_t ht, intptr_t locp_offs)
 
 #ifndef NO_MALLOC
 void
-hurd_ihash_init (hurd_ihash_t ht, intptr_t locp_offs)
+hurd_ihash_init (hurd_ihash_t ht, bool large, intptr_t locp_offs)
 {
-  hurd_ihash_init_internal (ht, locp_offs);
+  hurd_ihash_init_internal (ht, large, locp_offs);
 }
 #endif
 
 void
-hurd_ihash_init_with_buffer (hurd_ihash_t ht, intptr_t locp_offs,
+hurd_ihash_init_with_buffer (hurd_ihash_t ht, bool large,
+			     intptr_t locp_offs,
 			     void *buffer, size_t size)
 {
-  hurd_ihash_init_internal (ht, locp_offs);
+  hurd_ihash_init_internal (ht, large, locp_offs);
   ht->items = buffer;
-  ht->size = size / sizeof (struct _hurd_ihash_item);
+  ht->size = size / ITEM_SIZE (_HURD_IHASH_LARGE (ht));
 }
 
 
@@ -220,13 +244,13 @@ hurd_ihash_destroy (hurd_ihash_t ht)
    memory allocation error occurs, ENOMEM is returned, otherwise 0.  */
 #ifndef NO_MALLOC
 error_t
-hurd_ihash_create (hurd_ihash_t *ht, intptr_t locp_offs)
+hurd_ihash_create (hurd_ihash_t *ht, bool large, intptr_t locp_offs)
 {
   *ht = malloc (sizeof (struct hurd_ihash));
   if (*ht == NULL)
     return ENOMEM;
 
-  hurd_ihash_init (*ht, locp_offs);
+  hurd_ihash_init (*ht, large, locp_offs);
 
   return 0;
 }
@@ -284,7 +308,7 @@ hurd_ihash_set_max_load (hurd_ihash_t ht, unsigned int max_load)
    division method with quadratic probe.  This is guaranteed to try
    all slots in the hash table if the prime number is 3 mod 4.  */
 static inline int
-replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
+replace_one (hurd_ihash_t ht, hurd_ihash_key64_t key, hurd_ihash_value_t value,
 	     bool *had_value, hurd_ihash_value_t *old_value)
 {
   unsigned int idx;
@@ -293,7 +317,7 @@ replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
   idx = key % ht->size;
   first_free = idx;
 
-  if (ht->items[idx].value != _HURD_IHASH_EMPTY && ht->items[idx].key != key)
+  if (VALUE (ht, idx) != _HURD_IHASH_EMPTY && KEY (ht, idx) != key)
     {
       /* Instead of calculating idx + 1, idx + 4, idx + 9, ..., idx +
          i^2, we add 1, 3, 5, 7, ... 2 * i - 1 to the previous index.
@@ -305,14 +329,14 @@ replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
       do
 	{
 	  up_idx = (up_idx + i) % ht->size;
-	  if (ht->items[up_idx].value == _HURD_IHASH_EMPTY
-	      || ht->items[up_idx].key == key)
+	  if (VALUE (ht, up_idx) == _HURD_IHASH_EMPTY
+	      || KEY (ht, up_idx) == key)
 	    {
 	      idx = up_idx;
 	      break;
 	    }
 	  if (first_free == idx
-	      && ht->items[up_idx].value == _HURD_IHASH_DELETED)
+	      && VALUE (ht, up_idx) == _HURD_IHASH_DELETED)
 	    first_free = up_idx;
 
 	  if (down_idx < i)
@@ -322,14 +346,14 @@ replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
 	    down_idx += ht->size;
 	  else
 	    down_idx %= ht->size;
-	  if (ht->items[down_idx].value == _HURD_IHASH_EMPTY
-	      || ht->items[down_idx].key == key)
+	  if (VALUE (ht, down_idx) == _HURD_IHASH_EMPTY
+	      || KEY (ht, down_idx) == key)
 	    {
 	      idx = down_idx;
 	      break;
 	    }
 	  if (first_free == idx
-	      && ht->items[down_idx].value == _HURD_IHASH_DELETED)
+	      && VALUE (ht, down_idx) == _HURD_IHASH_DELETED)
 	    first_free = down_idx;
 
 	  /* After (ht->size - 1) / 2 iterations, this will be 0.  */
@@ -345,8 +369,8 @@ replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
 	*had_value = true;
 
       if (old_value)
-	*old_value = ht->items[idx].value;
-      locp_remove (ht, &ht->items[idx].value, !! old_value);
+	*old_value = VALUE (ht, idx);
+      locp_remove (ht, ITEM (ht, idx), !! old_value);
     }
   else
     {
@@ -362,12 +386,27 @@ replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
   if (index_empty (ht, first_free))
     {
       ht->nr_items++;
-      ht->items[first_free].value = value;
-      ht->items[first_free].key = key;
 
-      if (ht->locp_offset != HURD_IHASH_NO_LOCP)
-	*((hurd_ihash_locp_t) (((char *) value) + ht->locp_offset))
-	  = &ht->items[first_free].value;
+      if (_HURD_IHASH_LARGE (ht))
+	{
+	  _hurd_ihash_item64_t i = ITEM (ht, first_free);
+	  i->value = value;
+	  i->key = key;
+
+	  if (ht->locp_offset != HURD_IHASH_NO_LOCP)
+	    *((hurd_ihash_locp_t) (((char *) value) + ht->locp_offset))
+	      = &i->value;
+	}
+      else
+	{
+	  _hurd_ihash_item_t i = ITEM (ht, first_free);
+	  i->value = value;
+	  i->key = key;
+
+	  if (ht->locp_offset != HURD_IHASH_NO_LOCP)
+	    *((hurd_ihash_locp_t) (((char *) value) + ht->locp_offset))
+	      = &i->value;
+	}
 
       return 1;
     }
@@ -380,7 +419,7 @@ replace_one (hurd_ihash_t ht, hurd_ihash_key_t key, hurd_ihash_value_t value,
    (LOAD_FACTOR must be between 1 and 100, a load factor of 0 implies
    the default load factor).  */
 size_t
-hurd_ihash_buffer_size (size_t count, int max_load_factor)
+hurd_ihash_buffer_size (size_t count, bool large, int max_load_factor)
 {
   if (max_load_factor == 0)
     max_load_factor = HURD_IHASH_MAX_LOAD_DEFAULT;
@@ -398,7 +437,7 @@ hurd_ihash_buffer_size (size_t count, int max_load_factor)
   if (i == ihash_nsizes)
     return SIZE_MAX;		/* Surely will be true momentarily.  */
 
-  return ihash_sizes[i] * sizeof (struct _hurd_ihash_item);
+  return ihash_sizes[i] * ITEM_SIZE (large);
 }
 
 /* Add ITEM to the hash table HT under the key KEY.  If there already
@@ -410,7 +449,7 @@ hurd_ihash_buffer_size (size_t count, int max_load_factor)
    *HAD_VALUE.  If a memory allocation error occurs, ENOMEM is
    returned, otherwise 0.  */
 error_t
-hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key_t key,
+hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key64_t key,
 		    hurd_ihash_value_t item,
 		    bool *had_value, hurd_ihash_value_t  *old_value)
 {
@@ -432,14 +471,16 @@ hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key_t key,
   int i;
 
   /* The hash table is too small, and we have to increase it.  */
-  size_t size = hurd_ihash_buffer_size (old_ht.size + 1, ht->max_load);
+  size_t size = hurd_ihash_buffer_size (old_ht.size + 1,
+					_HURD_IHASH_LARGE (ht),
+					ht->max_load);
   if (size >= SIZE_MAX)
     return ENOMEM;		/* Surely will be true momentarily.  */
 
   ht->nr_items = 0;
-  ht->size = size / sizeof (struct _hurd_ihash_item);
+  ht->size = size / ITEM_SIZE (_HURD_IHASH_LARGE (ht));
   /* calloc() will initialize all values to _HURD_IHASH_EMPTY implicitely.  */
-  ht->items = calloc (ht->size, sizeof (struct _hurd_ihash_item));
+  ht->items = calloc (ht->size, ITEM_SIZE (_HURD_IHASH_LARGE (ht)));
 
   if (ht->items == NULL)
     {
@@ -454,8 +495,7 @@ hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key_t key,
   for (i = 0; i < old_ht.size; i++)
     if (!index_empty (&old_ht, i))
       {
-	was_added = replace_one (ht, old_ht.items[i].key,
-				 old_ht.items[i].value,
+	was_added = replace_one (ht, KEY (&old_ht, i), VALUE (&old_ht, i),
 				 had_value, old_value);
 	assert (was_added);
       }
@@ -475,14 +515,14 @@ hurd_ihash_replace (hurd_ihash_t ht, hurd_ihash_key_t key,
 /* Find and return the item in the hash table HT with key KEY, or NULL
    if it doesn't exist.  */
 hurd_ihash_value_t
-hurd_ihash_find (hurd_ihash_t ht, hurd_ihash_key_t key)
+hurd_ihash_find (hurd_ihash_t ht, hurd_ihash_key64_t key)
 {
   if (ht->size == 0)
     return NULL;
   else
     {
       int idx = find_index (ht, key);
-      return index_valid (ht, idx, key) ? ht->items[idx].value : NULL;
+      return index_valid (ht, idx, key) ? VALUE (ht, idx) : NULL;
     }
 }
 
@@ -490,7 +530,7 @@ hurd_ihash_find (hurd_ihash_t ht, hurd_ihash_key_t key)
 /* Remove the entry with the key KEY from the hash table HT.  If such
    an entry was found and removed, 1 is returned, otherwise 0.  */
 int
-hurd_ihash_remove (hurd_ihash_t ht, hurd_ihash_key_t key)
+hurd_ihash_remove (hurd_ihash_t ht, hurd_ihash_key64_t key)
 {
   if (ht->size != 0)
     {
@@ -498,7 +538,7 @@ hurd_ihash_remove (hurd_ihash_t ht, hurd_ihash_key_t key)
       
       if (index_valid (ht, idx, key))
 	{
-	  locp_remove (ht, &ht->items[idx].value, true);
+	  locp_remove (ht, ITEM (ht, idx), true);
 	  return 1;
 	}
     }

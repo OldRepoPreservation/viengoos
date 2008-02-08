@@ -35,8 +35,11 @@ libhurd_ihash_a_SOURCES = ihash.h ihash.c
 libhurd_ihash_nomalloc_a_CPPFLAGS = $(AM_CPPFLAGS) -DNO_MALLOC
 libhurd_ihash_nomalloc_a_SOURCES = ihash.h ihash.c
 
-TESTS = t-ihash
+TESTS = t-ihash t-ihash64
+check_PROGRAMS = t-ihash t-ihash64
 
-check_PROGRAMS = t-ihash
 t_ihash_SOURCES = t-ihash.c ihash.h ihash.c
-t_ihash_CPPFLAGS = -DS_PRINTF=printf $(AM_CPPFLAGS)
+t_ihash_CPPFLAGS = -DTEST_LARGE=false -DS_PRINTF=printf $(AM_CPPFLAGS)
+
+t_ihash64_SOURCES = t-ihash.c ihash.h ihash.c
+t_ihash64_CPPFLAGS = -DTEST_LARGE=true -DS_PRINTF=printf $(AM_CPPFLAGS)

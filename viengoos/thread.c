@@ -92,7 +92,7 @@ thread_init (struct thread *thread)
 
       memset (buffer, 0, size);
 
-      hurd_ihash_init_with_buffer (&tid_to_thread, HURD_IHASH_NO_LOCP,
+      hurd_ihash_init_with_buffer (&tid_to_thread, false, HURD_IHASH_NO_LOCP,
 				   buffer, size);
 
       have_tid_to_thread_hash = 1;

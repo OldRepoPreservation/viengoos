@@ -1,3 +1,9 @@
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.c (thread_init): Update use of
+	hurd_ihash_init_with_buffer to be consistent with new API.
+	* object.c (object_init): Likewise.
+
 2008-02-06  Neal H. Walfield  <neal@gnu.org>
 
 	* output-serial.c (serial_init): Rewrite command-line parser to

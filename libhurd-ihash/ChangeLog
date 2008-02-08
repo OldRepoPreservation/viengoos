@@ -1,3 +1,50 @@
+2008-02-08  Neal H. Walfield  <neal@gnu.org>
+
+	* ihash.h: Include <bits/wordsize.h>.
+	(hurd_ihash_key64_t): New definition.
+	(struct _hurd_ihash_item64): New structure.
+	(struct hurd_ihash): Change items's type void *.
+	[__WORDSIZE == 32]: Add field large.
+	(_HURD_IHASH_LARGE): New macro.
+	(HURD_IHASH_INITIALIZER): Take additional argument large.  Use it.
+	(hurd_ihash_init): Take additional argument large.
+	(hurd_ihash_buffer_size): Likewise.
+	(hurd_ihash_init_with_buffer): Likewise.
+	(hurd_ihash_create): Likewise.
+	(hurd_ihash_replace): Change key's type to hurd_ihash_key64_t.
+	(hurd_ihash_add): Likewise.
+	(hurd_ihash_find): Likewise.
+	(hurd_ihash_remove): Likewise.
+	(HURD_IHASH_ITERATE): Rewrite to properly handle both 32- and
+	64-bit keys.
+	* ihash.c (ITEM): New macro.
+	(VALUE): Likewise.
+	(KEY): Likewise.
+	(ITEM_SIZE): Likewise.
+	(index_empty): Use the above macros rather than accessing
+	HT->ITEMS directly.
+	(index_valid): Likewise and change key's type to a
+	hurd_ihash_key64_t.
+	(find_index): Likewise.
+	(replace_one): Likewise.
+	(hurd_ihash_replace): Likewise.
+	(hurd_ihash_find): Likewise.
+	(hurd_ihash_remove): Likewise.
+	(hurd_ihash_init_internal): Take additional argument large.  Use
+	it.
+	(hurd_ihash_init): Likewise.
+	(hurd_ihash_init_with_buffer): Likewise.
+	(hurd_ihash_create): Likewise.
+	(hurd_ihash_buffer_size): Likewise.
+	* t-ihash.c: Include <assert.h>.
+	(main): Expect that TEST_LARGE is defined.  Use it when calling
+	hurd_ihash_init.  If true, add some tests with 64-bit keys.
+	* Makefile.am (TESTS): Add t-ihash64.
+	(check_PROGRAMS): Likewise.
+	(t_ihash_CPPFLAGS): Add -DTEST_LARGE=false.
+	(t_ihash64_SOURCES): New variable.
+	(t_ihash64_CPPFLAGS): Likewise.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (t_ihash_SOURCES): Add ihash.c.

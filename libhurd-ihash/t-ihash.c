@@ -1,5 +1,5 @@
 /* t-ihash.c - Integer-keyed hash table function unit-tests.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
    
    This file is part of the GNU Hurd.
@@ -21,6 +21,7 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
+#include <assert.h>
 
 const char program_name[] = "t-ihash";
 
@@ -45,7 +46,7 @@ main (int argc, char *argv[])
 {
   struct hurd_ihash hash;
 
-  hurd_ihash_init (&hash, HURD_IHASH_NO_LOCP);
+  hurd_ihash_init (&hash, TEST_LARGE, HURD_IHASH_NO_LOCP);
 
   printf ("Testing hurd_ihash_add... ");
 
@@ -55,12 +56,35 @@ main (int argc, char *argv[])
     if (hurd_ihash_add (&hash, (hurd_ihash_key_t) k,
 			(hurd_ihash_value_t) k) != 0)
       F ("failed to insert %d\n", k);
+#if TEST_LARGE == true
+  for (k = 1; k < 100; k ++)
+    if (hurd_ihash_add (&hash, (hurd_ihash_key64_t) (1ULL << 33) + k,
+			(hurd_ihash_value_t) (1000 + k)) != 0)
+      F ("failed to insert %d\n", k);
+#endif
   for (k = 1; k < 100; k ++)
     {
       v = hurd_ihash_find (&hash, (hurd_ihash_key_t) k);
       if (v != (hurd_ihash_value_t) k)
 	F ("unexpected value %d for key %d\n", (int) v, k);
     }
+#if TEST_LARGE == true
+  for (k = 1; k < 100; k ++)
+    {
+      v = hurd_ihash_find (&hash, (hurd_ihash_key64_t) (1ULL << 33) + k);
+      if (v != (hurd_ihash_value_t) (1000 + k))
+	F ("unexpected value %d for key %d\n", (int) v, 1000 + k);
+    }
+#endif
+
+  int c = 0;
+  HURD_IHASH_ITERATE(&hash, i)
+    c ++;
+#if TEST_LARGE == true
+  assert (c == 2 * 99);
+#else
+  assert (c == 99);
+#endif
 
   printf ("ok\n");
 
@@ -106,7 +130,7 @@ main (int argc, char *argv[])
     int value;
     hurd_ihash_locp_t locp;
   };
-  hurd_ihash_init (&hash, (int) &(((struct s *)0)->locp));
+  hurd_ihash_init (&hash, TEST_LARGE, (int) &(((struct s *)0)->locp));
 
   if (hurd_ihash_find (&hash, 1))
     F ("Found object with key 1 in otherwise empty hash");
