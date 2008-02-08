@@ -39,10 +39,10 @@
 #include "viengoos.h"
 
 /* Like debug but also prints the method id.  */
-#define DEBUG(level, format, args...)			\
-  debug (level, "(%s %d) " format,			\
-         l4_is_pagefault (msg_tag) ? "pagefault"	\
-         : rm_method_id_string (label), label,		\
+#define DEBUG(level, format, args...)					\
+  debug (level, "(%x %s %d) " format,					\
+	 thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"		\
+         : rm_method_id_string (label), label,				\
 	##args)
 
 void
@@ -132,17 +132,15 @@ server_loop (void)
 	  if (! page)
 	    {
 	      raise_fault = true;
-	      DEBUG (5, "%x.%x raised fault (ip: %x; fault: %x.%c)!",
-		     l4_thread_no (from), l4_version (from), ip,
-		     fault, w ? 'w' : 'r');
+	      DEBUG (0, "fault (ip: %x; fault: %x.%c)!",
+		     ip, fault, w ? 'w' : 'r');
 	    }
 	  else if (w && ! writable)
 	    /* Only allow permitted writes through.  */
 	    {
 	      raise_fault = true;
-	      DEBUG (5, "%x.%x raised access fault (ip: %x; fault: %x.%c)!",
-		     l4_thread_no (from), l4_version (from), ip,
-		     fault, w ? 'w' : 'r');
+	      DEBUG (5, "access fault (ip: %x; fault: %x.%c)!",
+		     ip, fault, w ? 'w' : 'r');
 	    }
 
 	  if (raise_fault)
