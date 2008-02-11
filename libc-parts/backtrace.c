@@ -19,10 +19,14 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#define RA(level)						\
-  if (level < size && __builtin_return_address ((level) + 1))	\
-    *array = __builtin_return_address ((level) + 1);		\
-  else								\
+#define RA(level)							\
+  if (level < size && __builtin_frame_address ((level) + 1))		\
+    {									\
+      array[level] = __builtin_return_address ((level) + 1);		\
+      if (array[level] == 0)						\
+	return (level) + 1;						\
+    }									\
+  else									\
     return level;
 
 int
@@ -32,6 +36,7 @@ backtrace (void **array, int size)
   RA(1);
   RA(2);
   RA(3);
+  return 4;
   RA(4);
   RA(5);
   RA(6);
@@ -48,5 +53,5 @@ backtrace (void **array, int size)
   RA(18);
   RA(19);
   RA(20);
-  return 20;
+  return 21;
 }

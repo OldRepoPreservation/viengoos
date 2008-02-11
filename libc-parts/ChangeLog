@@ -1,5 +1,12 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* backtrace.c (RA): Return if __builtin_frame_address returns 0.
+	Correctly assign the return address to the appropriate slot in
+	ARRAY.
+	(backtrace): Limit to four stack frames.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* _exit.c (_exit): Destroy the activity by finding its associated
 	storage and deallocating that.  If killing the activity fails, try
 	the same approach with the thread.
