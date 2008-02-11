@@ -1,5 +1,10 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (storage_init): If ODESC->STORAGE is ADDR_VOID,
+	ignore.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (as_init): Improve debugging output.
 	* storage.c (storage_free_): Likewise.
 	(storage_alloc_): Assert that the allocated storage is zerod.

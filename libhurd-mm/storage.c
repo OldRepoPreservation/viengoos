@@ -703,6 +703,9 @@ storage_init (void)
        i < __hurd_startup_data->desc_count;
        i ++, odesc ++)
     {
+      if (ADDR_IS_VOID (odesc->storage))
+	continue;
+
       addr_t folio;
       if (odesc->type == cap_folio)
 	folio = odesc->object;
