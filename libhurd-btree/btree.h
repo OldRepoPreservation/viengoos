@@ -527,7 +527,7 @@ BTREE_(prev) (BTREE_(node_t) *node)
   BTREE_(node_t) *prev = BTREE_(prev_hard) (node);
 
   if (! BTREE_NP_CHILD (node->left))
-    BTREE_NP_THREAD_SET (&node->left, node);
+    BTREE_NP_THREAD_SET (&node->left, prev);
 
   return prev;
 }
