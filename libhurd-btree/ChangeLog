@@ -1,3 +1,8 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* btree.c: Include <hurd/stddef.h>.
+	(dump_tree): Use S_PRINTF, not printf.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* btree-test.c (debug): #undef before defining.

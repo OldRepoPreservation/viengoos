@@ -157,12 +157,14 @@ typedef BTREE_(node_t) *node;
 
 #define CHECK_TREE(a) check_tree(a)
 
+#include <hurd/stddef.h>
+
 static void
 dump_tree (node root, int indent)
 {
   int i;
   for (i = 0; i < indent; i ++)
-    printf (".");
+    S_PRINTF (".");
 
   char g = ' ';
   if (root && BTREE_NP (root->parent)
@@ -186,7 +188,7 @@ dump_tree (node root, int indent)
   int bad = (p == 'r' && n == 'r')
     || (n == 'r' && (l == 'r' || r == 'r'));
 
-  printf ("%p: %c (%c -> %c -> *%c* -> %c %c) %s\n",
+  S_PRINTF ("%p: %c (%c -> %c -> *%c* -> %c %c) %s\n",
 	  root, n, g, p, n, l, r, bad ? "***" : "");
 
   if (! root)
