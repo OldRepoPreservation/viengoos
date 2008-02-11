@@ -70,9 +70,15 @@ server_loop (void)
 	msg_tag = l4_wait (&from);
 
       if (l4_ipc_failed (msg_tag))
-	panic ("%s message failed: %u", 
-	       l4_error_code () & 1 ? "Receiving" : "Sending",
-	       (l4_error_code () >> 1) & 0x7);
+	{
+	  debug (0, "%s %x failed: %u", 
+		 l4_error_code () & 1 ? "Receiving from" : "Sending to",
+		 l4_error_code () & 1 ? from : to,
+		 (l4_error_code () >> 1) & 0x7);
+
+	  do_reply = 0;
+	  continue;
+	}
 
       l4_msg_store (msg_tag, msg);
       l4_word_t label;
@@ -132,7 +138,7 @@ server_loop (void)
 	  if (! page)
 	    {
 	      raise_fault = true;
-	      DEBUG (0, "fault (ip: %x; fault: %x.%c)!",
+	      DEBUG (5, "fault (ip: %x; fault: %x.%c)!",
 		     ip, fault, w ? 'w' : 'r');
 	    }
 	  else if (w && ! writable)

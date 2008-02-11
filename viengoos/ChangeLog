@@ -1,5 +1,10 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): If sending or receiving fails, don't
+	panic, print a debugging diagnostic and recover.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (OBJECT_): Use object_lookup_rel, not CAP_, to find
 	objects.
 	(ROOT): If ROOT_ADDR_ is not ADDR_VOID, use OBJECT to find the
