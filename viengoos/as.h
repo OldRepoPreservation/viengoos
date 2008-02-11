@@ -148,10 +148,11 @@ typedef struct as_insert_rt allocate_object_callback_t (enum cap_type type,
    address space.  ALLOC_OBJECT is a callback to allocate an object of
    type TYPE at address ADDR.  The callback should NOT insert the
    allocated object into the addresss space.  */
-extern void as_insert (activity_t activity,
-		       addr_t target_as, struct cap *t_as_cap, addr_t target,
-		       addr_t source_as, struct cap c_cap, addr_t source,
-		       allocate_object_callback_t alloc);
+extern struct cap *as_insert
+  (activity_t activity,
+   addr_t target_as, struct cap *t_as_cap, addr_t target,
+   addr_t source_as, struct cap c_cap, addr_t source,
+   allocate_object_callback_t alloc);
 
 /* Ensure that the slot designated by ADDR in the address space root
    at AS is accessible by allocating any required page tables.  Return

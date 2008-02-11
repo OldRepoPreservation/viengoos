@@ -294,7 +294,7 @@ ID (as_build_internal) (activity_t activity,
 	     that does not share the guard, we end up with small page
 	     tables:
 
-		[ | | | | | | ]   <- page table
+	         [ | | | | | | ]   <- page table
 		      |
 		    [ | ]         <- 1-bit subpage
 		    /   \
@@ -565,7 +565,7 @@ ID (as_slot_ensure_full) (activity_t activity,
   return cap;
 }
 
-void
+struct cap *
 ID (as_insert) (activity_t activity,
 		addr_t as_root_addr, struct cap *root, addr_t addr,
 		addr_t entry_as, struct cap entry, addr_t entry_addr,
@@ -582,4 +582,6 @@ ID (as_insert) (activity_t activity,
   cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
 
   AS_UNLOCK;
+
+  return slot;
 }

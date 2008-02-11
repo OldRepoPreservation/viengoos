@@ -1,5 +1,10 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (as_insert): Change return type to struct cap *.
+	(as_insert_custom): Likewise.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* mm.h (mm_init_done): New declaration.
 	* mm-init.c (mm_init_done): Define.
 	(mm_init): Assert that MM_INIT_DONE is false.  Set to true just

@@ -97,12 +97,13 @@ extern struct cap *as_slot_ensure_full
    TARGET_AS.  Allocates any necessary page-tables in the target
    address space.  ALLOC_OBJECT is a callback to allocate an object of
    type TYPE at address ADDR.  The callback should NOT insert the
-   allocated object into the addresss space.  */
-extern void as_insert (activity_t activity,
-		       addr_t target_as, struct cap *t_as_cap, addr_t target,
-		       addr_t source_as, struct cap c_cap, addr_t source,
-		       struct as_insert_rt (*allocate_object)
-		         (enum cap_type type, addr_t addr));
+   allocated object into the addresss space.  Returns the slot into
+   which the capability was inserted.  */
+extern struct cap *as_insert
+  (activity_t activity,
+   addr_t target_as, struct cap *t_as_cap, addr_t target,
+   addr_t source_as, struct cap c_cap, addr_t source,
+   struct as_insert_rt (*allocate_object) (enum cap_type type, addr_t addr));
 
 /* Function signature of the call back used by
    as_slot_ensure_full_custom and as_insert_custom.
@@ -128,7 +129,7 @@ extern struct cap *as_slot_ensure_full_custom
 
 /* Variant of as_insert that doesn't use the shadow page tables but
    calls the callback OBJECT_INDEX to retrieve capability slots.  */
-extern void as_insert_custom
+extern struct cap *as_insert_custom
   (activity_t activity,
    addr_t target_as, struct cap *t_as_cap, addr_t target,
    addr_t source_as, struct cap c_cap, addr_t source,

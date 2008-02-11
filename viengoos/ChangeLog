@@ -1,5 +1,11 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (as_insert): Change return type to struct cap *.
+	* as.c (as_insert): Change return type to struct cap *.
+	Return SLOT.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (folio_object_alloc): When reallocating an object and
 	the object is in memory, clear the memory.
 
