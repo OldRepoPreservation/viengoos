@@ -1,3 +1,7 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h (thread_start): New function.
+
 2008-02-08  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* futex.h (__need_timespec): Define before including <time.h>.

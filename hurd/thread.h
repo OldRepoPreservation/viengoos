@@ -194,6 +194,17 @@ RPC (thread_exregs, 4, 1,
      struct hurd_thread_exregs_out, out)
 
 static inline error_t
+thread_start (addr_t thread)
+{
+  struct hurd_thread_exregs_in in;
+  struct hurd_thread_exregs_out out;
+
+  return rm_thread_exregs (ADDR_VOID, thread,
+			   HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC,
+			   in, &out);
+}
+
+static inline error_t
 thread_stop (addr_t thread)
 {
   struct hurd_thread_exregs_in in;
