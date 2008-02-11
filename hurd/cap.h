@@ -143,6 +143,30 @@ cap_type_weaken (enum cap_type type)
       return cap_void;
     }
 }
+
+/* Returns the strong type corresponding to TYPE.  If type is already
+   a strong type, returns TYPE.  */
+static inline enum cap_type
+cap_type_strengthen (enum cap_type type)
+{
+  switch (type)
+    {
+    case cap_page:
+    case cap_rpage:
+      return cap_page;
+
+    case cap_cappage:
+    case cap_rcappage:
+      return cap_cappage;
+
+    case cap_activity_control:
+    case cap_activity:
+      return cap_activity_control;
+
+    default:
+      return type;
+    }
+}
 
 /* Object policy.  */
 

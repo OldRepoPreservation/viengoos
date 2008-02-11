@@ -1,5 +1,9 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h (cap_type_strengthen): New function.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* folio.h (folio_t): New definition.
 	* thread.h (thread_t): Likewise.
 
