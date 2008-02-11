@@ -261,7 +261,9 @@ object_find (struct activity *activity, oid_t oid,
       /* Find the folio corresponding to the object.  */
       folio = (struct folio *) object_find (activity, oid - page - 1,
 					    OBJECT_POLICY_DEFAULT);
-      assert (folio);
+      assertx (folio,
+	       "Didn't find folio " OID_FMT,
+	       OID_PRINTF (oid - page - 1));
 
       if (folio_object_type (folio, page) == cap_void)
 	return NULL;
@@ -554,6 +556,8 @@ folio_object_alloc (struct activity *activity,
 	  struct cap cap = object_desc_to_cap (odesc);
 	  assert (activity);
 	  cap_shootdown (activity, &cap);
+
+	  memset ((void *) object, 0, PAGESIZE);
 
 	  ss_mutex_lock (&lru_lock);
 	  object_desc_claim (activity, odesc, policy, true);
