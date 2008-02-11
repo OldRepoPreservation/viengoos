@@ -1,6 +1,6 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
-	* btree.h (BTREE_): Correctly set NODE's left thread.
+	* btree.h (btree_prev): Correctly set NODE's left thread.
 
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
