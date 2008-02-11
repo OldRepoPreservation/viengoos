@@ -1,3 +1,9 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* _exit.c (_exit): Destroy the activity by finding its associated
+	storage and deallocating that.  If killing the activity fails, try
+	the same approach with the thread.
+
 2008-02-08  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am (routines, routines_subexp, routines_objects)
