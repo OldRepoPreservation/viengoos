@@ -1,5 +1,10 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.c (thread_raise_exception): Improve the debugging output
+	for the case where the thread has no exception page.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): If sending or receiving fails, don't
 	panic, print a debugging diagnostic and recover.
 

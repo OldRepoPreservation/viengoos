@@ -458,7 +458,9 @@ thread_raise_exception (struct activity *activity,
   struct object *page = cap_to_object (activity, &thread->exception_page);
   if (! page)
     {
-      debug (1, "Malformed thread: no exception page");
+      do_debug (3)
+	as_dump_from (activity, &thread->aspace, "");
+      debug (1, "Malformed thread (%x): no exception page", thread->tid);
       return;
     }
 
