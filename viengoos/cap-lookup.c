@@ -375,7 +375,8 @@ slot_lookup_rel (activity_t activity,
   return rt.capp;
 }
 
-extern int printf (const char *fmt, ...);
+extern int s_printf (const char *fmt, ...);
+extern int s_putchar (int chr);
 
 static void
 print_nr (int width, l4_int64_t nr, bool hex)
@@ -402,18 +403,18 @@ print_nr (int width, l4_int64_t nr, bool hex)
 
   int i;
   for (i = w; i < width; i ++)
-    putchar (' ');
+    s_putchar (' ');
 
   if (hex)
-    printf ("0x%llx", nr);
+    s_printf ("0x%llx", nr);
   else
-    printf ("%lld", nr);
+    s_printf ("%lld", nr);
 }
 
 static void
 do_walk (activity_t activity, int index,
 	 struct cap *root, addr_t addr,
-	 int indent, const char *output_prefix)
+	 int indent, bool descend, const char *output_prefix)
 {
   int i;
 
@@ -426,38 +427,44 @@ do_walk (activity_t activity, int index,
     return;
 
   if (output_prefix)
-    printf ("%s: ", output_prefix);
+    s_printf ("%s: ", output_prefix);
   for (i = 0; i < indent; i ++)
-    printf (".");
+    s_printf (".");
 
-  printf ("[ ");
+  s_printf ("[ ");
   if (index != -1)
     print_nr (3, index, false);
   else
-    printf ("root");
-  printf (" ] ");
+    s_printf ("root");
+  s_printf (" ] ");
 
   print_nr (12, addr_prefix (addr), true);
-  printf ("/%d ", addr_depth (addr));
+  s_printf ("/%d ", addr_depth (addr));
   if (CAP_GUARD_BITS (&cap))
-    printf ("| 0x%llx/%d ", CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
+    s_printf ("| 0x%llx/%d ", CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
   if (CAP_SUBPAGES (&cap) != 1)
-    printf ("(%d/%d) ", CAP_SUBPAGE (&cap), CAP_SUBPAGES (&cap));
+    s_printf ("(%d/%d) ", CAP_SUBPAGE (&cap), CAP_SUBPAGES (&cap));
 
   if (CAP_GUARD_BITS (&cap)
       && ADDR_BITS - addr_depth (addr) >= CAP_GUARD_BITS (&cap))
-    printf ("=> 0x%llx/%d ",
+    s_printf ("=> 0x%llx/%d ",
 	    addr_prefix (addr_extend (addr,
 				      CAP_GUARD (&cap),
 				      CAP_GUARD_BITS (&cap))),
 	    addr_depth (addr) + CAP_GUARD_BITS (&cap));
 
 #ifdef RM_INTERN
-  printf ("@" OID_FMT " ", OID_PRINTF (cap.oid));
+  s_printf ("@" OID_FMT " ", OID_PRINTF (cap.oid));
 #endif
-  printf ("%s", cap_type_string (cap.type));
+  s_printf ("%s", cap_type_string (cap.type));
 
-  printf ("\n");
+  if (! descend)
+    s_printf ("...");
+
+  s_printf ("\n");
+
+  if (! descend)
+    return;
 
   if (addr_depth (addr) + CAP_GUARD_BITS (&cap) > ADDR_BITS)
     return;
@@ -474,7 +481,7 @@ do_walk (activity_t activity, int index,
       for (i = 0; i < CAP_SUBPAGE_SIZE (&cap); i ++)
 	do_walk (activity, i, root,
 		 addr_extend (addr, i, CAP_SUBPAGE_SIZE_LOG2 (&cap)),
-		 indent + 1, output_prefix);
+		 indent + 1, true, output_prefix);
 
       return;
 
@@ -485,7 +492,7 @@ do_walk (activity_t activity, int index,
       for (i = 0; i < FOLIO_OBJECTS; i ++)
 	do_walk (activity, i, root,
 		 addr_extend (addr, i, FOLIO_OBJECTS_LOG2),
-		 indent + 1, output_prefix);
+		 indent + 1, false, output_prefix);
 
       return;
 
@@ -498,5 +505,5 @@ do_walk (activity_t activity, int index,
 void
 as_dump_from (activity_t activity, struct cap *root, const char *prefix)
 {
-  do_walk (activity, -1, root, ADDR (0, 0), 0, prefix);
+  do_walk (activity, -1, root, ADDR (0, 0), 0, true, prefix);
 }

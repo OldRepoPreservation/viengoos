@@ -1,3 +1,11 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* cap-lookup.c (print_nr): Use s_printf and s_putchar instead of
+	printf and putchar.
+
+	(do_walk): Take additional argument descend.  If false, after
+	printing the capability, just return.  Update callers.
+
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): Raise debugging level of futex debugging
