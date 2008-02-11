@@ -1,5 +1,11 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* ia32-crt0.S (_start): Clear EBP before jumping to cmain.
+
+	* backtrace.c (backtrace): Limit to 21 stack frames.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* backtrace.c (RA): Return if __builtin_frame_address returns 0.
 	Correctly assign the return address to the appropriate slot in
 	ARRAY.

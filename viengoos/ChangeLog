@@ -1,5 +1,9 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* ia32-crt0.S (_start): Clear EBP before jumping to cmain.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* as.h (as_insert): Change return type to struct cap *.
 	* as.c (as_insert): Change return type to struct cap *.
 	Return SLOT.

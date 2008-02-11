@@ -36,8 +36,13 @@ _start:
 	pushl	$0
 	popf
 
-	/* Now enter the cmain function.  */
-	call	cmain
+	/* Now enter the cmain function.  Instead of using call, we
+	jump and put a return address of 0 on the stack.  We also zeor
+	the frame pointer.  In this way, __builtin_return_address
+	works more reliably.  */
+	pushl $0
+	xor %ebp, %ebp
+	jmp cmain
 
 	/* Not reached.  */
 loop:	hlt

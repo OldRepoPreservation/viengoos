@@ -36,7 +36,6 @@ backtrace (void **array, int size)
   RA(1);
   RA(2);
   RA(3);
-  return 4;
   RA(4);
   RA(5);
   RA(6);
