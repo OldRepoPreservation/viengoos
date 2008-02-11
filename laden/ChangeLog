@@ -1,3 +1,10 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* laden.h (program_name): Change type to char *.
+	* laden.c (program_name): Likewise.
+	* shutdown.h (program_name): Likewise.
+	* output.h (debug): Change program_name's type to char *.
+
 2008-02-08  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am (laden_LDADD): Link against newlib's `libc-routines.a'.

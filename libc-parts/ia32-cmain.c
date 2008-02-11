@@ -43,7 +43,7 @@ extern struct hurd_startup_data *__hurd_startup_data;
 extern void exit (int status)  __attribute__ ((__noreturn__));
 extern int main (int, char *[]);
 
-const char program_name[30];
+char *program_name = "in crt0";
 
 static void
 finish (void)
@@ -103,12 +103,10 @@ finish (void)
       argv[1] = 0;
     }
 
-  char *n = "unknown";
+  program_name = "unknown";
   if (argv[0])
-    n = strrchr (argv[0], '/') ? strrchr (argv[0], '/') + 1 : argv[0];
-
-  memset ((char *) program_name, 0, sizeof (program_name));
-  strncpy ((char *) program_name,  n, sizeof (program_name) - 1);
+    program_name = (strrchr (argv[0], '/')
+		    ? strrchr (argv[0], '/') + 1 : argv[0]);
 
   /* Now invoke the main function.  */
   exit (main (argc, argv));

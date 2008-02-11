@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <assert.h>
 
-const char program_name[] = "t-rpc";
+char *program_name = "t-rpc";
 int output_debug = 1;
 
 #define RPC_STUB_PREFIX rpc

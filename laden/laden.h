@@ -33,7 +33,7 @@
 
 
 /* The program name.  */
-extern const char program_name[];
+extern char *program_name;
 
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
 

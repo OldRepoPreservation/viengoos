@@ -24,7 +24,7 @@
 #include <assert.h>
 #include <l4/math.h>
 
-const char program_name[] = "t-addr";
+char *program_name = "t-addr";
 int output_debug = 0;
 
 int

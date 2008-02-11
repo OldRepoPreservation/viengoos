@@ -1,5 +1,9 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* btree-test.c (program_name): Change type to char *.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* t-stress.c: New file.
 
 2008-02-11  Neal H. Walfield  <neal@gnu.org>

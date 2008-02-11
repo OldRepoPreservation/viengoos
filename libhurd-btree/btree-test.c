@@ -6,7 +6,7 @@
 
 #include "btree.h"
 
-const char program_name[] = "btree-test";
+char *program_name = "btree-test";
 
 // #define DEBUG
 #undef debug

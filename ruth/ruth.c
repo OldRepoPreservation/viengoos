@@ -50,7 +50,7 @@ extern struct hurd_startup_data *__hurd_startup_data;
 
 
 /* The program name.  */
-const char program_name[] = "ruth";
+extern char *program_name;
 
 
 /* The following functions are required by pthread.  */

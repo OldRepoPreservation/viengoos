@@ -1,3 +1,7 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* t-ihash.c (program_name): Change type to char *.
+
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
 	* ihash.h: Include <bits/wordsize.h>.

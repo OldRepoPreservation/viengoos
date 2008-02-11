@@ -44,7 +44,7 @@
 
 #  define assertx(__ax_expr, __ax_fmt, ...)				\
   do {									\
-    extern const char program_name[];					\
+    extern char *program_name;						\
     extern int S_PRINTF (const char *fmt, ...);				\
     									\
     if (! (__ax_expr))							\

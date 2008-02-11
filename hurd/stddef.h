@@ -60,7 +60,7 @@ extern int output_debug;
 #define debug(level, fmt, ...)						\
   do									\
     {									\
-      extern const char program_name[];					\
+      extern char *program_name;					\
       extern int S_PRINTF (const char *, ...);				\
       do_debug (level)							\
         S_PRINTF ("%s (%x):%s:%d: " fmt "\n",				\

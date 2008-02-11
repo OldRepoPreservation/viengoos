@@ -24,7 +24,7 @@
 #include <l4/types.h>
 
 /* The program name, set statically.  */
-extern const char program_name[];
+extern char *program_name;
 
 /* A pointer to the root activity.  */
 extern struct activity *root_activity;

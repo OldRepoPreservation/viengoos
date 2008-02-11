@@ -166,7 +166,7 @@ word_t *environment_utcb_address = &environment_utcb[33 + 16];
 #include <string.h>
 #include <l4/stubs.h>
 
-const char program_name[100];
+char *program_name;
 
 /* Be verbose.  */
 static int opt_verbose;
@@ -186,7 +186,7 @@ int ss_lock_trace_count;
 static inline void
 environment_init (int argc, char *argv[])
 {
-  strncpy ((char *) program_name, argv[0], sizeof (program_name) - 1);
+  program_name = argv[0];
 
   int i;
 

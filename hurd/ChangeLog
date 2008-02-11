@@ -1,5 +1,12 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* stddef.h (debug): Change program_name's type to char *.
+	* t-addr-trans.c (program_name): Change type to char *.
+	* t-addr.c (program_name): Likewise.
+	* t-rpc.c (program_name): Likewise.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (cap_type_strengthen): New function.
 
 2008-02-11  Neal H. Walfield  <neal@gnu.org>

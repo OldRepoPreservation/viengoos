@@ -1,5 +1,14 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (program_name): Change type to char *.
+	* viengoos.h (program_name): Likewise.
+	* panic.c (program_name): Likewise.
+	* t-environment.h (program_name): Likewise.
+	(environment_init): Just set program_name to
+	argv[0].
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.c (thread_raise_exception): Improve the debugging output
 	for the case where the thread has no exception page.
 

@@ -23,7 +23,9 @@
 #include "shutdown.h"
 #include "debug.h"
 
-extern const char program_name[];
+extern char *program_name;
+
+extern int backtrace (void **array, int size);
 
 void
 panic_ (const char *func, int line, const char *fmt, ...)
@@ -36,6 +38,15 @@ panic_ (const char *func, int line, const char *fmt, ...)
   vprintf (fmt, ap);
   putchar ('\n');
   va_end (ap);
+
+  void *a[10];
+  int count = backtrace (a, sizeof (a) / sizeof (a[0]));
+  int i;
+  printf ("Backtrace: ");
+  for (i = 0; i < count; i ++)
+    printf ("%p ", a[i]);
+  printf ("\n");
+
   debugger ();
   shutdown_machine ();
 }

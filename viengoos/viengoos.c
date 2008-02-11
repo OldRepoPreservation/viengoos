@@ -62,7 +62,7 @@ int ss_lock_trace_count;
 #define BUG_ADDRESS	"<bug-hurd@gnu.org>"
 
 /* The program name.  */
-const char program_name[] = "viengoos";
+char *program_name = "viengoos";
 
 /* The following must be defined and are used to calculate the extents
    of the laden binary itself.  _END is one more than the address of

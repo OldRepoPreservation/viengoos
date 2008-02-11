@@ -1,5 +1,9 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* ruth.c (program_name): Change type to char *.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* ruth.c (main): When checking the ability to get and set an
 	activity's policy, don't use the main activity.  Instead, allocate
 	a new activity and use that.

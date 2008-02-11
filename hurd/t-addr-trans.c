@@ -27,7 +27,7 @@
 #include "addr-trans.h"
 
 int output_debug;
-const char program_name[] = "t-addr-trans";
+char *program_name = "t-addr-trans";
 
 int
 main (int argc, char *argv[])

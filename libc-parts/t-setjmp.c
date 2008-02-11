@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-const char program_name[] = "t-setjmp";
+char *program_name = "t-setjmp";
 
 static jmp_buf buf;
 

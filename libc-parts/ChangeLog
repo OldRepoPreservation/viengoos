@@ -1,5 +1,11 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* ia32-cmain.c (program_name): Change type to char *.
+	* t-setjmp.c (program_name): Likewise.
+	* assert.h (assertx): Change program_name's type to char *.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* ia32-crt0.S (_start): Clear EBP before jumping to cmain.
 
 	* backtrace.c (backtrace): Limit to 21 stack frames.
