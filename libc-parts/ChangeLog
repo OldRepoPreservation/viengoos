@@ -1,5 +1,12 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* process-spawn.h: New file.
+	* process-spawn.c: New file.
+	* Makefile.am (common_sources): Add process-spawn.h and
+	process-spawn.c.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* loader.h (loader_allocate_object_callback_t): Add parameter ro.
 	* loader.c (loader_elf_load): When calling ALLOC, pass whether or
 	not the page should be mapped read-only to the callback.

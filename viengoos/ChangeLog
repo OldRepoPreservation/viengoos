@@ -1,5 +1,10 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c: Don't include <loader.h>.  Include <process-spawn.h>.
+	(system_task_load): Just call process_spawn to load the task.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (system_task_load.alloc): Update alloc callback
 	function to take additional parameter ro to be consistent with the
 	updated API.
