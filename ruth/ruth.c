@@ -487,26 +487,29 @@ main (int argc, char *argv[])
   {
     printf ("Checking activity_policy... ");
 
+    addr_t a = capalloc ();
+    addr_t storage = storage_alloc (activity, cap_activity_control,
+				    STORAGE_LONG_LIVED, a).addr;
+
     addr_t weak = capalloc ();
-    error_t err = rm_cap_copy (activity, ADDR_VOID, weak, ADDR_VOID, activity,
+    error_t err = rm_cap_copy (activity, ADDR_VOID, weak, ADDR_VOID, a,
 			       CAP_COPY_WEAKEN, CAP_PROPERTIES_VOID);
     assert (! err);
 
     struct activity_policy in, out;
-
     in.sibling_rel.priority = 2;
     in.sibling_rel.weight = 3;
     in.child_rel = ACTIVITY_MEMORY_POLICY_VOID;
     in.folios = 10000;
 
-    err = rm_activity_policy (activity,
+    err = rm_activity_policy (a,
 			      ACTIVITY_POLICY_SIBLING_REL_SET
 			      | ACTIVITY_POLICY_STORAGE_SET,
 			      in,
 			      &out);
     assert (err == 0);
 			    
-    err = rm_activity_policy (activity,
+    err = rm_activity_policy (a,
 			      0, ACTIVITY_POLICY_VOID,
 			      &out);
     assert (err == 0);
@@ -518,7 +521,7 @@ main (int argc, char *argv[])
     in.sibling_rel.priority = 4;
     in.sibling_rel.weight = 5;
     in.folios = 10001;
-    err = rm_activity_policy (activity,
+    err = rm_activity_policy (a,
 			      ACTIVITY_POLICY_SIBLING_REL_SET
 			      | ACTIVITY_POLICY_STORAGE_SET,
 			      in, &out);
@@ -542,6 +545,9 @@ main (int argc, char *argv[])
     assert (out.sibling_rel.weight == 5);
     assert (out.folios == 10001);
 
+    storage_free (storage, true);
+
+    capfree (a);
     capfree (weak);
 
     printf ("ok.\n");

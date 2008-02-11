@@ -1,3 +1,9 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): When checking the ability to get and set an
+	activity's policy, don't use the main activity.  Instead, allocate
+	a new activity and use that.
+
 2008-01-24  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update use of rm_cap_read to be consistent with
