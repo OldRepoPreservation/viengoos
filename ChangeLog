@@ -1,3 +1,9 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Generate hieronymus/Makefile.
+	* Makefile.am (SUBDIRS): Add hieronymus.
+	* README: Update boot instructions.
+
 2008-02-08  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* configure.ac (STATIC_GLIBC): Remove.

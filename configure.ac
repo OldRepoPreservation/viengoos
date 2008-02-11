@@ -210,7 +210,8 @@ AC_CONFIG_FILES([Makefile
 		 viengoos/Makefile
 		 libc/Makefile
 		 newlib/Makefile
-                 ruth/Makefile
+		 hieronymus/Makefile
+		 ruth/Makefile
 		 doc/Makefile
 		 ])
 AC_OUTPUT

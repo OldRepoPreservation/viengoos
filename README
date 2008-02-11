@@ -22,7 +22,7 @@ $ make install
 $ mkdir /l4/boot
 $ install -s laden/laden /l4/boot
 $ install -s viengoos/viengoos /l4/boot
-$ install -s ruth/ruth /l4/boot
+$ install -s hieronymus/hieronymus /l4/boot
 
 You need at least automake 1.7 and autoconf 2.53.
 
@@ -50,7 +50,7 @@ distribution.  You may want to install the other programs and
 utilities as well to test your L4 kernel, though.
 
 Then set up GRUB to boot laden as the kernel, and the L4 kernel,
-sigma0, viengoos and ruth (in that order).
+sigma0, viengoos and hieronymus (in that order).
 
 Try the debug option (-D 3) to laden and viengoos to see some output
 from them.  They are relatively silent by default.
@@ -63,7 +63,7 @@ kernel /boot/laden -D
 module /boot/ia32-kernel
 module /boot/sigma0
 module /boot/viengoos -D 3
-module /boot/ruth -D 3
+module /boot/hieronymus -D 3
 
 
 Pistachio Patch

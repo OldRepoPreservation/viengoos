@@ -1,0 +1,7 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* ChangeLog: New file.
+	* Makefile.am: Likewise.
+	* module.S: Likewise.
+	* hieronymus.c: Likewise.
+

@@ -38,4 +38,5 @@ SUBDIRS = libl4 platform				\
 	libhurd-mm					\
 	libc-parts laden viengoos			\
 	ruth						\
+	hieronymus					\
 	doc
