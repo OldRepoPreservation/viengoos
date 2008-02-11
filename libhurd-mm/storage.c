@@ -547,6 +547,20 @@ storage_alloc_ (addr_t activity,
   storage.cap = cap;
   storage.addr = object;
 
+#ifndef NDEBUG
+  if (type == cap_page)
+    {
+      unsigned int *p = ADDR_TO_PTR (addr_extend (storage.addr,
+						  0, PAGESIZE_LOG2));
+      int c;
+      for (c = 0; c < PAGESIZE / sizeof (int); c ++)
+	assertx (p[c] == 0,
+		 ADDR_FMT "[%d] = %x",
+		 ADDR_PRINTF (storage.addr), c * sizeof (int), p[c]);
+    }
+#endif
+  debug (5, "Allocated " ADDR_FMT, ADDR_PRINTF (storage.addr));
+
   return storage;
 }
 
@@ -562,7 +576,10 @@ storage_free_ (addr_t object, bool unmap_now)
   /* Find the storage descriptor.  */
   struct storage_desc *storage;
   storage = hurd_btree_storage_desc_find (&storage_descs, &folio);
-  assert (storage);
+  assertx (storage,
+	   "No storage associated with " ADDR_FMT " "
+	   "(did you pass the storage address?",
+	   ADDR_PRINTF (object));
 
   ss_mutex_lock (&storage->lock);
 

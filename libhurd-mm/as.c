@@ -470,6 +470,19 @@ struct cap shadow_root;
 void
 as_init (void)
 {
+  do_debug (5)
+    {
+      int i;
+      debug (0, "%d descriptors", __hurd_startup_data->desc_count);
+      for (i = 0; i < __hurd_startup_data->desc_count; i ++)
+	{
+	  debug (0, ADDR_FMT " (" ADDR_FMT "): %s",
+		 ADDR_PRINTF (__hurd_startup_data->descs[i].object), 
+		 ADDR_PRINTF (__hurd_startup_data->descs[i].storage),
+		 cap_type_string (__hurd_startup_data->descs[i].type));
+	}
+    }
+
   /* First, we initialize the free region data structure.  */
   error_t err = hurd_slab_init (&free_space_desc_slab,
 				sizeof (struct free_space), 0,
@@ -502,7 +515,10 @@ as_init (void)
       struct cap *cap = slot_lookup_rel (meta_data_activity,
 					 &shadow_root, addr,
 					 desc->type, NULL);
-      assert (cap->type == desc->type);
+      assertx (cap_types_compatible (cap->type, desc->type),
+	       ADDR_FMT ": type mismatch; kernel says %s, desc says %s",
+	       ADDR_PRINTF (addr),
+	       cap_type_string (cap->type), cap_type_string (desc->type));
 
       int slots_log2;
 

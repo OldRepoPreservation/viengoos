@@ -1,3 +1,9 @@
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c (as_init): Improve debugging output.
+	* storage.c (storage_free_): Likewise.
+	(storage_alloc_): Assert that the allocated storage is zerod.
+
 2008-02-08  Neal H. Walfield  <neal@gnu.org>
 
 	* pager.c (__attribute__): New function.
