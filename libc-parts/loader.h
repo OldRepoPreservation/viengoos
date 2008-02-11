@@ -25,8 +25,10 @@
 #include <stdbool.h>
 
 /* Allocate a page at address ADDR in the new task's address space.
-   Returns the address of the page.  */
-typedef void *loader_allocate_object_callback_t (uintptr_t addr);
+   Returns the address of the page.  If RO is true, the reference
+   inserted into the task's address space should be made
+   read-only.  */
+typedef void *loader_allocate_object_callback_t (uintptr_t addr, bool ro);
 
 /* If there is a page at ADDR in the new task's address space, return
    return the page, otherwise, NULL.  */

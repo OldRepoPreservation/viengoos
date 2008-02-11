@@ -1,5 +1,11 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* loader.h (loader_allocate_object_callback_t): Add parameter ro.
+	* loader.c (loader_elf_load): When calling ALLOC, pass whether or
+	not the page should be mapped read-only to the callback.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* ia32-cmain.c (program_name): Change type to char *.
 	* t-setjmp.c (program_name): Likewise.
 	* assert.h (assertx): Change program_name's type to char *.

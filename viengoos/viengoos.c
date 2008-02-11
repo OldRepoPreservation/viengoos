@@ -362,7 +362,7 @@ system_task_load (void)
 
   /* Load the binary.  */
   {
-    void *alloc (uintptr_t ptr)
+    void *alloc (uintptr_t ptr, bool ro)
     {
       addr_t addr = addr_chop (PTR_TO_ADDR (ptr), PAGESIZE_LOG2);
 

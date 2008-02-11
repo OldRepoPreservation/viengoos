@@ -105,6 +105,8 @@ loader_elf_load (loader_allocate_object_callback_t alloc,
 
       /* Load this section.  */
 
+      bool ro = ! (ph->p_flags & PF_W);
+
       uintptr_t addr = ph->p_paddr;
 
       /* Offset of PH->P_PADDR in the first page.  */
@@ -116,7 +118,7 @@ loader_elf_load (loader_allocate_object_callback_t alloc,
 	{
 	  void *page = lookup (addr - offset);
 	  if (! page)
-	    page = alloc (addr - offset);
+	    page = alloc (addr - offset, ro);
 
 	  /* Copy the data that belongs on the first page.  */
 	  memcpy ((void *) page + offset,
@@ -141,7 +143,7 @@ loader_elf_load (loader_allocate_object_callback_t alloc,
 	    page = lookup (addr);
 
 	  if (! page)
-	    page = alloc (addr);
+	    page = alloc (addr, ro);
 
 	  if (addr < ph->p_paddr + ph->p_filesz)
 	    memcpy ((void *) page,

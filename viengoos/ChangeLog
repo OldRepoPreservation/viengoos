@@ -1,5 +1,11 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (system_task_load.alloc): Update alloc callback
+	function to take additional parameter ro to be consistent with the
+	updated API.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (program_name): Change type to char *.
 	* viengoos.h (program_name): Likewise.
 	* panic.c (program_name): Likewise.
