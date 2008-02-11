@@ -1,5 +1,12 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* mm.h (mm_init_done): New declaration.
+	* mm-init.c (mm_init_done): Define.
+	(mm_init): Assert that MM_INIT_DONE is false.  Set to true just
+	prior to returning.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (storage_alloc_): When allocating a new folio, if
 	there are still reserve pages, try to take AS_LOCK.  If we fail,
 	don't allocate a new folio at this time.

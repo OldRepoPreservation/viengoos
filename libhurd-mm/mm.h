@@ -24,6 +24,9 @@
 
 #include <hurd/addr.h>
 
+/* Set to one by mm_init just before returning.  */
+extern int mm_init_done;
+
 /* Initialize the memory management sub-system.  ACTIVITY is the
    activity to use to account meta-data resources.  */
 extern void mm_init (addr_t activity);

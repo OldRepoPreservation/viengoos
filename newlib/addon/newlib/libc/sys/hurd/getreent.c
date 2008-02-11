@@ -92,6 +92,9 @@ static pthread_once_t reent_key_init = PTHREAD_ONCE_INIT;
 struct _reent *
 __getreent (void)
 {
+  extern int mm_init_done;
+  assert (mm_init_done);
+
   _L4_word_t *utcb = _L4_utcb ();
 
   if (unlikely (! utcb[_L4_UTCB_THREAD_WORD0]))

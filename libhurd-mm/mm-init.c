@@ -1,5 +1,5 @@
 /* mm-init.h - Memory management initialization.
-   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -33,9 +33,13 @@ extern struct hurd_startup_data *__hurd_startup_data;
 
 addr_t meta_data_activity;
 
+int mm_init_done;
+
 void
 mm_init (addr_t activity)
 {
+  assert (! mm_init_done);
+
   extern int output_debug;
 
   output_debug = 4;
@@ -48,4 +52,6 @@ mm_init (addr_t activity)
   storage_init ();
   as_init ();
   exception_handler_init ();
+
+  mm_init_done = 1;
 }
