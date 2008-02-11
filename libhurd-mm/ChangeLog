@@ -1,5 +1,11 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (storage_alloc_): When allocating a new folio, if
+	there are still reserve pages, try to take AS_LOCK.  If we fail,
+	don't allocate a new folio at this time.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (storage_init): If ODESC->STORAGE is ADDR_VOID,
 	ignore.
 

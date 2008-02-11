@@ -332,6 +332,26 @@ storage_alloc_ (addr_t activity,
   if (unlikely (free_count <= MIN_FREE_PAGES))
     /* Insufficient storage reserve.  Allocate a new storage area.  */
     {
+      if (free_count > 0)
+	/* XXX: as_insert calls allocate_object, which calls us.  When
+	   we allocate a new folio, we need to insert it into the
+	   address space.  This requires calling as_insert, which
+	   results in a deadlock.  Here we try to take the lock.  If
+	   we succeed, then we don't hold the lock and it is okay to
+	   call as_insert.  If we fail, then either there is a lot of
+	   contention or we would deadlock.  As long as the page
+	   reserve is large enough, this is not a problem.  A solution
+	   would be to check in as_insert whether there are any free
+	   pages and if not to call some as-yet unwritten function
+	   which forces the reserve to grow.  */
+	{
+	  extern pthread_rwlock_t as_lock;
+	  if (pthread_rwlock_trywrlock (&as_lock) == EBUSY)
+	    goto skip;
+
+	  pthread_rwlock_unlock (&as_lock);
+	}
+
     do_allocate:
       debug (3, "Allocating additional folio, free count: %d", free_count);
 
@@ -406,6 +426,7 @@ storage_alloc_ (addr_t activity,
 	 a new reserve slab buffer.  */
       check_slab_space_reserve ();
     }
+ skip:;
 
 
   /* Find an appropriate storage area.  */
