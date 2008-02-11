@@ -138,6 +138,12 @@ struct folio
 #endif
 };
 
+#ifdef RM_INTERN
+typedef struct folio *folio_t;
+#else
+typedef addr_t folio_t;
+#endif
+
 /* OBJECT is from -1 to FOLIO_OBJECTS.  */
 static inline enum cap_type
 folio_object_type (struct folio *folio, int object)

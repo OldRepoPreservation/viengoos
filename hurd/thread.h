@@ -32,6 +32,13 @@ enum
     RM_thread_wait_object_destroyed,
   };
 
+#ifdef RM_INTERN
+struct thread;
+typedef struct thread *thread_t;
+#else
+typedef addr_t thread_t;
+#endif
+
 struct exception_frame
 {
 #if i386
