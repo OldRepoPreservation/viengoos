@@ -272,10 +272,25 @@ server_loop (void)
 		       addr_t addr, int type, bool require_writable,
 		       struct object **objectp)
 	{
+	  bool writable = true;
 	  struct cap cap;
-	  error_t err = CAP_ (root, addr, type, require_writable, &cap);
-	  if (err)
-	    return err;
+	  cap = object_lookup_rel (principal, root, addr,
+				   type, require_writable ? &writable : NULL);
+	  if (type != -1 && ! cap_types_compatible (cap.type, type))
+	    {
+	      DEBUG (4, "Addr 0x%llx/%d does not reference object of "
+		     "type %s but %s",
+		     addr_prefix (addr), addr_depth (addr),
+		     cap_type_string (type), cap_type_string (cap.type));
+	      return ENOENT;
+	    }
+
+	  if (require_writable && ! writable)
+	    {
+	      DEBUG (4, "Addr " ADDR_FMT " not writable",
+		     ADDR_PRINTF (addr));
+	      return EPERM;
+	    }
 
 	  *objectp = cap_to_object (principal, &cap);
 	  if (! *objectp)
@@ -308,19 +323,14 @@ server_loop (void)
 	  root_ = &thread->aspace;					\
 	else								\
 	  {								\
-	    /* This is annoying: a thread could be in a folio so we	\
-	       can't directly lookup the slot.  */                      \
-	    struct cap cap_ = CAP (&thread->aspace, root_addr_,		\
-				   -1, true);				\
-	    if (cap_.type == cap_thread)				\
-	      {								\
-		struct object *t_ = cap_to_object (principal, &cap_);	\
-		if (! t_)						\
-		  REPLY (EINVAL);					\
-		assert (object_type (t_) == cap_thread);		\
-									\
-		root_ = &((struct thread *) t_)->aspace;		\
-	      }								\
+	    /* This is annoying: 1) a thread could be in a folio so we  \
+	       can't directly lookup the slot, 2) we only want the      \
+	       thread if it matches the guard exactly.  */		\
+	    struct object *t_;						\
+	    error_t err = OBJECT_ (&thread->aspace, root_addr_,		\
+				   cap_thread, true, &t_);		\
+	    if (! err)							\
+	      root_ = &((struct thread *) t_)->aspace;			\
 	    else							\
 	      root_ = SLOT (&thread->aspace, root_addr_);		\
 	  }								\
