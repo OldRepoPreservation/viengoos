@@ -264,7 +264,7 @@ lookup (activity_t activity,
 	    /* The caller wants an object but we haven't translated
 	       the slot's guard.  */
 	    {
-	      debug (1, "Found slot at %llx/%d but referenced object "
+	      debug (4, "Found slot at %llx/%d but referenced object "
 		     "(%s) has an untranslated guard of %lld/%d!",
 		     addr_prefix (address), addr_depth (address),
 		     cap_type_string (root->type), CAP_GUARD (root),
@@ -283,21 +283,24 @@ lookup (activity_t activity,
       if (cap_types_compatible (root->type, type))
 	/* Type are compatible.  We just need to downgrade the
 	   rights.  */
-	w = false;
+	{
+	  if (mode == want_object)
+	    w = false;
+	}
       else if (type != -1)
 	/* Incompatible types.  */
 	{
 	  do_debug (4)
 	    as_dump_from (activity, start, __func__);
-	  debug (4, "Requested type %s but cap at 0x%llx/%d designates a %s",
-		 cap_type_string (type),
-		 addr_prefix (address), addr_depth (address),
-		 cap_type_string (root->type));
+	  debug (4, "cap at " ADDR_FMT " designates a %s but want a %s",
+		 ADDR_PRINTF (address), cap_type_string (root->type),
+		 cap_type_string (type));
 	  return false;
 	}
     }
 
-  if (root->type == cap_rpage || root->type == cap_rcappage)
+  if (mode == want_object
+      && (root->type == cap_rpage || root->type == cap_rcappage))
     w = false;
 
   if (writable)

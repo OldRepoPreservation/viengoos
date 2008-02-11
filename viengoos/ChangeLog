@@ -1,5 +1,13 @@
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-lookup.c (lookup): When calculating the value for *WRITABLE,
+	only consider the permission to dereference the capability in the
+	resolved slot when MODE is want_object.
+
+	Tweak debugging output.
+
+2008-02-11  Neal H. Walfield  <neal@gnu.org>
+
 	* cap-lookup.c (print_nr): Use s_printf and s_putchar instead of
 	printf and putchar.
 
