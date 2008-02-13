@@ -1,5 +1,9 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* ia32-crt0.S (STACK_SIZE): Increase to 64 pages.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (activity_for_each_inmemory_child): Add additional
 	asserts.
 

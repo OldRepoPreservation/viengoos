@@ -21,8 +21,8 @@
 #define ASM	1
 #include "multiboot.h"
 
-/* The size of our stack (16*4KB).  */
-#define STACK_SIZE			0x10000
+/* The size of our stack (64*4KB).  */
+#define STACK_SIZE			64*0x1000
 	
 	.text
 
