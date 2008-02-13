@@ -28,12 +28,10 @@
 #define S_(id) #id
 #define S(id) S_(id)
 
-#define MODULE_BINARY MODULE
-
 	.data
 
 	/* Include the binary.  Make it page aligned.  */
 	.global C(MODULE, _start), C(MODULE, _end)
 C(MODULE, _start):
-	.incbin S(MODULE_BINARY)
+	.incbin S(BINARY)
 C(MODULE, _end):

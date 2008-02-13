@@ -57,11 +57,21 @@ modules.h: $(addsuffix .S, $(files)) Makefile
 	    )								\
 	    };' > $@
 
+
+
 hieronymus.c: modules.h
 
-$(addsuffix .S, $(files)): %.S: module.S
-	$(CPP) -DMODULE=$* $< -o $@
+find_binary = \
+	$(firstword \
+	  $(wildcard \
+	    $(addsuffix /$(1),$(addprefix $(top_builddir)/,$(module_paths)))) \
+	      $(1):not_found)
+
+binaries = $(foreach file,$(files),$(call find_binary,$(file)))
+
+$(addsuffix .S, $(files)): %.S: module.S $(binaries) Makefile
+	$(CPP) -DMODULE=$* -DBINARY=$(call find_binary,$(@:.S=)) $< -o $@
 
 $(addsuffix .o, $(files)): %.o: %.S
-	$(AS) $(addprefix -I$(top_builddir)/, $(module_paths)) $< -o $@
+	$(AS) $< -o $@
 

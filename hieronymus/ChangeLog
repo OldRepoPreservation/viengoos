@@ -1,3 +1,11 @@
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am ($(addsuffix .S, $(files))): Add a dependency on the
+	binary.  When invoking CPP, define BINARY to the calculated
+	location of the binary.
+	($(addsuffix .o, $(files))): Don't include search paths.
+	* module.S: Pass BINARY instead of the module's name to .incbin.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* ChangeLog: New file.
