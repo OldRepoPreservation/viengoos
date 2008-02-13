@@ -1,3 +1,8 @@
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-cmain.c (cmain): Update user of _pthread_init_routine to
+	reflect API change.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* process-spawn.h: New file.

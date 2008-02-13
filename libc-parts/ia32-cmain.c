@@ -124,14 +124,10 @@ cmain (void)
 
   mm_init (__hurd_startup_data->activity);
 
-  extern void *(*_pthread_init_routine)(void);
+  extern void (*_pthread_init_routine)(void (*entry) (void *), void *)
+    __attribute__ ((noreturn));
   if (_pthread_init_routine)
-    {
-      void *sp = _pthread_init_routine ();
-
-      /* Switch stacks.  */
-      l4_start_sp_ip (l4_myself (), (l4_word_t) sp, (l4_word_t) &finish);
-    }
+    _pthread_init_routine (finish, NULL);
   else
     finish ();
 
