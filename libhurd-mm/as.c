@@ -94,7 +94,7 @@ free_space_desc_slab_alloc (void *hook, size_t size, void **ptr)
 
   struct storage storage  = storage_alloc (meta_data_activity,
 					   cap_page, STORAGE_LONG_LIVED,
-					   ADDR_VOID);
+					   OBJECT_POLICY_DEFAULT, ADDR_VOID);
   *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
@@ -331,7 +331,8 @@ allocate_object (enum cap_type type, addr_t addr)
 
   /* First allocate the real object.  */
   struct storage storage = storage_alloc (meta_data_activity, type,
-					  STORAGE_LONG_LIVED, ADDR_VOID);
+					  STORAGE_LONG_LIVED,
+					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
   if (ADDR_IS_VOID (storage.addr))
     return rt;
 
@@ -343,7 +344,9 @@ allocate_object (enum cap_type type, addr_t addr)
     {
       /* Then, allocate the shadow object.  */
       struct storage shadow = storage_alloc (meta_data_activity, cap_page,
-					     STORAGE_LONG_LIVED, ADDR_VOID);
+					     STORAGE_LONG_LIVED,
+					     OBJECT_POLICY_DEFAULT,
+					     ADDR_VOID);
       if (ADDR_IS_VOID (shadow.addr))
 	{
 	  storage_free (storage.addr, false);
@@ -558,7 +561,8 @@ as_init (void)
 
 	  struct storage shadow_storage
 	    = storage_alloc (meta_data_activity,
-			     cap_page, STORAGE_LONG_LIVED, ADDR_VOID);
+			     cap_page, STORAGE_LONG_LIVED,
+			     OBJECT_POLICY_DEFAULT, ADDR_VOID);
 	  if (ADDR_IS_VOID (shadow_storage.addr))
 	    panic ("Out of space.");
 	  shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
