@@ -27,6 +27,50 @@
 
 struct activity *root_activity;
 
+/* Add ACTIVITY to ACTIVITY->PARENT's children list after AFTER.  */
+static void
+children_list_insert_after (struct activity *activity, struct activity *after)
+{
+  assert (activity->parent);
+
+  if (! after)
+    /* Insert at head of list.  */
+    {
+      activity->sibling_next = activity->parent->children;
+      if (activity->parent->children)
+	activity->parent->children->sibling_prev = activity;
+      activity->parent->children = activity;
+    }
+  else
+    {
+      assert (activity->parent == after->parent);
+      assert (after->policy.sibling_rel.priority
+	      >= activity->policy.sibling_rel.priority);
+
+      activity->sibling_next = after->sibling_next;
+      activity->sibling_prev = after;
+      if (activity->sibling_next)
+	activity->sibling_next->sibling_prev = activity;
+      after->sibling_next = activity;
+    }
+}
+
+/* Remove ACTIVITY from ACTIVITY->PARENT's children list.  */
+static void
+children_list_detach (struct activity *activity)
+{
+  if (activity->sibling_prev)
+    activity->sibling_prev->sibling_next = activity->sibling_next;
+  else
+    {
+      assert (activity->parent->children == activity);
+      activity->parent->children = activity->sibling_next;
+    }
+
+  if (activity->sibling_next)
+    activity->sibling_next->sibling_prev = activity->sibling_prev;
+}
+
 void
 activity_create (struct activity *parent,
 		 struct activity *child)
@@ -284,12 +328,26 @@ activity_prepare (struct activity *principal, struct activity *activity)
   assert (! activity->parent->children
 	  || ! activity->parent->children->sibling_prev);
 
-  activity->sibling_next = activity->parent->children;
-  if (activity->parent->children)
-    activity->parent->children->sibling_prev = activity;
-  activity->parent->children = activity;
+  if (! activity->parent->children
+      || (activity->policy.sibling_rel.priority
+	  >= activity->parent->children->policy.sibling_rel.priority))
+    children_list_insert_after (activity, NULL);
+  else
+    {
+      struct activity *last;
 
-  /* We have no in-memory children.  */
+      for (last = activity->parent->children;
+	   last->sibling_next
+	     && (last->sibling_next->policy.sibling_rel.priority
+		 > activity->policy.sibling_rel.priority);
+	   last = last->sibling_next)
+	;
+
+      assert (last);
+      children_list_insert_after (activity, last);
+    }
+
+  /* ACTIVITY has no in-memory children.  */
   activity->children = NULL;
 }
 
@@ -308,16 +366,57 @@ activity_deprepare (struct activity *principal, struct activity *victim)
   /* Unlink from parent's children list.  */
   assert (victim->parent);
 
-  if (victim->sibling_prev)
-    victim->sibling_prev->sibling_next = victim->sibling_next;
-  else
+  children_list_detach (victim);
+}
+
+void
+activity_policy_update (struct activity *activity,
+			struct activity_policy policy)
+{
+  int priority = policy.sibling_rel.priority;
+
+  if (priority == activity->policy.sibling_rel.priority)
+    /* Same priority: noop.  */
+    ;
+  else if (priority > activity->policy.sibling_rel.priority)
+    /* Increased priority.  Search backwards and find the first
+       activity that has a priority that is greater than or equal to
+       PRIORITY.  Move ACTIVITY to just after that activity.  */
     {
-      assert (victim->parent->children == victim);
-      victim->parent->children = victim->sibling_next;
+      activity->policy.sibling_rel.priority = priority;
+
+      struct activity *prev;
+      for (prev = activity->sibling_prev;
+	   prev && prev->policy.sibling_rel.priority < priority;
+	   prev = prev->sibling_prev)
+	;
+
+      if (prev != activity->sibling_prev)
+	{
+	  children_list_detach (activity);
+	  children_list_insert_after (activity, prev);
+	}
+    }
+  else
+    /* Decreased priority.  */
+    {
+      activity->policy.sibling_rel.priority = priority;
+
+      struct activity *next;
+      for (next = activity;
+	   next->sibling_next
+	     && next->sibling_next->policy.sibling_rel.priority > priority;
+	   next = next->sibling_next)
+	;
+
+      if (next != activity)
+	{
+	  children_list_detach (activity);
+	  children_list_insert_after (activity, next);
+	}
     }
 
-  if (victim->sibling_next)
-    victim->sibling_next->sibling_prev = victim->sibling_prev;
+  activity->policy = policy;
 }
 
 static void

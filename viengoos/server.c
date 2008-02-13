@@ -858,18 +858,30 @@ server_loop (void)
 
 	    rm_activity_policy_reply_marshal (&msg, principal->policy);
 
-	    if ((flags & ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
-	      principal->policy.child_rel.priority = in.child_rel.priority;
-	    if ((flags & ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET))
-	      principal->policy.child_rel.weight = in.child_rel.weight;
+	    if ((flags & (ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET
+			  | ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET
+			  | ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET
+			  | ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET
+			  | ACTIVITY_POLICY_STORAGE_SET)))
+	      {
+		struct activity_policy p = principal->policy;
 
-	    if ((flags & ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET))
-	      principal->policy.sibling_rel.priority = in.sibling_rel.priority;
-	    if ((flags & ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET))
-	      principal->policy.sibling_rel.weight = in.sibling_rel.weight;
+		if ((flags & ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
+		  p.child_rel.priority = in.child_rel.priority;
+		if ((flags & ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET))
+		  p.child_rel.weight = in.child_rel.weight;
 
-	    if ((flags & ACTIVITY_POLICY_STORAGE_SET))
-	      principal->policy.folios = in.folios;
+		if ((flags & ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET))
+		  p.sibling_rel.priority = in.sibling_rel.priority;
+		if ((flags & ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET))
+		  p.sibling_rel.weight = in.sibling_rel.weight;
+
+		if ((flags & ACTIVITY_POLICY_STORAGE_SET))
+		  p.folios = in.folios;
+
+		activity_policy_update (principal, p);
+	      }
+
 	    break;
 	  }
 

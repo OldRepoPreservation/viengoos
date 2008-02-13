@@ -1,11 +1,20 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
-	* pager.c (pager_collect): If CHILD and VICTIM have the same
-	weight steal from the activity with the larger number of pages.
+	* activity.h (activity_policy_update): New declaration.
+	* activity.c (children_list_insert_after): New function.
+	(children_list_detach): Likewise.
+	(activity_prepare): Use the above to insert ACTIVITY onto its
+	parent's children list.  Keep the list is priority sorted order.
+	(activity_deprepare): Likewise, but to remove ACTIVITY from its
+	parent's children list.
+	(activity_policy_update): New function.
+	* server.c (server_loop): Use activity_policy_update to update an
+	activity's policy.
 
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
-	* server.c (server_loop): Use it.
+	* pager.c (pager_collect): If CHILD and VICTIM have the same
+	weight steal from the activity with the larger number of frames.
 
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 

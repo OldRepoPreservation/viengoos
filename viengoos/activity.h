@@ -140,6 +140,11 @@ extern void activity_prepare (struct activity *principal,
 extern void activity_deprepare (struct activity *principal,
 				struct activity *victim);
 
+/* Set ACTIVITY's policy to POLICY.  */
+extern void activity_policy_update (struct activity *activity,
+				    struct activity_policy policy);
+
+
 /* Starting with ACTIVITY and for each direct ancestor execute CODE.
    Modifies ACTIVITY.  */
 #define activity_for_each_ancestor(__fea_activity, __fea_code)		\
