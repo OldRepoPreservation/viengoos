@@ -1,3 +1,8 @@
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/getreent.c (slab_alloc): Update use
+	of storage_alloc to be consistent with new API.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/getreent.c (__getreent): Assert

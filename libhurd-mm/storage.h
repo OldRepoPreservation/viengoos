@@ -61,15 +61,18 @@ struct storage
    caller wants to use the allocated object for address translation,
    the caller must allocate the shadow object.  If not, functions
    including the cap_lookup family will fail.  */
-extern struct storage storage_alloc_ (addr_t activity,
-				      enum cap_type type,
-				      enum storage_expectancy expectancy,
-				      addr_t addr);
-#define storage_alloc(__sa_activity, __sa_type, __sa_expectancy, __sa_addr) \
+extern struct storage storage_alloc (addr_t activity,
+				     enum cap_type type,
+				     enum storage_expectancy expectancy,
+				     struct object_policy policy,
+				     addr_t addr);
+#define storage_alloc(__sa_activity, __sa_type, __sa_expectancy,	\
+		      __sa_policy, __sa_addr)				\
   ({									\
     struct storage __sa_storage;					\
-    __sa_storage = storage_alloc_ (__sa_activity, __sa_type,		\
-				   __sa_expectancy, __sa_addr);		\
+    __sa_storage = storage_alloc (__sa_activity, __sa_type,		\
+				  __sa_expectancy, __sa_policy,		\
+				  __sa_addr);				\
     debug (5, "storage_alloc (%s, " ADDR_FMT ") -> " ADDR_FMT,		\
 	   cap_type_string (__sa_type), ADDR_PRINTF (__sa_addr),	\
 	   ADDR_PRINTF (__sa_storage.addr));				\

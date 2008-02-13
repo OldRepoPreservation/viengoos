@@ -60,7 +60,8 @@ static error_t
 slab_alloc (void *hook, size_t size, void **ptr)
 {
   struct storage storage = storage_alloc (meta_data_activity, cap_page,
-					  STORAGE_LONG_LIVED, ADDR_VOID);
+					  STORAGE_LONG_LIVED,
+					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
   if (ADDR_IS_VOID (storage.addr))
     panic ("Out of space.");
   *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
@@ -166,7 +167,8 @@ fault (struct pager *pager,
 	panic ("Failed to ensure slot at " ADDR_FMT, ADDR_PRINTF (page));
 
       struct storage storage = storage_alloc (anon->activity,
-					      cap_page, STORAGE_UNKNOWN, page);
+					      cap_page, STORAGE_UNKNOWN,
+					      OBJECT_POLICY_DEFAULT, page);
       if (ADDR_IS_VOID (storage.addr))
 	panic ("Out of memory.");
       storage_desc->storage = storage.addr;

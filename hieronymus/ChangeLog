@@ -1,5 +1,10 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* hieronymus.c (activity_alloc): Update user of storage_alloc to
+	be consistent with new API.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* hieronymus.c (main): Don't pass ACTIVITY_POLICY_VOID to
 	activity_alloc.  Build up a policy based on the configuration and
 	pass that instead.

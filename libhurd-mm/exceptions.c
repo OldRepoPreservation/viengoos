@@ -71,9 +71,9 @@ exception_frame_slab_alloc (void *hook, size_t size, void **ptr)
   struct exception_frame frame;
   utcb_state_save (&frame);
 
-  struct storage storage  = storage_alloc (meta_data_activity,
-					   cap_page, STORAGE_EPHEMERAL,
-					   ADDR_VOID);
+  struct storage storage = storage_alloc (meta_data_activity,
+					  cap_page, STORAGE_EPHEMERAL,
+					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
   *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   utcb_state_restore (&frame);
@@ -317,7 +317,8 @@ exception_handler_init (void)
   extern struct hurd_startup_data *__hurd_startup_data;
 
   struct storage storage = storage_alloc (ADDR_VOID, cap_page,
-					  STORAGE_LONG_LIVED, ADDR_VOID);
+					  STORAGE_LONG_LIVED,
+					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
 
   if (ADDR_IS_VOID (storage.addr))
     panic ("Failed to allocate page for exception state");

@@ -57,7 +57,7 @@ activity_alloc (struct activity_policy policy)
 {
   struct storage storage
     = storage_alloc (root_activity, cap_activity_control, STORAGE_LONG_LIVED,
-		     ADDR_VOID);
+		     OBJECT_POLICY_DEFAULT, ADDR_VOID);
   if (! storage.cap)
     panic ("Failed to allocate storage.");
 

@@ -92,7 +92,7 @@ cappage_desc_slab_alloc (void *hook, size_t size, void **ptr)
 
   struct storage storage = storage_alloc (meta_data_activity,
 					  cap_page, STORAGE_LONG_LIVED,
-					  ADDR_VOID);
+					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
   if (ADDR_IS_VOID (storage.addr))
     panic ("Out of storage");
   *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
@@ -171,7 +171,7 @@ capalloc (void)
 	 expect that the page will be long lived.  */
       struct storage storage = storage_alloc (meta_data_activity,
 					      cap_cappage, STORAGE_LONG_LIVED,
-					      ADDR_VOID);
+					      OBJECT_POLICY_DEFAULT, ADDR_VOID);
       if (ADDR_IS_VOID (storage.addr))
 	{
 	  cappage_desc_free (area);
@@ -187,7 +187,7 @@ capalloc (void)
       /* Then, allocate the shadow object.  */
       struct storage shadow_storage
 	= storage_alloc (meta_data_activity, cap_page,
-			 STORAGE_LONG_LIVED, ADDR_VOID);
+			 STORAGE_LONG_LIVED, OBJECT_POLICY_DEFAULT, ADDR_VOID);
       if (ADDR_IS_VOID (shadow_storage.addr))
 	{
 	  /* No memory.  */

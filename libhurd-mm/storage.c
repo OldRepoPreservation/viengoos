@@ -155,7 +155,8 @@ check_slab_space_reserve (void)
 
   /* We don't have a reserve.  Allocate one now.  */
   struct storage storage = storage_alloc (meta_data_activity, cap_page,
-					  STORAGE_LONG_LIVED, ADDR_VOID);
+					  STORAGE_LONG_LIVED,
+					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
   void *buffer = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   buffer = (void *) atomic_exchange_acq (&slab_space_reserve, buffer);
@@ -288,7 +289,9 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
       assert (! as_init_done);
 
       struct storage storage = storage_alloc (meta_data_activity, cap_page,
-					      STORAGE_LONG_LIVED, ADDR_VOID);
+					      STORAGE_LONG_LIVED,
+					      OBJECT_POLICY_DEFAULT,
+					      ADDR_VOID);
       if (ADDR_IS_VOID (storage.addr))
 	panic ("Out of storage.");
       shadow = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
@@ -324,10 +327,12 @@ storage_shadow_setup (struct cap *cap, addr_t folio)
 
 static bool storage_init_done;
 
+#undef storage_alloc
 struct storage
-storage_alloc_ (addr_t activity,
-		enum cap_type type, enum storage_expectancy expectancy,
-		addr_t addr)
+storage_alloc (addr_t activity,
+	       enum cap_type type, enum storage_expectancy expectancy,
+	       struct object_policy policy,
+	       addr_t addr)
 {
   assert (storage_init_done);
 
@@ -483,7 +488,8 @@ storage_alloc_ (addr_t activity,
   ss_mutex_unlock (&storage_descs_lock);
 
   if (! desc)
-    /* There are no unlock storage areas available.  Allocate one.  */
+    /* There are no unlocked storage areas available.  Allocate
+       one.  */
     goto do_allocate;
 
   /* DESC desigantes a storage area from which we can allocate a page.
@@ -527,8 +533,7 @@ storage_alloc_ (addr_t activity,
   if (likely (!! shadow))
     {
       cap = &shadow->caps[idx];
-      CAP_PROPERTIES_SET (cap, CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
-					       CAP_ADDR_TRANS_VOID));
+      CAP_PROPERTIES_SET (cap, CAP_PROPERTIES (policy, CAP_ADDR_TRANS_VOID));
       cap->type = type;
     }
   else
@@ -536,7 +541,7 @@ storage_alloc_ (addr_t activity,
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
 				       folio, idx, type,
-				       OBJECT_POLICY_DEFAULT, 0,
+				       policy, 0,
 				       addr, ADDR_VOID);
   assert (! err);
 
@@ -567,6 +572,7 @@ storage_alloc_ (addr_t activity,
 	as_dump (NULL);
       assert (cap);
       cap->type = type;
+      CAP_POLICY_SET (cap, policy);
     }
 
   struct storage storage;

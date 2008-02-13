@@ -171,7 +171,8 @@ main (int argc, char *argv[])
 	assert (! err);
 
 	struct storage shadow_storage
-	  = storage_alloc (activity, cap_page, STORAGE_EPHEMERAL, ADDR_VOID);
+	  = storage_alloc (activity, cap_page, STORAGE_EPHEMERAL,
+			   OBJECT_POLICY_DEFAULT, ADDR_VOID);
 	struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
 							  0, PAGESIZE_LOG2));
 	cap_set_shadow (slot, shadow);
@@ -231,6 +232,7 @@ main (int argc, char *argv[])
 				    (i & 1) == 0
 				    ? STORAGE_LONG_LIVED
 				    : STORAGE_EPHEMERAL,
+				    OBJECT_POLICY_DEFAULT,
 				    ADDR_VOID).addr;
 	assert (! ADDR_IS_VOID (storage[i]));
 	* (int *) (ADDR_TO_PTR (addr_extend (storage[i], 0, PAGESIZE_LOG2)))
@@ -292,7 +294,7 @@ main (int argc, char *argv[])
     addr_t thread = capalloc ();
     debug (5, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
     addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
-				    thread).addr;
+				    OBJECT_POLICY_DEFAULT, thread).addr;
 
     struct hurd_thread_exregs_in in;
 
@@ -489,7 +491,8 @@ main (int argc, char *argv[])
 
     addr_t a = capalloc ();
     addr_t storage = storage_alloc (activity, cap_activity_control,
-				    STORAGE_LONG_LIVED, a).addr;
+				    STORAGE_LONG_LIVED, OBJECT_POLICY_DEFAULT,
+				    a).addr;
 
     addr_t weak = capalloc ();
     error_t err = rm_cap_copy (activity, ADDR_VOID, weak, ADDR_VOID, a,
@@ -633,6 +636,7 @@ main (int argc, char *argv[])
 
     struct storage storage = storage_alloc (activity, cap_page,
 					    STORAGE_MEDIUM_LIVED,
+					    OBJECT_POLICY_DEFAULT,
 					    ADDR_VOID);
     assert (! ADDR_IS_VOID (storage.addr));
 
@@ -684,6 +688,7 @@ main (int argc, char *argv[])
 
     addr_t storage = storage_alloc (activity, cap_page,
 				    STORAGE_MEDIUM_LIVED,
+				    OBJECT_POLICY_DEFAULT,
 				    addr).addr;
     assert (! ADDR_IS_VOID (storage));
 

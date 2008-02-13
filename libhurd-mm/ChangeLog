@@ -1,5 +1,13 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.h (storage_alloc): Take additional parameter policy.
+	Update callers.
+	* storage.c (storage_alloc): Take additional parameter policy.
+	Use it when allocating the object and updating the shadow
+	capability slots.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (shadow_setup): Only update the shadow if IDX is not
 	-1.
 	(storage_alloc_): When allocating an object during initializing,
