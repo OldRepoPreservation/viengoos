@@ -1,3 +1,11 @@
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (CAP_POLICY_GET): New define.
+	(CAP_POLICY_SET): Likewise.
+	(CAP_PROPERTIES_GET): Change implementation to use the above
+	macros.
+	(CAP_PROPERTIES_SET): Likewise.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* stddef.h (debug): Change program_name's type to char *.

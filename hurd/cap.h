@@ -270,17 +270,27 @@ struct cap
 #endif
 };
 
-/* Collect __CPG_CAP's properties.  */
+/* Return CAP's policy.  */
+#define CAP_POLICY_GET(__cpg_cap)				\
+  OBJECT_POLICY ((__cpg_cap).discardable, (__cpg_cap).priority)
+/* Set CAP's policy to POLICY.  */
+#define CAP_POLICY_SET(__cps_cap, __cps_policy)			\
+  do								\
+    {								\
+      (__cps_cap)->discardable = (__cps_policy).discardable;	\
+      (__cps_cap)->priority = (__cps_policy).priority;		\
+    }								\
+  while (0)
+
+/* Return CAP's properties.  */
 #define CAP_PROPERTIES_GET(__cpg_cap)				\
-  CAP_PROPERTIES (OBJECT_POLICY ((__cpg_cap).discardable,	\
-				 (__cpg_cap).priority),		\
+  CAP_PROPERTIES (CAP_POLICY_GET (__cpg_cap),			\
 		  (__cpg_cap).addr_trans)
-/* Set *__CPS_CAP's properties to __CPS_PROPERTIES.  */
+/* Set *CAP's properties to PROPERTIES.  */
 #define CAP_PROPERTIES_SET(__cps_cap, __cps_properties)			\
   do									\
     {									\
-      (__cps_cap)->discardable = (__cps_properties).policy.discardable; \
-      (__cps_cap)->priority = (__cps_properties).policy.priority;       \
+      CAP_POLICY_SET (__cps_cap, (__cps_properties).policy);		\
       (__cps_cap)->addr_trans = (__cps_properties).addr_trans;		\
     }									\
   while (0)
@@ -513,8 +523,7 @@ cap_copy_x (activity_t activity,
 	    addr_t source_address_space, struct cap source, addr_t source_addr,
 	    int flags, struct cap_properties properties)
 {
-  /* By default, we preserve SOURCE's subpage
-     specification.  */
+  /* By default, we preserve SOURCE's subpage specification.  */
   int subpage = CAP_SUBPAGE (&source);
   int subpages = CAP_SUBPAGES (&source);
 
