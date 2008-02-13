@@ -1,5 +1,13 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* hieronymus.c (main): Don't pass ACTIVITY_POLICY_VOID to
+	activity_alloc.  Build up a policy based on the configuration and
+	pass that instead.
+	(activity_alloc): Include ACTIVITY_POLICY_SIBLING_REL_SET in the
+	call to rm_activity_policy.
+	
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am ($(addsuffix .S, $(files))): Add a dependency on the
 	binary.  When invoking CPP, define BINARY to the calculated
 	location of the binary.

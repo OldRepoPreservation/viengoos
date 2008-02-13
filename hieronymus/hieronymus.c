@@ -38,7 +38,7 @@ struct module
 {
   const char *name;
   int priority;
-  int share;
+  int weight;
   const char *commandline;
   char *start;
   char *end;
@@ -64,7 +64,8 @@ activity_alloc (struct activity_policy policy)
   struct activity_policy out;
   error_t err = rm_activity_policy (storage.addr,
 				    ACTIVITY_POLICY_STORAGE_SET
-				    | ACTIVITY_POLICY_CHILD_REL_SET,
+				    | ACTIVITY_POLICY_CHILD_REL_SET
+				    | ACTIVITY_POLICY_SIBLING_REL_SET,
 				    policy, &out);
   if (err)
     panic ("Failed to set policy on activity");
@@ -90,7 +91,11 @@ main (int argc, char *argv[])
   int i;
   for (i = 0; i < count; i ++)
     {
-      activities[i] = activity_alloc (ACTIVITY_POLICY_VOID);
+      struct activity_memory_policy sibling_policy
+	= ACTIVITY_MEMORY_POLICY (modules[i].priority, modules[i].weight);
+      struct activity_policy policy
+	= ACTIVITY_POLICY (sibling_policy, ACTIVITY_MEMORY_POLICY_VOID, 0);
+      activities[i] = activity_alloc (policy);
 
       const char *argv[] = { modules[i].name, modules[i].commandline, NULL };
       const char *env[] = { NULL };
