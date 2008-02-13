@@ -1,5 +1,10 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (main): Update comment regarding fault handling for
+	additional threads.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (activity_policy_update): New declaration.
 	* activity.c (children_list_insert_after): New function.
 	(children_list_detach): Likewise.

@@ -279,10 +279,12 @@ main (int argc, char *argv[])
 
   memory_configure ();
 
-  /* Ensure that the whole binary is faulted in.  memory configure
-     should have done this, however, it seems that there may be a bug
-     in Pistachio such that the second thread nevertheless raises
-     page faults.  */
+  /* We need to ensure that the whole binary is faulted in.  sigma0 is
+     only willing to page the first thread.  Since memory_configure
+     only grabs otherwise unreserved memory and the binary is
+     reserved, we eithereither have to implement a pager for
+     additional threads (e.g., the ager) or we just fault the binary
+     in now.  The latter is the easiest solution.  */
   l4_word_t p;
   for (p = (l4_word_t) &_start; p < (l4_word_t) &_end; p += PAGESIZE)
     * (volatile l4_word_t *) p = *(l4_word_t *)p;
