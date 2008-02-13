@@ -457,6 +457,11 @@ as_alloc_slow (int width)
   /* Fill in a descriptor.  */
   assertx ((((l4_word_t) &desc_additional[0]) & (PAGESIZE - 1)) == 0,
 	   "%p", &desc_additional[0]);
+
+  debug (5, "Allocating space for " ADDR_FMT
+	 "; using additional descriptor %d",
+	 ADDR_PRINTF (slot), desc_additional_count);
+
   struct hurd_object_desc *desc = &desc_additional[desc_additional_count ++];
   if (desc_additional_count > DESC_ADDITIONAL)
     panic ("Out of object descriptors!");
@@ -514,7 +519,7 @@ as_init (void)
 	 first.  */
       struct cap *cap = slot_lookup_rel (meta_data_activity,
 					 &shadow_root, addr,
-					 desc->type, NULL);
+					 -1, NULL);
       assertx (cap_types_compatible (cap->type, desc->type),
 	       ADDR_FMT ": type mismatch; kernel says %s, desc says %s",
 	       ADDR_PRINTF (addr),
@@ -668,23 +673,80 @@ as_init (void)
 	}
     }
 
-  /* Now we add any additional descriptors that describe memory that
-     we have allocated in the mean time.  */
-  for (i = 0; i < desc_additional_count; i ++)
-    {
-      desc = &desc_additional[i];
-
-      if (! ADDR_EQ (desc->object, desc->storage))
-	add (desc, desc->storage);
-      add (desc, desc->object);
-    }
-
   /* Reserve the kip and the utcb.  */
   as_alloc_at (ADDR ((uintptr_t) l4_kip (), ADDR_BITS), l4_kip_area_size ());
   as_alloc_at (ADDR ((uintptr_t) _L4_utcb (), ADDR_BITS), l4_utcb_size ());
 
   /* And the page at 0.  */
   as_alloc_at (addr_chop (PTR_TO_ADDR (0), PAGESIZE_LOG2), 1);
+
+  /* Now we add any additional descriptors that describe memory that
+     we have allocated in the mean time.  */
+  for (i = 0; i < desc_additional_count; i ++)
+    {
+      desc = &desc_additional[i];
+
+      debug (5, "Considering additional descriptor (%d): "
+	     ADDR_FMT "(" ADDR_FMT "), a %s",
+	     i, ADDR_PRINTF (desc->object), ADDR_PRINTF (desc->storage),
+	     cap_type_string (desc->type));
+
+      assert (desc->type != cap_void);
+      assert (! ADDR_IS_VOID (desc->storage));
+
+      if (! ADDR_EQ (desc->object, desc->storage))
+	add (desc, desc->storage);
+      add (desc, desc->object);
+    }
+
+#ifndef NDEBUG
+  int processing_folio = -1;
+
+  /* Walk the address space the hard way and make sure that we've got
+     everything.  */
+  int visit (addr_t addr,
+	     l4_word_t type, struct cap_properties properties,
+	     bool writable, void *cookie)
+    {
+      debug (5, "Checking that " ADDR_FMT " is a %s",
+	     ADDR_PRINTF (addr), cap_type_string (type));
+
+      struct cap *cap = slot_lookup_rel (meta_data_activity,
+					 &shadow_root, addr, -1, NULL);
+      assertx (cap, "addr: " ADDR_FMT "; type: %s",
+	       ADDR_PRINTF (addr), cap_type_string (type));
+
+      assertx (cap->type == type,
+	       "user: %s != kernel: %s",
+	       cap_type_string (cap->type), cap_type_string (type));
+
+      struct cap_properties properties2 = CAP_PROPERTIES_GET (*cap);
+      assert (properties.policy.discardable == properties2.policy.discardable);
+      assertx (properties.policy.priority == properties2.policy.priority,
+	       ADDR_FMT "(%s) %d != %d",
+	       ADDR_PRINTF (addr), cap_type_string (type),
+	       properties.policy.priority, properties2.policy.priority);
+      assert (properties.addr_trans.raw == properties2.addr_trans.raw);
+
+      if (type == cap_folio)
+	{
+	  processing_folio = FOLIO_OBJECTS;
+	  return 0;
+	}
+
+      if (processing_folio >= 0)
+	{
+	  processing_folio --;
+	  return -1;
+	}
+
+      return 0;
+    }
+
+  as_walk (visit, -1, NULL);
+#endif
+
+  as_init_done = true;
 
   /* Free DESC_ADDITIONAL.  */
   for (i = 0, desc = &__hurd_startup_data->descs[0];
@@ -698,36 +760,6 @@ as_init (void)
 	break;
       }
   assert (i != __hurd_startup_data->desc_count);
-
-#ifndef NDEBUG
-  /* Walk the address space the hard way and make sure that we've got
-     everything.  */
-  int visit (addr_t addr,
-	     l4_word_t type, struct cap_properties properties,
-	     bool writable, void *cookie)
-    {
-      struct cap *cap = slot_lookup_rel (meta_data_activity,
-					 &shadow_root, addr, -1, NULL);
-      assertx (cap, "addr: " ADDR_FMT "; type: %s",
-	       ADDR_PRINTF (addr), cap_type_string (type));
-
-      assert (cap->type == type);
-
-      struct cap_properties properties2 = CAP_PROPERTIES_GET (*cap);
-      assert (properties.policy.discardable == properties2.policy.discardable);
-      assertx (properties.policy.priority == properties2.policy.priority,
-	       ADDR_FMT "(%s) %d != %d",
-	       ADDR_PRINTF (addr), cap_type_string (type),
-	       properties.policy.priority, properties2.policy.priority);
-      assert (properties.addr_trans.raw == properties2.addr_trans.raw);
-
-      return 0;
-    }
-
-  as_walk (visit, -1, NULL);
-#endif
-
-  as_init_done = true;
 
   as_alloced_dump ("");
 }

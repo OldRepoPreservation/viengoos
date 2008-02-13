@@ -1,5 +1,17 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (shadow_setup): Only update the shadow if IDX is not
+	-1.
+	(storage_alloc_): When allocating an object during initializing,
+	use slot_lookup to check if there is already a shadow capability
+	slot for the capability designating the new folio.  If so, update
+	it in the normal way.
+	* as.c (as_init): Add any additionally allocated objects the last
+	thing we do before finishing.  When checking whether we got all
+	objects, don't check the contents of objects in folios.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* ia32-exception-entry.S (ACTIVATED_MODE_BIT): New define.
 	(PENDING_MESSAGE_BIT): Likewise.
 	(INTERRUPT_IN_TRANSITION_BIT): Likewise.

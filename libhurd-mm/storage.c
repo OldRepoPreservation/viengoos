@@ -299,10 +299,13 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
 
   cap_set_shadow (cap, shadow);
 
-  shadow->caps[idx].type = cap_page;
-  CAP_PROPERTIES_SET (&shadow->caps[idx],
-		      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
-				      CAP_ADDR_TRANS_VOID));
+  if (idx != -1)
+    {
+      shadow->caps[idx].type = cap_page;
+      CAP_PROPERTIES_SET (&shadow->caps[idx],
+			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
+					  CAP_ADDR_TRANS_VOID));
+    }
 }
 
 void
@@ -386,6 +389,8 @@ storage_alloc_ (addr_t activity,
 	  addr = desc->object;
 	  desc->storage = addr;
 	  desc->type = cap_folio;
+
+	  cap = slot_lookup (meta_data_activity, addr, -1, NULL);
 	}
 
       /* And then the folio.  */
