@@ -1,3 +1,11 @@
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-exception-entry.S (ACTIVATED_MODE_BIT): New define.
+	(PENDING_MESSAGE_BIT): Likewise.
+	(INTERRUPT_IN_TRANSITION_BIT): Likewise.
+	(_exception_handler_entry): When testing bits, use the above
+	defines instead of embedded constants.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* as.h (as_insert): Change return type to struct cap *.

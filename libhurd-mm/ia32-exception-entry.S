@@ -45,6 +45,10 @@
 #define EF_STACK_START (5*4)
 #define EF_NEXT (5*4)
 
+#define ACTIVATED_MODE_BIT 0
+#define PENDING_MESSAGE_BIT 1
+#define INTERRUPT_IN_TRANSITION_BIT 2
+
 	/* Handle an exception.  */
 	.globl	exception_handler_entry, _exception_handler_entry
 exception_handler_entry:
@@ -70,7 +74,7 @@ _exception_handler_entry:
 	and $0xfffff000, %edx
 
 	/* Now check if the interrupt in transition flag is set.  */
-	bt $0x4, MODE(%edx)
+	bt $INTERRUPT_IN_TRANSITION_BIT, MODE(%edx)
 	jc after_save
 
 	/* Nope; we need to save the current EAX, ECX and eflags.  */
@@ -148,7 +152,7 @@ after_adjust:
 	/* Check for pending messages.  This does not need to be
 	   atomic as if we get interrupted here, we automatically
 	   transition back to activated mode.  */
-	bt $0x2, MODE(%edx)
+	bt $PENDING_MESSAGE_BIT, MODE(%edx)
 	jc process_pending
 
 	/* Restore the user stack.  */
