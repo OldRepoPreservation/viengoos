@@ -1,5 +1,14 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.c (pager_collect): If CHILD and VICTIM have the same
+	weight steal from the activity with the larger number of pages.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): Use it.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Implement activity_stats method.
 
 	* ager.c (ager_loop): Implement first pass at updating available

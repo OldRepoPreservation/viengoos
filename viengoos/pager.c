@@ -102,20 +102,35 @@ pager_collect (void)
 	       weight += child->policy.sibling_rel.weight;
 	       frames += child->frames_total;
 
-	       int f = child->frames_total + victim_frames;
-	       int w = child->policy.sibling_rel.weight + victim_policy.weight;
-
-	       int child_excess = child->frames_total
-		 - (child->policy.sibling_rel.weight * f) / w;
-	       int victim_excess = victim_frames
-		 - (victim_policy.weight * f) / w;
-
-	       if (child_excess > victim_excess)
-		 /* CHILD has more excess frames than VICTIM.  */
+	       if (child->policy.sibling_rel.weight == victim_policy.weight)
+		 /* CHILD and VICTIM have the same weight.  Prefer the
+		    one with more frames.  */
 		 {
-		   victim = child;
-		   victim_frames = victim->frames_total;
-		   victim_policy = victim->policy.sibling_rel;
+		   if (child->frames_total > frames)
+		     {
+		       victim = child;
+		       victim_frames = victim->frames_total;
+		       victim_policy = victim->policy.sibling_rel;
+		     }
+		 }
+	       else
+		 {
+		   int f = child->frames_total + victim_frames;
+		   int w = child->policy.sibling_rel.weight
+		     + victim_policy.weight;
+
+		   int child_excess = child->frames_total
+		     - (child->policy.sibling_rel.weight * f) / w;
+		   int victim_excess = victim_frames
+		     - (victim_policy.weight * f) / w;
+
+		   if (child_excess > victim_excess)
+		     /* CHILD has more excess frames than VICTIM.  */
+		     {
+		       victim = child;
+		       victim_frames = victim->frames_total;
+		       victim_policy = victim->policy.sibling_rel;
+		     }
 		 }
 	     }
 	 }));
