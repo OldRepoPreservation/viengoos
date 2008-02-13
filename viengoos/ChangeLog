@@ -1,3 +1,10 @@
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): Implement activity_stats method.
+
+	* ager.c (ager_loop): Implement first pass at updating available
+	memory statistic.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* viengoos.c: Don't include <loader.h>.  Include <process-spawn.h>.

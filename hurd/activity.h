@@ -28,6 +28,7 @@
 enum
   {
     RM_activity_policy = 700,
+    RM_activity_stats,
   };
 
 struct activity_memory_policy
@@ -66,7 +67,7 @@ struct activity_policy
 
 /* Activity statistics.  These are approximate and in some cases
    represent averages.  */
-#define ACTIVITY_STATS_PERIODS 8
+#define ACTIVITY_STATS_PERIODS 2
 struct activity_stats
 {
   /* The maximum number of frames this activity could currently
@@ -145,6 +146,10 @@ struct activity_stats
      evicted, then the process is trashing.)  */
   uint32_t saved;
 };
+struct activity_stats_buffer
+{
+  struct activity_stats stats[ACTIVITY_STATS_PERIODS];
+};
 
 #define ACTIVITY_POLICY(__ap_sibling_rel, __ap_child_rel, __ap_storage) \
   (struct activity_policy) { __ap_sibling_rel, __ap_child_rel, __ap_storage }
@@ -184,6 +189,13 @@ RPC (activity_policy, 3, 1, addr_t, activity,
      uintptr_t, flags, struct activity_policy, in,
      /* Out: */
      struct activity_policy, out);
+
+/* Return statistics about activity ACTIVITY.  COUNT is the number of
+   returned samples.  Samples are ordered by recency with the youngest
+   towards the start of the buffer.  */
+RPC (activity_stats, 1, 2, addr_t, activity,
+     /* Out: */
+     struct activity_stats_buffer, stats, int, count)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

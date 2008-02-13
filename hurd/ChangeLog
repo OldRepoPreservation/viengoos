@@ -1,5 +1,12 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (RM_activity_stats): New definition.
+	(ACTIVITY_STATS_PERIODS): Change to 2.
+	(struct activity_stats_buffer): New structure.
+	(activity_stats): New RPC.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (CAP_POLICY_GET): New define.
 	(CAP_POLICY_SET): Likewise.
 	(CAP_PROPERTIES_GET): Change implementation to use the above

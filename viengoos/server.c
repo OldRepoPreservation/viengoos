@@ -873,6 +873,28 @@ server_loop (void)
 	    break;
 	  }
 
+	case RM_activity_stats:
+	  {
+	    err = rm_activity_stats_send_unmarshal (&msg, &principal_addr);
+	    if (err)
+	      {
+		debug (0, "");
+		REPLY (err);
+	      }
+
+	    /* XXX: Only return valid stat buffers.  */
+	    struct activity_stats_buffer buffer;
+	    int i;
+	    for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
+	      buffer.stats[i]
+		= activity->stats[(activity->current_period - 1 - i)
+				  % ACTIVITY_STATS_PERIODS + 1];
+
+	    rm_activity_stats_reply_marshal (&msg,
+					     buffer, ACTIVITY_STATS_PERIODS);
+	    break;
+	  }
+
 	case RM_exception_collect:
 	  {
 	    /* We don't expect a principal.  */

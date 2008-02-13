@@ -242,6 +242,55 @@ ager_loop (l4_thread_id_t main_thread)
 #define SAMPLES sizeof (((struct object_desc *)0)->age) * 8
       if (iterations == SAMPLES)
 	{
+	  void doit (struct activity *activity, uint32_t frames)
+	  {
+	    bool have_self = false;
+
+	    bool have_one = false;
+	    int priority;
+	    uint32_t remaining_frames = frames;
+
+	    struct activity *child;
+	    activity_for_each_inmemory_child
+	      (activity, child,
+	       ({
+		 if (! have_self
+		     && (activity->policy.child_rel.priority
+			 <= child->policy.sibling_rel.priority))
+		   {
+		     have_self = true;
+
+		     if (! have_one
+			 || priority > activity->policy.child_rel.priority)
+		       {
+			 priority = activity->policy.child_rel.priority;
+			 frames = remaining_frames;
+		       }
+
+		     remaining_frames -= activity->frames_local;
+
+		     ACTIVITY_STAT_UPDATE (activity, available, frames);
+		   }
+
+		 if (! have_one
+		     || priority > child->policy.sibling_rel.priority)
+		   {
+		     priority = child->policy.sibling_rel.priority;
+		     frames = remaining_frames;
+		   }
+
+		 remaining_frames -= child->frames_total;
+
+		 ACTIVITY_STAT_UPDATE (activity, available, frames);
+
+		 doit (child, frames);
+	       }));
+
+	    if (! have_self)
+	      ACTIVITY_STAT_UPDATE (activity, available, frames);
+	  }
+
+	  doit (root_activity, memory_total);
 #if 0
 	  /* XXX: Update the statistics.  We need to average some of
 	     the fields including the number of active, inactive,
