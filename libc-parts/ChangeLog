@@ -1,5 +1,9 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* assert.h (assertx): Improve printing of backtrace.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* ia32-cmain.c (cmain): Update user of _pthread_init_routine to
 	reflect API change.
 

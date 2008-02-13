@@ -64,9 +64,9 @@
 	void *a[10];							\
 	int count = backtrace (a, sizeof (a) / sizeof (a[0]));		\
 	int i;								\
+	S_PRINTF ("Backtrace: ");					\
 	for (i = 0; i < count; i ++)					\
-	  S_PRINTF ("Backtrace: %p%s",					\
-		    a[i], i == count - 1 ? "" : " -> ");		\
+	  S_PRINTF ("%p ", a[i]);					\
 	S_PRINTF ("\n");						\
 									\
 	for (;;);							\
