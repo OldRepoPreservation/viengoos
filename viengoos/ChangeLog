@@ -1,5 +1,10 @@
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (activity_for_each_inmemory_child): Add additional
+	asserts.
+
+2008-02-13  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (main): Update comment regarding fault handling for
 	additional threads.
 

@@ -224,12 +224,18 @@ activity_charge (struct activity *activity, int objects)
 					 __feic_code)			\
   do									\
     {									\
+      if (__feic_activity->children)					\
+	assert (! __feic_activity->children->sibling_prev);		\
+									\
       for (__feic_child = __feic_activity->children; __feic_child;	\
 	   __feic_child = __feic_child->sibling_next)			\
 	{								\
 	  assert (__feic_child->parent == __feic_activity);		\
 	  assert (object_type ((struct object *) __feic_child)		\
 		  == cap_activity_control);				\
+	  if (__feic_child->sibling_next)				\
+	    assert (__feic_child->sibling_next->sibling_prev		\
+		    == __feic_child);					\
 									\
 	  __feic_code;							\
 	}								\
