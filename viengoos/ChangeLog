@@ -7,6 +7,8 @@
 	(object_desc_flush): New function.
 	* cap.c (cap_shootdown): Don't use l4_unmap_fpage, use
 	object_desc_unmap instead.
+	* pager.c (pager_collect): Replace use of object_desc_unmap with
+	object_desc_flush.
 	
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 

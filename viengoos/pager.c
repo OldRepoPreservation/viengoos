@@ -202,7 +202,7 @@ pager_collect (void)
 
       next = hurd_btree_priorities_next (desc);
 
-      object_desc_unmap (desc);
+      object_desc_flush (desc);
 
       hurd_btree_priorities_detach (&victim->priorities, desc);
 
@@ -253,7 +253,8 @@ pager_collect (void)
 
 	      activity_lru_list_unlink (&victim->inactive_clean, clean);
 
-	      if (object_desc_unmap (clean))
+	      object_desc_flush (clean);
+	      if (desc->dirty)
 		/* It is possible that the page was dirtied between
 		   the last check and now.  */
 		{
@@ -286,7 +287,7 @@ pager_collect (void)
 
 	      next = activity_lru_list_next (dirty);
 
-	      object_desc_unmap (dirty);
+	      object_desc_flush (dirty);
 
 	      dirty->eviction_candidate = true;
 
@@ -315,7 +316,7 @@ pager_collect (void)
 
 	  next = activity_lru_list_next (desc);
 
-	  object_desc_unmap (desc);
+	  object_desc_flush (desc);
 
 	  desc->eviction_candidate = true;
 
@@ -355,7 +356,7 @@ pager_collect (void)
 
 	  next = hurd_btree_priorities_next (desc);
 
-	  object_desc_unmap (desc);
+	  object_desc_flush (desc);
 
 	  hurd_btree_priorities_detach (&victim->priorities, desc);
 
