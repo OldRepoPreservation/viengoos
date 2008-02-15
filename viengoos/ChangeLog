@@ -1,3 +1,12 @@
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
+	* list.h (list_unlink): New function.
+	(LIST_CLASS): Add above function to template.
+	
+	(LIST_CLASS_TYPE): New macro.
+	(LIST_CLASS): Take additional argument need_type.  If false, don't
+	generate a type declaration.  Update users.
+
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
 	* ia32-crt0.S (STACK_SIZE): Increase to 64 pages.

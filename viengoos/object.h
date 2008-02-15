@@ -194,11 +194,11 @@ struct object_desc
    memory map.  */
 extern struct object_desc *object_descs;
 
-LIST_CLASS(activity_lru, struct object_desc, activity_node)
-LIST_CLASS(eviction, struct object_desc, activity_node)
+LIST_CLASS(activity_lru, struct object_desc, activity_node, true)
+LIST_CLASS(eviction, struct object_desc, activity_node, true)
 
-LIST_CLASS(available, struct object_desc, available_node)
-LIST_CLASS(laundry, struct object_desc, laundry_node)
+LIST_CLASS(available, struct object_desc, available_node, true)
+LIST_CLASS(laundry, struct object_desc, laundry_node, true)
 
 /* Lock protecting the following lists as well as an activity's
    lists.  */

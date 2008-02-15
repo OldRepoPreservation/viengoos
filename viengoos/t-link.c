@@ -12,7 +12,7 @@ struct object_desc
   struct list_node activity_lru;
 };
 
-LIST_CLASS(object_activity_lru, struct object_desc, activity_lru)
+LIST_CLASS(object_activity_lru, struct object_desc, activity_lru, true)
 
 int output_debug = 0;
 

@@ -207,6 +207,40 @@ list_queue (struct list *list, struct list_node *item)
   list->count ++;
 }
 
+/* Insert ITEM after node NODE.  If NODE is NULL, insert at the head
+   of the list.  */
+static inline void
+list_insert_after (struct list *list, struct list_node *item,
+		   struct list_node *node)
+{
+  /* We require that when an item is added to a list that its next and
+     previous pointers be NULL.  This helps to catch when an item is
+     already on a list.  */
+  assert (! item->next);
+  assert (! item->prev);
+
+  if (! node)
+    return list_push (list, item);
+
+  item->next = node->next;
+  node->next = item;
+  item->prev = node;
+
+  if (LIST_SENTINEL_P (item->next))
+    /* Item is the new last item on the list.  Update the head of the
+       list's previous pointer to point to it.  */
+    {
+      assert (LIST_SENTINEL_P (list->head->prev));
+      assert (LIST_PTR (list->head->prev) == node);
+
+      list->head->prev = LIST_SENTINEL (item);
+    }
+  else
+    item->next->prev = item;
+
+  list->count ++;
+}
+
 static inline void
 list_unlink (struct list *list, struct list_node *item)
 {
@@ -323,7 +357,7 @@ list_join (struct list *target, struct list *source)
        struct list_node *node;
      }
 
-     LIST_CLASS(foo, struct foo, node)
+     LIST_CLASS(foo, struct foo, node, true)
 
    code corresponding to the following declaration is made available:
 
@@ -345,12 +379,21 @@ list_join (struct list *target, struct list *source)
      void foo_list_move (struct foo_list *target, struct foo_list *source);
      void foo_list_join (struct foo_list *target, struct foo_list *source);
   */
-#define LIST_CLASS(name, object_type, node_field)			\
+/* Generates just the list type, not the methods.  */
+#define LIST_CLASS_TYPE(name)						\
   struct name##_list							\
   {									\
     struct list list;							\
   };									\
-  typedef struct name##_list name##_list_t;				\
+  typedef struct name##_list name##_list_t;
+
+#define LIST_CLASS_TYPE_need_type_true(name) LIST_CLASS_TYPE(name)
+#define LIST_CLASS_TYPE_need_type_false(name)
+
+/* If LIST_CLASS_TYPE(name) was used in scope, then pass false as the
+   value of need_type, otherwise true.  */
+#define LIST_CLASS(name, object_type, node_field, need_type)		\
+  LIST_CLASS_TYPE_need_type_##need_type(name)				\
 									\
   static inline void							\
   name##_list_init (struct name##_list *list)				\
@@ -412,6 +455,16 @@ list_join (struct list *target, struct list *source)
   name##_list_queue (struct name##_list *list, object_type *object)	\
   {									\
     list_queue (&list->list, &object->node_field);			\
+  }									\
+									\
+  static inline void							\
+  name##_list_insert_after (struct name##_list *list,			\
+			    object_type *item,				\
+			    object_type *after)				\
+  {									\
+    list_insert_after (&list->list,					\
+		       &item->node_field,				\
+		       after ? &after->node_field : NULL);		\
   }									\
 									\
   static inline void							\
