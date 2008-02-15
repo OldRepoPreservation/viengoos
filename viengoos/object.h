@@ -133,7 +133,7 @@ struct object_desc
   l4_word_t eviction_candidate : 1;
 
   /* Whether the object is live.  */
-  l4_word_t live: 1;
+  bool live;
 
   /* The object's policy.  Set when the object is claimed using the
      value in the capability referencing the object.  */

@@ -1,7 +1,17 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (struct object_desc): Change live from bit field to a
+	bool.
+	* object.c: Include <assert.h>.
+	(memory_object_destroy): Add asserts.  Fix canary being careful
+	not to overwrite DESC->LIVE.
+	(object_find_soft): Add assert.
+	(folio_object_alloc): Likewise.
+
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h: Include "list.h".
-	(LIST_CLASS_TYPE): Declare a activity_children list.
+	(LIST_CLASS_TYPE): Declare an activity_children list.
 	(struct activity): Change children's type to a struct
 	activity_children_list.  Replace sibling_next and sibling_prev
 	with sibling, a struct list_node.

@@ -25,6 +25,7 @@
 #include <hurd/folio.h>
 #include <hurd/thread.h>
 #include <bit-array.h>
+#include <assert.h>
 
 #include "object.h"
 #include "activity.h"
@@ -165,10 +166,18 @@ memory_object_destroy (struct activity *activity, struct object *object)
 
   assert (desc->live);
 
+  assertx (folio_object_type (objects_folio (activity, object),
+			      objects_folio_offset (object)) == desc->type,
+	   "(" OID_FMT ") %s != %s",
+	   OID_PRINTF (desc->oid),
+	   cap_type_string
+	   (folio_object_type (objects_folio (activity, object),
+			       objects_folio_offset (object))),
+	   cap_type_string (desc->type));
+
   debug (5, "Destroy %s at 0x%llx (object %d)",
 	 cap_type_string (desc->type), desc->oid,
-	 ((uintptr_t) desc - (uintptr_t) object_descs)
-	 / sizeof (*desc));
+	 ((uintptr_t) desc - (uintptr_t) object_descs) / sizeof (*desc));
 
   if (desc->dirty && desc->policy.discardable)
     /* Note that the page was discarded.  */
@@ -192,14 +201,17 @@ memory_object_destroy (struct activity *activity, struct object *object)
 	panic ("Attempt to page-out activity with allocated frames");
     }
 
+  desc->live = 0;
+
   hurd_ihash_locp_remove (&objects, desc->locp);
   assert (! hurd_ihash_find (&objects, desc->oid));
 
-#ifdef NDEBUG
-  memset (desc, 0xde, sizeof (struct object_desc));
+#ifndef NDEBUG
+  memset (desc, 0xde, offsetof (struct object_desc, live));
+  memset ((void *) desc + offsetof (struct object_desc, live) + 4, 0xde,
+	  sizeof (struct object_desc)
+	  - offsetof (struct object_desc, live) - 4);
 #endif
-
-  desc->live = 0;
 }
 
 struct object *
@@ -212,6 +224,17 @@ object_find_soft (struct activity *activity, oid_t oid,
 
   struct object *object = object_desc_to_object (odesc);
   assert (oid == odesc->oid);
+
+  if (oid % (FOLIO_OBJECTS + 1) != 0)
+    assertx (folio_object_type (objects_folio (activity, object),
+				objects_folio_offset (object)) == odesc->type,
+	     "(" OID_FMT ") %s != %s",
+	     OID_PRINTF (oid),
+	     cap_type_string
+	       (folio_object_type (objects_folio (activity, object),
+				   objects_folio_offset (object))),
+	     cap_type_string (odesc->type));
+			      
 
   if (! activity)
     {
@@ -500,6 +523,9 @@ folio_object_alloc (struct activity *activity,
     {
       object = object_find (activity, oid, OBJECT_POLICY_DEFAULT);
 
+      assert (object_to_object_desc (object)->type
+	      == folio_object_type (folio, idx));
+
       /* See if we need to destroy the object.  */
       switch (folio_object_type (folio, idx))
 	{
@@ -539,7 +565,11 @@ folio_object_alloc (struct activity *activity,
     {
       odesc = object_to_object_desc (object);
       assert (odesc->oid == oid);
-      assert (odesc->type == folio_object_type (folio, idx));
+      assert (odesc->version == folio_object_version (folio, idx));
+      assertx (odesc->type == folio_object_type (folio, idx),
+	       OID_FMT ": %s != %s",
+	       OID_PRINTF (odesc->oid), cap_type_string (odesc->type),
+	       cap_type_string (folio_object_type (folio, idx)));
 
       if (type == cap_void)
 	/* We are deallocating the object: free associated memory.  */
@@ -661,7 +691,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 
 
   /* We need to disconnect DESC from its old activity.  If DESC does
-     not have an activity, it being initialized.  */
+     not have an activity, it is being initialized.  */
   if (desc->activity)
     {
       assert (object_type ((struct object *) desc->activity)
