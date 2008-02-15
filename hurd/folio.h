@@ -124,6 +124,8 @@ struct folio
      queue.  */
   uint8_t wait_queues_p[(1 + FOLIO_OBJECTS + (8 - 1)) / 8];
 
+  uint8_t discarded[(FOLIO_OBJECTS + (8 - 1)) / 8];
+
   /* Head of the list of objects waiting for some event on this
      object.  An element of this array is only valid if the
      corresponding element of WAIT_QUEUES_P is true.  The list is a
@@ -279,6 +281,23 @@ folio_object_content_set (struct folio *folio, int object,
   assert (object >= -1 && object <= FOLIO_OBJECTS);
 
   folio->misc[object + 1].content = content;
+}
+
+static inline bool
+folio_object_discarded (struct folio *folio, int object)
+{
+  assert (object >= 0 && object <= FOLIO_OBJECTS);
+
+  return bit_test (folio->discarded, object);
+}
+
+static inline void
+folio_object_discarded_set (struct folio *folio, int object, bool valid)
+{
+  assert (object >= 0 && object <= FOLIO_OBJECTS);
+
+  bit_set_to (folio->discarded, sizeof (folio->discarded),
+	      object, valid);
 }
 #endif /* RM_INTERN  */
 
