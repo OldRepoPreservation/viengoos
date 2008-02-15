@@ -202,6 +202,12 @@ destroy (struct pager *pager)
       next = hurd_btree_storage_desc_next (node);
 
       storage_free (node->storage, false);
+
+#ifndef NDEBUG
+      /* When reallocating, we expect that the node field is 0.
+	 libhurd-btree asserts this, so make it so.  */
+      memset (node, 0, sizeof (struct storage_desc));
+#endif
       storage_desc_free (node);
     }
 

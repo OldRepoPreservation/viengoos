@@ -1,3 +1,10 @@
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
+	* btree.h (BTREE_(insert)) [!NDEBUG]: Assert that the node
+	pointers are clear.
+	* btree.c (BTREE_(detach)) [!NDEBUG]: Clear ROOT.
+	* btree-test.c (main): Clear allocated nodes.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* btree-test.c (program_name): Change type to char *.

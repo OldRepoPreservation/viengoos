@@ -91,7 +91,7 @@ main (int argc, char *argv[])
     {
       for (i = m; i < sizeof (a) / sizeof (*a); i ++)
 	{
-	  node = malloc (sizeof (struct int_node));
+	  node = calloc (sizeof (struct int_node), 1);
 	  assert (node);
 	  node->key = a[i];
 	  debug ("Inserting %d... ", a[i]);
@@ -159,7 +159,7 @@ main (int argc, char *argv[])
   /* Insert elements { B, B + 2, ..., C }.  */
   for (i = B; i <= C; i += 2)
     {
-      node = malloc (sizeof (struct int_node));
+      node = calloc (sizeof (struct int_node), 1);
       assert (node);
 
       node->key = i;
@@ -167,7 +167,11 @@ main (int argc, char *argv[])
       fflush (stdout);
       ret = hurd_btree_int_node_insert (&root, node);
       assert (! ret);
-      ret = hurd_btree_int_node_insert (&root, node);
+
+      struct int_node n;
+      memset (&n, 0, sizeof (n));
+      n.key = i;
+      ret = hurd_btree_int_node_insert (&root, &n);
       assert (ret);
       debug ("done\n");
 
@@ -223,7 +227,7 @@ main (int argc, char *argv[])
   /* Add elements { C, C - 2, ..., A }.  */
   for (i = C; i >= A; i -= 2)
     {
-      node = malloc (sizeof (struct int_node));
+      node = calloc (sizeof (struct int_node), 1);
       assert (node);
 
       node->key = i;
@@ -231,8 +235,13 @@ main (int argc, char *argv[])
       fflush (stdout);
       ret = hurd_btree_int_node_insert (&root, node);
       assert (! ret);
-      ret = hurd_btree_int_node_insert (&root, node);
+
+      struct int_node n;
+      memset (&n, 0, sizeof (n));
+      n.key = i;
+      ret = hurd_btree_int_node_insert (&root, &n);
       assert (ret);
+
       debug ("done\n");
 
       node = hurd_btree_int_node_first (&root);
@@ -326,7 +335,7 @@ main (int argc, char *argv[])
   /* Insert { B - 2, B - 4, ..., A }.  */
   for (i = B - 2 ; i >= A; i -= 2)
     {
-      node = malloc (sizeof (struct int_node));
+      node = calloc (sizeof (struct int_node), 1);
       assert (node);
 
       node->key = i;
@@ -334,7 +343,11 @@ main (int argc, char *argv[])
       fflush (stdout);
       ret = hurd_btree_int_node_insert (&root, node);
       assert (! ret);
-      ret = hurd_btree_int_node_insert (&root, node);
+
+      struct int_node n;
+      memset (&n, 0, sizeof (n));
+      n.key = i;
+      ret = hurd_btree_int_node_insert (&root, &n);
       assert (ret);
       debug ("done\n");
 
@@ -353,7 +366,7 @@ main (int argc, char *argv[])
   /* Add { B, B + 2, ..., C }.  */
   for (i = B; i <= C; i += 2)
     {
-      node = malloc (sizeof (struct int_node));
+      node = calloc (sizeof (struct int_node), 1);
       assert (node);
 
       node->key = i;
@@ -361,7 +374,11 @@ main (int argc, char *argv[])
       fflush (stdout);
       ret = hurd_btree_int_node_insert (&root, node);
       assert (! ret);
-      ret = hurd_btree_int_node_insert (&root, node);
+
+      struct int_node n;
+      memset (&n, 0, sizeof (n));
+      n.key = i;
+      ret = hurd_btree_int_node_insert (&root, &n);
       assert (ret);
       debug ("done\n");
 
@@ -404,7 +421,7 @@ main (int argc, char *argv[])
   for (i = A; i <= C; i ++)
     {
       debug ("Inserting %d... ", i);
-      node = malloc (sizeof (struct int_node));
+      node = calloc (sizeof (struct int_node), 1);
       assert (node);
 
       node->key = i;
@@ -416,7 +433,10 @@ main (int argc, char *argv[])
       else
 	assert (! ret);
 
-      ret = hurd_btree_int_node_insert (&root, node);
+      struct int_node n;
+      memset (&n, 0, sizeof (n));
+      n.key = i;
+      ret = hurd_btree_int_node_insert (&root, &n);
       assert (ret);
       debug ("\n");
     }
@@ -537,7 +557,7 @@ main (int argc, char *argv[])
     for (j = 0; j < max; j ++)
       {
 	debug ("Inserting %d... ", j);
-	node = malloc (sizeof (struct int_node));
+	node = calloc (sizeof (struct int_node), 1);
 	assert (node);
 
 	node->key = j;

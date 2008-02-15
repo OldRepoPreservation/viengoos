@@ -1,3 +1,7 @@
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.c (destroy) [!NDEBUG]: Clear NODE before freeing it.
+
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
 	* storage.h (storage_alloc): Take additional parameter policy.

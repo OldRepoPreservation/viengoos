@@ -396,6 +396,10 @@ BTREE_(insert) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
   struct BTREE_(node_ptr) *nodep;
   BTREE_(node_t) *pred, *succ, *parent;
 
+  assert (! newnode->left.raw);
+  assert (! newnode->right.raw);
+  assert (! newnode->parent.raw);
+
   err = BTREE_(find_internal) (btree, compare, key_offset,
 			       (void *) newnode + key_offset,
 			       &nodep, &pred, &succ, &parent,

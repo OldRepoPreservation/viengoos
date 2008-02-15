@@ -1110,7 +1110,7 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
 		    }
 
 		  /* We're done.  */
-		  return;
+		  goto out;
 		}
 	    }
 	  else
@@ -1178,13 +1178,20 @@ BTREE_(detach) (BTREE_(t) *btree, BTREE_(node_t) *root)
 		      BTREE_NP_SET (&p->parent, q);
 		      BTREE_NP_CHILD_SET (pp, q);
 		    }
-		  return;
+		  goto out;
 		}
 	    }
 	}
       if (child != NULL)
 	BTREE_NODE_RED_SET (child, 0);
     }
+
+ out:;
+#ifndef NDEBUG
+  root->parent.raw = 0;
+  root->left.raw = 0;
+  root->right.raw = 0;
+#endif
 }
 
 #if 0
