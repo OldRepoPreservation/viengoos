@@ -192,7 +192,6 @@ memory_object_destroy (struct activity *activity, struct object *object)
 
   ss_mutex_lock (&lru_lock);
   object_desc_claim (NULL, desc, desc->policy, true);
-  ss_mutex_unlock (&lru_lock);
 
   if (desc->type == cap_activity_control)
     {
@@ -212,6 +211,8 @@ memory_object_destroy (struct activity *activity, struct object *object)
 	  sizeof (struct object_desc)
 	  - offsetof (struct object_desc, live) - 4);
 #endif
+
+  ss_mutex_unlock (&lru_lock);
 }
 
 struct object *
