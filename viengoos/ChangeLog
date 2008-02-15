@@ -1,6 +1,6 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
-	* list.h (list_unlink): New function.
+	* list.h (list_insert_after): New function.
 	(LIST_CLASS): Add above function to template.
 	
 	(LIST_CLASS_TYPE): New macro.
