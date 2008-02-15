@@ -1,5 +1,25 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.h: Include "memory.h", "zalloc.h", and "object.h".
+	(pager_collect): Take an additional argument goal and return an
+	integer.
+	(PAGER_LOW_WATER_MARK): New macro.
+	(PAGER_HIGH_WATER_MARK): Likewise.
+	(pager_collect_needed): New function.
+	(pager_query): Likewise.
+	* pager.c (LOW_WATER_MARK): Don't define.
+	(HIGH_WATER_MARK): Likewise.
+	(is_clean): New function.
+	(reclaim_from): New function.  Broken out of pager_collect.
+	Correctly update statistics.
+	(pager_collect): Take an additional argument goal and return an
+	integer.  Rewrite victim selection implementation.
+	* memory.c (memory_frame_allocate): Call page_query.  If zalloc
+	fails, take from the available list.  Add asserts.  Don't clear
+	memory if we get memory from zalloc.
+
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (ager_loop): Calculate statistics.
 
 2008-02-15  Neal H. Walfield  <neal@gnu.org>

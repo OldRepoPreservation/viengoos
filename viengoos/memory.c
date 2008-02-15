@@ -355,61 +355,61 @@ memory_grab (void)
 uintptr_t
 memory_frame_allocate (struct activity *activity)
 {
+  pager_query ();
+
   uintptr_t f = zalloc (PAGESIZE);
   if (! f)
     {
-      bool collected = false;
+      /* Check if there are any pages on the available list.  */
+      ss_mutex_lock (&lru_lock);
 
-      for (;;)
+      /* XXX: We avoid objects that require special treatment.
+	 Realize this special treatment.  */
+      struct object_desc *desc = available_list_tail (&available);
+      while (desc)
 	{
-	  /* Check if there are any pages on the available list.  */
-	  ss_mutex_lock (&lru_lock);
-
-	  /* XXX: We avoid objects that require special treatment.
-	     Realize this special treatment.  */
-	  struct object_desc *desc = available_list_tail (&available);
-	  while (desc)
+	  if (desc->type != cap_activity_control
+	      && desc->type != cap_thread)
 	    {
-	      if (desc->type != cap_activity_control
-		  && desc->type != cap_thread)
+	      if (ss_mutex_trylock (&desc->lock))
+		/* We will detach DESC from AVAILALBE in
+		   memory_object_destroy.  */
 		break;
-
-	      desc = available_list_prev (desc);
 	    }
 
-	  if (desc)
-	    ss_mutex_lock (&desc->lock);
+	  desc = available_list_prev (desc);
+	}
 
-	  ss_mutex_unlock (&lru_lock);
+      ss_mutex_unlock (&lru_lock);
 
-	  if (desc)
-	    {
-	      assert (desc->live);
-	      assert (desc->eviction_candidate);
-	      assert (desc->activity);
-	      assert (object_type ((struct object *) desc->activity)
-		      == cap_activity_control);
-	      assert (! desc->dirty || desc->policy.discardable);
+      if (desc)
+	{
+	  assert (desc->live);
+	  assert (desc->eviction_candidate);
+	  assert (desc->activity);
+	  assert (object_type ((struct object *) desc->activity)
+		  == cap_activity_control);
+	  assert (! desc->dirty || desc->policy.discardable);
 
-	      struct object *object = object_desc_to_object (desc);
-	      memory_object_destroy (activity, object);
+	  debug (5, "Reusing OID " OID_FMT " (%s)",
+		 OID_PRINTF (desc->oid), cap_type_string (desc->type));
 
-	      f = (uintptr_t) object;
-	    }
+	  struct object *object = object_desc_to_object (desc);
+	  oid_t oid = desc->oid;
 
-	  if (f || collected)
-	    break;
+	  memory_object_destroy (activity, object);
 
-	  /* Try collecting.  */
-	  pager_collect ();
-	  collected = true;
+	  assert (! object_find_soft (activity, oid, OBJECT_POLICY_DEFAULT));
+
+	  f = (uintptr_t) object;
+
+	  memset ((void *) f, 0, PAGESIZE);
 	}
     }
 
   if (! f)
     panic ("Out of memory");
 
-  memset ((void *) f, 0, PAGESIZE);
   return f;
 }
 

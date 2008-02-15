@@ -1,5 +1,5 @@
 /* pager.c - Pager implementation.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -22,164 +22,30 @@
 #include "zalloc.h"
 #include "activity.h"
 #include "object.h"
+#include "pager.h"
 
-/* We try to keep at least 1/8 (12.5%) of memory available for
-   immediate allocation.  */
-#define LOW_WATER_MARK (memory_total / 8)
-/* When we start freeing, we try to get at least 3/16 (~19%) of memory
-   available for immediate allocation.  */
-#define HIGH_WATER_MARK (LOW_WATER_MARK + LOW_WATER_MARK / 2)
-
-/* Free memory from the activity or activities with the largest
-   disproportionate share of memory such that the number of clean
-   pages plus the number of pages in the laundry exceed the low-memory
-   threshold.  */
-void
-pager_collect (void)
+static void
+is_clean (struct object_desc *desc)
 {
-  int available_pages = zalloc_memory
-    + available_list_count (&available)
-    /* We only count the pages on the laundry half as they won't be
-       available immediately.  */
-    + laundry_list_count (&laundry) / 2;
-
-  if (available_pages > LOW_WATER_MARK)
-    return;
-
-  /* We've dipped below the low mark mark.  Free enough memory such
-     that we are above the high water mark.  */
-
-  int goal = HIGH_WATER_MARK - available_pages;
-
-  debug (0, "Frames: %d, available: %d (%d%%) (dirty: %d), "
-	 "low water: %d, goal: %d",
-	 memory_total,
-	 available_pages, (available_pages * 100) / memory_total,
-	 laundry_list_count (&laundry),
-	 LOW_WATER_MARK, goal);
-
-  /* Find a victim.  */
-  struct activity *victim = root_activity;
-  struct activity *parent;
-
-  struct activity_memory_policy victim_policy;
-  int victim_frames;
-
-  do
+  if (! desc->dirty)
     {
-      /* The total weight and the total number of frames of the lowest
-	 priority group.  */
-      int weight;
-      int frames;
+      struct object *object = object_desc_to_object (desc);
 
-      parent = victim;
-      victim_frames = victim->frames_local;
-      victim_policy = victim->policy.child_rel;
-      weight = victim_policy.weight;
-      frames = victim_frames;
-
-      struct activity *child;
-      for (child = activity_children_list_head (&parent->children);
-	   child;
-	   child = activity_children_list_next (child))
-	{
-	  if (child->policy.sibling_rel.priority < victim_policy.priority)
-	    /* CHILD has a lower absolute priority.  */
-	    {
-	      victim = child;
-	      victim_frames = victim->frames_total;
-	      victim_policy = victim->policy.sibling_rel;
-
-	      /* Reset the weight.  */
-	      weight = victim_policy.weight;
-	      frames = victim_frames;
-	    }
-	  else if (child->policy.sibling_rel.priority
-		   == victim_policy.priority)
-	    /* CHILD and VICTIM have equal priority.  Steal from the one
-	       which has the most pages taking into their respective
-	       weights.  */
-	    {
-	      weight += child->policy.sibling_rel.weight;
-	      frames += child->frames_total;
-
-	      if (child->policy.sibling_rel.weight == victim_policy.weight)
-		/* CHILD and VICTIM have the same weight.  Prefer the
-		   one with more frames.  */
-		{
-		  if (child->frames_total > frames)
-		    {
-		      victim = child;
-		      victim_frames = victim->frames_total;
-		      victim_policy = victim->policy.sibling_rel;
-		    }
-		}
-	      else
-		{
-		  int f = child->frames_total + victim_frames;
-		  int w = child->policy.sibling_rel.weight
-		    + victim_policy.weight;
-
-		  int child_excess = child->frames_total
-		    - (child->policy.sibling_rel.weight * f) / w;
-		  int victim_excess = victim_frames
-		    - (victim_policy.weight * f) / w;
-
-		  if (child_excess > victim_excess)
-		    /* CHILD has more excess frames than VICTIM.  */
-		    {
-		      victim = child;
-		      victim_frames = victim->frames_total;
-		      victim_policy = victim->policy.sibling_rel;
-		    }
-		}
-	    }
-	}
-
-      if (frames >= goal)
-	/* The number of frames at this priority level exceed the
-	   goal.  Page all activity's at this priority level
-	   out.  */
-	{
-	  /* XXX: Do it.  */
-	}
-
-      /* VICTIM's share of the frames allocated to all the activity's
-	 at this priority level.  */
-      int share;
-      if (weight == 0)
-	share = 0;
-      else
-	share = (frames * victim_policy.weight) / weight;
-
-      /* VICTIM's share must be less than or equal to the frames
-	 allocated to this priority as we know that this activity has
-	 an excess and VICTIM is the most excessive.  */
-      assertx (share < victim->frames_total,
-	       "%d <= %d", share, victim->frames_total);
-
-      if (victim->frames_total - share < goal)
-	/* VICTIM's excess is less than the amount we want to reclaim.
-	   Reclaim from the second worst offender after we finish
-	   here.  */
-	{
-	  /* XXX: Do it.  */
-	}
-
-      if (victim->frames_total - share < goal)
-	goal = victim->frames_total - share;
-
-      debug (0, "Choosing activity " OID_FMT "%s, %d/%d frames, "
-	     "share: %d, goal: %d",
-	     OID_PRINTF (object_to_object_desc ((struct object *) victim)->oid),
-	     victim->parent ? "" : " (root activity)",
-	     victim->frames_total, victim->frames_local, share, goal);
+      int *p = (int *) object;
+      int i;
+      for (i = 0; i < PAGESIZE / sizeof (int); i ++, p ++)
+	assertx (*p == 0,
+		 OID_FMT "/%p (%s) is dirty!",
+		 OID_PRINTF (desc->oid), p, cap_type_string (desc->type));
     }
-  while (victim != parent);
-  assert (victim);
+}
 
-  /* We want to steal GOAL pages from VICTIM.  */
-
+/* Reclaim GOAL pages from VICTIM.  (Reclaim means either schedule for
+   page-out if dirty and not discardable or place on the clean
+   list.)  */
+static int
+reclaim_from (struct activity *victim, int goal)
+{
   int count = 0;
   int laundry_count = 0;
 
@@ -220,6 +86,7 @@ pager_collect (void)
       else
 	{
 	  assert (! list_node_attached (&desc->available_node));
+	  is_clean (desc);
 
 	  available_list_queue (&available, desc);
 	  eviction_list_queue (&victim->eviction_clean, desc);
@@ -255,7 +122,7 @@ pager_collect (void)
 	      activity_lru_list_unlink (&victim->inactive_clean, clean);
 
 	      object_desc_flush (clean);
-	      if (desc->dirty)
+	      if (clean->dirty)
 		/* It is possible that the page was dirtied between
 		   the last check and now.  */
 		{
@@ -265,6 +132,8 @@ pager_collect (void)
 		}
 	      else
 		{
+		  is_clean (desc);
+
 		  eviction_list_push (&victim->eviction_clean, clean);
 
 		  available_list_queue (&available, clean);
@@ -334,6 +203,7 @@ pager_collect (void)
 	  else
 	    {
 	      assert (! list_node_attached (&desc->available_node));
+	      is_clean (desc);
 
 	      available_list_queue (&available, desc);
 	      eviction_list_queue (&victim->eviction_clean, desc);
@@ -374,6 +244,7 @@ pager_collect (void)
 	  else
 	    {
 	      assert (! list_node_attached (&desc->available_node));
+	      is_clean (desc);
 
 	      available_list_queue (&available, desc);
 	      eviction_list_queue (&victim->eviction_clean, desc);
@@ -385,8 +256,206 @@ pager_collect (void)
 
   ACTIVITY_STAT_UPDATE (victim, evicted, count);
 
+  victim->frames_local -= count;
+  struct activity *ancestor = victim;
+  activity_for_each_ancestor (ancestor,
+			      ({ ancestor->frames_total -= count; }));
+
   debug (0, "Goal: %d, %d in laundry, %d made available",
 	 goal, laundry_count, count - laundry_count);
+  /* We should never have selected a task from which we can free
+     nothing!  */
+  assert (count > 0);
 
   ss_mutex_unlock (&lru_lock);
+
+  return count;
+}
+
+/* Free memory from the activity or activities with the largest
+   disproportionate share of memory such that the number of clean
+   pages plus the number of pages in the laundry exceed the low-memory
+   threshold.  */
+int
+pager_collect (int goal)
+{
+  activity_dump (root_activity);
+
+  int available_memory = zalloc_memory + available_list_count (&available);
+
+  debug (0, "Frames: %d, available: %d (%d%%), paging out: %d, "
+	 "low water: %d, goal: %d",
+	 memory_total,
+	 available_memory, (available_memory * 100) / memory_total,
+	 laundry_list_count (&laundry),
+	 PAGER_LOW_WATER_MARK, goal);
+
+  /* Find a victim.  */
+  struct activity *victim = root_activity;
+  struct activity *parent;
+
+  struct activity_memory_policy victim_policy;
+  int victim_frames;
+
+  int total_freed = 0;
+
+  while (total_freed < goal)
+    {
+      /* The total weight and the total number of frames of the lowest
+	 priority group.  */
+      int weight;
+      int frames;
+
+      /* FRAMES is the number of frames allocated to the activity
+	 minus the number of active frames.  */
+      bool process (struct activity *activity,
+		    struct activity_memory_policy activity_policy,
+		    int activity_frames)
+      {
+	debug (0, "Considering activity " OID_FMT
+	       ": prio: %d; frames: %d/%d; active: %d/%d",
+	       OID_PRINTF (object_oid ((struct object *) activity)),
+	       activity_policy.priority,
+	       activity->frames_total, activity->frames_local,
+	       ACTIVITY_STATS_LAST (activity)->active,
+	       ACTIVITY_STATS_LAST (activity)->active_local);
+
+	if (activity_frames <= 0)
+	  /* ACTIIVTY has no frames to yield; don't consider it.  */
+	  {
+	    debug (0, "Not choosing activity " OID_FMT,
+		   OID_PRINTF (object_oid ((struct object *) activity)));
+	    return false;
+	  }
+
+	if (! victim)
+	  {
+	    victim = activity;
+	    victim_frames = activity_frames;
+	    victim_policy = activity_policy;
+
+	    /* Initialize the weight.  */
+	    weight = activity_policy.weight;
+	    frames = activity_frames;
+
+	    return false;
+	  }
+
+	/* We should be processing the activities in reverse priority
+	   order.  */
+	assertx (activity_policy.priority >= victim_policy.priority,
+		 "%d < %d", activity_policy.priority, victim_policy.priority);
+
+	if (activity->policy.sibling_rel.priority > victim_policy.priority)
+	  /* ACTIVITY has a higher absolute priority, we're done.  */
+	  return true;
+
+	/* ACTIVITY and VICTIM have equal priority.  Steal from the
+	   one which has the most pages taking into account their
+	   respective weights.  */
+	assert (activity->policy.sibling_rel.priority
+		== victim_policy.priority);
+
+	weight += activity_policy.weight;
+	frames += activity_frames;
+
+	if (activity_policy.weight == victim_policy.weight)
+	  /* ACTIVITY and VICTIM have the same weight.  Prefer the one
+	     with more frames.  */
+	  {
+	    if (activity_frames > victim_frames)
+	      {
+		victim = activity;
+		victim_frames = activity_frames;
+		victim_policy = activity_policy;
+	      }
+	  }
+	else
+	  {
+	    int f = activity_frames + victim_frames;
+	    int w = activity_policy.weight + victim_policy.weight;
+
+	    int activity_excess = activity_frames
+	      - (activity_policy.weight * f) / w;
+	    int victim_excess = victim_frames
+	      - (victim_policy.weight * f) / w;
+
+	    if (activity_excess > victim_excess)
+	      /* ACTIVITY has more excess frames than VICTIM.  */
+	      {
+		victim = activity;
+		victim_frames = activity_frames;
+		victim_policy = activity_policy;
+	      }
+	  }
+
+	return false;
+      }
+
+      parent = victim;
+      victim = NULL;
+      bool have_self = false;
+
+      struct activity *child;
+      bool done = false;
+      for (child = activity_children_list_tail (&parent->children);
+	   child;
+	   child = activity_children_list_prev (child))
+	{
+	  if (! have_self && (parent->policy.child_rel.priority <=
+			      child->policy.sibling_rel.priority))
+	    {
+	      have_self = true;
+	      done = process (parent, parent->policy.child_rel,
+			      parent->frames_local
+			      - ACTIVITY_STATS_LAST (parent)->active_local);
+	      if (done)
+		break;
+	    }
+
+	  done = process (child, child->policy.sibling_rel,
+			  child->frames_total
+			  - ACTIVITY_STATS_LAST (child)->active);
+	  if (done)
+	    break;
+	}
+
+      if (! done && ! have_self)
+	process (parent, parent->policy.child_rel,
+		 parent->frames_local
+		 - ACTIVITY_STATS_LAST (parent)->active_local);
+
+      assert (victim);
+
+      /* We steal from VICTIM.  */
+
+      /* Calculate VICTIM's share of the frames allocated to all the
+	 activity's at this priority level.  */
+      int share = 0;
+      if (weight > 0 && frames < goal)
+	share = ((frames - goal) * victim_policy.weight) / weight;
+
+      /* VICTIM's share must be less than or equal to the frames
+	 allocated to this priority as we know that this activity has
+	 an excess and VICTIM is the most excessive.  */
+      assertx (share < victim->frames_total,
+	       "%d <= %d", share, victim->frames_total);
+
+      assertx (victim_frames >= share,
+	       "%d > %d", victim_frames, share);
+
+      debug (0, "Choosing activity " OID_FMT "%s, %d/%d frames, "
+	     "share: %d, goal: %d",
+	     OID_PRINTF (object_to_object_desc ((struct object *) victim)->oid),
+	     victim->parent ? "" : " (root activity)",
+	     victim->frames_total, victim->frames_local, share, goal);
+
+      int reclaim = victim_frames - share;
+      if (reclaim > goal)
+	reclaim = goal;
+
+      total_freed += reclaim_from (victim, reclaim);
+    }
+
+  return total_freed;
 }
