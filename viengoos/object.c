@@ -185,6 +185,7 @@ memory_object_destroy (struct activity *activity, struct object *object)
     {
       struct folio *folio = objects_folio (activity, object);
       folio_object_content_set (folio, objects_folio_offset (object), false);
+      folio_object_discarded_set (folio, objects_folio_offset (object), true);
     }
 
   struct cap cap = object_desc_to_cap (desc);
