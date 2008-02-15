@@ -106,9 +106,11 @@ struct activity_stats
 
 
   /* Based on recency information, the number of active frames
-     accounted to this activity.  The number of inactive frames is
-     approximately CLEAN + DIRTY - ACTIVE.  */
+     accounted to this activity and its children.  The number of
+     inactive frames is approximately CLEAN + DIRTY - ACTIVE.  */
   uint32_t active;
+  /* Likewise, but excluding its children.  */
+  uint32_t active_local;
 
   /* Number of frames that were active in the last period that become
      inactive in this period.  */

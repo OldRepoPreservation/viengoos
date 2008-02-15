@@ -1,5 +1,9 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (struct activity_stats): Add field active_local.
+
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* folio.h (struct folio): Add field discarded.
 	(folio_object_discarded): New function.
 	(folio_object_discarded_set): Likewise.
