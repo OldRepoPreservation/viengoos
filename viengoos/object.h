@@ -311,11 +311,26 @@ object_type (struct object *object)
   return object_to_object_desc (object)->type;
 }
 
-/* Unmaps the object corresponding to DESC from all clients.  Returns
-   whether it was dirty.  */
-static inline bool
+/* Unmaps the object corresponding to DESC from all clients.  */
+static inline void
 object_desc_unmap (struct object_desc *desc)
 {
+#ifndef _L4_TEST_ENVIRONMENT
+  struct object *object = object_desc_to_object (desc);
+
+  l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
+  l4_fpage_t unmap = l4_fpage_add_rights (flush, L4_FPAGE_FULLY_ACCESSIBLE);
+
+  desc->dirty |= !!l4_was_written (l4_unmap_fpage (unmap));
+#endif
+}
+
+/* Unmaps the object corresponding to DESC from all clients and also
+   retrieves the status bits for this address space.  */
+static inline void
+object_desc_flush (struct object_desc *desc)
+{
+#ifndef _L4_TEST_ENVIRONMENT
   assert (desc->live);
 
   struct object *object = object_desc_to_object (desc);
@@ -323,13 +338,12 @@ object_desc_unmap (struct object_desc *desc)
   l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
   l4_fpage_t unmap = l4_fpage_add_rights (flush, L4_FPAGE_FULLY_ACCESSIBLE);
 
-  desc->dirty |= l4_was_written (l4_unmap_fpage (unmap));
+  desc->dirty |= !!l4_was_written (l4_unmap_fpage (unmap));
 
   if (! desc->dirty)
     /* We may have dirty it.  */
-    desc->dirty |= l4_was_written (l4_flush (flush));
-
-  return desc->dirty;
+    desc->dirty |= !!l4_was_written (l4_flush (flush));
+#endif
 }
 
 /* Transfer ownership of DESC to the activity ACTIVITY.  If ACTIVITY

@@ -1,5 +1,15 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (object_desc_unmap) [_L4_TEST_ENVIRONMENT]: Do nothing.
+	(object_desc_unmap) [_L4_TEST_ENVIRONMENT]: When adding the dirty
+	bit, be careful to make sure that the correct value is bitwise
+	or'ed into DESC->DIRTY.
+	(object_desc_flush): New function.
+	* cap.c (cap_shootdown): Don't use l4_unmap_fpage, use
+	object_desc_unmap instead.
+	
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.c (cap_shootdown): If we encounter a capability designating
 	the same object as CAP, skip it.
 

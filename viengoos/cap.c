@@ -109,11 +109,7 @@ cap_shootdown (struct activity *activity, struct cap *cap)
 	      return;
 	    }
 
-#ifndef _L4_TEST_ENVIRONMENT
-	  l4_fpage_t fpage = l4_fpage ((l4_word_t) object, PAGESIZE);
-	  fpage = l4_fpage_add_rights (fpage, L4_FPAGE_FULLY_ACCESSIBLE);
-	  l4_unmap_fpage (fpage);
-#endif
+	  object_desc_unmap (desc);
 	  return;
 
 	case cap_cappage:
