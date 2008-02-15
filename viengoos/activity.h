@@ -114,9 +114,25 @@ LIST_CLASS(activity_children, struct activity, sibling, false)
 /* Return the current activity stat structure.  */
 #define ACTIVITY_STATS(__as_activity)					\
   ({									\
-    assert ((__as_activity)->current_period < ACTIVITY_STATS_PERIODS);	\
+    assert ((__as_activity)->current_period				\
+	    < (sizeof ((__as_activity)->stats)				\
+	       / sizeof ((__as_activity)->stats[0])));			\
 									\
     &(__as_activity)->stats[(__as_activity)->current_period];		\
+  })
+
+/* Return the last valid stat structure.  */
+#define ACTIVITY_STATS_LAST(__asl_activity)				\
+  ({									\
+    int __asl_period = (__asl_activity)->current_period - 1;		\
+    if (__asl_period == -1)						\
+      __asl_period = (sizeof ((__asl_activity)->stats)			\
+		      / sizeof ((__asl_activity)->stats[0])) - 1;	\
+									\
+    assert (__asl_period < (sizeof ((__asl_activity)->stats)		\
+			    / sizeof ((__asl_activity)->stats[0])));	\
+									\
+    &(__asl_activity)->stats[__asl_period];				\
   })
 
 /* The root activity.  */

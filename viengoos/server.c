@@ -898,9 +898,13 @@ server_loop (void)
 	    struct activity_stats_buffer buffer;
 	    int i;
 	    for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
-	      buffer.stats[i]
-		= activity->stats[(activity->current_period - 1 - i)
-				  % ACTIVITY_STATS_PERIODS + 1];
+	      {
+		int period = activity->current_period - 1 - i;
+		if (period < 0)
+		  period = ACTIVITY_STATS_PERIODS + period;
+
+		buffer.stats[i] = activity->stats[period];
+	      }
 
 	    rm_activity_stats_reply_marshal (&msg,
 					     buffer, ACTIVITY_STATS_PERIODS);

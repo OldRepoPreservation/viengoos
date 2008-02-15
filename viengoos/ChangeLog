@@ -1,5 +1,14 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (ACTIVITY_STATS): Correctly bounds check
+	ACTIVITY->CURRENT_PERIOD.
+	(ACTIVITY_STATS_LAST): New macro.
+
+	* server.c (server_loop): Correctly copy the statistic buffers to
+	the output buffer.
+
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (memory_object_destroy): Set discardable bit if appropriate.
 	
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
