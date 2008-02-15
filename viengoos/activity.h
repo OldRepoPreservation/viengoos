@@ -25,10 +25,13 @@
 
 #include "cap.h"
 #include "object.h"
+#include "list.h"
 
 /* Forward.  */
 struct object_desc;
 struct thread;
+
+LIST_CLASS_TYPE(activity_children)
 
 struct activity
 {
@@ -59,13 +62,13 @@ struct activity
      be in memory if its parent is in memory.  It is only NULL for the
      root activity.  This pointer is setup by activity_prepare.  */
   struct activity *parent;
-  /* List of in-memory children.  Children that are not in memory are
-     not on this list.  When an activity is paged in, activity_prepare
-     attaches it to its parent's children list.  On page-out,
-     activity_deprepare detaches it.  */
-  struct activity *children;
-  struct activity *sibling_next;
-  struct activity *sibling_prev;
+  /* List of in-memory children, sorted highest priority first.
+     Children that are not in memory are not on this list.  When an
+     activity is paged in, activity_prepare attaches it to its
+     parent's children list.  On page-out, activity_deprepare detaches
+     it.  */
+  struct activity_children_list children;
+  struct list_node sibling;
 
   /* Objects owned by this activity whose priority is
      OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
@@ -93,7 +96,7 @@ struct activity
      This is the sum of the number of objects on ACTIVE,
      INACTIVE_CLEAN and INACTIVE_DIRTY plus the number of frames
      allocated to each child.  This does not include the number of
-     frames on the page out list.  */
+     frames on the eviction_clean and eviction_dirty lists.  */
   uint32_t frames_total;
 
   /* Whether the activity has been marked as dead (and thus will be
@@ -105,6 +108,8 @@ struct activity
   unsigned char current_period;
   struct activity_stats stats[ACTIVITY_STATS_PERIODS + 1];
 };
+
+LIST_CLASS(activity_children, struct activity, sibling, false)
 
 /* Return the current activity stat structure.  */
 #define ACTIVITY_STATS(__as_activity)					\
@@ -218,29 +223,6 @@ activity_charge (struct activity *activity, int objects)
 	  break;							\
       }									\
   } while (0)
-
-/* Iterate over ACTIVITY's children which are in memory.  */
-#define activity_for_each_inmemory_child(__feic_activity, __feic_child,	\
-					 __feic_code)			\
-  do									\
-    {									\
-      if (__feic_activity->children)					\
-	assert (! __feic_activity->children->sibling_prev);		\
-									\
-      for (__feic_child = __feic_activity->children; __feic_child;	\
-	   __feic_child = __feic_child->sibling_next)			\
-	{								\
-	  assert (__feic_child->parent == __feic_activity);		\
-	  assert (object_type ((struct object *) __feic_child)		\
-		  == cap_activity_control);				\
-	  if (__feic_child->sibling_next)				\
-	    assert (__feic_child->sibling_next->sibling_prev		\
-		    == __feic_child);					\
-									\
-	  __feic_code;							\
-	}								\
-    }									\
-  while (0)
 
 
 /* Dump the activity ACTIVITY and its children to the screen.  */

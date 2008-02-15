@@ -27,50 +27,6 @@
 
 struct activity *root_activity;
 
-/* Add ACTIVITY to ACTIVITY->PARENT's children list after AFTER.  */
-static void
-children_list_insert_after (struct activity *activity, struct activity *after)
-{
-  assert (activity->parent);
-
-  if (! after)
-    /* Insert at head of list.  */
-    {
-      activity->sibling_next = activity->parent->children;
-      if (activity->parent->children)
-	activity->parent->children->sibling_prev = activity;
-      activity->parent->children = activity;
-    }
-  else
-    {
-      assert (activity->parent == after->parent);
-      assert (after->policy.sibling_rel.priority
-	      >= activity->policy.sibling_rel.priority);
-
-      activity->sibling_next = after->sibling_next;
-      activity->sibling_prev = after;
-      if (activity->sibling_next)
-	activity->sibling_next->sibling_prev = activity;
-      after->sibling_next = activity;
-    }
-}
-
-/* Remove ACTIVITY from ACTIVITY->PARENT's children list.  */
-static void
-children_list_detach (struct activity *activity)
-{
-  if (activity->sibling_prev)
-    activity->sibling_prev->sibling_next = activity->sibling_next;
-  else
-    {
-      assert (activity->parent->children == activity);
-      activity->parent->children = activity->sibling_next;
-    }
-
-  if (activity->sibling_next)
-    activity->sibling_next->sibling_prev = activity->sibling_prev;
-}
-
 void
 activity_create (struct activity *parent,
 		 struct activity *child)
@@ -325,30 +281,30 @@ activity_prepare (struct activity *principal, struct activity *activity)
   assert (activity->parent);
 
   /* Link to parent's children list.  */
-  assert (! activity->parent->children
-	  || ! activity->parent->children->sibling_prev);
-
-  if (! activity->parent->children
-      || (activity->policy.sibling_rel.priority
-	  >= activity->parent->children->policy.sibling_rel.priority))
-    children_list_insert_after (activity, NULL);
+  struct activity *head;
+  head = activity_children_list_head (&activity->parent->children);
+  if (! head || (activity->policy.sibling_rel.priority
+		 >= head->policy.sibling_rel.priority))
+    activity_children_list_insert_after (&activity->parent->children,
+					 activity, NULL);
   else
     {
       struct activity *last;
+      struct activity *next;
 
-      for (last = activity->parent->children;
-	   last->sibling_next
-	     && (last->sibling_next->policy.sibling_rel.priority
+      for (last = head;
+	   (next = activity_children_list_next (last))
+	     && (next->policy.sibling_rel.priority
 		 > activity->policy.sibling_rel.priority);
-	   last = last->sibling_next)
+	   last = next)
 	;
 
       assert (last);
-      children_list_insert_after (activity, last);
+      activity_children_list_insert_after (&activity->parent->children,
+					   activity, last);
     }
 
-  /* ACTIVITY has no in-memory children.  */
-  activity->children = NULL;
+  activity_children_list_init (&activity->children);
 }
 
 void
@@ -356,7 +312,7 @@ activity_deprepare (struct activity *principal, struct activity *victim)
 {
   /* If we have any in-memory children or frames, then we can't be
      paged out.  */
-  assert (! victim->children);
+  assert (! activity_children_list_head (&victim->children));
   assert (! activity_lru_list_count (&victim->active));
   assert (! activity_lru_list_count (&victim->inactive_clean));
   assert (! activity_lru_list_count (&victim->inactive_dirty));
@@ -366,7 +322,7 @@ activity_deprepare (struct activity *principal, struct activity *victim)
   /* Unlink from parent's children list.  */
   assert (victim->parent);
 
-  children_list_detach (victim);
+  activity_children_list_unlink (&victim->parent->children, victim);
 }
 
 void
@@ -386,15 +342,16 @@ activity_policy_update (struct activity *activity,
       activity->policy.sibling_rel.priority = priority;
 
       struct activity *prev;
-      for (prev = activity->sibling_prev;
+      for (prev = activity_children_list_prev (activity);
 	   prev && prev->policy.sibling_rel.priority < priority;
-	   prev = prev->sibling_prev)
+	   prev = activity_children_list_prev (prev))
 	;
 
-      if (prev != activity->sibling_prev)
+      if (prev != activity_children_list_prev (activity))
 	{
-	  children_list_detach (activity);
-	  children_list_insert_after (activity, prev);
+	  activity_children_list_unlink (&activity->parent->children, activity);
+	  activity_children_list_insert_after (&activity->parent->children,
+					       activity, prev);
 	}
     }
   else
@@ -403,16 +360,18 @@ activity_policy_update (struct activity *activity,
       activity->policy.sibling_rel.priority = priority;
 
       struct activity *next;
+      struct activity *next_next;
       for (next = activity;
-	   next->sibling_next
-	     && next->sibling_next->policy.sibling_rel.priority > priority;
-	   next = next->sibling_next)
+	   (next_next = activity_children_list_next (next))
+	     && next_next->policy.sibling_rel.priority > priority;
+	   next = next_next)
 	;
 
       if (next != activity)
 	{
-	  children_list_detach (activity);
-	  children_list_insert_after (activity, next);
+	  activity_children_list_unlink (&activity->parent->children, activity);
+	  activity_children_list_insert_after (&activity->parent->children,
+					       activity, next);
 	}
     }
 
@@ -430,12 +389,16 @@ do_activity_dump (struct activity *activity, int indent)
   int dirty = activity_lru_list_count (&activity->inactive_dirty);
   int clean = activity_lru_list_count (&activity->inactive_clean);
 
-  printf ("%s %llx: %d frames (active: %d, dirty: %d, clean: %d) "
-	  "(total frames: %d)\n",
+  printf ("%s %llx: %d frames (act: %d, drt: %d, cln: %d) "
+	  "(total: %d); %d/%d; %d/%d\n",
 	  indent_string,
 	  object_to_object_desc ((struct object *) activity)->oid,
 	  activity->frames_local, active, dirty, clean,
-	  activity->frames_total);
+	  activity->frames_total,
+	  activity->policy.sibling_rel.priority,
+	  activity->policy.sibling_rel.weight,
+	  activity->policy.child_rel.priority,
+	  activity->policy.child_rel.weight);
 
   struct activity *child;
   activity_for_each_child (activity, child,

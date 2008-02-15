@@ -79,61 +79,62 @@ pager_collect (void)
       frames = victim_frames;
 
       struct activity *child;
-      activity_for_each_inmemory_child
-	(parent, child,
-	 ({
-	   if (child->policy.sibling_rel.priority < victim_policy.priority)
-	     /* CHILD has a lower absolute priority.  */
-	     {
-	       victim = child;
-	       victim_frames = victim->frames_total;
-	       victim_policy = victim->policy.sibling_rel;
+      for (child = activity_children_list_head (&parent->children);
+	   child;
+	   child = activity_children_list_next (child))
+	{
+	  if (child->policy.sibling_rel.priority < victim_policy.priority)
+	    /* CHILD has a lower absolute priority.  */
+	    {
+	      victim = child;
+	      victim_frames = victim->frames_total;
+	      victim_policy = victim->policy.sibling_rel;
 
-	       /* Reset the weight.  */
-	       weight = victim_policy.weight;
-	       frames = victim_frames;
-	     }
-	   else if (child->policy.sibling_rel.priority
-		    == victim_policy.priority)
-	     /* CHILD and VICTIM have equal priority.  Steal from the one
-		which has the most pages taking into their respective
-		weights.  */
-	     {
-	       weight += child->policy.sibling_rel.weight;
-	       frames += child->frames_total;
+	      /* Reset the weight.  */
+	      weight = victim_policy.weight;
+	      frames = victim_frames;
+	    }
+	  else if (child->policy.sibling_rel.priority
+		   == victim_policy.priority)
+	    /* CHILD and VICTIM have equal priority.  Steal from the one
+	       which has the most pages taking into their respective
+	       weights.  */
+	    {
+	      weight += child->policy.sibling_rel.weight;
+	      frames += child->frames_total;
 
-	       if (child->policy.sibling_rel.weight == victim_policy.weight)
-		 /* CHILD and VICTIM have the same weight.  Prefer the
-		    one with more frames.  */
-		 {
-		   if (child->frames_total > frames)
-		     {
-		       victim = child;
-		       victim_frames = victim->frames_total;
-		       victim_policy = victim->policy.sibling_rel;
-		     }
-		 }
-	       else
-		 {
-		   int f = child->frames_total + victim_frames;
-		   int w = child->policy.sibling_rel.weight
-		     + victim_policy.weight;
+	      if (child->policy.sibling_rel.weight == victim_policy.weight)
+		/* CHILD and VICTIM have the same weight.  Prefer the
+		   one with more frames.  */
+		{
+		  if (child->frames_total > frames)
+		    {
+		      victim = child;
+		      victim_frames = victim->frames_total;
+		      victim_policy = victim->policy.sibling_rel;
+		    }
+		}
+	      else
+		{
+		  int f = child->frames_total + victim_frames;
+		  int w = child->policy.sibling_rel.weight
+		    + victim_policy.weight;
 
-		   int child_excess = child->frames_total
-		     - (child->policy.sibling_rel.weight * f) / w;
-		   int victim_excess = victim_frames
-		     - (victim_policy.weight * f) / w;
+		  int child_excess = child->frames_total
+		    - (child->policy.sibling_rel.weight * f) / w;
+		  int victim_excess = victim_frames
+		    - (victim_policy.weight * f) / w;
 
-		   if (child_excess > victim_excess)
-		     /* CHILD has more excess frames than VICTIM.  */
-		     {
-		       victim = child;
-		       victim_frames = victim->frames_total;
-		       victim_policy = victim->policy.sibling_rel;
-		     }
-		 }
-	     }
-	 }));
+		  if (child_excess > victim_excess)
+		    /* CHILD has more excess frames than VICTIM.  */
+		    {
+		      victim = child;
+		      victim_frames = victim->frames_total;
+		      victim_policy = victim->policy.sibling_rel;
+		    }
+		}
+	    }
+	}
 
       if (frames >= goal)
 	/* The number of frames at this priority level exceed the

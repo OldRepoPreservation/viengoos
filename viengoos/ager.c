@@ -251,40 +251,41 @@ ager_loop (l4_thread_id_t main_thread)
 	    uint32_t remaining_frames = frames;
 
 	    struct activity *child;
-	    activity_for_each_inmemory_child
-	      (activity, child,
-	       ({
-		 if (! have_self
-		     && (activity->policy.child_rel.priority
-			 <= child->policy.sibling_rel.priority))
-		   {
-		     have_self = true;
+	    for (child = activity_children_list_head (&activity->children);
+		 child;
+		 child = activity_children_list_next (child))
+	      {
+		if (! have_self
+		    && (activity->policy.child_rel.priority
+			<= child->policy.sibling_rel.priority))
+		  {
+		    have_self = true;
 
-		     if (! have_one
-			 || priority > activity->policy.child_rel.priority)
-		       {
-			 priority = activity->policy.child_rel.priority;
-			 frames = remaining_frames;
-		       }
+		    if (! have_one
+			|| priority > activity->policy.child_rel.priority)
+		      {
+			priority = activity->policy.child_rel.priority;
+			frames = remaining_frames;
+		      }
 
-		     remaining_frames -= activity->frames_local;
+		    remaining_frames -= activity->frames_local;
 
-		     ACTIVITY_STAT_UPDATE (activity, available, frames);
-		   }
+		    ACTIVITY_STAT_UPDATE (activity, available, frames);
+		  }
 
-		 if (! have_one
-		     || priority > child->policy.sibling_rel.priority)
-		   {
-		     priority = child->policy.sibling_rel.priority;
-		     frames = remaining_frames;
-		   }
+		if (! have_one
+		    || priority > child->policy.sibling_rel.priority)
+		  {
+		    priority = child->policy.sibling_rel.priority;
+		    frames = remaining_frames;
+		  }
 
-		 remaining_frames -= child->frames_total;
+		remaining_frames -= child->frames_total;
 
-		 ACTIVITY_STAT_UPDATE (activity, available, frames);
+		ACTIVITY_STAT_UPDATE (activity, available, frames);
 
-		 doit (child, frames);
-	       }));
+		doit (child, frames);
+	      }
 
 	    if (! have_self)
 	      ACTIVITY_STAT_UPDATE (activity, available, frames);

@@ -1,5 +1,20 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h: Include "list.h".
+	(LIST_CLASS_TYPE): Declare a activity_children list.
+	(struct activity): Change children's type to a struct
+	activity_children_list.  Replace sibling_next and sibling_prev
+	with sibling, a struct list_node.
+	(activity_for_each_inmemory_child): Remove macro.
+	* activity.c (children_list_insert_after): Remove function.
+	Replace uses with appropriate list function.
+	(children_list_detach): Likewise.
+	* pager.c (pager_collect): Replace use of
+	activity_for_each_inmemory_child with a list iterator.
+	* ager.c (ager_loop): Likewise.
+
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* object.h (object_desc_unmap) [_L4_TEST_ENVIRONMENT]: Do nothing.
 	(object_desc_unmap) [_L4_TEST_ENVIRONMENT]: When adding the dirty
 	bit, be careful to make sure that the correct value is bitwise
