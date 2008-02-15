@@ -26,6 +26,7 @@
 #include <l4/math.h>
 #include <l4/bits/space.h>
 #include <l4/syscall.h>
+#include <assert.h>
 
 
 typedef _L4_RAW
@@ -81,6 +82,10 @@ _L4_fpage (_L4_word_t base, int size)
 {
   __L4_fpage_t fpage;
   _L4_word_t msb = _L4_msb (size) - 1;
+  _L4_word_t lsb = _L4_lsb (size) - 1;
+
+  assert ((base & ((1 << 10) - 1)) == 0);
+  assert (msb == lsb);
 
   fpage.base = base >> 10;
   fpage.log2_size = size ? ((1 << msb) == size ? msb : msb + 1) : 0;

@@ -112,7 +112,7 @@ _L4_lsb (_L4_word_t data)
 #endif
       __L4_LSB_TRY(32); __L4_LSB_TRY(31); __L4_LSB_TRY(30); __L4_LSB_TRY(29);
       __L4_LSB_TRY(28); __L4_LSB_TRY(27); __L4_LSB_TRY(26); __L4_LSB_TRY(25);
-      __L4_LSB_TRY(24); __L4_LSB_TRY(23); __L4_LSB_TRY(22); __L4_LSB_TRY(11);
+      __L4_LSB_TRY(24); __L4_LSB_TRY(23); __L4_LSB_TRY(22); __L4_LSB_TRY(21);
       __L4_LSB_TRY(20); __L4_LSB_TRY(19); __L4_LSB_TRY(18); __L4_LSB_TRY(17);
       __L4_LSB_TRY(16); __L4_LSB_TRY(15); __L4_LSB_TRY(14); __L4_LSB_TRY(13);
       __L4_LSB_TRY(12); __L4_LSB_TRY(11); __L4_LSB_TRY(10); __L4_LSB_TRY(9);

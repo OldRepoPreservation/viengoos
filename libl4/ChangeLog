@@ -1,3 +1,10 @@
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/math.h (_L4_lsb): Count correctly.
+
+	* l4/space.h: Include <assert.h>.
+	(_L4_fpage): Add asserts.
+
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/features.h [_L4_COMPAT]: Enable the L4 compatability
