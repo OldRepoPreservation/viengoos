@@ -1,5 +1,10 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.c (cap_shootdown): If we encounter a capability designating
+	the same object as CAP, skip it.
+
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* list.h (list_insert_after): New function.
 	(LIST_CLASS): Add above function to template.
 	

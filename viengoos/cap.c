@@ -128,7 +128,8 @@ cap_shootdown (struct activity *activity, struct cap *cap)
 	  remaining -= CAP_SUBPAGE_SIZE_LOG2 (cap);
 
 	  for (i = 0; i < CAP_SUBPAGE_SIZE_LOG2 (cap); i ++)
-	    doit (&object->caps[i], remaining);
+	    if (cap->oid != object->caps[i].oid)
+	      doit (&object->caps[i], remaining);
 
 	  return;
 
