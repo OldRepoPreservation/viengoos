@@ -1,5 +1,16 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* btree.h (BTREE_(check_tree_internal)) [!NDEBUG && !NCHECKS]:
+	Only declare in this case.
+	(BTREE_check_tree_internal_): Fix argument names.
+	* btree.c (BTREE_(check_tree_internal)) [!NDEBUG && !NCHECKS]: 
+	Only define in this case.
+	* Makefile.am (AM_CPPFLAGS): Rename from this...
+	(COMMON_CPPFLAGS): ... to this.  Update users.
+	(libhurd_btree_a_CPPFLAGS): Add -DNCHECKS.
+
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* btree.h (BTREE_(insert)) [!NDEBUG]: Assert that the node
 	pointers are clear.
 	* btree.c (BTREE_(detach)) [!NDEBUG]: Clear ROOT.

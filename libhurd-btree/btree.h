@@ -240,7 +240,7 @@ BTREE_(tree_init) (BTREE_(t) *btree)
 
    Internal function.  Perform a consistent check on the tree rooted
    at ROOT.  */
-#ifndef NDEBUG
+#if !defined (NDEBUG) && !defined (NCHECKS)
 extern void BTREE_(check_tree_internal) (BTREE_(t) *btree,
 					 BTREE_(node_t) *root,
 					 BTREE_(key_compare_t) compare,
@@ -248,7 +248,7 @@ extern void BTREE_(check_tree_internal) (BTREE_(t) *btree,
 #define BTREE_check_tree_internal_(bt, r, c, k, cc)	\
   BTREE_(check_tree_internal) (bt, r, c, k, cc)
 #else
-#define BTREE_check_tree_internal_(bt, r, c, k, c) do { } while (0)
+#define BTREE_check_tree_internal_(bt, r, c, k, cc) do { } while (0)
 #endif
 
 /* This is a private function do not call it from user code!
