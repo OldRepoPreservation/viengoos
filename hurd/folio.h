@@ -122,7 +122,7 @@ struct folio
 
   /* Bit array indicating whether the an object has a non-empty wait
      queue.  */
-  uint8_t wait_queues_p[(1 + FOLIO_OBJECTS + 8) / 8];
+  uint8_t wait_queues_p[(1 + FOLIO_OBJECTS + (8 - 1)) / 8];
 
   /* Head of the list of objects waiting for some event on this
      object.  An element of this array is only valid if the
@@ -217,7 +217,7 @@ folio_object_wait_queue_p (struct folio *folio, int object)
 {
   assert (object >= -1 && object <= FOLIO_OBJECTS);
 
-  return bit_test (folio->wait_queues_p, object);
+  return bit_test (folio->wait_queues_p, object + 1);
 }
 
 static inline void
@@ -227,7 +227,7 @@ folio_object_wait_queue_p_set (struct folio *folio, int object,
   assert (object >= -1 && object <= FOLIO_OBJECTS);
 
   bit_set_to (folio->wait_queues_p, sizeof (folio->wait_queues_p),
-	      object, valid);
+	      object + 1, valid);
 }
 
 static inline oid_t

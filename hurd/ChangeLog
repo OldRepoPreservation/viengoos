@@ -1,3 +1,10 @@
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
+	* folio.h (struct folio): Correctly calculate the size of
+	the wait_queues_p array.
+	(folio_object_wait_queue_p): Test the correct bit.
+	(folio_object_wait_queue_p_set): Set the correct bit.
+
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
 	* activity.h (RM_activity_stats): New definition.
