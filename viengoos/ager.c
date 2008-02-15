@@ -147,9 +147,14 @@ ager_loop (l4_thread_id_t main_thread)
 	      struct object_desc *desc = descs[i];
 	      l4_fpage_t fpage = fpages[i];
 
+	      assert (l4_address (fpage)
+		      == (uintptr_t) object_desc_to_object (desc));
+
 	      l4_word_t rights = l4_rights (fpage);
-	      int dirty = (rights & L4_FPAGE_WRITABLE);
-	      int referenced = (rights & L4_FPAGE_READABLE);
+	      int dirty = !!(rights & L4_FPAGE_WRITABLE);
+	      int referenced = !!(rights & L4_FPAGE_READABLE);
+	      if (dirty)
+		debug (0, "%p is dirty", object_desc_to_object (desc));
 
 	      if (dirty)
 		/* Dirty implies referenced.  */
@@ -185,16 +190,12 @@ ager_loop (l4_thread_id_t main_thread)
 		      else
 			activity_lru_list_push
 			  (&desc->activity->inactive_clean, desc);
-
-#if UNMAP_INACTIVE
-		      l4_fpage_t f;
-		      f = l4_fpage_add_rights (fpage,
-					       L4_FPAGE_FULLY_ACCESSIBLE);
-		      l4_unmap_fpage (f);
-#endif
 		    }
 		  else
-		    ACTIVITY_STAT_UPDATE (desc->activity, active, 1);
+		    {
+		      ACTIVITY_STATS (desc->activity)->active_local ++;
+		      ACTIVITY_STAT_UPDATE (desc->activity, active, 1);
+		    }
 		}
 	      else
 		/* The object was inactive.  */
@@ -242,8 +243,15 @@ ager_loop (l4_thread_id_t main_thread)
 #define SAMPLES sizeof (((struct object_desc *)0)->age) * 8
       if (iterations == SAMPLES)
 	{
+	  /* XXX: Update the statistics.  We need to average some of
+	     the fields including the number of active, inactive,
+	     clean and dirty pages.  Also, we need to calculate each
+	     activity's allocation, a damping factor and the
+	     pressure.  */
 	  void doit (struct activity *activity, uint32_t frames)
 	  {
+	    ACTIVITY_STATS (activity)->available = frames;
+
 	    bool have_self = false;
 
 	    bool have_one = false;
@@ -269,8 +277,6 @@ ager_loop (l4_thread_id_t main_thread)
 		      }
 
 		    remaining_frames -= activity->frames_local;
-
-		    ACTIVITY_STAT_UPDATE (activity, available, frames);
 		  }
 
 		if (! have_one
@@ -282,23 +288,23 @@ ager_loop (l4_thread_id_t main_thread)
 
 		remaining_frames -= child->frames_total;
 
-		ACTIVITY_STAT_UPDATE (activity, available, frames);
-
 		doit (child, frames);
 	      }
 
-	    if (! have_self)
-	      ACTIVITY_STAT_UPDATE (activity, available, frames);
+	    ACTIVITY_STATS (activity)->clean /= SAMPLES;
+	    ACTIVITY_STATS (activity)->dirty /= SAMPLES;
+	    ACTIVITY_STATS (activity)->active /= SAMPLES;
+	    ACTIVITY_STATS (activity)->active_local /= SAMPLES;
+
+	    activity->current_period ++;
+	    if (activity->current_period == ACTIVITY_STATS_PERIODS + 1)
+	      activity->current_period = 0;
+
+	    memset (ACTIVITY_STATS (activity),
+		    0, sizeof (*ACTIVITY_STATS (activity)));
 	  }
 
 	  doit (root_activity, memory_total);
-#if 0
-	  /* XXX: Update the statistics.  We need to average some of
-	     the fields including the number of active, inactive,
-	     clean and dirty pages.  Also, we need to calculate each
-	     activity's allocation, a damping factor and the
-	     pressure.  */
-#endif
 #if UNMAP_PERIODICALLY
 	  /* XXX: Walk all in-memory activities, advance the stat
 	     structure and average the fields that need averaging.  */

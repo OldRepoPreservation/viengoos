@@ -1,5 +1,9 @@
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c (ager_loop): Calculate statistics.
+
+2008-02-15  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (ACTIVITY_STATS): Correctly bounds check
 	ACTIVITY->CURRENT_PERIOD.
 	(ACTIVITY_STATS_LAST): New macro.
