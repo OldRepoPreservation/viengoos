@@ -38,6 +38,8 @@
 extern int S_PRINTF (const char *fmt, ...);
 
 /* Convenient debugging macros.  */
+#define DEBUG_BOLD(text) "\033[01;31m" text "\033[00m"
+
 #ifdef DEBUG_ELIDE
 
 # define do_debug(level) if (0)

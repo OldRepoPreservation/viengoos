@@ -1,3 +1,7 @@
+2008-02-16  Neal H. Walfield  <neal@gnu.org>
+
+	* stddef.h (DEBUG_BOLD): New macro.
+
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
 	* activity.h (struct activity_stats): Add field active_local.
