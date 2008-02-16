@@ -1,3 +1,9 @@
+2008-02-16  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (all-local): Depend on libc-stmp.
+	(libc-stmp): New target.  Depend on libraries.
+	(SUBDIRS): Add . after libraries and before programs.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Generate hieronymus/Makefile.

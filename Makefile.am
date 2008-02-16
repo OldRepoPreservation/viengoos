@@ -36,7 +36,21 @@ SUBDIRS = libl4 platform				\
 	libhurd-slab					\
 	libpthread					\
 	libhurd-mm					\
-	libc-parts laden viengoos			\
+	libc-parts					\
+	.						\
+	laden viengoos					\
 	ruth						\
 	hieronymus					\
 	doc
+
+all-local: libc-stmp
+libc-stmp: @LIBC_A@ @LIBC_M@ \
+      libhurd-mm/libhurd-mm.a \
+      viengoos/libhurd-cap.a \
+      libpthread/libpthread.a \
+      libhurd-slab/libhurd-slab.a \
+      libhurd-ihash/libhurd-ihash.a \
+      libhurd-btree/libhurd-btree.a \
+      libc-parts/libc-parts.a
+	touch libc-stmp libc.a
+
