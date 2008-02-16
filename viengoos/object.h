@@ -123,14 +123,22 @@ struct object_desc
 {
   /* The version and OID of the object.  */
   oid_t oid;
-  l4_word_t version : CAP_VERSION_BITS;
-  l4_word_t type : CAP_TYPE_BITS;
+  uintptr_t version : CAP_VERSION_BITS;
+  uintptr_t type : CAP_TYPE_BITS;
 
   /* Whether the page is dirty.  */
-  l4_word_t dirty: 1;
+  uintptr_t dirty: 1;
 
   /* Whether the object has been selected for eviction.  */
-  l4_word_t eviction_candidate : 1;
+  uintptr_t eviction_candidate : 1;
+
+  /* Whether the object has been mapped to a process.  */
+  uintptr_t mapped : 1;
+  /* Whether the object has been used by multiple activities.  */
+  uintptr_t shared : 1;
+  /* The object is shared.  The next one to access the object should
+     claim it.  */
+  uintptr_t floating : 1;
 
   /* Whether the object is live.  */
   bool live;
@@ -311,14 +319,22 @@ object_type (struct object *object)
 static inline void
 object_desc_unmap (struct object_desc *desc)
 {
+  assert (desc->live);
+
+  if (desc->mapped)
+    {
 #ifndef _L4_TEST_ENVIRONMENT
-  struct object *object = object_desc_to_object (desc);
+      struct object *object = object_desc_to_object (desc);
 
-  l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
-  l4_fpage_t unmap = l4_fpage_add_rights (flush, L4_FPAGE_FULLY_ACCESSIBLE);
+      l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
+      l4_fpage_t unmap = l4_fpage_add_rights (flush,
+					      L4_FPAGE_FULLY_ACCESSIBLE);
 
-  desc->dirty |= !!l4_was_written (l4_unmap_fpage (unmap));
+      desc->dirty |= !!l4_was_written (l4_unmap_fpage (unmap));
 #endif
+
+      desc->mapped = false;
+    }
 }
 
 /* Unmaps the object corresponding to DESC from all clients and also
@@ -326,20 +342,18 @@ object_desc_unmap (struct object_desc *desc)
 static inline void
 object_desc_flush (struct object_desc *desc)
 {
-#ifndef _L4_TEST_ENVIRONMENT
-  assert (desc->live);
-
-  struct object *object = object_desc_to_object (desc);
-
-  l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
-  l4_fpage_t unmap = l4_fpage_add_rights (flush, L4_FPAGE_FULLY_ACCESSIBLE);
-
-  desc->dirty |= !!l4_was_written (l4_unmap_fpage (unmap));
+  object_desc_unmap (desc);
 
   if (! desc->dirty)
-    /* We may have dirty it.  */
-    desc->dirty |= !!l4_was_written (l4_flush (flush));
+    /* We only need to see if we dirtied it.  */
+    {
+#ifndef _L4_TEST_ENVIRONMENT
+      struct object *object = object_desc_to_object (desc);
+      l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
+
+      desc->dirty |= !!l4_was_written (l4_flush (flush));
 #endif
+    }
 }
 
 /* Transfer ownership of DESC to the activity ACTIVITY.  If ACTIVITY

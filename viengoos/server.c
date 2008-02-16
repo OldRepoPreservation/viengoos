@@ -142,8 +142,7 @@ server_loop (void)
 				   ADDR (page_addr, ADDR_BITS - PAGESIZE_LOG2),
 				   w ? cap_page : cap_rpage,
 				   &writable);
-	  if (cap.type != cap_void)
-	    page = cap_to_object (activity, &cap);
+	  page = cap_to_object (activity, &cap);
 
 	  bool raise_fault = false;
 	  if (! page)
@@ -182,12 +181,15 @@ server_loop (void)
 	      continue;
 	    }
 
-	  // DEBUG ("Replying with addr %x", (uintptr_t) page);
+	  DEBUG (5, "Fault at %x, replying with %p (" OID_FMT ")",
+		 fault, page, OID_PRINTF (cap.oid));
 	  l4_map_item_t map_item
 	    = l4_map_item (l4_fpage_add_rights (l4_fpage ((uintptr_t) page,
 							  PAGESIZE),
 						access),
 			   page_addr);
+
+	  object_to_object_desc (page)->mapped = true;
 
 	  /* Formulate the reply message.  */
 	  l4_pagefault_reply_formulate_in (msg, &map_item);

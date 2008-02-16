@@ -29,31 +29,27 @@
 #include "activity.h"
 #include "zalloc.h"
 
-/* When frames are shared amoung multiple activities, the first
-   activity to access the frame is charged.  This is unfair; the cost
-   needs to be distributed among all users.  We approximate this by
-   changing the owner of the frame on a hard fault.  The problem is
-   how to observe these faults: l4_unmap does not tell us who faulted
-   (indeed, which would be insufficient for us anyways--we need an
-   activity).
+/* A frames has a single claimant.  When a frame is shared amoung
+   multiple activities, the first activity to access claims it (is
+   charged).  To distribute the cost among all users, we charge a user
+   proportional to the frequency of access.  This is achieved by
+   periodically revoking access to the frame and transferring the
+   claim to the next activity to access the frame.
+   
+   The unmapping is required as when there are multiple users and the
+   main user becomes no longer users he frame, the frame may remain
+   active as other users continue to access it.  The main user will
+   remain the claimant, however, as no minor faults will be observed
+   (the frame is active).
 
-   When a new user comes along, this is not a problem: the new user
-   faults and the ownership changes.
+   XXX: Currently, we unmap shared, mapped frames every every few
+   seconds.  Unfortunately, this can lead to an attack whereby a
+   malicious activity is able to freeload by carefully timing access
+   to frames.  Instead, we should unmap based on a random
+   distribution.  */
 
-   When there are multiple users and the main user becomes inactive,
-   no minor faults will be observed.
-
-   There are a couple of ways to see these faults: we unmap the frame
-   when it becomes inactive.  This will eventually happen unless the
-   page is really hammered.  This is the strategy we use when
-   UNMAP_INACTIVE is non-zero.
-
-   We can periodically unmap all pages.  This is nice as ownership
-   will regularly change hands for all frames, even those that don't
-   become inactive.  This helps to distribute the costs.  This is the
-   strategy we use when UNMAP_PERIODICALLY is non-zero.  */
-#define UNMAP_INACTIVE 0
-#define UNMAP_PERIODICALLY 1
+/* The frequency with which we assemble statistics.  */
+#define FREQ (sizeof (((struct object_desc *)0)->age) * 8)
 
 void
 ager_loop (l4_thread_id_t main_thread)
@@ -101,7 +97,18 @@ ager_loop (l4_thread_id_t main_thread)
 
 	    descs[count] = desc;
 	    objects[count] = object_desc_to_object (desc);
+
 	    fpages[count] = l4_fpage ((l4_word_t) objects[count], PAGESIZE);
+
+	    if (iterations == FREQ && desc->shared)
+	      /* we periodically unmap shared frames.  See above for
+		 details.  */
+	      {
+		fpages[count] = l4_fpage_add_rights (fpages[count],
+						     L4_FPAGE_FULLY_ACCESSIBLE);
+		desc->mapped = false;
+		desc->floating = true;
+	      }
 
 	    count ++;
 	  }
@@ -227,8 +234,7 @@ ager_loop (l4_thread_id_t main_thread)
 	}
 
       /* Upmap everything every two seconds.  */
-#define SAMPLES sizeof (((struct object_desc *)0)->age) * 8
-      if (iterations == SAMPLES)
+      if (iterations == FREQ)
 	{
 	  ss_mutex_lock (&kernel_lock);
 
@@ -280,10 +286,10 @@ ager_loop (l4_thread_id_t main_thread)
 		doit (child, frames);
 	      }
 
-	    ACTIVITY_STATS (activity)->clean /= SAMPLES;
-	    ACTIVITY_STATS (activity)->dirty /= SAMPLES;
-	    ACTIVITY_STATS (activity)->active /= SAMPLES;
-	    ACTIVITY_STATS (activity)->active_local /= SAMPLES;
+	    ACTIVITY_STATS (activity)->clean /= FREQ;
+	    ACTIVITY_STATS (activity)->dirty /= FREQ;
+	    ACTIVITY_STATS (activity)->active /= FREQ;
+	    ACTIVITY_STATS (activity)->active_local /= FREQ;
 
 	    activity->current_period ++;
 	    if (activity->current_period == ACTIVITY_STATS_PERIODS + 1)
@@ -294,20 +300,16 @@ ager_loop (l4_thread_id_t main_thread)
 	  }
 
 	  doit (root_activity, memory_total);
-#if UNMAP_PERIODICALLY
-	  /* XXX: Walk all in-memory activities, advance the stat
-	     structure and average the fields that need averaging.  */
 
-	  debug (1, "Unmapping all (%d of %d free). "
-		 "last interation now inactive: %d, now active: %d",
-		 zalloc_memory, memory_total, became_inactive, became_active);
-
-	  l4_unmap_fpage (l4_fpage_add_rights (L4_COMPLETE_ADDRESS_SPACE,
-					       L4_FPAGE_FULLY_ACCESSIBLE));
-	  iterations = 0;
-#endif
+	  debug (1, "%d of %d (%d%%) free; "
+		 "since last interation: %d became inactive, %d active",
+		 zalloc_memory, memory_total,
+		 (zalloc_memory * 100) / memory_total,
+		 became_inactive, became_active);
 
 	  ss_mutex_unlock (&kernel_lock);
+
+	  iterations = 0;
 	}
       else
 	iterations ++;

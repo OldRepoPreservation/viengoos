@@ -1,5 +1,23 @@
 2008-02-16  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (struct object_desc): Add fields mapped, shared and
+	floating.
+	(object_desc_unmap): Only unmap a page if DESC->MAPPED is true.
+	(object_desc_flush): Call object_desc_unmap rather than copying
+	the code.
+	* object.c (object_find_soft): If ODESC->FLOATING is true, claim
+	the object.  Set ODESC->FLOATING to false.
+	(folio_object_alloc): After clearing the page, flush it and then
+	ODESC->DIRTY to false.  Set ODESC->SHARED to false.
+	* ager.c (SAMPLES): Rename from this...
+	(FREQ): ... to this.  Update users.
+	(ager_loop): Don't just flush the whole address space; every FREQ
+	iterations, unmap shared objects, set DESC->MAPPED to false, and
+	DESC->FLOATING to true.
+	* server.c (server_loop): When mapping a page, record it.
+
+2008-02-16  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.c (cap_shootdown): Fix scoping problem.  If an object of a
 	folio is identical with the start capability, return.
 

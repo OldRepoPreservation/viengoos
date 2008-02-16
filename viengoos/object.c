@@ -236,10 +236,14 @@ object_find_soft (struct activity *activity, oid_t oid,
       return object;
     }
 
-  if (! odesc->activity || ! object_active (odesc))
-    /* Either the object is unowned or it is inactive.  Claim
-       ownership.  */
-    object_desc_claim (activity, odesc, policy, true);
+  if ((! odesc->activity || ! object_active (odesc))
+      || (odesc->activity != activity && odesc->floating))
+    /* Either the object is unowned, it is inactive or it is floating
+       (owned byt looking for a new owner).  Claim ownership.  */
+    {
+      object_desc_claim (activity, odesc, policy, true);
+      odesc->floating = false;
+    }
 
   return object;
 }
@@ -578,10 +582,13 @@ folio_object_alloc (struct activity *activity,
 	  cap_shootdown (activity, &cap);
 
 	  memset ((void *) object, 0, PAGESIZE);
+	  object_desc_flush (odesc);
+	  odesc->dirty = false;
 
 	  object_desc_claim (activity, odesc, policy, true);
 
 	  odesc->type = type;
+	  odesc->shared = false;
 	}
     }
 
