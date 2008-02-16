@@ -1,5 +1,10 @@
 2008-02-16  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.c (cap_shootdown): Fix scoping problem.  If an object of a
+	folio is identical with the start capability, return.
+
+2008-02-16  Neal H. Walfield  <neal@gnu.org>
+
 	* zalloc.c (zalloc): Reduce debugging output when there is no
 	memory available.
 

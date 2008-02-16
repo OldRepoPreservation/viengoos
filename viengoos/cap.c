@@ -72,7 +72,7 @@ cap_to_object (struct activity *activity, struct cap *cap)
 }
 
 void
-cap_shootdown (struct activity *activity, struct cap *cap)
+cap_shootdown (struct activity *activity, struct cap *root)
 {
   assert (activity);
 
@@ -124,7 +124,7 @@ cap_shootdown (struct activity *activity, struct cap *cap)
 	  remaining -= CAP_SUBPAGE_SIZE_LOG2 (cap);
 
 	  for (i = 0; i < CAP_SUBPAGE_SIZE_LOG2 (cap); i ++)
-	    if (cap->oid != object->caps[i].oid)
+	    if (root->oid != object->caps[i].oid)
 	      doit (&object->caps[i], remaining);
 
 	  return;
@@ -156,7 +156,8 @@ cap_shootdown (struct activity *activity, struct cap *cap)
 		cap.addr_trans = CAP_ADDR_TRANS_VOID;
 		cap.oid = foid + 1 + i;
 
-		doit (&cap, remaining);
+		if (root->oid != cap.oid)
+		  doit (&cap, remaining);
 	      }
 
 	  return;
@@ -166,5 +167,5 @@ cap_shootdown (struct activity *activity, struct cap *cap)
 	}
     }
 
-  doit (cap, ADDR_BITS);
+  doit (root, ADDR_BITS);
 }
