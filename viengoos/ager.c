@@ -94,20 +94,6 @@ ager_loop (l4_thread_id_t main_thread)
 		 time.  */
 	      continue;
 
-	    if (! ss_mutex_trylock (&desc->lock))
-	      /* We failed to get the lock.  This means that
-		 someone is using this object and thus it makes no
-		 sense to age it; just continue.  */
-	      continue;
-
-	    if (! desc->live || desc->eviction_candidate)
-	      /* State changed between check and lock acquisition,
-		 unlock and continue.  */
-	      {
-		ss_mutex_unlock (&desc->lock);
-		continue;
-	      }
-
 	    assertx (desc->activity,
 		     "OID: " OID_FMT " (%s), age: %d",
 		     OID_PRINTF (desc->oid), cap_type_string (desc->type),
@@ -128,9 +114,14 @@ ager_loop (l4_thread_id_t main_thread)
 
       while (frame < frames)
 	{
+	  ss_mutex_lock (&kernel_lock);
+
 	  int count = grab ();
 	  if (count == 0)
-	    break;
+	    {
+	      ss_mutex_unlock (&kernel_lock);
+	      break;
+	    }
 
 	  /* Get the status bits for the COUNT objects.  (We flush
 	     rather than unmap as we are also interested in whether we
@@ -138,8 +129,6 @@ ager_loop (l4_thread_id_t main_thread)
 	     objects, e.g., cappages, on behalf activities or we have
 	     flushed a page of data to disk.) */
 	  l4_flush_fpages (count, fpages);
-
-	  ss_mutex_lock (&lru_lock);
 
 	  int i;
 	  for (i = 0; i < count; i ++)
@@ -154,7 +143,7 @@ ager_loop (l4_thread_id_t main_thread)
 	      int dirty = !!(rights & L4_FPAGE_WRITABLE);
 	      int referenced = !!(rights & L4_FPAGE_READABLE);
 	      if (dirty)
-		debug (0, "%p is dirty", object_desc_to_object (desc));
+		debug (5, "%p is dirty", object_desc_to_object (desc));
 
 	      if (dirty)
 		/* Dirty implies referenced.  */
@@ -232,17 +221,17 @@ ager_loop (l4_thread_id_t main_thread)
 		ACTIVITY_STAT_UPDATE (desc->activity, dirty, 1);
 	      else
 		ACTIVITY_STAT_UPDATE (desc->activity, clean, 1);
-
-	      ss_mutex_unlock (&desc->lock);
 	    }
 
-	  ss_mutex_unlock (&lru_lock);
+	  ss_mutex_unlock (&kernel_lock);
 	}
 
       /* Upmap everything every two seconds.  */
 #define SAMPLES sizeof (((struct object_desc *)0)->age) * 8
       if (iterations == SAMPLES)
 	{
+	  ss_mutex_lock (&kernel_lock);
+
 	  /* XXX: Update the statistics.  We need to average some of
 	     the fields including the number of active, inactive,
 	     clean and dirty pages.  Also, we need to calculate each
@@ -317,6 +306,8 @@ ager_loop (l4_thread_id_t main_thread)
 					       L4_FPAGE_FULLY_ACCESSIBLE));
 	  iterations = 0;
 #endif
+
+	  ss_mutex_unlock (&kernel_lock);
 	}
       else
 	iterations ++;

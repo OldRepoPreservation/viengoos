@@ -27,10 +27,10 @@
 #include <assert.h>
 #include <hurd/cap.h>
 #include <hurd/folio.h>
-#include "mutex.h"
 #include <hurd/btree.h>
 #include <stdint.h>
 
+#include "mutex.h"
 #include "cap.h"
 #include "memory.h"
 #include "list.h"
@@ -38,6 +38,9 @@
 /* Forward.  */
 struct activity;
 struct thread;
+
+/* For lack of a better place.  */
+extern ss_mutex_t kernel_lock;
 
 /* Objects
    -------
@@ -118,9 +121,6 @@ struct thread;
 /* An object descriptor.  There is one for each in-memory object.  */
 struct object_desc
 {
-  /* Protects the following memorys and the object's data.  */
-  ss_mutex_t lock;
-
   /* The version and OID of the object.  */
   oid_t oid;
   l4_word_t version : CAP_VERSION_BITS;
@@ -200,10 +200,6 @@ LIST_CLASS(eviction, struct object_desc, activity_node, true)
 LIST_CLASS(available, struct object_desc, available_node, true)
 LIST_CLASS(laundry, struct object_desc, laundry_node, true)
 
-/* Lock protecting the following lists as well as an activity's
-   lists.  */
-extern ss_mutex_t lru_lock;
-
 /* List of objects that need syncing to backing store.  */
 extern struct laundry_list laundry;
 /* List of clean objects available for reallocation.  */

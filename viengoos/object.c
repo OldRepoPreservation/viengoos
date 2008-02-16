@@ -32,9 +32,10 @@
 #include "thread.h"
 #include "zalloc.h"
 
+/* For lack of a better place.  */
+ss_mutex_t kernel_lock;
+
 struct object_desc *object_descs;
-
-ss_mutex_t lru_lock;
 
 struct laundry_list laundry;
 struct available_list available;
@@ -145,14 +146,8 @@ memory_object_alloc (struct activity *activity,
     /* This may only happen if we are initializing.  */
     assert (! root_activity);
   else
-    {
-      ss_mutex_lock (&lru_lock);
-
-      /* Account the memory to the activity ACTIVITY.  */
-      object_desc_claim (activity, odesc, policy, true);
-
-      ss_mutex_unlock (&lru_lock);
-    }
+    /* Account the memory to the activity ACTIVITY.  */
+    object_desc_claim (activity, odesc, policy, true);
 
   return object;
 }
@@ -191,7 +186,6 @@ memory_object_destroy (struct activity *activity, struct object *object)
   struct cap cap = object_desc_to_cap (desc);
   cap_shootdown (activity, &cap);
 
-  ss_mutex_lock (&lru_lock);
   object_desc_claim (NULL, desc, desc->policy, true);
 
   if (desc->type == cap_activity_control)
@@ -212,8 +206,6 @@ memory_object_destroy (struct activity *activity, struct object *object)
 	  sizeof (struct object_desc)
 	  - offsetof (struct object_desc, live) - 4);
 #endif
-
-  ss_mutex_unlock (&lru_lock);
 }
 
 struct object *
@@ -247,11 +239,7 @@ object_find_soft (struct activity *activity, oid_t oid,
   if (! odesc->activity || ! object_active (odesc))
     /* Either the object is unowned or it is inactive.  Claim
        ownership.  */
-    {
-      ss_mutex_lock (&lru_lock);
-      object_desc_claim (activity, odesc, policy, true);
-      ss_mutex_unlock (&lru_lock);
-    }
+    object_desc_claim (activity, odesc, policy, true);
 
   return object;
 }
@@ -591,9 +579,7 @@ folio_object_alloc (struct activity *activity,
 
 	  memset ((void *) object, 0, PAGESIZE);
 
-	  ss_mutex_lock (&lru_lock);
 	  object_desc_claim (activity, odesc, policy, true);
-	  ss_mutex_unlock (&lru_lock);
 
 	  odesc->type = type;
 	}
@@ -677,7 +663,6 @@ void
 object_desc_claim (struct activity *activity, struct object_desc *desc,
 		   struct object_policy policy, bool update_accounting)
 {
-  assert (! ss_mutex_trylock (&lru_lock));
   assert (desc->activity || activity);
 
   if (desc->activity == activity

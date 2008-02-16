@@ -54,8 +54,16 @@ server_loop (void)
   l4_thread_id_t to = l4_nilthread;
   l4_msg_t msg;
 
+  bool have_lock = false;
+
   for (;;)
     {
+      if (have_lock)
+	{
+	  ss_mutex_unlock (&kernel_lock);
+	  have_lock = false;
+	}
+
       l4_thread_id_t from = l4_anythread;
       l4_msg_tag_t msg_tag;
 
@@ -88,6 +96,9 @@ server_loop (void)
       to = from;
       /* Unless explicitly overridden, don't reply.  */
       do_reply = 0;
+
+      ss_mutex_lock (&kernel_lock);
+      have_lock = true;
 
       /* Find the sender.  */
       struct thread *thread = thread_lookup (from);

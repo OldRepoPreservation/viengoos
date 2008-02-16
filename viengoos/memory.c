@@ -361,7 +361,6 @@ memory_frame_allocate (struct activity *activity)
   if (! f)
     {
       /* Check if there are any pages on the available list.  */
-      ss_mutex_lock (&lru_lock);
 
       /* XXX: We avoid objects that require special treatment.
 	 Realize this special treatment.  */
@@ -370,17 +369,12 @@ memory_frame_allocate (struct activity *activity)
 	{
 	  if (desc->type != cap_activity_control
 	      && desc->type != cap_thread)
-	    {
-	      if (ss_mutex_trylock (&desc->lock))
-		/* We will detach DESC from AVAILALBE in
-		   memory_object_destroy.  */
-		break;
-	    }
+	    /* We will detach DESC from AVAILALBE in
+	       memory_object_destroy.  */
+	    break;
 
 	  desc = available_list_prev (desc);
 	}
-
-      ss_mutex_unlock (&lru_lock);
 
       if (desc)
 	{

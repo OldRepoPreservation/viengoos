@@ -116,8 +116,6 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
   /* VICTIM->PARENT inherits all of VICTIM's objects.  */
   {
-    ss_mutex_lock (&lru_lock);
-
     struct object_desc *desc;
     int count = 0;
 
@@ -218,8 +216,6 @@ activity_destroy (struct activity *activity, struct activity *victim)
       }
     eviction_list_join (&victim->parent->eviction_dirty,
 			&victim->eviction_dirty);
-
-    ss_mutex_unlock (&lru_lock);
 
     /* Adjust the counting information.  */
     do_debug (1)
@@ -408,9 +404,5 @@ do_activity_dump (struct activity *activity, int indent)
 void
 activity_dump (struct activity *activity)
 {
-  ss_mutex_lock (&lru_lock);
-
   do_activity_dump (activity, 0);
-
-  ss_mutex_unlock (&lru_lock);
 }

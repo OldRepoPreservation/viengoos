@@ -451,12 +451,10 @@ process_spawn (addr_t activity,
   /* We know that we are the only one who can access the data
      structure, however, the object_claim asserts that this lock is
      held.  */
-  ss_mutex_lock (&lru_lock);
   object_claim (root_activity, (struct object *) root_activity,
 		OBJECT_POLICY_VOID, true);
   object_claim (root_activity, (struct object *) folio_local_addr,
 		OBJECT_POLICY_VOID, true);
-  ss_mutex_unlock (&lru_lock);
 #else
   struct hurd_object_desc *desc;
   struct cap cap;

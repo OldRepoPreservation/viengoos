@@ -1,3 +1,11 @@
+2008-02-16  Neal H. Walfield  <neal@gnu.org>
+
+	* object.h (kernel_lock): New declaration.  Replace current
+	locking scheme with this global lock variable.
+	(lru_lock): Remove variable.
+	(struct object_desc): Remove field lock.
+	* object.c (kernel_lock): New variable.
+
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
 	* pager.h: Include "memory.h", "zalloc.h", and "object.h".

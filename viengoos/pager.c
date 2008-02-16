@@ -51,8 +51,6 @@ reclaim_from (struct activity *victim, int goal)
 
   /* XXX: Implement group dealloc.  */
 
-  ss_mutex_lock (&lru_lock);
-
   /* First try objects with a priority lower than LRU.  */
 
   struct object_desc *desc;
@@ -266,8 +264,6 @@ reclaim_from (struct activity *victim, int goal)
   /* We should never have selected a task from which we can free
      nothing!  */
   assert (count > 0);
-
-  ss_mutex_unlock (&lru_lock);
 
   return count;
 }

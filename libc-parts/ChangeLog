@@ -1,3 +1,8 @@
+2008-02-16  Neal H. Walfield  <neal@gnu.org>
+
+	* process-spawn.c (process_spawn) [RM_INTERN]: Don't take
+	LRU_LOCK.
+
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
 	* assert.h (assertx): Improve printing of backtrace.
