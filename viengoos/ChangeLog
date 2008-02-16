@@ -1,5 +1,10 @@
 2008-02-16  Neal H. Walfield  <neal@gnu.org>
 
+	* zalloc.c (zalloc): Reduce debugging output when there is no
+	memory available.
+
+2008-02-16  Neal H. Walfield  <neal@gnu.org>
+
 	* object.h (kernel_lock): New declaration.  Replace current
 	locking scheme with this global lock variable.
 	(lru_lock): Remove variable.

@@ -242,7 +242,7 @@ zalloc (uintptr_t size)
 
   if (zone_nr == ZONES)
     {
-      debug (1, "Cannot allocate a block of %d bytes!", size);
+      debug (4, "Cannot allocate a block of %d bytes!", size);
       assert (zalloc_memory == 0);
       return 0;
     }
