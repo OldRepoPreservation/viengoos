@@ -1,5 +1,9 @@
 2008-02-18  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c (ager_loop): Improve debugging output.
+
+2008-02-18  Neal H. Walfield  <neal@gnu.org>
+
 	* pager.c (pager_collect): When looking for a victim activity, if
 	none are found, repeat the process giving the number of active
 	pages less weight.  Fix asserts.

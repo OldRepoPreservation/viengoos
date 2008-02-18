@@ -101,7 +101,7 @@ ager_loop (l4_thread_id_t main_thread)
 	    fpages[count] = l4_fpage ((l4_word_t) objects[count], PAGESIZE);
 
 	    if (iterations == FREQ && desc->shared)
-	      /* we periodically unmap shared frames.  See above for
+	      /* We periodically unmap shared frames.  See above for
 		 details.  */
 	      {
 		fpages[count] = l4_fpage_add_rights (fpages[count],
@@ -134,7 +134,9 @@ ager_loop (l4_thread_id_t main_thread)
 	     rather than unmap as we are also interested in whether we
 	     have accessed the object--this occurs as we access some
 	     objects, e.g., cappages, on behalf activities or we have
-	     flushed a page of data to disk.) */
+	     flushed a page of data to disk.) This also means that
+	     when we flush shared objects, they are unmapped from the
+	     root task.  Happily, sigma0 maps them back.  */
 	  l4_flush_fpages (count, fpages);
 
 	  int i;
@@ -301,11 +303,14 @@ ager_loop (l4_thread_id_t main_thread)
 
 	  doit (root_activity, memory_total);
 
-	  debug (1, "%d of %d (%d%%) free; "
-		 "since last interation: %d became inactive, %d active",
-		 zalloc_memory, memory_total,
-		 (zalloc_memory * 100) / memory_total,
-		 became_inactive, became_active);
+	  do_debug (1)
+	    {
+	      int a = zalloc_memory + available_list_count (&available);
+	      debug (0, "%d of %d (%d%%) free; "
+		     "since last interation: %d became inactive, %d active",
+		     a, memory_total, (a * 100) / memory_total,
+		     became_inactive, became_active);
+	    }
 
 	  ss_mutex_unlock (&kernel_lock);
 
