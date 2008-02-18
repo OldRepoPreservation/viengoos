@@ -384,16 +384,32 @@ memory_frame_allocate (struct activity *activity)
 	  assert (object_type ((struct object *) desc->activity)
 		  == cap_activity_control);
 	  assert (! desc->dirty || desc->policy.discardable);
+	  assert (! desc->mapped);
 
 	  debug (5, "Reusing OID " OID_FMT " (%s)",
 		 OID_PRINTF (desc->oid), cap_type_string (desc->type));
 
 	  struct object *object = object_desc_to_object (desc);
-	  oid_t oid = desc->oid;
 
+	  struct folio *folio = objects_folio (activity, object);
+	  int offset = objects_folio_offset (object);
+
+	  bool discarded = desc->dirty;
+	  if (discarded)
+	    assert (desc->policy.discardable);
+
+	  oid_t oid = desc->oid;
 	  memory_object_destroy (activity, object);
+	  /* DESC is no longer valid.  */
 
 	  assert (! object_find_soft (activity, oid, OBJECT_POLICY_DEFAULT));
+
+	  if (discarded)
+	    /* Note that we discarded the page.  */
+	    {
+	      folio_object_content_set (folio, offset, false);
+	      folio_object_discarded_set (folio, offset, true);
+	    }
 
 	  f = (uintptr_t) object;
 

@@ -174,15 +174,6 @@ memory_object_destroy (struct activity *activity, struct object *object)
 	 cap_type_string (desc->type), desc->oid,
 	 ((uintptr_t) desc - (uintptr_t) object_descs) / sizeof (*desc));
 
-  if (desc->dirty && desc->policy.discardable)
-    /* Note that the page was discarded.  */
-    /* XXX: This doesn't really belong here.  */
-    {
-      struct folio *folio = objects_folio (activity, object);
-      folio_object_content_set (folio, objects_folio_offset (object), false);
-      folio_object_discarded_set (folio, objects_folio_offset (object), true);
-    }
-
   struct cap cap = object_desc_to_cap (desc);
   cap_shootdown (activity, &cap);
 
@@ -220,15 +211,22 @@ object_find_soft (struct activity *activity, oid_t oid,
   assert (oid == odesc->oid);
 
   if (oid % (FOLIO_OBJECTS + 1) != 0)
-    assertx (folio_object_type (objects_folio (activity, object),
-				objects_folio_offset (object)) == odesc->type,
-	     "(" OID_FMT ") %s != %s",
-	     OID_PRINTF (oid),
-	     cap_type_string
-	       (folio_object_type (objects_folio (activity, object),
-				   objects_folio_offset (object))),
-	     cap_type_string (odesc->type));
-			      
+    {
+#ifndef NDEBUG
+      struct folio *folio = objects_folio (activity, object);
+      int i = objects_folio_offset (object);
+
+      assertx (folio_object_type (folio, i) == odesc->type,
+	       "(" OID_FMT ") %s != %s",
+	       OID_PRINTF (oid),
+	       cap_type_string (folio_object_type (folio, i)),
+	       cap_type_string (odesc->type));
+      assertx (! folio_object_discarded (folio, i),
+	       OID_FMT ": %s",
+	       OID_PRINTF (oid),
+	       cap_type_string (odesc->type));
+#endif
+    }
 
   if (! activity)
     {
@@ -283,6 +281,11 @@ object_find (struct activity *activity, oid_t oid,
 	       OID_PRINTF (oid - page - 1));
 
       if (folio_object_type (folio, page) == cap_void)
+	return NULL;
+
+      if (folio_object_discarded (folio, page))
+	/* Don't return a discarded object until the discarded flag is
+	   explicitly clearly.  */
 	return NULL;
 
       if (! folio_object_content (folio, page))
@@ -609,6 +612,7 @@ folio_object_alloc (struct activity *activity,
 
   folio_object_type_set (folio, idx, type);
   folio_object_content_set (folio, idx, false);
+  folio_object_discarded_set (folio, idx, false);
   folio_object_policy_set (folio, idx, policy);
 
   switch (type)

@@ -22,6 +22,7 @@
 #ifndef _HURD_EXCEPTIONS_H
 #define _HURD_EXCEPTIONS_H 1
 
+#include <stdint.h>
 #include <hurd/cap.h>
 #include <hurd/thread.h>
 #include <l4/thread.h>
@@ -60,11 +61,13 @@ struct exception_info
     struct
     {
       /* Type of access.  */
-      l4_word_t access: 3;
+      uintptr_t access: 3;
       /* Type of object that was attempting to be accessed.  */
-      l4_word_t type : CAP_TYPE_BITS;
+      uintptr_t type : CAP_TYPE_BITS;
+      /* Whether the page was discarded.  */
+      uintptr_t discarded : 1;
     };
-    l4_word_t raw;
+    uintptr_t raw;
   };
 };
 

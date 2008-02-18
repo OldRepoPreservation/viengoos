@@ -1,5 +1,15 @@
 2008-02-18  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): When resolving a fault, if the page was
+	discarded, reflect the fault.
+	* object.c (object_find): If the page was discarded, return NULL.
+	(folio_object_alloc): Clear the discarded flag.
+	* object.c (memory_object_destroy): Don't set the discarded flag
+	or content flag here.
+	* memory.c (memory_frame_allocate): Set them here.
+
+2008-02-18  Neal H. Walfield  <neal@gnu.org>
+
 	* cap-lookup.c (lookup) [RM_INTERN]: When generating a capability
 	to an object in a folio, don't lookup the object and then use
 	object_to_cap, just use folio_object_cap.

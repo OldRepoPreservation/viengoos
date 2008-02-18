@@ -129,6 +129,7 @@ server_loop (void)
 	  l4_word_t ip;
 	  l4_word_t fault = l4_pagefault (msg_tag, &access, &ip);
 	  bool w = !! (access & L4_FPAGE_WRITABLE);
+	  enum cap_type type = w ? cap_page : cap_rpage;
 
 	  DEBUG (5, "%x.%x page faults at %x (ip = %x)",
 		 l4_thread_no (from), l4_version (from), fault, ip);
@@ -138,13 +139,60 @@ server_loop (void)
 	  struct cap cap;
 	  struct object *page = NULL;
 
+	  bool raise_fault = false;
+	  bool discarded = false;
+
 	  cap = object_lookup_rel (activity, &thread->aspace,
 				   ADDR (page_addr, ADDR_BITS - PAGESIZE_LOG2),
-				   w ? cap_page : cap_rpage,
-				   &writable);
-	  page = cap_to_object (activity, &cap);
+				   type, &writable);
+	  assert (cap.type == cap_void
+		  || cap.type == cap_page
+		  || cap.type == cap_rpage);
 
-	  bool raise_fault = false;
+	  struct object_policy policy;
+	  policy = OBJECT_POLICY (writable ? cap.discardable : 0,
+				  cap.priority);
+
+	  page = object_find_soft (activity, cap.oid, policy);
+	  if (page)
+	    /* An object with oid CAP.OID exists and is in memory.  If
+	       the version doesn't match, then the object we are
+	       looking for is definitely not on disk.  */
+	    {
+	      struct object_desc *desc = object_to_object_desc (page);
+	      if (desc->version != cap.version)
+		page = NULL;
+	    }
+	  else if (! page)
+	    /* It's not in-memory.  See if it was discarded.  If not,
+	       load it using cap_to_object.  */
+	    {
+	      int object = (cap.oid % (FOLIO_OBJECTS + 1)) - 1;
+	      oid_t foid = cap.oid - object - 1;
+	      struct folio *folio
+		= (struct folio *) object_find (activity, foid,
+						OBJECT_POLICY_DEFAULT);
+	      assert (folio);
+	      assert (object_type ((struct object *) folio) == cap_folio);
+
+	      if (folio_object_discarded (folio, object))
+		{
+		  debug (0, DEBUG_BOLD ("" OID_FMT " (%s) was discarded"),
+			 OID_PRINTF (cap.oid),
+			 cap_type_string (folio_object_type (folio, object)));
+
+		  assert (! folio_object_content (folio, object));
+
+		  raise_fault = true;
+		  discarded = true;
+		}
+	      else
+		{
+		  cap.discardable = policy.discardable;
+		  page = cap_to_object (activity, &cap);
+		}
+	    }
+
 	  if (! page)
 	    {
 	      raise_fault = true;
@@ -170,7 +218,8 @@ server_loop (void)
 
 	      struct exception_info info;
 	      info.access = access;
-	      info.type = cap_page;
+	      info.type = type;
+	      info.discarded = true;
 
 	      l4_msg_t msg;
 	      exception_fault_send_marshal (&msg, PTR_TO_ADDR (fault),
@@ -1192,4 +1241,7 @@ server_loop (void)
 	}
     out:;
     }
+
+  /* Should never return.  */
+  panic ("server_loop returned!");
 }
