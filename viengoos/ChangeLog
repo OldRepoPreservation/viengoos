@@ -1,5 +1,11 @@
 2008-02-18  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.c (pager_collect): When looking for a victim activity, if
+	none are found, repeat the process giving the number of active
+	pages less weight.  Fix asserts.
+
+2008-02-18  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): When resolving a fault, if the page was
 	discarded, reflect the fault.
 	* object.c (object_find): If the page was discarded, return NULL.

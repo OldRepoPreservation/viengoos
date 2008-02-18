@@ -287,7 +287,7 @@ pager_collect (int goal)
 	 PAGER_LOW_WATER_MARK, goal);
 
   /* Find a victim.  */
-  struct activity *victim = root_activity;
+  struct activity *victim;
   struct activity *parent;
 
   struct activity_memory_policy victim_policy;
@@ -388,38 +388,49 @@ pager_collect (int goal)
 	return false;
       }
 
-      parent = victim;
-      victim = NULL;
-      bool have_self = false;
-
-      struct activity *child;
-      bool done = false;
-      for (child = activity_children_list_tail (&parent->children);
-	   child;
-	   child = activity_children_list_prev (child))
+      /* Each time through, we let the number of active frames play a
+	 less significant role.  */
+      int factor;
+      for (factor = 1; factor <= 16; factor <<= 1)
 	{
-	  if (! have_self && (parent->policy.child_rel.priority <=
-			      child->policy.sibling_rel.priority))
+	  parent = root_activity;
+	  victim = NULL;
+	  bool have_self = false;
+
+	  struct activity *child;
+	  bool done = false;
+	  for (child = activity_children_list_tail (&parent->children);
+	       child;
+	       child = activity_children_list_prev (child))
 	    {
-	      have_self = true;
-	      done = process (parent, parent->policy.child_rel,
-			      parent->frames_local
-			      - ACTIVITY_STATS_LAST (parent)->active_local);
+	      if (! have_self && (parent->policy.child_rel.priority <=
+				  child->policy.sibling_rel.priority))
+		{
+		  have_self = true;
+		  int frames = parent->frames_local
+		    - ACTIVITY_STATS_LAST (parent)->active_local / factor;
+		  done = process (parent, parent->policy.child_rel, frames);
+		  if (done)
+		    break;
+		}
+
+	      int frames = child->frames_total
+		- ACTIVITY_STATS_LAST (child)->active / factor;
+	      done = process (child, child->policy.sibling_rel, frames);
 	      if (done)
 		break;
 	    }
 
-	  done = process (child, child->policy.sibling_rel,
-			  child->frames_total
-			  - ACTIVITY_STATS_LAST (child)->active);
-	  if (done)
+	  if (! done && ! have_self)
+	    {
+	      int frames = parent->frames_local
+		- ACTIVITY_STATS_LAST (parent)->active_local / factor;
+	      process (parent, parent->policy.child_rel, frames);
+	    }
+
+	  if (victim)
 	    break;
 	}
-
-      if (! done && ! have_self)
-	process (parent, parent->policy.child_rel,
-		 parent->frames_local
-		 - ACTIVITY_STATS_LAST (parent)->active_local);
 
       assert (victim);
 
@@ -428,17 +439,18 @@ pager_collect (int goal)
       /* Calculate VICTIM's share of the frames allocated to all the
 	 activity's at this priority level.  */
       int share = 0;
-      if (weight > 0 && frames < goal)
-	share = ((frames - goal) * victim_policy.weight) / weight;
+      if (weight > 0 && frames > goal)
+	share = ((uint64_t) (frames - goal) * victim_policy.weight) / weight;
+      assert (share >= 0);
 
       /* VICTIM's share must be less than or equal to the frames
 	 allocated to this priority as we know that this activity has
 	 an excess and VICTIM is the most excessive.  */
-      assertx (share < victim->frames_total,
-	       "%d <= %d", share, victim->frames_total);
+      assertx (share <= victim->frames_total,
+	       "%d > %d", share, victim->frames_total);
 
       assertx (victim_frames >= share,
-	       "%d > %d", victim_frames, share);
+	       "%d < %d", victim_frames, share);
 
       debug (0, "Choosing activity " OID_FMT "%s, %d/%d frames, "
 	     "share: %d, goal: %d",
