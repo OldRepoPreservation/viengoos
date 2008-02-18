@@ -201,39 +201,21 @@ lookup (activity_t activity,
 	    }
 
 	  struct object *object = cap_to_object (activity, root);
-#ifdef RM_INTERN
 	  if (! object)
-	    {
-	      debug (1, "Failed to get object with OID " OID_FMT,
-		     OID_PRINTF (root->oid));
-	      return false;
-	    }
-#else
-	  assertx (object, ADDR_FMT "(%s) has no shadow object",
-		   ADDR_PRINTF (addr_chop (address, remaining)),
-		   cap_type_string (root->type));
+	      {
+#ifdef RM_INTERN
+		debug (1, "Failed to get object with OID " OID_FMT,
+		       OID_PRINTF (root->oid));
 #endif
+		return false;
+	      }
 
 	  struct folio *folio = (struct folio *) object;
 
 	  int i = extract_bits64_inv (addr, remaining - 1, FOLIO_OBJECTS_LOG2);
 #ifdef RM_INTERN
 	  root = &fake_slot;
-	  if (folio_object_type (folio, i) == cap_void)
-	    {
-	      memset (root, 0, sizeof (*root));
-	      root->type = cap_void;
-	    }
-	  else
-	    {
-	      struct object_desc *fdesc;
-	      fdesc = object_to_object_desc (object);
-
-	      object = object_find (activity, fdesc->oid + i + 1,
-				    folio_object_policy (folio, i));
-	      assert (object);
-	      *root = object_to_cap (object);
-	    }
+	  *root = folio_object_cap (folio, i);
 #else
 	  root = &folio->objects[i];
 #endif

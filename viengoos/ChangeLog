@@ -1,3 +1,9 @@
+2008-02-18  Neal H. Walfield  <neal@gnu.org>
+
+	* cap-lookup.c (lookup) [RM_INTERN]: When generating a capability
+	to an object in a folio, don't lookup the object and then use
+	object_to_cap, just use folio_object_cap.
+
 2008-02-16  Neal H. Walfield  <neal@gnu.org>
 
 	* object.h (struct object_desc): Add fields mapped, shared and
