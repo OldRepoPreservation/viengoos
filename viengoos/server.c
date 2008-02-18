@@ -219,7 +219,7 @@ server_loop (void)
 	      struct exception_info info;
 	      info.access = access;
 	      info.type = type;
-	      info.discarded = true;
+	      info.discarded = discarded;
 
 	      l4_msg_t msg;
 	      exception_fault_send_marshal (&msg, PTR_TO_ADDR (fault),

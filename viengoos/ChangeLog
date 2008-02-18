@@ -1,5 +1,10 @@
 2008-02-18  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): When raising a fault, set INFO.DISCARDED
+	to DISCARDED, not true.
+
+2008-02-18  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (ager_loop): Improve debugging output.
 
 2008-02-18  Neal H. Walfield  <neal@gnu.org>
