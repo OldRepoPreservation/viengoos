@@ -214,7 +214,14 @@ hurd_ihash_init_with_buffer (hurd_ihash_t ht, bool large,
 {
   hurd_ihash_init_internal (ht, large, locp_offs);
   ht->items = buffer;
-  ht->size = size / ITEM_SIZE (_HURD_IHASH_LARGE (ht));
+
+  int max_size = size / ITEM_SIZE (_HURD_IHASH_LARGE (ht));
+
+  int i;
+  for (i = 0; i < ihash_nsizes; i ++)
+    if (ihash_sizes[i] > max_size)
+      break;
+  ht->size = ihash_sizes[i - 1];
 }
 
 

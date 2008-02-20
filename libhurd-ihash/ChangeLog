@@ -1,3 +1,9 @@
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
+	* ihash.c (hurd_ihash_init_with_buffer): Set size to the largest
+	size in IHASH_SIZES that is less than or equal to the maximum size
+	that the provided buffer can handle.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* t-ihash.c (program_name): Change type to char *.
