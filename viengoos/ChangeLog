@@ -1,5 +1,11 @@
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.c (activity_destroy): Move objects from VICTIM's priority
+	tree to its VICTIM->PARENT's priority tree, not its inactive
+	lists.
+
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (FOLIOS_CORE): Increase value.
 
 2008-02-20  Neal H. Walfield  <neal@gnu.org>

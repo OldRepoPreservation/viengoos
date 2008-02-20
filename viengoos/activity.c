@@ -138,22 +138,30 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	count ++;
       }
 
-    struct object_desc *next = hurd_btree_priorities_first (&victim->priorities);
+    struct object_desc *next
+      = hurd_btree_priorities_first (&victim->priorities);
     while ((desc = next))
       {
 	assert (! desc->eviction_candidate);
 	assert (desc->activity == victim);
+	assert (desc->policy.priority != OBJECT_PRIORITY_LRU);
 
 	next = hurd_btree_priorities_next (desc);
 
 	desc->age = 0;
-
-	if (desc->dirty && ! desc->policy.discardable)
-	  activity_lru_list_queue (&victim->parent->inactive_dirty, desc);
-	else
-	  activity_lru_list_queue (&victim->parent->inactive_clean, desc);
-
 	desc->activity = victim->parent;
+
+#ifndef NDEBUG
+	/* We don't detach it from the tree as we destroy the tree in
+	   its entirety.  But, the insert code expects the fields to
+	   be zero'd.  */
+	memset (&desc->priority_node, 0, sizeof (desc->priority_node));
+#endif
+
+	void *ret = hurd_btree_priorities_insert (&victim->parent->priorities,
+						  desc);
+	assert (! ret);
+
 	count ++;
       }
 #ifndef NDEBUG
