@@ -1,23 +1,22 @@
 /* pager.h - Generic pager interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+   GNU Hurd is free software: you can redistribute it and/or modify it
+   under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   License along with GNU Hurd.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #ifndef _HURD_PAGER_H
 #define _HURD_PAGER_H
@@ -32,10 +31,11 @@
 /* Forward.  */
 struct pager;
 
-/* A fault occured at address ADDR.  Called with PAGER->LOCK held.  If
-   an access occurred, it is described by IP and INFO.  Return true if
-   the fault was handler (and an appropriate mapping installed),
-   otherwise, false.  */
+/* A fault occured at address ADDR.  Called with PAGER->LOCK held.
+   The fault handler must unlock PAGER->LOCK.  If an access occurred,
+   it is described by IP and INFO.  Return true if the fault was
+   handler (and an appropriate mapping installed), otherwise,
+   false.  */
 typedef bool (*pager_fault_t) (struct pager *pager,
 			       addr_t addr, uintptr_t ip,
 			       struct exception_info info);
@@ -53,6 +53,8 @@ struct pager_region
   addr_t start;
   int count;
 };
+#define PAGER_REGION_LENGTH(r)				\
+  ((r).count * (1ULL << (ADDR_BITS - addr_depth ((r).start))))
 
 enum
   {

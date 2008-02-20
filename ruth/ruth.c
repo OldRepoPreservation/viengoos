@@ -33,6 +33,7 @@
 #include <hurd/storage.h>
 #include <hurd/activity.h>
 #include <hurd/futex.h>
+#include <hurd/anonymous.h>
 
 #include <bit-array.h>
 #include <string.h>
@@ -40,6 +41,9 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#include <l4.h>
 
 extern int output_debug;
 
@@ -235,8 +239,9 @@ main (int argc, char *argv[])
 				    OBJECT_POLICY_DEFAULT,
 				    ADDR_VOID).addr;
 	assert (! ADDR_IS_VOID (storage[i]));
-	* (int *) (ADDR_TO_PTR (addr_extend (storage[i], 0, PAGESIZE_LOG2)))
-	  = i;
+	int *p = (int *) ADDR_TO_PTR (addr_extend (storage[i],
+						   0, PAGESIZE_LOG2));
+	* (int *) p = i;
 
 	int j;
 	for (j = 0; j <= i; j ++)
@@ -673,6 +678,132 @@ main (int argc, char *argv[])
     err = pthread_join (tid, &status);
     assert (err == 0);
     debug (5, "Joined thread");
+
+    printf ("ok.\n");
+  }
+
+  {
+    printf ("Checking rendered regions... ");
+
+    const int s = 4 * PAGESIZE;
+
+    bool fill (struct anonymous_pager *anon,
+	       void *base, uintptr_t offset,
+	       uintptr_t pages,
+	       struct exception_info info)
+    {
+      int *p = base + offset;
+      int i;
+      for (i = 0; i < PAGESIZE / sizeof (int); i ++)
+	p[i] = offset / sizeof (int) + i;
+
+      return true;
+    }
+
+    void *addr;
+    struct anonymous_pager *pager
+      = anonymous_pager_alloc (ADDR_VOID, NULL, s,
+			       OBJECT_POLICY_DEFAULT, 0,
+			       fill, &addr);
+    assert (pager);
+
+    int *p = addr;
+    int i;
+    for (i = 0; i < s / sizeof (int); i ++)
+      assert (p[i] == i);
+
+    printf ("ok\n");
+  }
+
+  {
+    printf ("Checking rendered regions (all at once)... ");
+
+    const int s = 4 * PAGESIZE;
+
+    bool fill (struct anonymous_pager *anon,
+	       void *base, uintptr_t offset,
+	       uintptr_t pages,
+	       struct exception_info info)
+    {
+      static int once;
+
+      assert (! once);
+      once = true;
+
+      int *p = base;
+      int i;
+      for (i = 0; i < s / sizeof (int); i ++)
+	p[i] = i;
+
+      return true;
+    }
+
+    void *addr;
+    struct anonymous_pager *pager
+      = anonymous_pager_alloc (ADDR_VOID, NULL, s,
+			       OBJECT_POLICY_DEFAULT, ANONYMOUS_NO_RECURSIVE,
+			       fill, &addr);
+    assert (pager);
+
+    int *p = addr;
+    int i;
+    for (i = 0; i < s / sizeof (int); i ++)
+      assert (p[i] == i);
+
+    printf ("ok\n");
+  }
+
+  {
+    printf ("Checking discardability... ");
+
+    bool fill (struct anonymous_pager *anon,
+	       void *base, uintptr_t offset,
+	       uintptr_t pages,
+	       struct exception_info info)
+    {
+      if (! info.discarded)
+	return true;
+
+      * (int *) (base + offset) = offset / PAGESIZE;
+
+      return true;
+    }
+
+    struct activity_stats_buffer stats;
+    uint32_t frames;
+    do
+      {
+	int c;
+	error_t err = rm_activity_stats (ADDR_VOID, &stats, &c);
+	assert_perror (err);
+	assert (c >= 1);
+
+	frames = stats.stats[0].available;
+      }
+    while (frames == 0);
+
+    debug (0, "%d frames available", frames);
+    uint32_t goal = frames * 2;
+
+    void *addr;
+    struct anonymous_pager *pager
+      = anonymous_pager_alloc (ADDR_VOID, NULL, goal * PAGESIZE,
+			       OBJECT_POLICY (true, OBJECT_PRIORITY_LRU), 0,
+			       fill, &addr);
+    assert (pager);
+
+    void *p;
+    int i = 0;
+    for (p = addr; p < addr + goal * PAGESIZE; p += PAGESIZE, i ++)
+      * (int *) p = i;
+    assert (i == goal);
+    
+    debug (0, "Verifying the content of the discardable pages");
+
+    for (p = addr, i = 0; p < addr + goal * PAGESIZE; p += PAGESIZE, i ++)
+      assertx (* (int *) p == i, "%d != %d", * (int *) p, i);
+
+    anonymous_pager_destroy (pager);
 
     printf ("ok.\n");
   }

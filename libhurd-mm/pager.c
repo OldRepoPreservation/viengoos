@@ -4,20 +4,19 @@
 
    This file is part of the GNU Hurd.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
-   your option) any later version.
-   
-   The GNU Hurd is distributed in the hope that it will be useful, but
+   GNU Hurd is free software: you can redistribute it and/or modify it
+   under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   GNU Hurd is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
-   
-   You should have received a copy of the GNU General Public License
-   along with the GNU Hurd; see the file COPYING.  If not, write to
-   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
-   USA.  */
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with GNU Hurd.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #if HAVE_CONFIG_H
 #include <config.h>
@@ -129,8 +128,6 @@ pager_fault (addr_t addr, uintptr_t ip, struct exception_info info)
   bool r = pager->fault (pager, addr, ip, info);
   if (! r)
     debug (3, "Pager did not fault " ADDR_FMT, ADDR_PRINTF (addr));
-
-  ss_mutex_unlock (&pager->lock);
 
   return r;
 }

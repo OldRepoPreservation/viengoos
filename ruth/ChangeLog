@@ -1,3 +1,8 @@
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c: Include <hurd/anonymous.h>, <stdlib.h> and <l4.h>.
+	(main): Add tests to check rendered regions and discardable pages.
+
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update use of storage_alloc to be consistent with

@@ -55,33 +55,11 @@ mmap (void *addr, size_t length, int protect, int flags,
   /* Round length up.  */
   length = (length + PAGESIZE - 1) & ~(PAGESIZE - 1);
 
-  bool alloced = false;
-  if (addr)
-    /* Caller wants a specific address range.  */
-    {
-      bool r = as_alloc_at (PTR_TO_ADDR (addr), length);
-      if (r)
-	alloced = true;
-      else
-	/* No room for this region.  */
-	{
-	  if (flags & MAP_FIXED)
-	    return MAP_FAILED;
-	}
-    }
-
-  if (! alloced)
-    {
-      addr_t region = as_alloc (PAGESIZE_LOG2, length / PAGESIZE, true);
-      if (ADDR_IS_VOID (region))
-	return MAP_FAILED;
-
-      addr = ADDR_TO_PTR (addr_extend (region, 0, PAGESIZE_LOG2));
-    }
-
   struct anonymous_pager *pager;
-  pager = anonymous_pager_alloc (ADDR_VOID, (uintptr_t) addr, length,
-				 ANONYMOUS_ZEROFILL, false);
+  pager = anonymous_pager_alloc (ADDR_VOID, addr, length,
+				 OBJECT_POLICY_DEFAULT,
+				 (flags & MAP_FIXED) ? ANONYMOUS_FIXED: 0,
+				 NULL, &addr);
   if (! pager)
     panic ("Failed to create pager!");
 
@@ -136,7 +114,11 @@ munmap (void *addr, size_t length)
 	break;
 
       if (pager_start < start || pager_end > end)
-	panic ("Attempt to partially unmap pager unsupported");
+	{
+	  debug (0, "munmap (%x-%x), pager at %llx-%llx",
+		 start, end, pager_start, pager_end);
+	  panic ("Attempt to partially unmap pager unsupported");
+	}
 
       pager_deinstall (pager);
       pager->next = list;
@@ -175,18 +157,15 @@ munmap (void *addr, size_t length)
     {
       struct pager *next = pager->next;
 
-      struct pager_region region = pager->region;
-
       l4_uint64_t pager_start = addr_prefix (pager->region.start);
       l4_uint64_t pager_end = pager_start
 	+ (pager->region.count
 	   << (ADDR_BITS - addr_depth (pager->region.start))) - 1;
-      debug (5, "Detroying pager covering %llx-%llx",
-	     pager_start, pager_end);
+      debug (5, "Detroying pager covering %llx-%llx (%d pages)",
+	     pager_start, pager_end,
+	     (int) (pager_end - pager_start + 1) / PAGESIZE);
 
       pager->destroy (pager);
-
-      as_free (region.start, region.count);
 
       pager = next;
     }

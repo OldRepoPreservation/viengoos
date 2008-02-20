@@ -1,3 +1,37 @@
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.h: Include <hurd/exceptions.h> and <l4/thread.h>.
+	(ANONYMOUS_ZEROFILL): Rename from this...
+	(ANONYMOUS_NO_CLEAR): ... to this, inverting logic.  Update users.
+	(ANONYMOUS_DISCARDABLE): Don't define.
+	(ANONYMOUS_NO_ALLOC): Define.
+	(ANONYMOUS_NO_RECURSIVE): Likewise.
+	(ANONYMOUS_THREAD_SAFE): Likewise.
+	(anonymous_pager_fill_t): Likewise.
+	(struct anonymous_pager): Add fields allocated_region,
+	staging_area, fill, fill_thread, fill_lock and policy.  Change
+	fill's type to anonymous_pager_fill_t.
+	(anonymous_pager_alloc): Take additional parameters, P and
+	ADDR_OUT.  Change the fill function's type to
+	anonymous_pager_fill_t.  Require that the address is not already
+	allocated.  Update users.
+	* anonymous.c: Include <string.h> and <hurd/rm.h>.
+	(struct storage_desc): Remove field addr and replace with offset.
+	(addr_compare): Remove function.
+	(offset_compare): New function.
+	(storage_desc): Change node key from the addr field to the offset
+	field.
+	(fault): Rewrite to handle a fill function, discarded pages, and
+	the ANONYMOUS_NO_RECURSIVE and ANONYMOUS_NO_ALLOC flags.
+	(destroy): Free the allocated region and any staging area.
+	(anonymous_pager_alloc): Rewrite to allocate virtual memory.  Set
+	up the data structure appropriately if ANONYMOUS_THREAD_SAFE is
+	given.
+	* pager.h (PAGER_REGION_LENGTH): New define.
+	(pager_fault_t): Change ABI such that the callback must release
+	PAGER->LOCK.
+	* pager.c (pager_fault): Don't release PAGER->LOCK.
+
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
 	* anonymous.c (destroy) [!NDEBUG]: Clear NODE before freeing it.
