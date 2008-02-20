@@ -300,7 +300,13 @@ activity_prepare (struct activity *principal, struct activity *activity)
 					   activity, last);
     }
 
-  activity_children_list_init (&activity->children);
+  activity_children_list_init (&activity->children, "activity->children");
+
+  activity_lru_list_init (&activity->active, "active");
+  activity_lru_list_init (&activity->inactive_clean, "inactive clean");
+  activity_lru_list_init (&activity->inactive_dirty, "inactive dirty");
+  eviction_list_init (&activity->eviction_clean, "evict clean");
+  eviction_list_init (&activity->eviction_dirty, "evict dirty");
 }
 
 void

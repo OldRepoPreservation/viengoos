@@ -1,3 +1,11 @@
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
+	* list.h (struct list) [! NDEBUG]: Add field name.
+	(list_init): Add parameter name.  Update users.
+	(LIST_CLASS): Update template to account for list_init changes.
+	(list_unlink): Improve debugging output.
+	* activity.c (activity_prepare): Explicitly initialize all lists.
+
 2008-02-18  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): When raising a fault, set INFO.DISCARDED

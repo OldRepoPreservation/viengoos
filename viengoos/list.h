@@ -41,6 +41,9 @@ struct list
   struct list_node *head;
   /* The number of items on the list.  */
   int count;
+#ifndef NDEBUG
+  const char *name;
+#endif
 };
 typedef struct list list_t;
 
@@ -54,10 +57,13 @@ list_node_attached (struct list_node *node)
 /* Initialize a list.  Equivalently, zero initialization is
    sufficient.  */
 static inline void
-list_init (struct list *list)
+list_init (struct list *list, const char *name)
 {
   list->head = NULL;
   list->count = 0;
+#ifndef NDEBUG
+  list->name = name;
+#endif
 }
 
 /* Return whether the pointer is a sentinel.  The head's previous
@@ -256,9 +262,13 @@ list_unlink (struct list *list, struct list_node *item)
 	assert (LIST_SENTINEL_P (i->next));
 
 	if (LIST_PTR (i->next) != (void *) list)
-	  debug (0, "%p appears on %p", item, LIST_PTR (i->next));
+	  debug (0, "Item %p appears on %p (%s) not %p (%s)",
+		 item, LIST_PTR (i->next),
+		 ((struct list *) LIST_PTR (i->next))->name,
+		 list, list->name);
 	LIST_PTR (i->next) == (void *) list;
-      }), "list: %p (%d), item: %p", list, list_count (list), item);
+      }), "list: %p (%s) (%d), item: %p",
+    list, list->name, list_count (list), item);
 
   if (LIST_SENTINEL_P (item->next) && LIST_SENTINEL_P (item->prev))
     /* The only item on the list.  */
@@ -396,9 +406,9 @@ list_join (struct list *target, struct list *source)
   LIST_CLASS_TYPE_need_type_##need_type(name)				\
 									\
   static inline void							\
-  name##_list_init (struct name##_list *list)				\
+  name##_list_init (struct name##_list *list, const char *name)		\
   {									\
-    list_init (&list->list);						\
+    list_init (&list->list, name);					\
   }									\
 									\
   static inline int							\

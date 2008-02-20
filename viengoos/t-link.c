@@ -23,7 +23,7 @@ test (void)
   struct object_desc *descs[N];
 
   struct object_activity_lru_list list;
-  object_activity_lru_list_init (&list);
+  object_activity_lru_list_init (&list, "list");
 
   struct object_desc *p;
   int i;
@@ -88,7 +88,7 @@ test (void)
 
   /* A: 1 -> 2 -> 3.  */
   struct object_activity_lru_list a;
-  object_activity_lru_list_init (&a);
+  object_activity_lru_list_init (&a, "a");
 
   descs[3] = calloc (sizeof (struct object_desc), 1);
   descs[3]->age = 3;
@@ -104,7 +104,7 @@ test (void)
 
   /* B: 4 -> 5 -> 6.  */
   struct object_activity_lru_list b;
-  object_activity_lru_list_init (&b);
+  object_activity_lru_list_init (&b, "b");
 
   descs[6] = calloc (sizeof (struct object_desc), 1);
   descs[6]->age = 6;
