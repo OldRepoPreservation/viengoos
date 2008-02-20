@@ -120,23 +120,20 @@ activity_destroy (struct activity *activity, struct activity *victim)
     int count = 0;
 
     /* Make ACTIVE objects inactive.  */
-    while ((desc = activity_lru_list_head (&victim->active)))
+    for (desc = activity_lru_list_head (&victim->active);
+	 desc; desc = activity_lru_list_next (desc))
       {
 	assert (! desc->eviction_candidate);
 	assert (desc->activity == victim);
-
-	activity_lru_list_unlink (&victim->active, desc);
+	assert (! list_node_attached (&desc->laundry_node));
+	assert (desc->age);
 
 	desc->age = 0;
-
-	if (desc->dirty && ! desc->policy.discardable)
-	  activity_lru_list_queue (&victim->parent->inactive_dirty, desc);
-	else
-	  activity_lru_list_queue (&victim->parent->inactive_clean, desc);
-
 	desc->activity = victim->parent;
 	count ++;
       }
+    activity_lru_list_join (&victim->parent->inactive,
+			    &victim->active);
 
     struct object_desc *next
       = hurd_btree_priorities_first (&victim->priorities);
@@ -171,37 +168,25 @@ activity_destroy (struct activity *activity, struct activity *victim)
     /* Move inactive objects to the head of VICTIM->PARENT's appropriate
        inactive list (thereby making them the first eviction
        candidates).  */
-    for (desc = activity_lru_list_head (&victim->inactive_clean);
+    for (desc = activity_lru_list_head (&victim->inactive);
 	 desc; desc = activity_lru_list_next (desc))
       {
 	assert (! desc->eviction_candidate);
 	assert (desc->activity == victim);
-	assert (! desc->dirty || desc->policy.discardable);
 	assert (! list_node_attached (&desc->laundry_node));
+	assert (! desc->age);
 
 	desc->activity = victim->parent;
 	count ++;
       }
-    activity_lru_list_join (&victim->parent->inactive_clean,
-			    &victim->inactive_clean);
-
-    for (desc = activity_lru_list_head (&victim->inactive_dirty);
-	 desc; desc = activity_lru_list_next (desc))
-      {
-	assert (! desc->eviction_candidate);
-	assert (desc->activity == victim);
-	assert (desc->dirty && ! desc->policy.discardable);
-
-	desc->activity = victim->parent;
-	count ++;
-      }
-    activity_lru_list_join (&victim->parent->inactive_dirty,
-			    &victim->inactive_dirty);
+    activity_lru_list_join (&victim->parent->inactive,
+			    &victim->inactive);
 
 
     /* And move all of VICTIM's eviction candidates to VICTIM->PARENT's
        eviction lists.  */
-    while ((desc = eviction_list_head (&victim->eviction_clean)))
+    for (desc = eviction_list_head (&victim->eviction_clean);
+	 desc; desc = eviction_list_next (desc))
       {
 	assert (desc->eviction_candidate);
 	assert (desc->activity == victim);
@@ -213,10 +198,19 @@ activity_destroy (struct activity *activity, struct activity *victim)
     eviction_list_join (&victim->parent->eviction_clean,
 			&victim->eviction_clean);
 
-    while ((desc = eviction_list_head (&victim->eviction_dirty)))
+    for (desc = eviction_list_head (&victim->eviction_dirty);
+	 desc; desc = eviction_list_next (desc))
       {
 	assert (desc->eviction_candidate);
-	assert (desc->activity == victim);
+#ifndef NDEBUG
+	struct object_desc *adesc, *vdesc;
+	adesc = object_to_object_desc ((struct object *) desc->activity);
+	vdesc = object_to_object_desc ((struct object *) victim);
+
+	assertx (desc->activity == victim,
+		 OID_FMT " != " OID_FMT,
+		 OID_PRINTF (adesc->oid), OID_PRINTF (vdesc->oid));
+#endif
 	assert (list_node_attached (&desc->laundry_node));
 	assert (desc->dirty && !desc->policy.discardable);
 
@@ -311,8 +305,7 @@ activity_prepare (struct activity *principal, struct activity *activity)
   activity_children_list_init (&activity->children, "activity->children");
 
   activity_lru_list_init (&activity->active, "active");
-  activity_lru_list_init (&activity->inactive_clean, "inactive clean");
-  activity_lru_list_init (&activity->inactive_dirty, "inactive dirty");
+  activity_lru_list_init (&activity->inactive, "inactive");
   eviction_list_init (&activity->eviction_clean, "evict clean");
   eviction_list_init (&activity->eviction_dirty, "evict dirty");
 }
@@ -324,8 +317,7 @@ activity_deprepare (struct activity *principal, struct activity *victim)
      paged out.  */
   assert (! activity_children_list_head (&victim->children));
   assert (! activity_lru_list_count (&victim->active));
-  assert (! activity_lru_list_count (&victim->inactive_clean));
-  assert (! activity_lru_list_count (&victim->inactive_dirty));
+  assert (! activity_lru_list_count (&victim->inactive));
   assert (! eviction_list_count (&victim->eviction_clean));
   assert (! eviction_list_count (&victim->eviction_dirty));
 
@@ -396,14 +388,13 @@ do_activity_dump (struct activity *activity, int indent)
   indent_string[indent] = 0;
 
   int active = activity_lru_list_count (&activity->active);
-  int dirty = activity_lru_list_count (&activity->inactive_dirty);
-  int clean = activity_lru_list_count (&activity->inactive_clean);
+  int inactive = activity_lru_list_count (&activity->inactive);
 
-  printf ("%s %llx: %d frames (act: %d, drt: %d, cln: %d) "
+  printf ("%s %llx: %d frames (active: %d, inactive: %d) "
 	  "(total: %d); %d/%d; %d/%d\n",
 	  indent_string,
 	  object_to_object_desc ((struct object *) activity)->oid,
-	  activity->frames_local, active, dirty, clean,
+	  activity->frames_local, active, inactive,
 	  activity->frames_total,
 	  activity->policy.sibling_rel.priority,
 	  activity->policy.sibling_rel.weight,

@@ -181,13 +181,7 @@ ager_loop (l4_thread_id_t main_thread)
 		      activity_lru_list_unlink (&desc->activity->active,
 						desc);
 
-		      /* Attach to appropriate inactive list.  */
-		      if (desc->dirty && ! desc->policy.discardable)
-			activity_lru_list_push
-			  (&desc->activity->inactive_dirty, desc);
-		      else
-			activity_lru_list_push
-			  (&desc->activity->inactive_clean, desc);
+		      activity_lru_list_push (&desc->activity->inactive, desc);
 		    }
 		  else
 		    {
@@ -210,12 +204,8 @@ ager_loop (l4_thread_id_t main_thread)
 		      if (desc->policy.priority == OBJECT_PRIORITY_LRU)
 			{
 			  /* Detach from inactive list.  */
-			  if (desc->dirty && ! desc->policy.discardable)
-			    activity_lru_list_unlink
-			      (&desc->activity->inactive_dirty, desc);
-			  else
-			    activity_lru_list_unlink
-			      (&desc->activity->inactive_clean, desc);
+			  activity_lru_list_unlink
+			    (&desc->activity->inactive, desc);
 
 			  /* Attach to active list.  */
 			  activity_lru_list_push (&desc->activity->active,

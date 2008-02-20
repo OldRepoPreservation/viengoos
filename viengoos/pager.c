@@ -97,78 +97,45 @@ reclaim_from (struct activity *victim, int goal)
     /* VICTIM still has to yield pages.  Start stealing from the
        inactive LRU lists.  */
     {
-      struct object_desc *clean, *dirty;
+      struct object_desc *inactive;
 
       /* For every clean page we steal, we queue a dirty page for
 	 writeout.  */
 
-      clean = activity_lru_list_head (&victim->inactive_clean);
-      dirty = activity_lru_list_head (&victim->inactive_dirty);
+      inactive = activity_lru_list_head (&victim->inactive);
 
       struct object_desc *next;
 
-      while ((clean || dirty) && count < goal)
+      while (inactive && count < goal)
 	{
-	  if (clean)
+	  assert (! inactive->eviction_candidate);
+	  assert (! list_node_attached (&inactive->available_node));
+
+	  next = activity_lru_list_next (inactive);
+
+	  activity_lru_list_unlink (&victim->inactive, inactive);
+
+	  object_desc_flush (inactive);
+	  if (inactive->dirty && ! inactive->policy.discardable)
 	    {
-	      assert (! clean->eviction_candidate);
-	      assert (! clean->dirty || clean->policy.discardable);
-	      assert (! list_node_attached (&clean->available_node));
+	      eviction_list_push (&victim->eviction_dirty, inactive);
 
-	      next = activity_lru_list_next (clean);
+	      laundry_list_queue (&laundry, inactive);
+	    }
+	  else
+	    {
+	      is_clean (inactive);
 
-	      activity_lru_list_unlink (&victim->inactive_clean, clean);
+	      eviction_list_push (&victim->eviction_clean, inactive);
 
-	      object_desc_flush (clean);
-	      if (clean->dirty)
-		/* It is possible that the page was dirtied between
-		   the last check and now.  */
-		{
-		  eviction_list_push (&victim->eviction_dirty, clean);
-
-		  laundry_list_queue (&laundry, clean);
-		}
-	      else
-		{
-		  is_clean (desc);
-
-		  eviction_list_push (&victim->eviction_clean, clean);
-
-		  available_list_queue (&available, clean);
-		}
-
-	      clean->eviction_candidate = true;
-
-	      count ++;
-
-	      clean = next;
+	      available_list_queue (&available, inactive);
 	    }
 
-	  if (count == goal)
-	    break;
+	  inactive->eviction_candidate = true;
 
-	  if (dirty)
-	    {
-	      assert (! dirty->eviction_candidate);
-	      assert (dirty->dirty && ! dirty->policy.discardable);
-	      assert (! list_node_attached (&dirty->laundry_node));
+	  count ++;
 
-	      next = activity_lru_list_next (dirty);
-
-	      object_desc_flush (dirty);
-
-	      dirty->eviction_candidate = true;
-
-	      activity_lru_list_unlink (&victim->inactive_dirty, dirty);
-	      eviction_list_push (&victim->eviction_dirty, dirty);
-
-	      laundry_list_queue (&laundry, dirty);
-
-	      laundry_count ++;
-	      count ++;
-
-	      dirty = next;
-	    }
+	  inactive = next;
 	}
     }
 

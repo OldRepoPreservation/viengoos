@@ -722,12 +722,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 		list = &desc->activity->active;
 	      else
 		/* DESC is inactive.  */
-		if (desc->dirty && ! desc->policy.discardable)
-		  /* And dirty.  */
-		  list = &desc->activity->inactive_dirty;
-		else
-		  /* And clean.  */
-		  list = &desc->activity->inactive_clean;
+		list = &desc->activity->inactive;
 
 	      activity_lru_list_unlink (list, desc);
 	    }

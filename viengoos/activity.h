@@ -74,8 +74,7 @@ struct activity
      OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
      false.  */
   struct activity_lru_list active;
-  struct activity_lru_list inactive_clean;
-  struct activity_lru_list inactive_dirty;
+  struct activity_lru_list inactive;
 
   /* Objects owned by this activity whose priority is not
      OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
@@ -93,10 +92,10 @@ struct activity
      children.  */
   uint32_t frames_local;
   /* Number of frames allocated to this activity (including children).
-     This is the sum of the number of objects on ACTIVE,
-     INACTIVE_CLEAN and INACTIVE_DIRTY plus the number of frames
-     allocated to each child.  This does not include the number of
-     frames on the eviction_clean and eviction_dirty lists.  */
+     This is the sum of the number of objects on ACTIVE and INACTIVE
+     plus the number of frames allocated to each child.  This does not
+     include the number of frames on the eviction_clean and
+     eviction_dirty lists.  */
   uint32_t frames_total;
 
   /* Whether the activity has been marked as dead (and thus will be
