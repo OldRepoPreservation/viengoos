@@ -1,5 +1,5 @@
 /* cap.h - Basic capability framework interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -40,5 +40,14 @@ cap_set (struct activity *activity, struct cap *target, struct cap source)
 
 /* Invalidate all mappings that may depend on this object.  */
 extern void cap_shootdown (struct activity *activity, struct cap *cap);
+
+/* Return the object designated by CAP, if any.  */
+struct object *cap_to_object (struct activity *activity, struct cap *cap);
+
+/* Like cap_to_object but only returns the object if it is in
+   memory.  */
+struct object *cap_to_object_soft (struct activity *activity, struct cap *cap);
+
+
 
 #endif

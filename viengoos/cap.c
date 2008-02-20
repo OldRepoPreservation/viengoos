@@ -36,24 +36,29 @@ const int cap_type_num_slots[] = { [cap_void] = 0,
 				   [cap_activity_control] = 0,
 				   [cap_thread] = THREAD_SLOTS };
 
-struct object *
-cap_to_object (struct activity *activity, struct cap *cap)
+static struct object *
+cap_to_object_internal (struct activity *activity, struct cap *cap,
+			bool hard)
 {
   if (cap->type == cap_void)
     return NULL;
 
   /* XXX: If CAP does not grant write access, then we need to flatten
      the discardable bit.  */
-  struct object *object = object_find (activity, cap->oid,
-				       OBJECT_POLICY (cap->discardable,
-						      cap->priority));
-  if (! object)
+  struct object *object;
+  if (hard)
     {
-      /* Clear the capability to save the effort of looking up the
-	 object in the future.  */
-      cap->type = cap_void;
-      return NULL;
+      object = object_find (activity, cap->oid, CAP_POLICY_GET (*cap));
+      if (! object)
+	/* Clear the capability to save the effort of looking up the
+	   object in the future.  */
+	cap->type = cap_void;
     }
+  else
+    object = object_find_soft (activity, cap->oid, CAP_POLICY_GET (*cap));
+
+  if (! object)
+    return NULL;
 
   struct object_desc *desc = object_to_object_desc (object);
   if (desc->version != cap->version)
@@ -69,6 +74,18 @@ cap_to_object (struct activity *activity, struct cap *cap)
   assert (cap_types_compatible (cap->type, desc->type));
 
   return object;
+}
+
+struct object *
+cap_to_object (struct activity *activity, struct cap *cap)
+{
+  return cap_to_object_internal (activity, cap, true);
+}
+
+struct object *
+cap_to_object_soft (struct activity *activity, struct cap *cap)
+{
+  return cap_to_object_internal (activity, cap, false);
 }
 
 void

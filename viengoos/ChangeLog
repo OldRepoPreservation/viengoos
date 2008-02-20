@@ -1,5 +1,13 @@
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h (cap_to_object): New declaration.
+	(cap_to_object_soft): Likewise.
+	* cap.c (cap_to_object_internal): New function.
+	(cap_to_object): Implement in terms of it.
+	(cap_to_object_soft): New function.
+
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (struct activity): Unify the inactive_dirty and
 	inactive_clean lists.  Update users.
 
