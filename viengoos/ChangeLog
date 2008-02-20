@@ -1,5 +1,11 @@
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Implement object_discarded_clear method.
+	* rm.h (rm_method_id_string): Handle RM_object_discarded_clear
+	case.
+
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): On a page fault, use cap_to_object_soft
 	to find the page.
 

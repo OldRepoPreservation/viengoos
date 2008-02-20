@@ -796,6 +796,26 @@ server_loop (void)
 	    break;
 	  }
 
+	case RM_object_discarded_clear:
+	  {
+	    addr_t object_addr;
+
+	    err = rm_object_discarded_clear_send_unmarshal
+	      (&msg, &principal_addr, &object_addr);
+	    if (err)
+	      REPLY (err);
+
+	    struct object *object = OBJECT (&thread->aspace,
+					    object_addr, -1, true);
+
+	    struct folio *folio = objects_folio (principal, object);
+	    int offset = objects_folio_offset (object);
+	    folio_object_discarded_set (folio, offset, false);
+
+	    rm_object_discarded_clear_reply_marshal (&msg);
+	    break;
+	  }
+
 	case RM_thread_exregs:
 	  {
 	    struct hurd_thread_exregs_in in;

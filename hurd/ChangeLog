@@ -1,3 +1,8 @@
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (RM_object_discarded_clear): Define.
+	(object_discarded_clear): New method.
+
 2008-02-18  Neal H. Walfield  <neal@gnu.org>
 
 	* exceptions.h: Include <stdint.h>.

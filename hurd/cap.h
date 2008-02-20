@@ -370,6 +370,7 @@ enum
     RM_object_slot_copy_out = 400,
     RM_object_slot_copy_in,
     RM_object_slot_read,
+    RM_object_discarded_clear,
   };
 
 enum
@@ -454,6 +455,10 @@ RPC(object_slot_read, 4, 2, addr_t, principal, addr_t, address_space,
     addr_t, object, l4_word_t, slot,
     /* Out: */
     l4_word_t, type, struct cap_properties, properties)
+
+/* Clear the discarded bit.  */
+RPC(object_discarded_clear, 2, 0,
+    addr_t, principal, addr_t, object)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
