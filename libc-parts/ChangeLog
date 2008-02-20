@@ -1,3 +1,7 @@
+2008-02-20  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* alloca.h: New file, from today's glibc CVS HEAD.
+
 2008-02-16  Neal H. Walfield  <neal@gnu.org>
 
 	* process-spawn.c (process_spawn) [RM_INTERN]: Don't take
