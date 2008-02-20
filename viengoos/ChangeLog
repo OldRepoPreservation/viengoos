@@ -1,5 +1,10 @@
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): On a page fault, use cap_to_object_soft
+	to find the page.
+
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (cap_to_object): New declaration.
 	(cap_to_object_soft): Likewise.
 	* cap.c (cap_to_object_internal): New function.

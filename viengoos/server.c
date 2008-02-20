@@ -131,8 +131,8 @@ server_loop (void)
 	  bool w = !! (access & L4_FPAGE_WRITABLE);
 	  enum cap_type type = w ? cap_page : cap_rpage;
 
-	  DEBUG (5, "%x.%x page faults at %x (ip = %x)",
-		 l4_thread_no (from), l4_version (from), fault, ip);
+	  DEBUG (5, "page fault at %x.%s (ip = %x)",
+		 fault, w ? "w" : "r", ip);
 	  l4_word_t page_addr = fault & ~(PAGESIZE - 1);
 
 	  bool writable;
@@ -149,21 +149,11 @@ server_loop (void)
 		  || cap.type == cap_page
 		  || cap.type == cap_rpage);
 
-	  struct object_policy policy;
-	  policy = OBJECT_POLICY (writable ? cap.discardable : 0,
-				  cap.priority);
+	  if (! writable)
+	    cap.discardable = false;
 
-	  page = object_find_soft (activity, cap.oid, policy);
-	  if (page)
-	    /* An object with oid CAP.OID exists and is in memory.  If
-	       the version doesn't match, then the object we are
-	       looking for is definitely not on disk.  */
-	    {
-	      struct object_desc *desc = object_to_object_desc (page);
-	      if (desc->version != cap.version)
-		page = NULL;
-	    }
-	  else if (! page)
+	  page = cap_to_object_soft (activity, &cap);
+	  if (! page && cap.type != cap_void)
 	    /* It's not in-memory.  See if it was discarded.  If not,
 	       load it using cap_to_object.  */
 	    {
@@ -177,20 +167,20 @@ server_loop (void)
 
 	      if (folio_object_discarded (folio, object))
 		{
-		  debug (0, DEBUG_BOLD ("" OID_FMT " (%s) was discarded"),
+		  debug (5, OID_FMT " (%s) was discarded",
 			 OID_PRINTF (cap.oid),
-			 cap_type_string (folio_object_type (folio, object)));
+			 cap_type_string (folio_object_type (folio,
+								 object)));
 
 		  assert (! folio_object_content (folio, object));
 
 		  raise_fault = true;
 		  discarded = true;
+
+		  DEBUG (5, "Raising discarded fault at %x", page_addr);
 		}
 	      else
-		{
-		  cap.discardable = policy.discardable;
-		  page = cap_to_object (activity, &cap);
-		}
+		page = cap_to_object (activity, &cap);
 	    }
 
 	  if (! page)
@@ -209,6 +199,9 @@ server_loop (void)
 
 	  if (raise_fault)
 	    {
+	      DEBUG (5, "fault (ip: %x; fault: %x.%c%s)!",
+		     ip, fault, w ? 'w' : 'r', discarded ? " discarded" : "");
+
 	      l4_word_t c = _L4_XCHG_REGS_DELIVER;
 	      l4_thread_id_t targ = thread->tid;
 	      l4_word_t sp = 0;
@@ -230,8 +223,8 @@ server_loop (void)
 	      continue;
 	    }
 
-	  DEBUG (5, "Fault at %x, replying with %p (" OID_FMT ")",
-		 fault, page, OID_PRINTF (cap.oid));
+	  DEBUG (5, "%s fault at %x, replying with %p (" OID_FMT ")",
+		 w ? "Write" : "Read", fault, page, OID_PRINTF (cap.oid));
 	  l4_map_item_t map_item
 	    = l4_map_item (l4_fpage_add_rights (l4_fpage ((uintptr_t) page,
 							  PAGESIZE),
