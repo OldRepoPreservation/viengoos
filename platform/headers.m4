@@ -19,4 +19,5 @@ AC_CONFIG_LINKS([
   include/compiler.h:platform/compiler.h
   include/endian.h:platform/endian.h
   include/bits/endian.h:platform/${arch}/bits/endian.h
+  include/sys/io.h:platform/${arch}/sys/io.h
 ])

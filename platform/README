@@ -23,4 +23,7 @@ ${glibc}/string/endian.h			endian.h
 ${glibc}/sysdeps/i386/bits/endian.h		ia32/bits/endian.h
 ${glibc}/sysdeps/x86_64/bits/endian.h		amd64/bits/endian.h
 
+${glibc}/sysdeps/unix/sysv/linux/i386/sys/io.h	ia32/sys/io.h
+${glibc}/sysdeps/unix/sysv/linux/x86_64/sys/io.h amd64/sys/io.h
+
 Other architectures not supported for now.
