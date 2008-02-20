@@ -42,7 +42,7 @@ struct available_list available;
 
 /* XXX: The number of in memory folios.  (Recall: one folio => 512kb
    storage.)  */
-#define FOLIOS_CORE 256
+#define FOLIOS_CORE (4096 * 8)
 static unsigned char folios[FOLIOS_CORE / 8];
 
 /* Given an OID, we need a way to find 1) whether the object is

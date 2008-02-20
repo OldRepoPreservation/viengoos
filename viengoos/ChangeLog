@@ -1,5 +1,9 @@
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
+	* object.c (FOLIOS_CORE): Increase value.
+
+2008-02-20  Neal H. Walfield  <neal@gnu.org>
+
 	* list.h (struct list) [! NDEBUG]: Add field name.
 	(list_init): Add parameter name.  Update users.
 	(LIST_CLASS): Update template to account for list_init changes.
