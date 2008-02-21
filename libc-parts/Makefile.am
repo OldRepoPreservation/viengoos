@@ -24,9 +24,6 @@ if ARCH_IA32
   ARCH_KERNEL_SOURCES =
 endif
 
-COMMON_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
-	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE -Wall -std=gnu99 -g
-
 noinst_LIBRARIES = libc-parts.a libc-kernel.a
 
 common_sources = assert.h 					\
@@ -36,14 +33,16 @@ common_sources = assert.h 					\
 	elf.h loader.h loader.c					\
 	process-spawn.h process-spawn.c
 
-libc_parts_a_CPPFLAGS = -I$(LIBC)/include $(COMMON_CPPFLAGS)
+libc_parts_a_CPPFLAGS = $(USER_CPPFLAGS)
+libc_parts_a_CFLAGS = $(USER_CFLAGS)
 libc_parts_a_SOURCES = 						\
 	$(ARCH_COMMON_SOURCES) $(ARCH_USER_SOURCES) 		\
 	ctype.h c-ctype.h c-ctype.c				\
 	getpagesize.c		 				\
 	$(common_sources)
 
-libc_kernel_a_CPPFLAGS = $(COMMON_CPPFLAGS) -DRM_INTERN
+libc_kernel_a_CPPFLAGS = $(KERNEL_CPPFLAGS)
+libc_kernel_a_CFLAGS = $(KERNEL_CFLAGS)
 libc_kernel_a_SOURCES =						\
 	$(ARCH_COMMON_SOURCES) $(ARCH_KERNEL_SOURCES) 		\
 	errno.h errno.c	 					\
@@ -52,5 +51,5 @@ libc_kernel_a_SOURCES =						\
 TESTS = t-setjmp
 check_PROGRAMS = $(TESTS)
 
-t_setjmp_CPPFLAGS = $(COMMON_CPPFLAGS) -DS_PRINTF=printf
+t_setjmp_CPPFLAGS = $(CHECK_CPPFLAGS) -DS_PRINTF=printf
 t_setjmp_SOURCES = t-setjmp.c setjmp.h ia32-setjmp.S

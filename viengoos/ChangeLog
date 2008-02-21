@@ -1,3 +1,14 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (COMMON_CPPFLAGS): Remove variable.
+	(viengoos_CPPFLAGS): Set to $(KERNEL_CPPFLAGS).
+	(viengoos_CFLAGS): New variable.
+	(libhurd_cap_a_CPPFLAGS): Set to $(USER_CPPFLAGS).
+	(libhurd_cap_a_CFLAGS): New variable.
+	(t_as_CFLAGS): New variable.
+	(t_activity_CFLAGS): Likewise.
+	(t_link_CFLAGS): Likewise.
+
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): Implement object_discarded_clear method.

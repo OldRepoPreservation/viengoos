@@ -1,3 +1,11 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (COMMON_CPPFLAGS): Remove variable.
+	(ruth_CPPFLAGS): Set to $(USER_CPPFLAGS).
+	(ruth_CFLAGS): New variable.
+	(ruth_LDFLAGS): Set to $(USER_LDFLAGS).
+	(ruth_LDADD): Set to $(USER_LDADD).
+
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c: Include <hurd/anonymous.h>, <stdlib.h> and <l4.h>.

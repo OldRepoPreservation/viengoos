@@ -1,0 +1,17 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+Bug fix.
+
+--- newlib/newlib/libm/machine/i386/i386mach.h~	2001-12-14 00:50:11.000000000 +0100
++++ newlib/newlib/libm/machine/i386/i386mach.h	2008-02-21 15:07:36.000000000 +0100
+@@ -25,7 +25,7 @@
+  
+ /* Use the right prefix for registers.  */
+  
+-#define REG(x) CONCAT1(__REG_PREFIX__, x)
++#define REG(x) __REG_PREFIX__ x
+  
+ #define eax REG(eax)
+ #define ebx REG(ebx)

@@ -20,13 +20,12 @@
 bootdir = $(prefix)/boot
 boot_PROGRAMS = hieronymus
 
-AM_CPPFLAGS = -Wall -g -std=gnu99 -D_GNU_SOURCE -I$(srcdir)		\
-	-I$@LIBC@/include -I$(top_builddir)/include			\
-	-I$(top_srcdir)/libc-parts
-AM_LDFLAGS = -u_start -e_start -nostdlib
+hieronymus_CPPFLAGS = $(USER_CPPFLAGS)
+hieronymus_CFLAGS = $(USER_CFLAGS)
+hieronymus_LDFLAGS = $(USER_LDFLAGS)
+hieronymus_LDADD = $(USER_LDADD) $(addsuffix .o, $(files))
 
 hieronymus_SOURCES = hieronymus.c modules.h
-hieronymus_LDADD = $(top_builddir)/libc.a $(addsuffix .o, $(files))
 
 # List of modules to load followed by their priority, share, and then
 # command line.  Each component is separated by a !

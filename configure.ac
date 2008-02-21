@@ -33,9 +33,6 @@ maintainer_mode=${enable_maintainer_mode-no}
 # Checks for programs.
 AC_PROG_CC
 
-# FIXME: We should support setting the CFLAGS by the user.  But
-# -std=gnu99 and -O1 are required.
-CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector $CFLAGS"
 AM_PROG_AS
 AC_PROG_RANLIB
 AC_CHECK_TOOL([AR], [ar], :)
@@ -182,6 +179,35 @@ then
 fi
 AC_SUBST([LIBC_A])
 AC_SUBST([LIBC_M])
+
+# Compute some variables that we need everywhere.
+
+# Ripped from glibc.
+ccheaders = $(${CC} -print-file-name=include)
+SYSINCLUDES = -nostdinc -isystem ${ccheaders} -isystem ${ccheaders}-fixed
+
+USER_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
+USER_CPPFLAGS="-U__linux -U__linux__ -U__gnu_linux__ -Ulinux -D__GNU__ \
+	-D_GNU_SOURCE ${SYSINCLUDES} -I${LIBC}/include \
+	-I${ABS_BUILDDIR}/include -I${ABS_SRCDIR}/libc-parts"
+USER_LDFLAGS="-u_start -e_start -nostdlib"
+USER_LDADD="${ABS_BUILDDIR}/libc.a"
+
+KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
+KERNEL_CPPFLAGS="-U__linux -U__linux__ -U__gnu_linux__ -Ulinux -D__GNU__ \
+	-D_GNU_SOURCE -DRM_INTERN $SYSINCLUDES -I${ABS_BUILDDIR}/include \
+	-I${ABS_SRCDIR}/libc-parts"
+
+CHECK_CPPFLAGS="-I${ABS_BUILDDIR}/include -I${ABS_SRCDIR}/libc-parts"
+
+AC_SUBST(USER_CFLAGS)
+AC_SUBST(USER_CPPFLAGS)
+AC_SUBST(USER_LDFLAGS)
+AC_SUBST(USER_LDADD)
+AC_SUBST(KERNEL_CFLAGS)
+AC_SUBST(KERNEL_CPPFLAGS)
+AC_SUBST(CHECK_CPPFLAGS)
+
 
 if test "x$missing_progs" != "x"; then
   AC_MSG_ERROR([The following programs were not found:$missing_progs])

@@ -25,11 +25,9 @@ endif
 bootdir = $(prefix)/boot
 boot_PROGRAMS = viengoos
 
-COMMON_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
-	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE -Wall -std=gnu99 -g
-
 # We need the libc headers for errno.h -I$(LIBC)/include 
-viengoos_CPPFLAGS = $(COMMON_CPPFLAGS) -DRM_INTERN
+viengoos_CPPFLAGS = $(KERNEL_CPPFLAGS)
+viengoos_CFLAGS = $(KERNEL_CFLAGS)
 viengoos_SOURCES = $(ARCH_SOURCES)		\
 	output.h output.c output-none.c		\
 	debug.h debug.c				\
@@ -65,6 +63,7 @@ TESTS = t-as t-activity t-link t-guard
 check_PROGRAMS = $(TESTS)
 
 t_as_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
+t_as_CFLAGS = $(viengoos_CFLAGS)
 t_as_SOURCES = t-as.c				\
 	zalloc.h zalloc.c			\
 	memory.h memory.c			\
@@ -80,6 +79,7 @@ t_as_SOURCES = t-as.c				\
 t_as_LDADD = $(viengoos_LDADD)
 
 t_activity_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
+t_activity_CFLAGS = $(viengoos_CFLAGS)
 t_activity_SOURCES = t-activity.c		\
 	zalloc.h zalloc.c			\
 	memory.h memory.c			\
@@ -95,15 +95,18 @@ t_activity_SOURCES = t-activity.c		\
 t_activity_LDADD = $(viengoos_LDADD)
 
 t_link_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
+t_link_CFLAGS = $(viengoos_CFLAGS)
 t_link_SOURCES = t-link.c list.h		\
 	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
 t_guard_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
+t_guard_CFLAGS = $(viengoos_CFLAGS) -include $(srcdir)/t-environment.h
 t_guard_SOURCES = t-guard.c			\
 	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
 lib_LIBRARIES = libhurd-cap.a
 # Use a small stack alignment to decrease stack usage.
-libhurd_cap_a_CPPFLAGS = $(COMMON_CPPFLAGS) -mpreferred-stack-boundary=2
+libhurd_cap_a_CPPFLAGS = $(USER_CPPFLAGS)
+libhurd_cap_a_CFLAGS = $(USER_CFLAGS) -mpreferred-stack-boundary=2
 libhurd_cap_a_SOURCES = cap-lookup.c as.c as.h as-custom.c
 

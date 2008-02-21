@@ -21,13 +21,9 @@
 bootdir = $(prefix)/boot
 boot_PROGRAMS = ruth
 
-COMMON_CPPFLAGS = -Wall -g -std=gnu99 -D_GNU_SOURCE -I$(srcdir)		\
-	-I$@LIBC@/include -I$(top_builddir)/include	\
-	-I$(top_srcdir)/libc-parts
+ruth_CPPFLAGS = $(USER_CPPFLAGS)
+ruth_CFLAGS = $(USER_CFLAGS)
+ruth_LDFLAGS = $(USER_LDFLAGS)
+ruth_LDADD = $(USER_LDADD)
 
-ruth_CPPFLAGS = $(COMMON_CPPFLAGS)
-ruth_SOURCES = ruth.h ruth.c
-
-ruth_LDFLAGS = -u_start -e_start -nostdlib
-
-ruth_LDADD = $(top_builddir)/libc.a
+ruth_SOURCES = ruth.c

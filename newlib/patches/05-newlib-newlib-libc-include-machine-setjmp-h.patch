@@ -1,0 +1,17 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+Enable sigjmp_buf.
+
+--- newlib/newlib/libc/include/machine/setjmp.h~	2007-11-07 22:42:24.000000000 +0100
++++ newlib/newlib/libc/include/machine/setjmp.h	2008-02-20 23:46:12.000000000 +0100
+@@ -251,7 +251,7 @@
+ 
+ _END_STD_C
+ 
+-#if defined(__CYGWIN__) || defined(__rtems__)
++#if 1 || defined(__CYGWIN__) || defined(__rtems__)
+ #include <signal.h>
+ 
+ #ifdef __cplusplus

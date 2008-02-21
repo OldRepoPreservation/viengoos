@@ -1,3 +1,12 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (COMMON_CPPFLAGS): Remove variable.
+	(libhurd_btree_a_CPPFLAGS): Replace use of above with
+	$(USER_CPPFLAGS).
+	(libhurd_btree_a_CFLAGS): New variable.
+	(btree_test_CPPFLAGS): Replace use $(COMMON_CPPFLAGS) with
+	$(CHECK_CPPFLAGS).
+
 2008-02-15  Neal H. Walfield  <neal@gnu.org>
 
 	* btree.h (BTREE_(check_tree_internal)) [!NDEBUG && !NCHECKS]:

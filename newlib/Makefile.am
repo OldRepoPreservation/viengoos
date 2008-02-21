@@ -25,7 +25,10 @@ patch_files = 00-newlib-configure-ac.patch \
 	01-newlib-libc-sys-configure-in.patch \
 	02-newlib-newlib-libc-string-makefile-am.patch \
 	03-newlib-newlib-configure-host.patch \
-	04-newlib-newlib-configure-ac.patch
+	04-newlib-newlib-configure-ac.patch \
+	05-newlib-newlib-libc-include-machine-setjmp-h.patch \
+	06-newlib-newlib-libc-machine-i386-i386mach-h.patch \
+	07-newlib-newlib-libm-machine-i386-i386mach-h.patch
 
 # Files to link into newlib's source tree (relative to $(srcdir)/addon)
 addon = newlib/libc/sys/hurd/configure.ac \
@@ -129,19 +132,10 @@ newlib-configure-stamp: $(addsuffix -applied,$(patch_files)) \
 	--build=$(build_alias) --host=$(host_alias))
 	touch newlib-configure-stamp
 
-# Ripped from glibc.
-ccheaders := $(shell $(CC) -print-file-name=include)
-SYSINCLUDES := -nostdinc -isystem $(ccheaders) -isystem $(ccheaders)-fixed
-
 newlib-build/libc.a newlib-build/libm.a: newlib-configure-stamp
 	cd newlib-build && \
 	  make \
-	    TARGET_CFLAGS='\
-	      -I$(abs_top_builddir)/include \
-	      -I$(abs_top_srcdir)/libc-parts \
-	      $(SYSINCLUDES) \
-	      -nostdlib \
-	      -fno-stack-protector' \
+	    TARGET_CFLAGS='$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
 	    all install
 
 libc.a: newlib-build/libc.a

@@ -1,3 +1,13 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (COMMON_CPPFLAGS): Remove variable.
+	(libc_parts_a_CPPFLAGS): Set to $(USER_CPPFLAGS).
+	(libc_parts_a_CFLAGS): New variable.
+	(libc_kernel_a_CPPFLAGS): Set to $(KERNEL_CPPFLAGS).
+	(libc_kernel_a_CFLAGS): New variable.
+	(t_setjmp_CPPFLAGS): Remove use of $(COMMON_CPPFLAGS) with
+	$(CHECK_CPPFLAGS).
+
 2008-02-20  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* alloca.h: New file, from today's glibc CVS HEAD.

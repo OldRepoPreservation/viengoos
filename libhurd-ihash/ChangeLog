@@ -1,3 +1,18 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (AM_CPPFLAGS): Remove variable.
+	(AM_CFLAGS): Likewise.
+	(libhurd_ihash_a_CPPFLAGS): New variable.
+	(libhurd_ihash_a_CFLAGS): Likewise.
+	(libhurd_ihash_nomalloc_a_CPPFLAGS): Replace use of $(AM_CPPFLAGS)
+	with $(USER_CPPFLAGS).
+	(libhurd_ihash_nomalloc_a_CFLAGS): New variable.
+	(t_ihash_CPPFLAGS): Remove use of $(AM_CPPFLAGS).
+	(t_ihash64_CPPFLAGS): Likewise.
+	(t_ihash_CFLAGS): New variable.
+	(t_ihash64_CFLAGS): Likewise.
+	* ihash.c: Don't include <hurd/ihash.h> but "ihash.h".
+
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
 	* ihash.c (hurd_ihash_init_with_buffer): Set size to the largest

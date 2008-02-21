@@ -26,20 +26,22 @@ includehurd_HEADERS = ihash.h
 
 # FIXME: Build a special libhurd-ihash.a using libc-parts for the rootservers,
 # and a normal for everybody else.
-AM_CPPFLAGS = -I$(LIBC)/include -I$(top_builddir)/include	\
-	-I$(top_srcdir)/libc-parts
-AM_CFLAGS = -std=gnu99
 
+libhurd_ihash_a_CPPFLAGS = $(USER_CPPFLAGS)
+libhurd_ihash_a_CFLAGS = $(USER_CFLAGS)
 libhurd_ihash_a_SOURCES = ihash.h ihash.c
 
-libhurd_ihash_nomalloc_a_CPPFLAGS = $(AM_CPPFLAGS) -DNO_MALLOC
+libhurd_ihash_nomalloc_a_CPPFLAGS = $(USER_CPPFLAGS) -DNO_MALLOC
+libhurd_ihash_nomalloc_a_CFLAGS = $(USER_CFLAGS)
 libhurd_ihash_nomalloc_a_SOURCES = ihash.h ihash.c
 
 TESTS = t-ihash t-ihash64
 check_PROGRAMS = t-ihash t-ihash64
 
 t_ihash_SOURCES = t-ihash.c ihash.h ihash.c
-t_ihash_CPPFLAGS = -DTEST_LARGE=false -DS_PRINTF=printf $(AM_CPPFLAGS)
+t_ihash_CPPFLAGS = -DTEST_LARGE=false -DS_PRINTF=printf
+t_ihash_CFLAGS=-std=gnu99
 
 t_ihash64_SOURCES = t-ihash.c ihash.h ihash.c
-t_ihash64_CPPFLAGS = -DTEST_LARGE=true -DS_PRINTF=printf $(AM_CPPFLAGS)
+t_ihash64_CPPFLAGS = -DTEST_LARGE=true -DS_PRINTF=printf
+t_ihash64_CFLAGS=-std=gnu99

@@ -1,3 +1,10 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (COMMON_CPPFLAGS): Remove variable.
+	(libhurd_mm_a_CPPFLAGS): Replace use of above with
+	$(USER_CPPFLAGS).
+	(libhurd_mm_a_CFLAGS): New variable.
+
 2008-02-20  Neal H. Walfield  <neal@gnu.org>
 
 	* anonymous.h: Include <hurd/exceptions.h> and <l4/thread.h>.

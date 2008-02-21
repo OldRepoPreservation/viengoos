@@ -1,3 +1,16 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac (CFLAGS): Remove variable.
+	(USER_CFLAGS): New variable.
+	(USER_CPPFLAGS): Likewise.
+	(USER_LDFLAGS): Likewise.
+	(USER_LDADD): Likewise.
+	(KERNEL_CFLAGS): Likewise.
+	(KERNEL_CPPFLAGS): Likewise.
+
+	* Makefile.am (SUBDIRS): Build . after building laden and
+	viengoos.
+
 2008-02-16  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (all-local): Depend on libc-stmp.

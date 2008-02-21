@@ -1,3 +1,13 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (AM_CPPFLAGS): Remove variable.
+	(AM_LDFLAGS): Likewise.
+	(hieronymus_CPPFLAGS): New variable.
+	(hieronymus_CFLAGS): Likewise.
+	(hieronymus_LDFLAGS): Likewise.
+	(hieronymus_LDADD): Don't include libc.a directly, use the value
+	of $(USER_LDADD) instead.
+
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
 	* hieronymus.c (activity_alloc): Update user of storage_alloc to

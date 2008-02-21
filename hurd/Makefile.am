@@ -17,9 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-COMMON_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
-	-I$(top_srcdir)/libc-parts -D_GNU_SOURCE -Wall -std=gnu99 -g
-
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = rpc.h startup.h stddef.h types.h addr.h \
 	addr-trans.h cap.h folio.h exceptions.h thread.h activity.h \
@@ -28,12 +25,12 @@ includehurd_HEADERS = rpc.h startup.h stddef.h types.h addr.h \
 TESTS = t-addr t-addr-trans t-rpc
 check_PROGRAMS = $(TESTS)
 
-t_addr_CPPFLAGS = $(COMMON_CPPFLAGS) -DS_PRINTF=printf
+t_addr_CPPFLAGS = $(CHECK_CPPFLAGS) -DS_PRINTF=printf
 t_addr_SOURCES = t-addr.c
 
-t_addr_trans_CPPFLAGS = $(COMMON_CPPFLAGS) -DS_PRINTF=printf
+t_addr_trans_CPPFLAGS = $(CHECK_CPPFLAGS) -DS_PRINTF=printf
 t_addr_trans_SOURCES = t-addr-trans.c
 
-t_rpc_CPPFLAGS = $(COMMON_CPPFLAGS) -DS_PRINTF=printf
+t_rpc_CPPFLAGS = $(CHECK_CPPFLAGS) -DS_PRINTF=printf
 t_rpc_SOURCES = t-rpc.c
 

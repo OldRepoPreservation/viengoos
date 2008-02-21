@@ -1,3 +1,20 @@
+2008-02-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (patch_files): Add
+	05-newlib-newlib-libc-include-machine-setjmp-h.patch,
+	06-newlib-newlib-libc-machine-i386-i386mach-h.patch, and
+	07-newlib-newlib-libm-machine-i386-i386mach-h.patch.
+	(ccheaders): Remove variable.
+	(SYSINCLUDES): Likewise.
+	(newlib-build/libc.a newlib-build/libm.a): Set TARGET_CFLAGS to
+	"$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)".
+	* newlib/patches/05-newlib-newlib-libc-include-machine-setjmp-h.patch:
+	New file.
+	* newlib/patches/06-newlib-newlib-libc-machine-i386-i386mach-h.patch:
+	New file.
+	* newlib/patches/07-newlib-newlib-libm-machine-i386-i386mach-h.patch:
+	New file.
+
 2008-02-13  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/getreent.c (slab_alloc): Update use
