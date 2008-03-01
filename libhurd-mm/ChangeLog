@@ -1,3 +1,9 @@
+2008-03-01  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c: Include <signal.h>.
+	(exception_handler_normal): On unresolved fault, raise SIGSEGV.
+	(exception_handler_activated): Likewise.
+
 2008-02-21  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (COMMON_CPPFLAGS): Remove variable.

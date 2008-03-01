@@ -26,6 +26,8 @@
 #include <hurd/thread.h>
 #include <l4/thread.h>
 
+#include <signal.h>
+
 #include "pager.h"
 #include "as.h"
 
@@ -190,9 +192,18 @@ exception_handler_normal (struct exception_frame *exception_frame)
 	bool r = pager_fault (fault, ip, info);
 	if (! r)
 	  {
-	    /* XXX: Should raise SIGSEGV.  */
-	    panic ("Failed to handle fault at " ADDR_FMT " (ip=%x)",
+	    debug (0, "Fault at " ADDR_FMT " (ip: %p)",
 		   ADDR_PRINTF (fault), ip);
+
+	    siginfo_t si;
+	    memset (&si, 0, sizeof (si));
+	    si.si_signo = SIGSEGV;
+	    si.si_addr = ADDR_TO_PTR (fault);
+
+	    /* XXX: Should set si.si_code to SEGV_MAPERR or
+	       SEGV_ACCERR.  */
+
+	    pthread_kill_siginfo_np (pthread_self (), si);
 	  }
 
 	break;
@@ -269,9 +280,18 @@ exception_handler_activated (struct exception_page *exception_page)
 	    bool r = pager_fault (fault, ip, info);
 	    if (! r)
 	      {
-		panic ("Failed to handle fault at " ADDR_FMT " (ip=%x)",
+		debug (0, "Fault at " ADDR_FMT " (ip: %p)",
 		       ADDR_PRINTF (fault), ip);
-		/* XXX: Should raise SIGSEGV.  */
+
+		siginfo_t si;
+		memset (&si, 0, sizeof (si));
+		si.si_signo = SIGSEGV;
+		si.si_addr = ADDR_TO_PTR (fault);
+
+		/* XXX: Should set si.si_code to SEGV_MAPERR or
+		   SEGV_ACCERR.  */
+
+		pthread_kill_siginfo_np (pthread_self (), si);
 	      }
 	    assert (exception_page->crc == crc (exception_page));
 
