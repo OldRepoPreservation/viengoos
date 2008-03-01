@@ -1,3 +1,45 @@
+2008-03-01  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (addon): Add newlib/libc/sys/hurd/include/signal.h.
+	* patches/03-newlib-newlib-configure-host.patch: Add
+	-DSIGNAL_PROVIDED to newlib_cflags.
+	* patches/05-newlib-newlib-libc-include-machine-setjmp-h.patch:
+	Correctly calcualtesigjmp_buf.
+	* addon/newlib/libc/sys/hurd/include/signal.h: New file.
+
+2008-03-01  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/closer.c (close): New function.
+	(_close_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/fcntlr.c (fcntl): New function.
+	(_fcntl_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/fstatr.c (fstat): New function.
+	(_fstat_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/gettimeofdayr.c (gettimeofday): New
+	function.
+	(_gettimeofday_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/linkr.c (link): New function.
+	(_link_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/lseekr.c (lseek): New function.
+	(_lseek_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/openr.c (open): New function.
+	(_open_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/readr.c (read): New function.
+	(_read_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/renamer.c (rename): New function.
+	(_rename_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/signalr.c (_kill_r): Just call kill.
+	(getpid): New function.
+	(_getpid_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/statr.c (stat): New function.
+	(_stat_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/timesr.c (times): New function.
+	(_times_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/unlinkr.c (unlink): New function.
+	(_unlink_r): Implement in terms of it.
+	* addon/newlib/libc/sys/hurd/writer.c (write): New function.
+	(_write_r): Implement in terms of it.
+
 2008-02-21  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (patch_files): Add

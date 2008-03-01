@@ -60,6 +60,7 @@ addon = newlib/libc/sys/hurd/configure.ac \
 	newlib/libc/sys/hurd/crt0.c \
 	newlib/libc/sys/hurd/include/pthread.h \
 	newlib/libc/sys/hurd/include/assert.h \
+	newlib/libc/sys/hurd/include/signal.h \
 	newlib/libc/sys/hurd/sys/lock.h \
 	newlib/libc/sys/hurd/sys/config.h \
 	newlib/libc/sys/hurd/sys/errno.h
