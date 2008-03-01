@@ -1,3 +1,8 @@
+2008-03-01  Neal H. Walfield  <neal@gnu.org>
+
+	* rpc.h (RPC_SIMPLE_): If the send is interrupted, retry.
+	(RPC_): If the call is interrupted, retry.
+
 2008-02-21  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (COMMON_CPPFLAGS): Remove variable.

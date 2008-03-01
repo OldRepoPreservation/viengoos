@@ -608,9 +608,20 @@
     l4_msg_load (msg);							\
     l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);				\
 									\
-    tag = l4_send (RPC_TARGET_);					\
-    if (l4_ipc_failed (tag))						\
-      return EHOSTDOWN;							\
+    for (;;)								\
+      {									\
+	tag = l4_send (RPC_TARGET_);					\
+	if (unlikely (l4_ipc_failed (tag)))				\
+	  {								\
+	    if (((l4_error_code () >> 1) & 0x7) == 3)			\
+	      /* IPC was interrupted.  */				\
+	      /* XXX: We need to somehow consider the signal state and	\
+		 return EINTR if appropriate.  */			\
+	      continue;							\
+	    return EHOSTDOWN;						\
+	  }								\
+	break;								\
+      }									\
 									\
     return 0;								\
   }
@@ -635,9 +646,30 @@
     l4_msg_load (msg);							\
     l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);				\
 									\
-    tag = l4_call (RPC_TARGET_);					\
-    if (l4_ipc_failed (tag))						\
-      return EHOSTDOWN;							\
+    bool call = true;							\
+    for (;;)								\
+      {									\
+	if (call)							\
+	  tag = l4_call (RPC_TARGET_);					\
+	else								\
+	  tag = l4_receive (RPC_TARGET_);				\
+	if (unlikely (l4_ipc_failed (tag)))				\
+	  {								\
+	    if (((l4_error_code () >> 1) & 0x7) == 3)			\
+	      /* IPC was interrupted.  */				\
+	      /* XXX: We need to somehow consider the signal state and	\
+		 return EINTR if appropriate.  */			\
+	      {								\
+		if ((l4_error_code () & 1))				\
+		  /* Error occurred during receive phase.  */		\
+		  call = false;						\
+									\
+		continue;						\
+	      }								\
+	    return EHOSTDOWN;						\
+	  }								\
+	break;								\
+      }									\
 									\
     l4_msg_store (tag, msg);						\
     return RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_unmarshal)		\
