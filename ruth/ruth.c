@@ -42,6 +42,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include <l4.h>
 
@@ -395,6 +396,202 @@ main (int argc, char *argv[])
       }
 
     assert (shared_resource == N * FACTOR);
+
+    printf ("ok.\n");
+  }
+
+  {
+    printf ("Checking signals... ");
+
+    pthread_t thread;
+
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+    const int count = 18;
+
+    void *start (void *arg)
+    {
+      volatile int i;
+
+      bool altstack = false;
+
+      void handler (int signo, siginfo_t *info, void *context)
+      {
+	debug (5, "In handler for sig %d", signo);
+	i = 1;
+
+	assert (signo == info->si_signo);
+
+	stack_t stack;
+	if (sigaltstack (NULL, &stack) < 0)
+	  perror ("sigaltstack");
+
+	if (altstack)
+	  {
+	    assert ((stack.ss_flags & SS_ONSTACK));
+	    assert ((void *) stack.ss_sp <= (void *) &signo);
+	    assert ((void *) &signo < (void *) stack.ss_sp + stack.ss_size);
+	  }
+	else
+	  assert (! (stack.ss_flags & SS_ONSTACK));
+      }
+
+      int j;
+      for (j = 0; j < count; j ++)
+	{
+	  struct sigaction act;
+	  act.sa_sigaction = handler;
+	  sigemptyset (&act.sa_mask);
+	  act.sa_flags = SA_SIGINFO | SA_ONSTACK;
+
+	  if (sigaction (SIGUSR1, &act, NULL) < 0)
+	    panic ("Failed to install signal handler: %s", strerror (errno));
+
+	  debug (5, "Installed signal handler, waking main thread");
+
+	  /* Wait until the main thread unlocks MUTEX.  */
+	  pthread_mutex_lock (&mutex);
+	  pthread_mutex_unlock (&mutex);
+
+	  /* Signal the main thread that we are ready.  */
+	  pthread_cond_signal (&cond);
+
+	  /* Block.  */
+	  while (i != 1)
+	    l4_yield ();
+
+	  i = 0;
+
+	  if (j == 2)
+	    /* Use an alternate stack.  */
+	    {
+	      altstack = true;
+
+	      stack_t stack;
+	      stack.ss_sp = malloc (SIGSTKSZ);
+	      stack.ss_size = SIGSTKSZ;
+	      stack.ss_flags = 0;
+	      if (sigaltstack (&stack, NULL) < 0)
+		perror ("sigaltstack");
+	    }
+	  else if (j % 6 == 3)
+	    /* Disable the stack.  */
+	    {
+	      stack_t stack;
+	      if (sigaltstack (NULL, &stack) < 0)
+		perror ("sigaltstack");
+
+	      assertx (stack.ss_flags == 0,
+		       "%x", stack.ss_flags);
+	      stack.ss_flags |= SS_DISABLE;
+
+	      if (sigaltstack (&stack, NULL) < 0)
+		perror ("sigaltstack");
+
+	      altstack = false;
+	    }
+	  else if (j % 6 == 5)
+	    /* Enable the stack.  */
+	    {
+	      stack_t stack;
+	      if (sigaltstack (NULL, &stack) < 0)
+		perror ("sigaltstack");
+
+	      assert (stack.ss_flags == SS_DISABLE);
+	      stack.ss_flags &= ~SS_DISABLE;
+
+	      if (sigaltstack (&stack, NULL) < 0)
+		perror ("sigaltstack");
+
+	      altstack = true;
+	    }
+	}
+
+      /* For good measure, we send ourself a few signals.  */
+      raise (SIGUSR1);
+      assert (i == 1);
+      i = 0;
+
+      for (j = 0; j < 10; j ++)
+	{
+	  stack_t stack;
+
+	  /* With the alternate stack.  */
+	  altstack = true;
+
+	  if (sigaltstack (NULL, &stack) < 0)
+	    perror ("sigaltstack");
+	  stack.ss_flags &= ~SS_DISABLE;
+	  assert (stack.ss_sp);
+	  if (sigaltstack (&stack, NULL) < 0)
+	    perror ("sigaltstack");
+
+	  if (j % 2 == 0)
+	    raise (SIGUSR1);
+	  else
+	    pthread_kill (pthread_self (), SIGUSR1);
+	  assert (i == 1);
+	  i = 0;
+
+	  /* And without the alternate stack.  */
+	  altstack = false;
+
+	  if (sigaltstack (NULL, &stack) < 0)
+	    perror ("sigaltstack");
+	  stack.ss_flags |= SS_DISABLE;
+	  if (sigaltstack (&stack, NULL) < 0)
+	    perror ("sigaltstack");
+
+	  if (j % 2 == 0)
+	    raise (SIGUSR1);
+	  else
+	    pthread_kill (pthread_self (), SIGUSR1);
+	  assert (i == 1);
+	  i = 0;
+	}
+
+      /* Block the signal.  */
+      sigset_t mask;
+      sigemptyset (&mask);
+      sigaddset (&mask, SIGUSR1);
+      pthread_sigmask (SIG_BLOCK, &mask, NULL);
+
+      raise (SIGUSR1);
+      assert (i == 0);
+
+      /* Deallocate the stack (it is disabled).  */
+      stack_t stack;
+      if (sigaltstack (NULL, &stack) < 0)
+	perror ("sigaltstack");
+      free (stack.ss_sp);
+      assert ((stack.ss_flags & SS_DISABLE));
+
+      return 0;
+    }
+
+    pthread_mutex_lock (&mutex);
+
+    error_t err = pthread_create (&thread, NULL, start, 0);
+    assert (err == 0);
+
+    int i;
+    for (i = 0; i < count; i ++)
+      {
+	/* Wait for the thread to install the signal handler.  */
+	pthread_cond_wait (&cond, &mutex);
+	pthread_mutex_unlock (&mutex);
+
+	err = pthread_kill (thread, SIGUSR1);
+	if (err)
+	  panic ("Failed to signal thread: %s", strerror (err));
+
+	pthread_mutex_lock (&mutex);
+      }
+
+    void *status;
+    err = pthread_join (thread, &status);
+    assert (err == 0);
 
     printf ("ok.\n");
   }
