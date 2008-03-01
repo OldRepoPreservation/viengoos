@@ -5,10 +5,16 @@
 #include <errno.h>
 
 clock_t
+times (struct tms *ptms)
+{
+  errno = EOPNOTSUPP;
+  return (clock_t) (-1);
+}
+
+clock_t
 _DEFUN (_times_r, (ptr, ptms),
      struct _reent *ptr _AND
      struct tms *ptms)
 {
-  errno = EOPNOTSUPP;
-  return (clock_t) (-1);
+  return times (ptms);
 }

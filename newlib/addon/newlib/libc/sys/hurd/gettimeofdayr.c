@@ -5,11 +5,17 @@
 #include <errno.h>
 
 int
+gettimeofday (struct timeval *ptimeval, void *ptimezone)
+{
+  errno = EOPNOTSUPP;
+  return -1;
+}
+
+int
 _DEFUN (_gettimeofday_r, (ptr, ptimeval, ptimezone),
      struct _reent *ptr _AND
      struct timeval *ptimeval _AND
      void *ptimezone)
 {
-  errno = EOPNOTSUPP;
-  return -1;
+  return gettimeofday (ptimeval, ptimezone);
 }

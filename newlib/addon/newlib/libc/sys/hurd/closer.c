@@ -4,10 +4,16 @@
 #include <errno.h>
 
 int
+close (int fd)
+{
+  errno = EOPNOTSUPP;
+  return -1;
+}
+
+int
 _close_r (ptr, fd)
      struct _reent *ptr;
      int fd;
 {
-  errno = EOPNOTSUPP;
-  return -1;
+  return close (fd);
 }

@@ -12,14 +12,18 @@ _DEFUN (_kill_r, (ptr, pid, sig),
      int pid _AND
      int sig)
 {
-  errno = EOPNOTSUPP;
-  return -1;
+  return kill (pid, sig);
+}
+
+int
+getpid (void)
+{
+  return 1032;
 }
 
 int
 _DEFUN (_getpid_r, (ptr),
      struct _reent *ptr)
 {
-  errno = EOPNOTSUPP;
-  return -1;
+  return getpid ();
 }

@@ -5,11 +5,7 @@
 #include <hurd/rm.h>
 
 _ssize_t
-_DEFUN (_write_r, (ptr, fd, buf, cnt),
-     struct _reent *ptr _AND
-     int fd _AND
-     _CONST _PTR buf _AND
-     size_t cnt)
+write (int fd, const void *buf, size_t cnt)
 {
   if (fd == 1 || fd == 2)
     {
@@ -22,4 +18,15 @@ _DEFUN (_write_r, (ptr, fd, buf, cnt),
 
   errno = EOPNOTSUPP;
   return -1;
+}
+
+
+_ssize_t
+_DEFUN (_write_r, (ptr, fd, buf, cnt),
+     struct _reent *ptr _AND
+     int fd _AND
+     _CONST _PTR buf _AND
+     size_t cnt)
+{
+  return write (fd, buf, cnt);
 }

@@ -7,11 +7,17 @@
 #include <errno.h>
 
 int
+stat (const char *file, struct stat *pstat)
+{
+  errno = EOPNOTSUPP;
+  return -1;
+}
+
+int
 _DEFUN (_stat_r, (ptr, file, pstat),
      struct _reent *ptr _AND
      _CONST char *file _AND
      struct stat *pstat)
 {
-  errno = EOPNOTSUPP;
-  return -1;
+  return stat (file, pstat);
 }
