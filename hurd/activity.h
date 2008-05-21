@@ -70,6 +70,9 @@ struct activity_policy
 #define ACTIVITY_STATS_PERIODS 2
 struct activity_stats
 {
+  /* The period during which this statistic was generated.  */
+  uint32_t period;
+
   /* The maximum number of frames this activity could currently
      allocate assuming other allocations do not otherwise change.
      This implies stealing from others.  */

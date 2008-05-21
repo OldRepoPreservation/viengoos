@@ -100,7 +100,7 @@ ager_loop (l4_thread_id_t main_thread)
 
 	    fpages[count] = l4_fpage ((l4_word_t) objects[count], PAGESIZE);
 
-	    if (iterations == FREQ && desc->shared)
+	    if (iterations % FREQ == 0 && desc->shared)
 	      /* We periodically unmap shared frames.  See above for
 		 details.  */
 	      {
@@ -226,7 +226,7 @@ ager_loop (l4_thread_id_t main_thread)
 	}
 
       /* Upmap everything every two seconds.  */
-      if (iterations == FREQ)
+      if (iterations % FREQ == 0)
 	{
 	  ss_mutex_lock (&kernel_lock);
 
@@ -237,6 +237,8 @@ ager_loop (l4_thread_id_t main_thread)
 	     pressure.  */
 	  void doit (struct activity *activity, uint32_t frames)
 	  {
+	    ACTIVITY_STATS (activity)->period = iterations / FREQ;
+
 	    ACTIVITY_STATS (activity)->available = frames;
 
 	    bool have_self = false;
@@ -303,11 +305,9 @@ ager_loop (l4_thread_id_t main_thread)
 	    }
 
 	  ss_mutex_unlock (&kernel_lock);
-
-	  iterations = 0;
 	}
-      else
-	iterations ++;
+
+      iterations ++;
 
       /* Wait TIMEOUT or until we are interrupted by the main
 	 thread.  */

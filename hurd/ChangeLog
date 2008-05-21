@@ -1,5 +1,9 @@
 2008-05-21  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (struct activity_stats): Add field period.
+
+2008-05-21  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.h (THREAD_EXCEPTION_PAGE_SLOT): Correctly define to 2.
 
 2008-03-01  Neal H. Walfield  <neal@gnu.org>
