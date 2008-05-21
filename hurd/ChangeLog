@@ -1,3 +1,7 @@
+2008-05-21  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h (THREAD_EXCEPTION_PAGE_SLOT): Correctly define to 2.
+
 2008-03-01  Neal H. Walfield  <neal@gnu.org>
 
 	* rpc.h (RPC_SIMPLE_): If the send is interrupted, retry.

@@ -30,6 +30,7 @@ enum
   {
     RM_thread_exregs = 600,
     RM_thread_wait_object_destroyed,
+    RM_thread_raise_exception,
   };
 
 #ifdef RM_INTERN
@@ -118,7 +119,7 @@ enum
     /* The activity the thread is bound to.  */
     THREAD_ACTIVITY_SLOT = 1,
     /* Where exceptions are saved.  Must be a cap_page.  */
-    THREAD_EXCEPTION_PAGE_SLOT = 1,
+    THREAD_EXCEPTION_PAGE_SLOT = 2,
   };
 
 enum
@@ -163,8 +164,6 @@ enum
 
 struct hurd_thread_exregs_in
 {
-  l4_word_t control;
-
   addr_t aspace;
   uintptr_t aspace_cap_properties_flags;
   struct cap_properties aspace_cap_properties;
@@ -228,6 +227,17 @@ RPC(thread_wait_object_destroyed, 2, 1,
     addr_t, principal, addr_t, object,
     /* Out: */
     uintptr_t, return_code);
+
+/* The kernel interprets the payload as a short l4_msg_t buffer: that
+   is one that does not exceed 128 bytes.  */
+struct exception_buffer
+{
+  char payload[128];
+};
+
+RPC(thread_raise_exception, 3, 0,
+    addr_t, principal, addr_t, thread,
+    struct exception_buffer, exception_buffer)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
