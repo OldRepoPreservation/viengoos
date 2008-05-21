@@ -1,3 +1,9 @@
+2008-05-21  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (modules.h): When generating variable names, replace
+	any -'s with _'s.
+	($(addsuffix .S, $(files))): Likewise.
+
 2008-02-21  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (AM_CPPFLAGS): Remove variable.

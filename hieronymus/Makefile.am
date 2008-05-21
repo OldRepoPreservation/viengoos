@@ -40,11 +40,11 @@ files = $(foreach module,$(modules),$(firstword $(subst !, ,$(module))))
 
 modules.h: $(addsuffix .S, $(files)) Makefile
 	echo '								\
-	  $(foreach module,$(modules),					\
+	  $(foreach module,$(subst -,_,$(modules)),			\
 	     extern char $(firstword $(subst !, ,$(module)))_start;	\
 	     extern char $(firstword $(subst !, ,$(module)))_end;)	\
 	  struct module modules[] = {					\
-	    $(foreach module,$(modules),				\
+	    $(foreach module,$(subst -,_,$(modules)),			\
 		{							\
 	          STRINGIFY ( $(firstword $(subst !, ,$(module))) ),	\
 		  $(wordlist 2, 2, $(subst !, ,$(module))),		\
@@ -69,7 +69,7 @@ find_binary = \
 binaries = $(foreach file,$(files),$(call find_binary,$(file)))
 
 $(addsuffix .S, $(files)): %.S: module.S $(binaries) Makefile
-	$(CPP) -DMODULE=$* -DBINARY=$(call find_binary,$(@:.S=)) $< -o $@
+	$(CPP) -DMODULE=$(subst -,_,$*) -DBINARY=$(call find_binary,$(@:.S=)) $< -o $@
 
 $(addsuffix .o, $(files)): %.o: %.S
 	$(AS) $< -o $@
