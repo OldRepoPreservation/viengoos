@@ -503,6 +503,8 @@ folio_object_alloc (struct activity *activity,
 
   assert (0 <= idx && idx < FOLIO_OBJECTS);
 
+  type = cap_type_strengthen (type);
+
   struct object_desc *fdesc = object_to_object_desc ((struct object *) folio);
   assert (fdesc->type == cap_folio);
   assert (fdesc->oid % (1 + FOLIO_OBJECTS) == 0);

@@ -1,9 +1,14 @@
 2008-05-21  Neal H. Walfield  <neal@gnu.org>
 
+	* object.c (folio_object_alloc): Use the strong variant of TYPE.
+
+2008-05-21  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (ager_loop): To see if we are at the start of a period,
 	check if ITERATIONS is a multiple of FREQ, not if it is zero.  Set
 	each activity's statistic's period field.  Always increment
 	iterations.
+	(ager_loop): 
 
 2008-02-21  Neal H. Walfield  <neal@gnu.org>
 
