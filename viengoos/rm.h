@@ -61,6 +61,8 @@ rm_method_id_string (int id)
       return "object_slot_read";
     case RM_object_discarded_clear:
       return "object_discarded_clear";
+    case RM_object_status:
+      return "object_status";
     case RM_exception_collect:
       return "exception_collect";
     case RM_thread_exregs:

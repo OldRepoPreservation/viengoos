@@ -371,6 +371,7 @@ enum
     RM_object_slot_copy_in,
     RM_object_slot_read,
     RM_object_discarded_clear,
+    RM_object_status,
   };
 
 enum
@@ -459,6 +460,20 @@ RPC(object_slot_read, 4, 2, addr_t, principal, addr_t, address_space,
 /* Clear the discarded bit.  */
 RPC(object_discarded_clear, 2, 0,
     addr_t, principal, addr_t, object)
+
+enum
+{
+  object_dirty = 1 << 0,
+  object_referenced = 1 << 1,
+};
+
+/* Returns whether OBJECT is dirty.  If CLEAR is set, the dirty bit is
+   clear.  An object's dirty bit is set when the object is modified.
+   (Note: this is not the state of a frame but an indication of
+   whether the object has been modified since the last time it the
+   dirty bit was cleared.)  */
+RPC (object_status, 3, 1, addr_t, principal, addr_t, object, bool, clear,
+     uintptr_t, status)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

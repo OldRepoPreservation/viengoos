@@ -190,6 +190,9 @@ ager_loop (l4_thread_id_t main_thread)
 	      if (dirty)
 		debug (5, "%p is dirty", object_desc_to_object (desc));
 
+	      desc->user_dirty |= dirty;
+	      desc->user_referenced |= referenced;
+
 	      if (dirty)
 		/* Dirty implies referenced.  */
 		assert (referenced);

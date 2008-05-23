@@ -1,3 +1,16 @@
+2008-05-23  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (RM_object_status): Define.
+	(object_dirty): Likewise.
+	(object_referenced): Likewise.
+	(object_status): New method.
+
+	* folio.h (struct folio): Add fields dirty and referenced.
+	(folio_object_referenced): New function.
+	(folio_object_referenced_set): Likewise.
+	(folio_object_dirty): Likewise.
+	(folio_object_dirty_set): Likewise.
+
 2008-05-21  Neal H. Walfield  <neal@gnu.org>
 
 	* activity.h (struct activity_stats): Add field period.

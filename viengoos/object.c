@@ -598,6 +598,8 @@ folio_object_alloc (struct activity *activity,
 	  memset ((void *) object, 0, PAGESIZE);
 	  object_desc_flush (odesc);
 	  odesc->dirty = false;
+	  odesc->user_referenced = false;
+	  odesc->user_dirty = false;
 
 	  object_desc_claim (activity, odesc, policy, true);
 
@@ -625,6 +627,8 @@ folio_object_alloc (struct activity *activity,
   folio_object_content_set (folio, idx, false);
   folio_object_discarded_set (folio, idx, false);
   folio_object_policy_set (folio, idx, policy);
+  folio_object_referenced_set (folio, idx, false);
+  folio_object_dirty_set (folio, idx, false);
 
   switch (type)
     {

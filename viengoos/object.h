@@ -129,6 +129,11 @@ struct object_desc
   /* Whether the page is dirty.  */
   uintptr_t dirty: 1;
 
+  /* User dirty and referenced bit. Must be synchronized with the
+     folio values on page-in and -out.  */
+  uintptr_t user_dirty : 1;
+  uintptr_t user_referenced : 1;
+
   /* Whether the object has been selected for eviction.  */
   uintptr_t eviction_candidate : 1;
 
@@ -256,7 +261,9 @@ extern void memory_object_destroy (struct activity *activity,
   ({									\
     struct object_desc *desc__ = (desc_);				\
     /* There is only one legal area for descriptors.  */		\
-    assert ((uintptr_t) object_descs <= (uintptr_t) (desc__));		\
+    assertx ((uintptr_t) object_descs <= (uintptr_t) (desc__),		\
+	     "%x > %x",							\
+	     (uintptr_t) object_descs, (uintptr_t) (desc__));		\
     assert ((uintptr_t) (desc__)					\
 	    <= (uintptr_t) &object_descs[(last_frame - first_frame)	\
 					 / PAGESIZE]);			\
@@ -326,11 +333,15 @@ object_desc_unmap (struct object_desc *desc)
 #ifndef _L4_TEST_ENVIRONMENT
       struct object *object = object_desc_to_object (desc);
 
-      l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
-      l4_fpage_t unmap = l4_fpage_add_rights (flush,
-					      L4_FPAGE_FULLY_ACCESSIBLE);
+      l4_fpage_t fpage = l4_fpage ((l4_word_t) object, PAGESIZE);
+      fpage = l4_fpage_add_rights (fpage, L4_FPAGE_FULLY_ACCESSIBLE);
 
-      desc->dirty |= !!l4_was_written (l4_unmap_fpage (unmap));
+      l4_fpage_t result = l4_unmap_fpage (fpage);
+
+      desc->dirty |= !!l4_was_written (result);
+
+      desc->user_referenced |= !!l4_was_referenced (result);
+      desc->user_dirty |= !!l4_was_written (result);
 #endif
 
       desc->mapped = false;
@@ -346,12 +357,18 @@ object_desc_flush (struct object_desc *desc)
 
   if (! desc->dirty)
     /* We only need to see if we dirtied it.  */
+    /* We only need to see if we dirtied or referenced it.  */
     {
 #ifndef _L4_TEST_ENVIRONMENT
       struct object *object = object_desc_to_object (desc);
-      l4_fpage_t flush = l4_fpage ((l4_word_t) object, PAGESIZE);
+      l4_fpage_t fpage = l4_fpage ((l4_word_t) object, PAGESIZE);
 
-      desc->dirty |= !!l4_was_written (l4_flush (flush));
+      l4_fpage_t result = l4_flush (fpage);
+
+      desc->dirty |= !!l4_was_written (result);
+
+      desc->user_referenced |= !!l4_was_referenced (result);
+      desc->user_dirty |= !!l4_was_written (result);
 #endif
     }
 }

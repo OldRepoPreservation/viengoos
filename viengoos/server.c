@@ -832,6 +832,33 @@ server_loop (void)
 	    break;
 	  }
 
+	case RM_object_status:
+	  {
+	    addr_t object_addr;
+	    bool clear;
+
+	    err = rm_object_status_send_unmarshal
+	      (&msg, &principal_addr, &object_addr, &clear);
+	    if (err)
+	      REPLY (err);
+
+	    struct object *object = OBJECT (&thread->aspace,
+					    object_addr, -1, true);
+
+	    struct object_desc *desc = object_to_object_desc (object);
+	    uintptr_t status = (desc->user_referenced ? object_referenced : 0)
+	      | (desc->user_dirty ? object_dirty : 0);
+
+	    if (clear)
+	      {
+		desc->user_referenced = 0;
+		desc->user_dirty = 0;
+	      }
+
+	    rm_object_status_reply_marshal (&msg, status);
+	    break;
+	  }
+
 	case RM_thread_exregs:
 	  {
 	    struct hurd_thread_exregs_in in;

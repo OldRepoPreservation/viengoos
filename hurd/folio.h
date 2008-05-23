@@ -126,6 +126,12 @@ struct folio
 
   uint8_t discarded[(FOLIO_OBJECTS + (8 - 1)) / 8];
 
+  /* User reference and dirty bits.  Optionally reset on read.  Set
+     respectively when an object is referenced or modified.  Flushing
+     the object to disk does not clear this.  */
+  uint8_t dirty[(1 + FOLIO_OBJECTS + (8 - 1)) / 8];
+  uint8_t referenced[(1 + FOLIO_OBJECTS + (8 - 1)) / 8];
+
   /* Head of the list of objects waiting for some event on this
      object.  An element of this array is only valid if the
      corresponding element of WAIT_QUEUES_P is true.  The list is a
@@ -299,6 +305,38 @@ folio_object_discarded_set (struct folio *folio, int object, bool valid)
   bit_set_to (folio->discarded, sizeof (folio->discarded),
 	      object, valid);
 }
+
+static inline bool
+folio_object_referenced (struct folio *folio, int object)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  return bit_test (folio->referenced, object + 1);
+}
+
+static inline void
+folio_object_referenced_set (struct folio *folio, int object, bool p)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  bit_set_to (folio->referenced, sizeof (folio->referenced), object + 1, p);
+}
+
+static inline bool
+folio_object_dirty (struct folio *folio, int object)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  return bit_test (folio->dirty, object + 1);
+}
+
+static inline void
+folio_object_dirty_set (struct folio *folio, int object, bool p)
+{
+  assert (object >= -1 && object <= FOLIO_OBJECTS);
+
+  bit_set_to (folio->dirty, sizeof (folio->dirty), object + 1, p);
+}
 #endif /* RM_INTERN  */
 
 /* Return a cap designating folio FOLIO's OBJECT'th object.  */
@@ -370,7 +408,7 @@ RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
    reference to the created object.  If an object is destroyed and
    there are waiters, they are passed the return code RETURN_CODE.  */
 RPC(folio_object_alloc, 8, 0, addr_t, principal,
-    addr_t, folio, l4_word_t, index, l4_word_t, type,
+    addr_t, folio, uintptr_t, index, uintptr_t, type,
     struct object_policy, policy, uintptr_t, return_code,
     addr_t, object_slot, addr_t, object_weak_slot)
 
@@ -395,7 +433,7 @@ enum
    set, set the corresponding values based on the value of POLICY.  */
 RPC(folio_policy, 4, 1,
     addr_t, principal, addr_t, folio,
-    l4_word_t, flags, struct folio_policy, policy,
+    uintptr_t, flags, struct folio_policy, policy,
     /* Out: */
     struct folio_policy, value)
 

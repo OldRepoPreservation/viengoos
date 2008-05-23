@@ -1,5 +1,26 @@
 2008-05-23  Neal H. Walfield  <neal@gnu.org>
 
+	* rm.h (rm_method_id_string): Handle the case where ID is
+	RM_object_status.
+	* server.c (server_loop): Implement the object_status method.
+
+	* ager.c (ager_loop): Set DESC->USER_DIRTY and DESC->REFERENCED as
+	appropriate.
+	* object.c (folio_object_alloc): Clear ODESC->USER_REFERENCED and
+	ODESC->USER_DIRTY.
+	(folio_object_alloc): Clear the object's user referenced and user
+	dirty bits.
+	* object.h (struct object_desc): Add fields user_dirty and
+	user_referenced.
+	(object_desc_unmap): Update DESC->USER_DIRTY and
+	DESC->USER_REFERENCED appropriately.
+	(object_desc_flush): LIkewise.
+
+2008-05-23  Neal H. Walfield  <neal@gnu.org>
+
+	* object.h (object_desc_flush): Take additional parameter
+	CLEAR_KERNEL.  If true, also clear the kernel's status bits.
+
 	* object.c (memory_object_alloc): Clear OBJECT's status bits
 	before returning it.
 
