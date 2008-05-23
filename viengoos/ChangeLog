@@ -1,5 +1,12 @@
 2008-05-23  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (ager_start): Set the new thread's pager to the
+	initial thread.
+	* server.c (server_loop): If we get a message from a kernel (i.e.,
+	Viengoos) thread, panic.
+
+2008-05-23  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (ager_loop): Don't flush shared pages, only unmap them.
 
 2008-05-21  Neal H. Walfield  <neal@gnu.org>

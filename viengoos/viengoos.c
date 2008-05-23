@@ -232,7 +232,7 @@ ager_start (void)
 
   int ret = l4_thread_control (tid, l4_myself (),
 			       l4_myself (),
-			       l4_pager (),
+			       l4_myself (),
 			       (void *) _L4_utcb_base () + l4_utcb_size ());
   if (! ret)
     panic ("Could not create ager thread (id=%x.%x): %s",
@@ -282,9 +282,9 @@ main (int argc, char *argv[])
   /* We need to ensure that the whole binary is faulted in.  sigma0 is
      only willing to page the first thread.  Since memory_configure
      only grabs otherwise unreserved memory and the binary is
-     reserved, we eithereither have to implement a pager for
-     additional threads (e.g., the ager) or we just fault the binary
-     in now.  The latter is the easiest solution.  */
+     reserved, we either have to implement a pager for additional
+     threads (e.g., the ager) or we just fault the binary in now.  The
+     latter is the easiest solution.  */
   l4_word_t p;
   for (p = (l4_word_t) &_start; p < (l4_word_t) &_end; p += PAGESIZE)
     * (volatile l4_word_t *) p = *(l4_word_t *)p;
@@ -298,8 +298,4 @@ main (int argc, char *argv[])
 
   /* And, start serving requests.  */
   server_loop ();
-
-  /* Should never return.  */
-  panic ("server_loop returned!");
-  return 0;
 }

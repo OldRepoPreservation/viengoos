@@ -97,6 +97,15 @@ server_loop (void)
       /* Unless explicitly overridden, don't reply.  */
       do_reply = 0;
 
+      if (l4_version (l4_myself ()) == l4_version (from))
+	/* Message from a kernel thread.  */
+	{
+	  if (! l4_is_pagefault (msg_tag))
+	    panic ("Kernel thread sent non-page fault message?!");
+
+	  panic ("Kernel thread faulted!");
+	}
+
       ss_mutex_lock (&kernel_lock);
       have_lock = true;
 
