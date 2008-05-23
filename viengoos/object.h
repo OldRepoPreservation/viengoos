@@ -351,12 +351,11 @@ object_desc_unmap (struct object_desc *desc)
 /* Unmaps the object corresponding to DESC from all clients and also
    retrieves the status bits for this address space.  */
 static inline void
-object_desc_flush (struct object_desc *desc)
+object_desc_flush (struct object_desc *desc, bool clear_kernel)
 {
   object_desc_unmap (desc);
 
-  if (! desc->dirty)
-    /* We only need to see if we dirtied it.  */
+  if (clear_kernel || ! desc->dirty || ! desc->user_referenced)
     /* We only need to see if we dirtied or referenced it.  */
     {
 #ifndef _L4_TEST_ENVIRONMENT

@@ -596,7 +596,7 @@ folio_object_alloc (struct activity *activity,
 	  cap_shootdown (activity, &cap);
 
 	  memset ((void *) object, 0, PAGESIZE);
-	  object_desc_flush (odesc);
+	  object_desc_flush (odesc, true);
 	  odesc->dirty = false;
 	  odesc->user_referenced = false;
 	  odesc->user_dirty = false;

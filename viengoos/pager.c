@@ -27,16 +27,30 @@
 static void
 is_clean (struct object_desc *desc)
 {
+  struct object *object = object_desc_to_object (desc);
+  l4_fpage_t result = l4_unmap_fpage (l4_fpage ((l4_word_t) object, PAGESIZE));
+  assertx (! l4_was_written (result) && ! l4_was_referenced (result),
+	   "The %s " OID_FMT "(at %p) has status bits set (%s %s)",
+	   cap_type_string (desc->type), OID_PRINTF (desc->oid), object,
+	   l4_was_written (result) ? "dirty" : "",
+	   l4_was_referenced (result) ? "refed" : "");
+
   if (! desc->dirty)
     {
-      struct object *object = object_desc_to_object (desc);
-
-      int *p = (int *) object;
-      int i;
-      for (i = 0; i < PAGESIZE / sizeof (int); i ++, p ++)
-	assertx (*p == 0,
-		 OID_FMT "/%p (%s) is dirty!",
-		 OID_PRINTF (desc->oid), p, cap_type_string (desc->type));
+      uint64_t *p = (uint64_t *) object;
+      uint64_t i;
+      bool clean = true;
+      for (i = 0; i < PAGESIZE / sizeof (i); i ++, p ++)
+	if (*p != 0)
+	  {
+	    debug (0, "%p[%lld*%d]==%llx",
+		   object, i, sizeof (i), *p);
+	    clean = false;
+	  }
+      assertx (clean,
+	       "The %s " OID_FMT "(at %p) is dirty!",
+	       cap_type_string (desc->type), OID_PRINTF (desc->oid),
+	       object);
     }
 }
 
@@ -67,7 +81,7 @@ reclaim_from (struct activity *victim, int goal)
 
       next = hurd_btree_priorities_next (desc);
 
-      object_desc_flush (desc);
+      object_desc_flush (desc, false);
 
       hurd_btree_priorities_detach (&victim->priorities, desc);
 
@@ -115,7 +129,7 @@ reclaim_from (struct activity *victim, int goal)
 
 	  activity_lru_list_unlink (&victim->inactive, inactive);
 
-	  object_desc_flush (inactive);
+	  object_desc_flush (inactive, false);
 	  if (inactive->dirty && ! inactive->policy.discardable)
 	    {
 	      eviction_list_push (&victim->eviction_dirty, inactive);
@@ -151,7 +165,7 @@ reclaim_from (struct activity *victim, int goal)
 
 	  next = activity_lru_list_next (desc);
 
-	  object_desc_flush (desc);
+	  object_desc_flush (desc, false);
 
 	  desc->eviction_candidate = true;
 
@@ -192,7 +206,7 @@ reclaim_from (struct activity *victim, int goal)
 
 	  next = hurd_btree_priorities_next (desc);
 
-	  object_desc_flush (desc);
+	  object_desc_flush (desc, false);
 
 	  hurd_btree_priorities_detach (&victim->priorities, desc);
 

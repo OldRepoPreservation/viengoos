@@ -1,5 +1,14 @@
 2008-05-23  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (object_desc_flush): Take additional parameter,
+	clear_kernel.  If true, fetch the status bits corresponding to
+	Viengoos even if the dirty bit is set.  Update callers.
+
+	* pager.c (is_clean): More thoroughly check that a page alleged to
+	be clean is really all zeros.
+
+2008-05-23  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h (rm_method_id_string): Handle the case where ID is
 	RM_object_status.
 	* server.c (server_loop): Implement the object_status method.
