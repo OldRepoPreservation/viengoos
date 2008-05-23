@@ -128,6 +128,13 @@ server_loop (void)
 	  DEBUG (1, "Caller has no assigned activity");
 	  continue;
 	}
+      if (object_type ((struct object *) activity) != cap_activity_control)
+	{
+	  DEBUG (1, "Caller's activity slot contains a %s,"
+		 "not an activity_control",
+		 cap_type_string (object_type ((struct object *) activity)));
+	  continue;
+	}
 
       if (l4_is_pagefault (msg_tag))
 	/* The label is not constant: it includes the type of fault.

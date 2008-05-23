@@ -1,5 +1,10 @@
 2008-05-23  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): If the caller's activity slot does not
+	designate a valid activity object, just ignore the message.
+	
+2008-05-23  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (ager_start): Set the new thread's pager to the
 	initial thread.
 	* server.c (server_loop): If we get a message from a kernel (i.e.,
