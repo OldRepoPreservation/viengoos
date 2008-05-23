@@ -29,18 +29,19 @@
 #include "activity.h"
 #include "zalloc.h"
 
-/* A frames has a single claimant.  When a frame is shared amoung
-   multiple activities, the first activity to access claims it (is
-   charged).  To distribute the cost among all users, we charge a user
-   proportional to the frequency of access.  This is achieved by
-   periodically revoking access to the frame and transferring the
-   claim to the next activity to access the frame.
+/* A frames has a single claimant.  When a frame is shared among
+   multiple activities, the first activity to access claims it (that
+   is, that activity is accounted the frame).  To distribute the cost
+   among all users, we charge a user proportional to the frequency of
+   access.  This is achieved by periodically revoking access to the
+   frame and transferring the claim to the next activity to access the
+   frame.
    
    The unmapping is required as when there are multiple users and the
-   main user becomes no longer users he frame, the frame may remain
-   active as other users continue to access it.  The main user will
-   remain the claimant, however, as no minor faults will be observed
-   (the frame is active).
+   main user no longer users the frame, the frame may remain active as
+   other users continue to access it.  The main user will remain the
+   claimant, however, as no minor faults will be observed (the frame
+   is active).
 
    XXX: Currently, we unmap shared, mapped frames every every few
    seconds.  Unfortunately, this can lead to an attack whereby a
@@ -72,11 +73,15 @@ ager_loop (l4_thread_id_t main_thread)
       struct object *objects[BATCH_SIZE];
       l4_fpage_t fpages[BATCH_SIZE];
 
+      bool also_unmap;
+
       /* We try to batch calls to l4_unmap, hence the acrobatics.  */
 
       /* Grab a batch of live objects starting with object I.  */
       int grab (void)
       {
+	also_unmap = false;
+
 	int count;
 	for (count = 0; frame < frames && count < BATCH_SIZE; frame ++)
 	  {
@@ -101,11 +106,13 @@ ager_loop (l4_thread_id_t main_thread)
 	    fpages[count] = l4_fpage ((l4_word_t) objects[count], PAGESIZE);
 
 	    if (iterations % FREQ == 0 && desc->shared)
-	      /* We periodically unmap shared frames.  See above for
-		 details.  */
+	      /* We periodically unmap shared frames and mark them as
+		 floating.  See above for details.  */
 	      {
-		fpages[count] = l4_fpage_add_rights (fpages[count],
-						     L4_FPAGE_FULLY_ACCESSIBLE);
+		if (desc->type == cap_page)
+		  /* We only unmap the object if it is a page.  No
+		     other objects are actually mapped to users.  */
+		  also_unmap = true;
 		desc->mapped = false;
 		desc->floating = true;
 	      }
@@ -130,14 +137,43 @@ ager_loop (l4_thread_id_t main_thread)
 	      break;
 	    }
 
-	  /* Get the status bits for the COUNT objects.  (We flush
-	     rather than unmap as we are also interested in whether we
-	     have accessed the object--this occurs as we access some
-	     objects, e.g., cappages, on behalf activities or we have
-	     flushed a page of data to disk.) This also means that
-	     when we flush shared objects, they are unmapped from the
-	     root task.  Happily, sigma0 maps them back.  */
+	  /* Get the status bits for the COUNT objects.  First, we do
+	     a flush.  The fpages all have no access bits set so this
+	     does not change any mappings and we get the status bits
+	     for users as well as ourselves.  Then, if needed, do an
+	     unmap.  This is used to unmap any shared mappings but
+	     only unmaps from users, not from us.
+
+	     If we were to do this at the same time, we would also
+	     change our own mappings.  This is a pain.  Although
+	     sigma0 would map them back for the root task's first
+	     thread, it does not for subsequent threads.  Moreover, we
+	     would have to access the pages at fault time to ensure
+	     that they are mapped, which is just ugly.  */
 	  l4_flush_fpages (count, fpages);
+	  if (also_unmap)
+	    {
+	      /* XXX: This is a bit more aggressive than required.
+		 Instead, we should only unmap the shared pages.  */
+	      int i;
+	      int j = 0;
+	      l4_fpage_t unmap[count];
+	      for (i = 0; i < count; i ++)
+		if (descs[i]->shared && descs[i]->type == cap_page)
+		  unmap[j ++]
+		    = l4_fpage_add_rights (fpages[i],
+					   L4_FPAGE_FULLY_ACCESSIBLE);
+	      assert (j > 0);
+
+	      l4_unmap_fpages (j, unmap);
+
+	      /* Bitwise or the status bits.  */
+	      j = 0;
+	      for (i = 0; i < count; i ++)
+		if (descs[i]->shared && descs[i]->type == cap_page)
+		  fpages[i] = l4_fpage_add_rights (fpages[i],
+						   l4_rights (unmap[j ++]));
+	    }
 
 	  int i;
 	  for (i = 0; i < count; i ++)
@@ -225,7 +261,7 @@ ager_loop (l4_thread_id_t main_thread)
 	  ss_mutex_unlock (&kernel_lock);
 	}
 
-      /* Upmap everything every two seconds.  */
+      /* Update statistics every two seconds.  */
       if (iterations % FREQ == 0)
 	{
 	  ss_mutex_lock (&kernel_lock);
