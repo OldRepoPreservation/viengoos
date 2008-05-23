@@ -1,5 +1,10 @@
 2008-05-23  Neal H. Walfield  <neal@gnu.org>
 
+	* object.c (memory_object_alloc): Clear OBJECT's status bits
+	before returning it.
+
+2008-05-23  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (object_find_soft): If we don't claim ODESC, mark it as
 	shared.
 

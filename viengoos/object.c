@@ -127,6 +127,11 @@ memory_object_alloc (struct activity *activity,
   assert (! odesc->live);
   memset (odesc, 0, sizeof (*odesc));
 
+  /* Clear the status bits.  */
+#ifndef _L4_TEST_ENVIRONMENT
+  l4_flush (l4_fpage ((l4_word_t) object, PAGESIZE));
+#endif
+
   odesc->type = type;
   odesc->version = version;
   odesc->oid = oid;
