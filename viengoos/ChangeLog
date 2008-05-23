@@ -1,5 +1,10 @@
 2008-05-23  Neal H. Walfield  <neal@gnu.org>
 
+	* object.c (object_find_soft): If we don't claim ODESC, mark it as
+	shared.
+
+2008-05-23  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): If the caller's activity slot does not
 	designate a valid activity object, just ignore the message.
 	

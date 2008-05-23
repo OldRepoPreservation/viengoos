@@ -234,14 +234,18 @@ object_find_soft (struct activity *activity, oid_t oid,
       return object;
     }
 
-  if ((! odesc->activity || ! object_active (odesc))
+  if (! odesc->activity || ! object_active (odesc)
       || (odesc->activity != activity && odesc->floating))
-    /* Either the object is unowned, it is inactive or it is floating
-       (owned byt looking for a new owner).  Claim ownership.  */
+    /* Either the object is unclaimed, it is inactive or it is
+       floating (claimed but looking for a new owner).  Claim
+       ownership.  */
     {
       object_desc_claim (activity, odesc, policy, true);
       odesc->floating = false;
     }
+  else if (odesc->activity != activity)
+    /* It's claimed by someone else, mark it as shared.  */
+    odesc->shared = true;
 
   return object;
 }
@@ -400,7 +404,7 @@ folio_alloc (struct activity *activity, struct folio_policy policy)
     panic ("Out of folios");
   oid_t foid = f * (FOLIO_OBJECTS + 1);
 
-  /* We can't just allocate a fresh page as we need to preserve the
+  /* We can't just allocate a fresh page: we need to preserve the
      version information for the folio as well as the objects.  */
   struct folio *folio = (struct folio *) object_find (activity, foid,
 						      OBJECT_POLICY_DEFAULT);
@@ -542,7 +546,7 @@ folio_object_alloc (struct activity *activity,
 	}
     }
 
-  /* Wake any thread's waiting on this object.  We wake them even if
+  /* Wake any threads waiting on this object.  We wake them even if
      they are not waiting for this object's death.  */
   struct thread *thread;
   folio_object_wait_queue_for_each (activity, folio, idx, thread)
