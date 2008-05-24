@@ -195,10 +195,15 @@ RPC (activity_policy, 3, 1, addr_t, activity,
      /* Out: */
      struct activity_policy, out);
 
-/* Return statistics about activity ACTIVITY.  COUNT is the number of
-   returned samples.  Samples are ordered by recency with the youngest
-   towards the start of the buffer.  */
-RPC (activity_stats, 1, 2, addr_t, activity,
+/* Return statistics about activity ACTIVITY.  Waits until the current
+   period is older than UNTIL_PERIOD.  (This can be used to register a
+   callback that is sent when the statistics are next available.  For
+   example, call with until_period is 0 to get the current statistics
+   and then examine the period field.  Use this as the base for the
+   next call.)  COUNT is the number of returned samples.  Samples are
+   ordered by recency with the youngest towards the start of the
+   buffer.  */
+RPC (activity_stats, 2, 2, addr_t, activity, uintptr_t, until_period,
      /* Out: */
      struct activity_stats_buffer, stats, int, count)
 

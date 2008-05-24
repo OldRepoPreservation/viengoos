@@ -1010,27 +1010,51 @@ server_loop (void)
 
 	case RM_activity_stats:
 	  {
-	    err = rm_activity_stats_send_unmarshal (&msg, &principal_addr);
+	    uintptr_t until_period;
+	    err = rm_activity_stats_send_unmarshal (&msg, &principal_addr,
+						    &until_period);
 	    if (err)
 	      {
 		debug (0, "");
 		REPLY (err);
 	      }
 
-	    /* XXX: Only return valid stat buffers.  */
-	    struct activity_stats_buffer buffer;
-	    int i;
-	    for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
-	      {
-		int period = principal->current_period - 1 - i;
-		if (period < 0)
-		  period = ACTIVITY_STATS_PERIODS + period;
+	    int period = principal->current_period - 1;
+	    if (period < 0)
+	      period = (ACTIVITY_STATS_PERIODS + 1) + period;
 
-		buffer.stats[i] = principal->stats[period];
+	    if (principal->stats[period].period < until_period)
+	      /* Queue thread on the activity.  */
+	      {
+		thread->wait_reason = THREAD_WAIT_STATS;
+		thread->wait_reason_arg = until_period;
+
+		object_wait_queue_enqueue (principal,
+					   (struct object *) principal,
+					   thread);
+
+		do_reply = 0;
+	      }
+	    else
+	      /* Return the available statistics.  */
+	      {
+		/* XXX: Only return valid stat buffers.  */
+		struct activity_stats_buffer buffer;
+		int i;
+		for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
+		  {
+		    period = principal->current_period - 1 - i;
+		    if (period < 0)
+		      period = (ACTIVITY_STATS_PERIODS + 1) + period;
+
+		    buffer.stats[i] = principal->stats[period];
+		  }
+
+		rm_activity_stats_reply_marshal (&msg,
+						 buffer,
+						 ACTIVITY_STATS_PERIODS);
 	      }
 
-	    rm_activity_stats_reply_marshal (&msg,
-					     buffer, ACTIVITY_STATS_PERIODS);
 	    break;
 	  }
 

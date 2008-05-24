@@ -1,3 +1,8 @@
+2008-05-24  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h (activity_stats): Take additional parameter,
+	until_period.
+
 2008-05-23  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (RM_object_status): Define.

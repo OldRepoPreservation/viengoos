@@ -28,6 +28,7 @@
 #include "object.h"
 #include "activity.h"
 #include "zalloc.h"
+#include "thread.h"
 
 /* A frames has a single claimant.  When a frame is shared among
    multiple activities, the first activity to access claims it (that
@@ -324,12 +325,61 @@ ager_loop (l4_thread_id_t main_thread)
 	    ACTIVITY_STATS (activity)->active /= FREQ;
 	    ACTIVITY_STATS (activity)->active_local /= FREQ;
 
+	    debug (0, OID_FMT ": %d/%d (" OID_FMT ")",
+		   OID_PRINTF (object_to_object_desc ((struct object *)
+						      activity)->oid), 
+		   ACTIVITY_STATS (activity)->clean,
+		   ACTIVITY_STATS (activity)->dirty,
+		   OID_PRINTF (activity->parent
+			       ? object_to_object_desc ((struct object *)
+							activity->parent)->oid
+			       : 0));
+
 	    activity->current_period ++;
 	    if (activity->current_period == ACTIVITY_STATS_PERIODS + 1)
 	      activity->current_period = 0;
 
 	    memset (ACTIVITY_STATS (activity),
 		    0, sizeof (*ACTIVITY_STATS (activity)));
+
+	    /* Wake anyone waiting for this statistic.  */
+	    struct thread *thread;
+	    object_wait_queue_for_each (activity, (struct object *) activity,
+					thread)
+	      if (thread->wait_reason == THREAD_WAIT_STATS
+		  && thread->wait_reason_arg <= iterations / FREQ)
+		{
+		  object_wait_queue_dequeue (activity, thread);
+
+		  /* XXX: Only return valid stat buffers.  */
+		  struct activity_stats_buffer buffer;
+		  int i;
+		  for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
+		    {
+		      int period = activity->current_period - 1 - i;
+		      if (period < 0)
+			period = (ACTIVITY_STATS_PERIODS + 1) + period;
+
+		      buffer.stats[i] = activity->stats[period];
+		    }
+
+		  l4_msg_t msg;
+		  rm_activity_stats_reply_marshal (&msg,
+						   buffer,
+						   ACTIVITY_STATS_PERIODS);
+		  l4_msg_tag_t msg_tag = l4_msg_msg_tag (msg);
+		  l4_set_propagation (&msg_tag);
+		  l4_msg_set_msg_tag (msg, msg_tag);
+		  l4_set_virtual_sender (main_thread);
+		  l4_msg_load (msg);
+		  msg_tag = l4_reply (thread->tid);
+
+		  if (l4_ipc_failed (msg_tag))
+		    debug (0, "%s %x failed: %u", 
+			   l4_error_code () & 1 ? "Receiving from" : "Sending to",
+			   l4_error_code () & 1 ? l4_myself () : thread->tid,
+			   (l4_error_code () >> 1) & 0x7);
+		}
 	  }
 
 	  doit (root_activity, memory_total);

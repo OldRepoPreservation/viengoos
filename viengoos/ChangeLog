@@ -1,5 +1,16 @@
 2008-05-24  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (THREAD_WAIT_STATS): Define.
+	* server.c (server_loop): Update implementation of activity_stats
+	to handle the new parameter, until_period.  If the current period
+	is less than UNTIL_PERIOD, queue the caller on PRINCIPAL and do
+	not reply.
+	* ager.c: Include "thread.h".
+	(ager_loop): When generating an activity's statistics, if a thread
+	is waiting for the statistic, send it reply.
+
+2008-05-24  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): When we need a principal, use PRINCIPAL,
 	not ACTIVITY.
 

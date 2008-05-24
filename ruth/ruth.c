@@ -454,6 +454,8 @@ main (int argc, char *argv[])
 	  pthread_mutex_lock (&mutex);
 	  pthread_mutex_unlock (&mutex);
 
+	  debug (5, "Signaling main thread");
+
 	  /* Signal the main thread that we are ready.  */
 	  pthread_cond_signal (&cond);
 
@@ -584,7 +586,7 @@ main (int argc, char *argv[])
 
 	err = pthread_kill (thread, SIGUSR1);
 	if (err)
-	  panic ("Failed to signal thread: %s", strerror (err));
+	  panic ("Failed to signal thread %d: %s", thread, strerror (err));
 
 	pthread_mutex_lock (&mutex);
       }
@@ -971,7 +973,7 @@ main (int argc, char *argv[])
     do
       {
 	int c;
-	error_t err = rm_activity_stats (ADDR_VOID, &stats, &c);
+	error_t err = rm_activity_stats (ADDR_VOID, 0, &stats, &c);
 	assert_perror (err);
 	assert (c >= 1);
 

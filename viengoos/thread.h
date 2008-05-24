@@ -44,6 +44,10 @@ enum
     /* THREAD is blocked on an object waiting for the object to be
        destroyed.  */
     THREAD_WAIT_DESTROY,
+    /* THREAD is blocked on an activity waiting for the stats for a
+       particular period, which is stored in
+       thread->wait_reason_arg.  */
+    THREAD_WAIT_STATS,
   };
 
 struct thread
