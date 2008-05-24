@@ -97,14 +97,19 @@ server_loop (void)
       /* Unless explicitly overridden, don't reply.  */
       do_reply = 0;
 
+      debug (5, "%x (p: %d, %x) sent %s (%x)",
+	     from, l4_ipc_propagated (msg_tag), l4_actual_sender (),
+	     (l4_is_pagefault (msg_tag) ? "pagefault"
+	      : rm_method_id_string (label)),
+	     label);
+
       if (l4_version (l4_myself ()) == l4_version (from))
 	/* Message from a kernel thread.  */
-	{
-	  if (! l4_is_pagefault (msg_tag))
-	    panic ("Kernel thread sent non-page fault message?!");
-
-	  panic ("Kernel thread faulted!");
-	}
+	panic ("Kernel thread %x (propagated: %d, actual: %x) sent %s? (%x)!",
+	       from, l4_ipc_propagated (msg_tag), l4_actual_sender (),
+	       (l4_is_pagefault (msg_tag) ? "pagefault"
+		      : rm_method_id_string (label)),
+	       label);
 
       ss_mutex_lock (&kernel_lock);
       have_lock = true;
@@ -769,7 +774,7 @@ server_loop (void)
 	       respect any subpag specification for cappages.  */
 	    struct cap source = CAP (root, source_addr, -1, false);
 
-	    struct object *object = cap_to_object (activity, &source);
+	    struct object *object = cap_to_object (principal, &source);
 	    if (! object)
 	      REPLY (EINVAL);
 
@@ -1017,11 +1022,11 @@ server_loop (void)
 	    int i;
 	    for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
 	      {
-		int period = activity->current_period - 1 - i;
+		int period = principal->current_period - 1 - i;
 		if (period < 0)
 		  period = ACTIVITY_STATS_PERIODS + period;
 
-		buffer.stats[i] = activity->stats[period];
+		buffer.stats[i] = principal->stats[period];
 	      }
 
 	    rm_activity_stats_reply_marshal (&msg,
@@ -1143,7 +1148,7 @@ server_loop (void)
 
 		char *mode = "unknown";
 
-		struct object *page = cap_to_object (activity,
+		struct object *page = cap_to_object (principal,
 						     &thread->exception_page);
 		if (page && object_type (page) == cap_page)
 		  {

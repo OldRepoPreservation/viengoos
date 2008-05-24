@@ -1,5 +1,10 @@
 2008-05-24  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): When we need a principal, use PRINCIPAL,
+	not ACTIVITY.
+
+2008-05-24  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (object_desc_claim): Fix debug statement, ACTIVITY may
 	be NULL.
 
