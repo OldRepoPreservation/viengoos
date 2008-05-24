@@ -707,6 +707,13 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
      not have an activity, it is being initialized.  */
   if (desc->activity)
     {
+      debug (5, OID_FMT " claims from " OID_FMT,
+	     OID_PRINTF (object_to_object_desc ((struct object *) desc->activity)->oid),
+	     OID_PRINTF (activity
+			 ? object_to_object_desc ((struct object *)
+						  activity)->oid
+			 : 0));
+
       assert (object_type ((struct object *) desc->activity)
 	      == cap_activity_control);
 
