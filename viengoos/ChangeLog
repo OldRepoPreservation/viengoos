@@ -1,3 +1,7 @@
+2008-05-24  Neal H. Walfield  <neal@gnu.org>
+
+	* mutex.h (ss_mutex_lock): Wait for any local thread.
+
 2008-05-23  Neal H. Walfield  <neal@gnu.org>
 
 	* rm.h (rm_method_id_string): Handle the case where ID is

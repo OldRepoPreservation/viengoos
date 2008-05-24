@@ -48,7 +48,7 @@ ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lock)
 	ss_lock_trace_dump (lock);
       assert (owner != l4_myself ());
 
-      __ss_lock_wait (owner);
+      __ss_lock_wait (l4_anylocalthread);
     }
 }
 
