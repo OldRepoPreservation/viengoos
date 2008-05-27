@@ -73,7 +73,7 @@ case $host_cpu in
     ;;
   amd64)
     arch=amd64
-    arch_alpha=true
+    arch_amd64=true
     ;;
   i386 | i486 | i586 | i686)
     arch=ia32

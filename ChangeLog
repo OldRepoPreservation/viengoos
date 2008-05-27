@@ -1,3 +1,8 @@
+2008-05-27  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: If host_cpu is "amd64", set arch_amd64 to true,
+	not arch_alpha.
+
 2008-02-21  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac (CFLAGS): Remove variable.
@@ -7,6 +12,7 @@
 	(USER_LDADD): Likewise.
 	(KERNEL_CFLAGS): Likewise.
 	(KERNEL_CPPFLAGS): Likewise.
+	(CHECK_CPPFLAGS): Likewise.
 
 	* Makefile.am (SUBDIRS): Build . after building laden and
 	viengoos.
