@@ -1,3 +1,8 @@
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (cap_copy): Copy SOURCE's discardability predicate and
+	priority.
+
 2008-05-24  Neal H. Walfield  <neal@gnu.org>
 
 	* activity.h (activity_stats): Take additional parameter,

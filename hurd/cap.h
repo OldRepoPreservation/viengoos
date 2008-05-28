@@ -680,14 +680,17 @@ cap_copy_x (activity_t activity,
 }
 
 /* Copy the capability SOURCE to capability TARGET.  Preserves
-   SOURCE's subpage specification and TARGET's guard.  */
+   SOURCE's subpage specification and TARGET's guard.  Copies SOURCE's
+   policy.  */
 static inline bool
 cap_copy (activity_t activity,
 	  addr_t target_as, struct cap *target, addr_t target_addr,
 	  addr_t source_as, struct cap source, addr_t source_addr)
 {
   return cap_copy_x (activity, target_as, target, target_addr,
-		     source_as, source, source_addr, 0, CAP_PROPERTIES_VOID);
+		     source_as, source, source_addr,
+		     CAP_COPY_DISCARDABLE_SET | CAP_COPY_PRIORITY_SET,
+		     CAP_PROPERTIES_GET (source));
 }
 
 #ifndef RM_INTERN
