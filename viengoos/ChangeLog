@@ -1,5 +1,9 @@
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
+	* object.c (folio_object_alloc): Set CAP's policy to POLICY.
+
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
 	* cap-lookup.c (lookup): Don't update WRITABLE if the designated
 	capability's type is strong but the requested type weak.  Consider
 	the designated capability's type incompatible with the requested

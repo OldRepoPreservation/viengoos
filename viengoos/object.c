@@ -507,8 +507,6 @@ folio_object_alloc (struct activity *activity,
 		    struct object_policy policy,
 		    uintptr_t return_code)
 {
-  debug (4, "allocating %s at %d", cap_type_string (type), idx);
-
   assert (0 <= idx && idx < FOLIO_OBJECTS);
 
   type = cap_type_strengthen (type);
@@ -516,6 +514,10 @@ folio_object_alloc (struct activity *activity,
   struct object_desc *fdesc = object_to_object_desc ((struct object *) folio);
   assert (fdesc->type == cap_folio);
   assert (fdesc->oid % (1 + FOLIO_OBJECTS) == 0);
+
+  debug (5, OID_FMT ":%d -> %s (%s/%d)",
+	 OID_PRINTF (fdesc->oid), idx, cap_type_string (type),
+	 policy.discardable ? "discardable" : "precious", policy.priority);
 
   oid_t oid = fdesc->oid + 1 + idx;
 
@@ -649,6 +651,7 @@ folio_object_alloc (struct activity *activity,
   cap.type = type;
   cap.oid = oid;
   cap.version = folio_object_version (folio, idx);
+  CAP_POLICY_SET (&cap, policy);
 
   return cap;
 }
@@ -705,7 +708,8 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   if (desc->activity)
     {
       debug (5, OID_FMT " claims from " OID_FMT,
-	     OID_PRINTF (object_to_object_desc ((struct object *) desc->activity)->oid),
+	     OID_PRINTF (object_to_object_desc ((struct object *) desc
+						->activity)->oid),
 	     OID_PRINTF (activity
 			 ? object_to_object_desc ((struct object *)
 						  activity)->oid
@@ -777,6 +781,12 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   desc->eviction_candidate = false;
   desc->activity = activity;
   desc->policy.discardable = policy.discardable;
+
+  debug (5, OID_FMT " claimed " OID_FMT " (%s): %s",
+	 OID_PRINTF (object_to_object_desc ((struct object *) activity)->oid),
+	 OID_PRINTF (desc->oid),
+	 cap_type_string (desc->type),
+	 desc->policy.discardable ? "discardable" : "precious");
 }
 
 /* Return the first waiter queued on object OBJECT.  */
