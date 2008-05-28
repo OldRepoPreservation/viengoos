@@ -137,7 +137,7 @@ lookup (activity_t activity,
 	  int guard = extract_bits64_inv (addr, remaining - 1, gdepth);
 	  if (CAP_GUARD (root) != guard)
 	    {
-	      debug (1, "Translating " ADDR_FMT ": guard 0x%llx/%d does "
+	      debug (5, "Translating " ADDR_FMT ": guard 0x%llx/%d does "
 		     "not match 0x%llx's bits %d-%d => 0x%x",
 		     ADDR_PRINTF (address),
 		     CAP_GUARD (root), CAP_GUARD_BITS (root), addr,
@@ -259,17 +259,14 @@ lookup (activity_t activity,
     }
   assert (remaining == 0);
 
-  if (root->type != type)
-    /* Types don't match.  They may, however, be compatible.  */
+  if (type != -1 && type != root->type)
+    /* Types don't match.  */
     {
-      if (cap_types_compatible (root->type, type))
-	/* Type are compatible.  We just need to downgrade the
-	   rights.  */
-	{
-	  if (mode == want_object)
-	    w = false;
-	}
-      else if (type != -1)
+      if (cap_type_strengthen (type) == root->type)
+	/* The capability just provides more strength than
+	   requested.  That's fine.  */
+	;
+      else
 	/* Incompatible types.  */
 	{
 	  do_debug (4)

@@ -1,5 +1,12 @@
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-lookup.c (lookup): Don't update WRITABLE if the designated
+	capability's type is strong but the requested type weak.  Consider
+	the designated capability's type incompatible with the requested
+	type if the former is weak and the latter strong.
+
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
 	* object.h (folio_object_alloc): Return a struct cap, not void.
 	Remove the objectp parameter.  Update all users.
 	* object.c (folio_object_alloc): Return a capability designating
