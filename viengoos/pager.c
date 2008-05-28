@@ -406,14 +406,14 @@ pager_collect (int goal)
 		    {
 		      have_self = true;
 		      int frames = parent->frames_local
-			- ACTIVITY_STATS_LAST (parent)->active_local >> factor;
+			- (ACTIVITY_STATS_LAST (parent)->active_local >> factor);
 		      done = process (parent, parent->policy.child_rel, frames);
 		      if (done)
 			break;
 		    }
 
 		  int frames = child->frames_total
-		    - ACTIVITY_STATS_LAST (child)->active >> factor;
+		    - (ACTIVITY_STATS_LAST (child)->active >> factor);
 		  done = process (child, child->policy.sibling_rel, frames);
 		  if (done)
 		    break;
@@ -422,7 +422,7 @@ pager_collect (int goal)
 	      if (! done && ! have_self)
 		{
 		  int frames = parent->frames_local
-		    - ACTIVITY_STATS_LAST (parent)->active_local >> factor;
+		    - (ACTIVITY_STATS_LAST (parent)->active_local >> factor);
 		  process (parent, parent->policy.child_rel, frames);
 		}
 
