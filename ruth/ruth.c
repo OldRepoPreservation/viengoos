@@ -84,7 +84,7 @@ main (int argc, char *argv[])
 	       bool writable,
 	       void *cookie)
       {
-	struct cap *slot = slot_lookup (activity, addr, -1, NULL);
+	struct cap *slot = slot_lookup (activity, addr, NULL);
 
 	assert (slot);
 	assert (type == slot->type);
@@ -195,7 +195,7 @@ main (int argc, char *argv[])
 	    assert (! err);
 	    assert (type == cap_folio);
 
-	    struct cap *slot = slot_lookup (activity, f, -1, NULL);
+	    struct cap *slot = slot_lookup (activity, f, NULL);
 	    assert (slot);
 	    assert (slot->type == cap_folio);
 	  }
@@ -208,7 +208,7 @@ main (int argc, char *argv[])
 	error_t err = rm_folio_free (activity, f);
 	assert (! err);
 
-	struct cap *slot = slot_lookup (activity, f, -1, NULL);
+	struct cap *slot = slot_lookup (activity, f, NULL);
 	assert (slot);
 	assert (slot->type == cap_folio);
 	slot->type = cap_void;

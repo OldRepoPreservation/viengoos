@@ -170,8 +170,13 @@ server_loop (void)
 		  || cap.type == cap_page
 		  || cap.type == cap_rpage);
 
-	  if (! writable)
-	    cap.discardable = false;
+	  if (! writable && cap.discardable)
+	    {
+	      debug (5, "Clearing discardable predicate for cap designating "
+		     OID_FMT " (%s)",
+		     OID_PRINTF (cap.oid), cap_type_string (cap.type));
+	      cap.discardable = false;
+	    }
 
 	  page = cap_to_object_soft (activity, &cap);
 	  if (! page && cap.type != cap_void)
@@ -283,8 +288,7 @@ server_loop (void)
       error_t SLOT_ (struct cap *root, addr_t addr, struct cap **capp)
 	{
 	  bool writable;
-	  *capp = slot_lookup_rel (activity, root,
-				   addr, -1, &writable);
+	  *capp = slot_lookup_rel (activity, root, addr, &writable);
 	  if (! *capp)
 	    {
 	      DEBUG (1, "No capability slot at 0x%llx/%d",

@@ -1,3 +1,8 @@
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Update use of slot_lookup to be consistent with
+	new API.
+
 2008-05-24  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update user of rm_activity_stats to be consistent

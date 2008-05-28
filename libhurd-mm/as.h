@@ -150,12 +150,10 @@ extern struct cap cap_lookup (activity_t activity,
 /* Return the capability slot at ADDR or, if an object, the slot
    referencing the object.
 
-   TYPE is the required type.  If the type is incompatible
-   (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
-   TYPE is -1, then any type is acceptable.  May cause paging.  If
-   non-NULL, returns whether the slot is writable in *WRITABLE.  */
-extern struct cap *slot_lookup (activity_t activity,
-				addr_t addr, enum cap_type type,
+   May cause paging.  If WRITABLE is non-NULL, returns whether the
+   slot is writable in *WRITABLE (it is not writable if it was
+   accessed via a read-only cappage).  */
+extern struct cap *slot_lookup (activity_t activity, addr_t addr,
 				bool *writable);
 
 /* Return the value of the capability designating the object at ADDR.

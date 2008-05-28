@@ -1,5 +1,14 @@
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-lookup.c (slot_lookup_rel): Don't take parameter type.  Pass
+	-1 to lookup in its place.
+	* server.c (server_loop): Update use of slot_lookup_rel to be
+	consistent with new API.
+	* t-as.c (try): Likewise.
+	(test): Likewise.
+
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
 	* cap-lookup.c (lookup): If a cappage is read-only, only bail if
 	TYPE is not weak.
 

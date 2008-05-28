@@ -395,7 +395,7 @@ storage_alloc (addr_t activity,
 	  desc->storage = addr;
 	  desc->type = cap_folio;
 
-	  cap = slot_lookup (meta_data_activity, addr, -1, NULL);
+	  cap = slot_lookup (meta_data_activity, addr, NULL);
 	}
 
       /* And then the folio.  */
@@ -557,7 +557,7 @@ storage_alloc (addr_t activity,
     /* We also have to update the shadow for ADDR.  Unfortunately, we
        don't have the cap although the caller might.  */
     {
-      struct cap *cap = slot_lookup (meta_data_activity, addr, -1, NULL);
+      struct cap *cap = slot_lookup (meta_data_activity, addr, NULL);
       if (! cap)
 	as_dump (NULL);
       assert (cap);

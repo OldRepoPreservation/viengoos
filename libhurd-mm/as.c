@@ -275,7 +275,9 @@ as_free (addr_t addr, l4_uint64_t count)
     {
       free_space_desc_free (space);
 
-      assert (f->region.end + 1 == start || end + 1 == f->region.start);
+      assertx (f->region.end + 1 == start || end + 1 == f->region.start,
+	       "%llx != %llx || %llx != %llx",
+	       f->region.end + 1, start, end + 1, f->region.start);
 
       struct free_space *prev;
       struct free_space *next;
@@ -522,7 +524,7 @@ as_init (void)
 	 first.  */
       struct cap *cap = slot_lookup_rel (meta_data_activity,
 					 &shadow_root, addr,
-					 -1, NULL);
+					 NULL);
       assertx (cap_types_compatible (cap->type, desc->type),
 	       ADDR_FMT ": type mismatch; kernel says %s, desc says %s",
 	       ADDR_PRINTF (addr),
@@ -716,7 +718,7 @@ as_init (void)
 	     ADDR_PRINTF (addr), cap_type_string (type));
 
       struct cap *cap = slot_lookup_rel (meta_data_activity,
-					 &shadow_root, addr, -1, NULL);
+					 &shadow_root, addr, NULL);
       assertx (cap, "addr: " ADDR_FMT "; type: %s",
 	       ADDR_PRINTF (addr), cap_type_string (type));
 
@@ -799,10 +801,9 @@ object_lookup (activity_t activity,
 }
 
 struct cap *
-slot_lookup (activity_t activity,
-	     addr_t address, enum cap_type type, bool *writable)
+slot_lookup (activity_t activity, addr_t address, bool *writable)
 {
-  return slot_lookup_rel (activity, &shadow_root, address, type, writable);
+  return slot_lookup_rel (activity, &shadow_root, address, writable);
 }
 
 /* Walk the address space, depth first.  VISIT is called for each

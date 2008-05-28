@@ -337,14 +337,13 @@ object_lookup_rel (activity_t activity,
 
 struct cap *
 slot_lookup_rel (activity_t activity,
-		 struct cap *root, addr_t address,
-		 enum cap_type type, bool *writable)
+		 struct cap *root, addr_t address, bool *writable)
 {
   union rt rt;
 
   AS_LOCK;
 
-  bool ret = lookup (activity, root, address, type, writable, want_slot, &rt);
+  bool ret = lookup (activity, root, address, -1, writable, want_slot, &rt);
 
   AS_UNLOCK;
 

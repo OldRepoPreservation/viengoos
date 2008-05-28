@@ -123,7 +123,7 @@ try (struct alloc *allocs, int count, bool dump)
 	{
 	  bool writable;
 	  struct cap *cap = slot_lookup_rel (root_activity,
-					     &aspace, allocs[j].addr, -1,
+					     &aspace, allocs[j].addr,
 					     &writable);
 	  do_check (cap, writable, j, j <= i);
 
@@ -141,7 +141,7 @@ try (struct alloc *allocs, int count, bool dump)
       /* Make sure allocs[i].addr maps to PAGES[i].  */
       bool writable;
       struct cap *cap = slot_lookup_rel (root_activity,
-					 &aspace, allocs[i].addr, -1,
+					 &aspace, allocs[i].addr,
 					 &writable);
       do_check (cap, writable, i, true);
 
@@ -163,7 +163,7 @@ try (struct alloc *allocs, int count, bool dump)
 
       /* The page should be back.  */
       cap = slot_lookup_rel (root_activity,
-			     &aspace, allocs[i].addr, -1, &writable);
+			     &aspace, allocs[i].addr, &writable);
       do_check (cap, writable, i, true);
 
       c = object_lookup_rel (root_activity,
@@ -191,7 +191,7 @@ try (struct alloc *allocs, int count, bool dump)
 	{
 	  bool writable;
 	  cap = slot_lookup_rel (root_activity,
-				 &aspace, allocs[j].addr, -1, &writable);
+				 &aspace, allocs[j].addr, &writable);
 	  /* We should always get the slot (but it won't always
 	     designate an object).  */
 	  assert (cap);
@@ -237,7 +237,7 @@ test (void)
     l4_word_t addr = 0xFA000;
     bool writable;
     cap = slot_lookup_rel (root_activity, &aspace, ADDR (addr, ADDR_BITS),
-			   -1, &writable);
+			   &writable);
     assert (cap == NULL);
 
     /* Set the root to designate ADDR.  */
@@ -245,7 +245,7 @@ test (void)
     assert (r);
     
     cap = slot_lookup_rel (root_activity, &aspace, ADDR (addr, ADDR_BITS),
-			   -1, &writable);
+			   &writable);
     assert (cap == &aspace);
     assert (writable);
 

@@ -1,5 +1,13 @@
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (slot_lookup): Remove parameter type.  Update users.
+	* as.c (as_init): Update user of slot_lookup_rel to be consistent
+	with new API.
+	(as_init): Likewise.
+	(slot_lookup): Likewise.  Remove parameter type.
+
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (storage_alloc): If we allocate the last object in a
 	folio, don't drop STORAGE_DESCS_LOCK until we've removed the folio
 	from the list of folios with free objects to which it is attached.
