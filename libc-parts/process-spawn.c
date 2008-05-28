@@ -386,11 +386,10 @@ process_spawn (addr_t activity,
 
       int index = folio_index ++;
 #ifdef RM_INTERN
-      struct object *object;
-      folio_object_alloc (root_activity,
-			  folio_local_addr, index, cap_type_strengthen (type),
-			  OBJECT_POLICY_VOID, 0, &object);
-      rt.cap = object_to_cap (object);
+      rt.cap = folio_object_alloc (root_activity,
+				   folio_local_addr, index,
+				   cap_type_strengthen (type),
+				   OBJECT_POLICY_VOID, 0);
 #else
       rm_folio_object_alloc (ADDR_VOID,
 			     folio_local_addr, index,

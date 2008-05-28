@@ -426,12 +426,11 @@ extern void folio_free (struct activity *activity, struct folio *folio);
    equivalent to calling folio_object_free.  If OBJECTP is not-NULL,
    then the in-memory location of the object is returned in
    *OBJECTP.  */
-extern void folio_object_alloc (struct activity *activity,
-				struct folio *folio, int page,
-				enum cap_type type,
-				struct object_policy policy,
-				uintptr_t return_code,
-				struct object **objectp);
+extern struct cap folio_object_alloc (struct activity *activity,
+				      struct folio *folio, int page,
+				      enum cap_type type,
+				      struct object_policy policy,
+				      uintptr_t return_code);
 
 /* Deallocate the object stored in page PAGE of folio FOLIO.  */
 static inline void
@@ -439,7 +438,7 @@ folio_object_free (struct activity *activity,
 		   struct folio *folio, int page)
 {
   folio_object_alloc (activity, folio, page, cap_void,
-		      OBJECT_POLICY_VOID, 0, NULL);
+		      OBJECT_POLICY_VOID, 0);
 }
 
 /* Return an object's position within its folio.  */

@@ -499,14 +499,13 @@ folio_free (struct activity *activity, struct folio *folio)
   bit_dealloc (folios, fdesc->oid / (FOLIO_OBJECTS + 1));
 }
 
-void
+struct cap
 folio_object_alloc (struct activity *activity,
 		    struct folio *folio,
 		    int idx,
 		    enum cap_type type,
 		    struct object_policy policy,
-		    uintptr_t return_code,
-		    struct object **objectp)
+		    uintptr_t return_code)
 {
   debug (4, "allocating %s at %d", cap_type_string (type), idx);
 
@@ -645,15 +644,13 @@ folio_object_alloc (struct activity *activity,
       ;
     }
 
-  if (objectp)
-    /* Caller wants to use the object.  */
-    {
-      assert (type != cap_void);
+  struct cap cap;
+  memset (&cap, 0, sizeof (cap));
+  cap.type = type;
+  cap.oid = oid;
+  cap.version = folio_object_version (folio, idx);
 
-      if (! object)
-	object = object_find (activity, oid, policy);
-      *objectp = object;
-    }
+  return cap;
 }
 
 void

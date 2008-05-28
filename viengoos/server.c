@@ -565,23 +565,20 @@ server_loop (void)
 		   idx, cap_type_string (type),
 		   addr_prefix (object_addr), addr_depth (object_addr));
 
-	    struct object *object;
-	    folio_object_alloc (principal,
-				folio, idx, type, policy, return_code,
-				type == cap_void ? NULL : &object);
+	    struct cap cap;
+	    cap = folio_object_alloc (principal,
+				      folio, idx, type, policy, return_code);
 
 	    if (type != cap_void)
 	      {
 		if (object_slot)
 		  {
-		    bool r = cap_set (principal,
-				      object_slot, object_to_cap (object));
+		    bool r = cap_set (principal, object_slot, cap);
 		    assert (r);
 		  }
 		if (object_weak_slot)
 		  {
-		    bool r = cap_set (principal, object_weak_slot,
-				      object_to_cap (object));
+		    bool r = cap_set (principal, object_weak_slot, cap);
 		    assert (r);
 		    object_weak_slot->type
 		      = cap_type_weaken (object_weak_slot->type);

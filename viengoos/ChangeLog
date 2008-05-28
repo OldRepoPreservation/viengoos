@@ -1,3 +1,11 @@
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
+	* object.h (folio_object_alloc): Return a struct cap, not void.
+	Remove the objectp parameter.  Update all users.
+	* object.c (folio_object_alloc): Return a capability designating
+	the new object.  Don't take a location in which to store the
+	new object.
+
 2008-05-24  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (THREAD_WAIT_STATS): Define.

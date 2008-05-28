@@ -25,12 +25,10 @@ allocate_object (enum cap_type type, addr_t addr)
       object = 0;
     }
 
-  struct object *o;
-  folio_object_alloc (root_activity, folio, object ++,
-		      type, OBJECT_POLICY_DEFAULT, 0, &o);
-
   struct as_insert_rt rt;
-  rt.cap = object_to_cap (o);
+  rt.cap = folio_object_alloc (root_activity, folio, object ++,
+			       type, OBJECT_POLICY_DEFAULT, 0);
+
   /* We don't need to set RT.STORAGE as as_insert doesn't require it
      for the internal interface implementations.  */
   rt.storage = ADDR (0, 0);

@@ -25,12 +25,10 @@ allocate_object (enum cap_type type, addr_t addr)
       object = 0;
     }
 
-  struct object *o;
-  folio_object_alloc (root_activity, folio, object ++,
-		      type, OBJECT_POLICY_DEFAULT, 0, &o);
-
   struct as_insert_rt rt;
-  rt.cap = object_to_cap (o);
+  rt.cap = folio_object_alloc (root_activity, folio, object ++,
+			       type, OBJECT_POLICY_DEFAULT, 0);
+
   /* We don't need to set RT.STORAGE as as_insert doesn't require it
      for the internal interface implementations.  */
   rt.storage = ADDR (0, 0);
@@ -78,17 +76,19 @@ test (void)
 	struct object *object;
 
 	/* Allocate a new activity.  */
-	folio_object_alloc (activity, folio, obj ++,
-			    cap_activity_control, OBJECT_POLICY_DEFAULT, 0,
-			    &object);
-	a[i].child = (struct activity *) object;
+	struct cap cap;
+	cap = folio_object_alloc (activity, folio, obj ++,
+				  cap_activity_control,
+				  OBJECT_POLICY_DEFAULT, 0);
+	a[i].child = (struct activity *) cap_to_object (activity, &cap);
 
 	/* Allocate a folio against the activity and use it.  */
 	a[i].folio = folio_alloc (a[i].child, FOLIO_POLICY_DEFAULT);
 	assert (a[i].folio);
 
-	folio_object_alloc (a[i].child, a[i].folio, 0,
-			    cap_page, OBJECT_POLICY_DEFAULT, 0, &a[i].page);
+	cap = folio_object_alloc (a[i].child, a[i].folio, 0,
+				  cap_page, OBJECT_POLICY_DEFAULT, 0);
+	a[i].page = cap_to_object (activity, &cap);
 	assert (object_type (a[i].page) == cap_page);
       }
 
