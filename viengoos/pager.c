@@ -67,6 +67,10 @@ reclaim_from (struct activity *victim, int goal)
 
   /* First try objects with a priority lower than LRU.  */
 
+  debug (0, "Goal: %d (now: avail: %d, laundry: %d)",
+	 goal, available_list_count (&available),
+	 laundry_list_count (&laundry));
+
   struct object_desc *desc;
   struct object_desc *next = hurd_btree_priorities_first (&victim->priorities);
   while (((desc = next)) && count < goal)
@@ -135,6 +139,7 @@ reclaim_from (struct activity *victim, int goal)
 	      eviction_list_push (&victim->eviction_dirty, inactive);
 
 	      laundry_list_queue (&laundry, inactive);
+	      laundry_count ++;
 	    }
 	  else
 	    {
@@ -240,8 +245,11 @@ reclaim_from (struct activity *victim, int goal)
   activity_for_each_ancestor (ancestor,
 			      ({ ancestor->frames_total -= count; }));
 
-  debug (0, "Goal: %d, %d in laundry, %d made available",
-	 goal, laundry_count, count - laundry_count);
+  debug (0, "Goal: %d: %d in laundry, %d made available "
+	 DEBUG_BOLD ("(now: avail: %d, laundry: %d)"),
+	 goal, laundry_count, count - laundry_count,
+	 available_list_count (&available),
+	 laundry_list_count (&laundry));
   /* We should never have selected a task from which we can free
      nothing!  */
   assert (count > 0);
@@ -289,16 +297,17 @@ pager_collect (int goal)
 		    struct activity_memory_policy activity_policy,
 		    int activity_frames)
       {
-	debug (0, "Considering activity " OID_FMT
-	       ": prio: %d; frames: %d/%d; active: %d/%d",
+	debug (0, "Considering " OID_FMT
+	       ": policy: %d/%d; frames: %d (total: %d/%d; active: %d/%d)",
 	       OID_PRINTF (object_oid ((struct object *) activity)),
-	       activity_policy.priority,
+	       activity_policy.priority, activity_policy.weight,
+	       activity_frames,
 	       activity->frames_total, activity->frames_local,
 	       ACTIVITY_STATS_LAST (activity)->active,
 	       ACTIVITY_STATS_LAST (activity)->active_local);
 
 	if (activity_frames <= 0)
-	  /* ACTIIVTY has no frames to yield; don't consider it.  */
+	  /* ACTIVITY has no frames to yield; don't consider it.  */
 	  {
 	    debug (0, "Not choosing activity " OID_FMT,
 		   OID_PRINTF (object_oid ((struct object *) activity)));
@@ -369,51 +378,63 @@ pager_collect (int goal)
 	return false;
       }
 
-      /* Each time through, we let the number of active frames play a
-	 less significant role.  */
-      int factor;
-      for (factor = 1; factor <= 16; factor <<= 1)
+      victim = root_activity;
+      do
 	{
-	  parent = root_activity;
-	  victim = NULL;
-	  bool have_self = false;
+	  debug (0, "Current victim: " OID_FMT,
+		 OID_PRINTF (object_to_object_desc ((struct object *) victim)
+			     ->oid));
 
-	  struct activity *child;
-	  bool done = false;
-	  for (child = activity_children_list_tail (&parent->children);
-	       child;
-	       child = activity_children_list_prev (child))
+	  parent = victim;
+	  victim = NULL;
+
+	  /* Each time through, we let the number of active frames play a
+	     less significant role.  */
+	  unsigned int factor;
+	  for (factor = 0; ! victim; factor ++)
 	    {
-	      if (! have_self && (parent->policy.child_rel.priority <=
-				  child->policy.sibling_rel.priority))
+	      bool have_self = false;
+
+	      struct activity *child;
+	      bool done = false;
+	      for (child = activity_children_list_tail (&parent->children);
+		   child;
+		   child = activity_children_list_prev (child))
 		{
-		  have_self = true;
-		  int frames = parent->frames_local
-		    - ACTIVITY_STATS_LAST (parent)->active_local / factor;
-		  done = process (parent, parent->policy.child_rel, frames);
+		  if (! have_self && (parent->policy.child_rel.priority <=
+				      child->policy.sibling_rel.priority))
+		    {
+		      have_self = true;
+		      int frames = parent->frames_local
+			- ACTIVITY_STATS_LAST (parent)->active_local >> factor;
+		      done = process (parent, parent->policy.child_rel, frames);
+		      if (done)
+			break;
+		    }
+
+		  int frames = child->frames_total
+		    - ACTIVITY_STATS_LAST (child)->active >> factor;
+		  done = process (child, child->policy.sibling_rel, frames);
 		  if (done)
 		    break;
 		}
 
-	      int frames = child->frames_total
-		- ACTIVITY_STATS_LAST (child)->active / factor;
-	      done = process (child, child->policy.sibling_rel, frames);
-	      if (done)
+	      if (! done && ! have_self)
+		{
+		  int frames = parent->frames_local
+		    - ACTIVITY_STATS_LAST (parent)->active_local >> factor;
+		  process (parent, parent->policy.child_rel, frames);
+		}
+
+	      if (victim)
 		break;
+
+	      debug (0, "nothing; raising factor to %d", 1 << (factor + 1));
 	    }
 
-	  if (! done && ! have_self)
-	    {
-	      int frames = parent->frames_local
-		- ACTIVITY_STATS_LAST (parent)->active_local / factor;
-	      process (parent, parent->policy.child_rel, frames);
-	    }
-
-	  if (victim)
-	    break;
+	  assert (victim);
 	}
-
-      assert (victim);
+      while (victim != parent);
 
       /* We steal from VICTIM.  */
 
@@ -433,7 +454,7 @@ pager_collect (int goal)
       assertx (victim_frames >= share,
 	       "%d < %d", victim_frames, share);
 
-      debug (0, "Choosing activity " OID_FMT "%s, %d/%d frames, "
+      debug (0, "Revoking from activity " OID_FMT "%s, %d/%d frames, "
 	     "share: %d, goal: %d",
 	     OID_PRINTF (object_to_object_desc ((struct object *) victim)->oid),
 	     victim->parent ? "" : " (root activity)",
