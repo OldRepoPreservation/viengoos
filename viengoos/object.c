@@ -240,10 +240,11 @@ object_find_soft (struct activity *activity, oid_t oid,
     }
 
   if (! odesc->activity || ! object_active (odesc)
-      || (odesc->activity != activity && odesc->floating))
-    /* Either the object is unclaimed, it is inactive or it is
-       floating (claimed but looking for a new owner).  Claim
-       ownership.  */
+      || (odesc->activity != activity && odesc->floating)
+      || odesc->eviction_candidate)
+    /* Either the object is unclaimed, it is inactive, it is floating
+       (claimed but looking for a new owner), or it is tagged for
+       eviction.  Claim ownership.  */
     {
       object_desc_claim (activity, odesc, policy, true);
       odesc->floating = false;

@@ -1,5 +1,10 @@
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
+	* object.c (object_find_soft): Also claim the object if
+	ODESC->EVICTION_CANDIDATE is true.
+
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
 	* pager.c (pager_collect): Correctly parenthesize the use of <<.
 
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
