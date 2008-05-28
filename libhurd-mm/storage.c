@@ -485,7 +485,10 @@ storage_alloc (addr_t activity,
 	}
     }
 
-  ss_mutex_unlock (&storage_descs_lock);
+  if (! desc || desc->free != 1)
+    /* Only drop this lock if we are not about to allocate the last
+       page.  Otherwise, we still need the lock.  */
+    ss_mutex_unlock (&storage_descs_lock);
 
   if (! desc)
     /* There are no unlocked storage areas available.  Allocate
@@ -511,7 +514,6 @@ storage_alloc (addr_t activity,
   atomic_decrement (&free_count);
   desc->free --;
 
-  bool need_unlink = false;
   if (desc->free == 0)
     /* The folio is now full.  We can't take the STORAGE_DESCS_LOCK
        lock as we have DESC->LOCK.  Finish what we are doing and only
@@ -521,11 +523,14 @@ storage_alloc (addr_t activity,
 
       debug (1, "Folio at " ADDR_FMT " full", ADDR_PRINTF (folio));
 
-      need_unlink = true;
+      list_unlink (desc);
+
       if (desc->mode == LONG_LIVED_ALLOCING)
 	/* Change the folio from the allocating state to the stable
 	   state.  */
 	desc->mode = LONG_LIVED_STABLE;
+
+      ss_mutex_unlock (&storage_descs_lock);
     }
 
   struct object *shadow = desc->cap ? cap_get_shadow (desc->cap) : NULL;
@@ -547,21 +552,6 @@ storage_alloc (addr_t activity,
 
   /* We drop DESC->LOCK.  */
   ss_mutex_unlock (&desc->lock);
-
-  if (need_unlink)
-    /* We noted that the folio was full.  Unlink it now.  */
-    {
-      ss_mutex_lock (&storage_descs_lock);
-      ss_mutex_lock (&desc->lock);
-
-      /* DESC->FREE may be zero if someone came along and deallocated
-	 a page between our dropping and retaking the lock.  */
-      if (desc->free == 0)
-	list_unlink (desc);
-
-      ss_mutex_unlock (&desc->lock);
-      ss_mutex_unlock (&storage_descs_lock);
-    }
 
   if (! ADDR_IS_VOID (addr))
     /* We also have to update the shadow for ADDR.  Unfortunately, we
@@ -587,11 +577,12 @@ storage_alloc (addr_t activity,
       int c;
       for (c = 0; c < PAGESIZE / sizeof (int); c ++)
 	assertx (p[c] == 0,
-		 ADDR_FMT "[%d] = %x",
-		 ADDR_PRINTF (storage.addr), c * sizeof (int), p[c]);
+		 ADDR_FMT "(%p)[%d] = %x",
+		 ADDR_PRINTF (storage.addr), p, c * sizeof (int), p[c]);
     }
 #endif
-  debug (5, "Allocated " ADDR_FMT, ADDR_PRINTF (storage.addr));
+  debug (5, "Allocated " ADDR_FMT "; " ADDR_FMT,
+	 ADDR_PRINTF (storage.addr), ADDR_PRINTF (addr));
 
   return storage;
 }

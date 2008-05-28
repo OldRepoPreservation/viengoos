@@ -1,3 +1,9 @@
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.c (storage_alloc): If we allocate the last object in a
+	folio, don't drop STORAGE_DESCS_LOCK until we've removed the folio
+	from the list of folios with free objects to which it is attached.
+
 2008-03-01  Neal H. Walfield  <neal@gnu.org>
 
 	* exceptions.c: Include <signal.h>.
