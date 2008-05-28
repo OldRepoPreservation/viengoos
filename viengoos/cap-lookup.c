@@ -101,7 +101,7 @@ lookup (activity_t activity,
 	/* The page directory is read-only.  Note the weakened access
 	   appropriately.  */
 	{
-	  if (type != -1 && type != cap_rpage && type != cap_rcappage)
+	  if (type != -1 && ! cap_type_weak_p (type))
 	    {
 	      debug (1, "Read-only cappage at %llx/%d but %s requires "
 		     "write access",
@@ -110,10 +110,7 @@ lookup (activity_t activity,
 		     cap_type_string (type));
 		     
 	      /* Translating this capability does not provide write
-		 access.  The only objects that are useful without write
-		 access are read-only pages and read-only capability
-		 pages.  If the user is not looking for one of those,
-		 then bail.  */
+		 access.  The requested type is strong, bail.  */
 	      return false;
 	    }
 
@@ -278,8 +275,7 @@ lookup (activity_t activity,
 	}
     }
 
-  if (mode == want_object
-      && (root->type == cap_rpage || root->type == cap_rcappage))
+  if (mode == want_object && cap_type_weak_p (root->type))
     w = false;
 
   if (writable)

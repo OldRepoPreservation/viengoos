@@ -1,5 +1,10 @@
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-lookup.c (lookup): If a cappage is read-only, only bail if
+	TYPE is not weak.
+
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (ager_start): Increase the stack size.
 
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
