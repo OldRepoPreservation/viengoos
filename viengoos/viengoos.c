@@ -213,8 +213,7 @@ system_task_load (void)
 void
 ager_start (void)
 {
-  /* 16k stack.  */
-  const int stack_size = PAGESIZE * 4;
+  const int stack_size = PAGESIZE * 32;
   void *stack = (void *) zalloc (stack_size);
   /* XXX: We assume the stack grows down.  */
   void *sp = stack + stack_size;
