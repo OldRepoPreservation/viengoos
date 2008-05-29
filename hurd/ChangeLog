@@ -1,5 +1,9 @@
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h (slot_lookup_rel): Remove parameter type.  Update users.
+
+2008-05-28  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (cap_copy): Copy SOURCE's discardability predicate and
 	priority.
 

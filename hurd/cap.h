@@ -737,14 +737,13 @@ extern struct cap object_lookup_rel (activity_t activity,
 /* Return the capability slot at ADDR or, if an object, the slot
    referencing the object, in the address space rooted by ROOT.
 
-   TYPE is the required type.  If the type is incompatible
-   (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
-   TYPE is -1, then any type is acceptable.  May cause paging.  If
-   non-NULL, returns whether the slot is writable in *WRITABLE.
+   May cause paging.  If WRITABLE is non-NULL, returns whether the
+   slot is writable in *WRITABLE (it is not writable if it was
+   accessed via a read-only cappage).
 
    This function locks (and unlocks) as_lock.  */
 extern struct cap *slot_lookup_rel (activity_t activity,
 				    struct cap *root, addr_t addr,
-				    enum cap_type type, bool *writable);
+				    bool *writable);
 
 #endif
