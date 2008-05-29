@@ -1,5 +1,5 @@
 /* ia32-crt0.S - Startup code for ia32.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -18,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA. */
 
-/* The size of our stack (4KB).  */
-#define STACK_SIZE			0x1000
+/* The size of our stack (4 pages).  */
+#define STACK_SIZE			0x4000
 	
 	.text
 
@@ -48,11 +48,17 @@ _start:
 loop:	hlt
 	jmp	loop
 
-	/* Our stack area.  */
-	.comm	stack, STACK_SIZE
-
-
 	.data
+
+	/* Our stack area.  */
+	.global stack, _stack
+stack:
+_stack:	
+	.align 0x1000
+	.fill STACK_SIZE, 1
+	.global stack_end, _stack_end
+stack_end:	
+_stack_end:
 
 	/* This variable holds a pointer to the Hurd startup data.  */
 	.global __hurd_startup_data

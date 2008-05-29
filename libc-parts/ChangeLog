@@ -1,3 +1,9 @@
+2008-05-29  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-crt0.S: Increase size of stack.
+	(stack): Declare.
+	(stack_end): Likewise.
+
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
 	* process-spawn.c (process_spawn): Update use of

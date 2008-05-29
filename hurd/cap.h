@@ -244,16 +244,20 @@ struct cap
   /* For a description of how versioning works, refer to the comment
      titled "Object versioning" in object.h.  */
   uint32_t version : CAP_VERSION_BITS;
-  uint32_t type : CAP_TYPE_BITS;
+  /* Whether the capability is weak.  */
+  uint32_t weak_p : 1;
+
+  /* Whether the designated object may be discarded.  */
   uint32_t discardable : 1;
-  uint32_t pad0 : 32 - CAP_VERSION_BITS - CAP_TYPE_BITS - 1;
+  /* The designated object's priority.  */
+  uint32_t priority : OBJECT_PRIORITY_BITS;
 
   struct cap_addr_trans addr_trans;
 
-  /* The designated object's priority.  */
-  uint64_t priority : OBJECT_PRIORITY_BITS;
+  uint64_t type : CAP_TYPE_BITS;
+
   /* If the capability designates an object, the object id.  */
-  uint64_t oid : 54;
+  uint64_t oid : 64 - CAP_TYPE_BITS;
 #else
   /* The shadow object (only for cappages and folios).  */
   struct object *shadow;
