@@ -24,7 +24,7 @@ $ install -s laden/laden /l4/boot
 $ install -s viengoos/viengoos /l4/boot
 $ install -s hieronymus/hieronymus /l4/boot
 
-You need at least automake 1.7 and autoconf 2.53.
+You need at least automake 1.9 and autoconf 2.57.
 
 
 Installation on ia32

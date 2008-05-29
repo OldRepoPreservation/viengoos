@@ -22,7 +22,18 @@
 
 AC_PREREQ(2.57)
 AC_INIT(hurd, 0.0, l4-hurd@gnu.org)
-AM_INIT_AUTOMAKE
+AC_CONFIG_AUX_DIR([build-aux])
+AM_INIT_AUTOMAKE(
+dnl Don't define `PACKAGE' and `VERSION'.
+  [no-define]
+dnl Do not clutter the main build directory.
+  [subdir-objects]
+dnl This is only a very rough estimation of the version we actually need.  Feel
+dnl free to refine that.
+  [1.9]
+dnl We require GNU make.
+  [-Wall -Wno-portability]
+)
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR([laden/laden.c])
 AC_CONFIG_HEADER([config.h])
