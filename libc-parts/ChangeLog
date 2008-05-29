@@ -1,5 +1,12 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* stdio.h: New file.
+	* stdlib.h: Likewise.
+	* string.h: Likewise.
+	* unistd.h: Likewise.
+	* bits/types.h: Likewise.
+	* sys/types.h: Likewise.
+
 	* Makefile.am (t_setjmp_CPPFLAGS): Remove special `printf' handling.
 
 2008-05-29  Neal H. Walfield  <neal@gnu.org>
