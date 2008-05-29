@@ -20,6 +20,12 @@
 
 noinst_LIBRARIES = libc.a libm.a libc-routines.a
 
+# Remark: given that the newlib build system doesn't do any form of dependency
+# tracking, it is correct to completely rebuild everything as soon as one of
+# the $patch_files or $addon files changes.  Also it may be necessary to force
+# a complete rebuild if one of the header files the newlib build depends on
+# changes.  This is currently not being tracked in here.
+
 # Patches to apply to newlib's source tree.
 patch_files = 00-newlib-configure-ac.patch \
 	01-newlib-libc-sys-configure-in.patch \
@@ -76,21 +82,19 @@ $(srcdir)/$(newlib_tarball):
 	wget $(newlib_snapshot) -O $(srcdir)/$(newlib_tarball)
 
 # Extract it.
-$(srcdir)/newlib $(srcdir)/newlib-stamp: $(srcdir)/$(newlib_tarball)
-	if test -e $(srcdir)/newlib; then \
+$(srcdir)/newlib/unpack.stamp: $(srcdir)/$(newlib_tarball)
+	if test -d $(srcdir)/newlib/.; then \
 		echo "Refusing to extract over $(srcdir)/newlib"; \
 		exit 1; \
 	fi
-	rm -f $(builddir)/*-applied
 	( cd $(srcdir) \
 		&& tar xfvz $(newlib_tarball) \
 		&& mv $(subst .tar.gz,,$(newlib_tarball)) newlib )
-	touch $(srcdir)/newlib
-	touch $(srcdir)/newlib-stamp
+	touch $@
 
 # Apply any local patches.  (Revert any applied older version.)
-$(addsuffix -applied,$(patch_files)): $(srcdir)/newlib
-$(addsuffix -applied,$(patch_files)): %-applied: patches/%
+$(addprefix $(srcdir)/newlib/,$(addsuffix .applied,$(patch_files))): $(srcdir)/newlib/unpack.stamp
+$(addprefix $(srcdir)/newlib/,$(addsuffix .applied,$(patch_files))): $(srcdir)/newlib/%.applied: $(srcdir)/patches/%
 	if test -e "$@"; \
 	then \
 	  ( cd $(srcdir)/newlib && sh /dev/stdin -R ) < $@ && rm -f $@; \
@@ -110,14 +114,20 @@ abs_srcdir = $(abspath $(srcdir))
 abs_top_srcdir = $(abspath $(top_srcdir))
 
 # Link the addon files into the source tree.
-$(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib-stamp
+$(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib/unpack.stamp
 $(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib/%: $(srcdir)/addon/%
 	mkdir -p $(dir $@)
 	$(LN_S) -f $(abspath $<) $@
+#TODO	touch $@
 
-newlib-configure-stamp: $(addsuffix -applied,$(patch_files)) \
-		$(addprefix $(srcdir)/newlib/, $(addon))
-	( cd $(srcdir)/newlib/newlib && autoreconf )
+$(srcdir)/newlib/patch.stamp: $(srcdir)/newlib/unpack.stamp \
+  $(addprefix $(srcdir)/newlib/,$(addsuffix .applied,$(patch_files))) \
+  $(addprefix $(srcdir)/newlib/,$(addon))
+	cd $(srcdir)/newlib/newlib/ && \
+	autoreconf
+	touch $@
+
+newlib-build/configure.stamp: $(srcdir)/newlib/patch.stamp
 	rm -rf newlib-build
 	mkdir newlib-build
 	(cd newlib-build && $(abs_srcdir)/newlib/newlib/configure \
@@ -129,9 +139,9 @@ newlib-configure-stamp: $(addsuffix -applied,$(patch_files)) \
 	--enable-newlib-multithread \
 	--prefix=$(abs_top_builddir)/newlib/newlib-install \
 	--build=$(build_alias) --host=$(host_alias))
-	touch newlib-configure-stamp
+	touch $@
 
-newlib-build/libc.a newlib-build/libm.a: newlib-configure-stamp
+newlib-build/libc.a newlib-build/libm.a: newlib-build/configure.stamp
 	cd newlib-build && \
 	  make \
 	    TARGET_CFLAGS='$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
@@ -174,9 +184,10 @@ libc-routines.a: libc.a Makefile
 	mv -f '$@'.new '$@'
 
 all: include
-include: newlib-configure-stamp
+include: newlib-build/configure.stamp
 	ln -sf newlib-install/$(host_alias)/include include
 
+#TODO.
 clean-local:
 	rm -rf newlib-build
 	rm -rf newlib-install
