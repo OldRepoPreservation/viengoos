@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libl4/tests.
-# Copyright (C) 2005 Free Software Foundation, Inc.
+# Copyright (C) 2005, 2008 Free Software Foundation, Inc.
 # Written by Marcus Brinkmann.
 #
 # This file is part of the GNU Hurd.
@@ -18,10 +18,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-TESTS = t-l4-kip t-l4-message
-
 noinst_HEADERS = environment.h
 
-AM_CPPFLAGS = -I$(top_builddir)/include
+TESTS = t-l4-kip t-l4-message
+check_PROGRAMS = $(TESTS)
 
-noinst_PROGRAMS = $(TESTS)
+AM_CPPFLAGS = $(CHECK_CPPFLAGS)
