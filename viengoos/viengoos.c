@@ -156,7 +156,7 @@ parse_args (int argc, char *argv[])
 	  if (! ('0' <= argv[i][0] && argv[i][0] <= '9'))
 	    panic ("Option -D expects an integer argument");
 #ifndef DEBUG_ELIDE
-	  output_debug = atoi (argv[i]);
+	  output_debug = strtol (argv[i], (char **) NULL, 10);
 #endif
 	  i++;
 	}

@@ -1,5 +1,7 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* viengoos.c (parse_args): Use `strtol' instead of `atoi'.
+
 	* object.h: Include <hurd/error.h> instead of <error.h>.
 
 	* cap-lookup.c: Unconditionally use `S_PUTCHAR' and `S_PRINTF' instead
