@@ -26,9 +26,12 @@ endif
 bootdir = $(prefix)/boot
 boot_PROGRAMS = laden
 
-laden_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
-	-I$(top_srcdir)/libc-parts $(AM_CPPFLAGS) \
+laden_CPPFLAGS = $(AM_CPPFLAGS) \
+	$(KERNEL_CPPFLAGS) \
 	-DS_PRINTF=printf
+
+laden_CFLAGS = $(AM_CFLAGS) \
+	$(KERNEL_CFLAGS)
 
 laden_SOURCES =  $(ARCH_SOURCES)				\
 	output.h output.c output-none.c				\
@@ -36,7 +39,8 @@ laden_SOURCES =  $(ARCH_SOURCES)				\
 	elf.h loader.h loader.c					\
 	laden.h laden.c kip-fixup.c
 
-laden_LDFLAGS = -u_start -e_start -N -nostdlib -Ttext=@HURD_LADEN_LOAD_ADDRESS@
+laden_LDFLAGS = $(AM_LDFLAGS) \
+	-u_start -e_start -N -nostdlib -Ttext=@HURD_LADEN_LOAD_ADDRESS@
 
 laden_LDADD = \
 	../libc-parts/libc-kernel.a \

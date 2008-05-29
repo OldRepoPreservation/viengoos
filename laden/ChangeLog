@@ -1,3 +1,9 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (laden_CPPFLAGS, laden_CFLAGS, laden_LDFLAGS): Don't
+	discard the respective AM_* flags and also add the respective KERNEL_*
+	flags.
+
 2008-02-11  Neal H. Walfield  <neal@gnu.org>
 
 	* laden.h (program_name): Change type to char *.
