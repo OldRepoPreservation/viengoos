@@ -1,5 +1,11 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* sys/cdefs.h: New file, from today's glibc CVS HEAD.
+	[_ENABLE_TESTS]: Use the system's standard file instead.
+	* bits/wchar.h: Likewise.
+	* time.h: Likewise.
+	* stdint.h: Likewise.
+
 	* stdio.h: New file.
 	* stdlib.h: Likewise.
 	* string.h: Likewise.
