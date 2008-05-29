@@ -1,3 +1,10 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/configure: Remove file.
+	* addon/newlib/libc/sys/hurd/Makefile.in: Likewise.
+	* addon/newlib/libc/sys/hurd/aclocal.m4: Likewise.
+	* Makefile.am (addon): Adapt.
+
 2008-03-01  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (addon): Add newlib/libc/sys/hurd/include/signal.h.

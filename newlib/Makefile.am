@@ -31,11 +31,9 @@ patch_files = 00-newlib-configure-ac.patch \
 	07-newlib-newlib-libm-machine-i386-i386mach-h.patch
 
 # Files to link into newlib's source tree (relative to $(srcdir)/addon)
-addon = newlib/libc/sys/hurd/configure.ac \
-	newlib/libc/sys/hurd/configure \
+addon = \
+	newlib/libc/sys/hurd/configure.ac \
 	newlib/libc/sys/hurd/Makefile.am \
-	newlib/libc/sys/hurd/Makefile.in \
-	newlib/libc/sys/hurd/aclocal.m4 \
 	newlib/libc/sys/hurd/closer.c \
 	newlib/libc/sys/hurd/reent.c \
 	newlib/libc/sys/hurd/fcntlr.c \
