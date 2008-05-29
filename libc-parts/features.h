@@ -1,3 +1,7 @@
+#ifdef _ENABLE_TESTS
+# include_next <features.h>
+#else
+
 /* Copyright (C) 1991,1992,1993,1995-2006,2007 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
@@ -361,3 +365,5 @@
 #endif
 
 #endif	/* features.h  */
+
+#endif /* _ENABLE_TESTS */

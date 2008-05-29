@@ -24,7 +24,7 @@
 
 #include <hurd/stddef.h>
 
-#ifdef _L4_TEST_ENVIRONMENT
+#if defined(_L4_TEST_ENVIRONMENT) || defined(_ENABLE_TESTS)
 # include_next <assert.h>
 # define assertx(__ax_expr, __ax_fmt, ...)		\
   do							\

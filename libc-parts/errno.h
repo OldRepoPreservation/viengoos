@@ -27,9 +27,22 @@
    only for strtol, etc. (and only during startup).  Thus, this
    definition suffices.  */
 
+#if defined(_ENABLE_TESTS)
+
+# undef _ERRNO_H
+# include_next <errno.h>
+
+/* We must never include the following file, as it will provoke clashes with
+   the system's <errno.h> just included.  */
+# define HURD_ERROR_H
+
+#else
+
 #include <hurd/error.h>
 
 extern int errno;
+
+#endif
 
 typedef int error_t;
 
