@@ -51,5 +51,5 @@ libc_kernel_a_SOURCES =						\
 TESTS = t-setjmp
 check_PROGRAMS = $(TESTS)
 
-t_setjmp_CPPFLAGS = $(CHECK_CPPFLAGS) -DS_PRINTF=printf
+t_setjmp_CPPFLAGS = $(CHECK_CPPFLAGS)
 t_setjmp_SOURCES = t-setjmp.c setjmp.h ia32-setjmp.S

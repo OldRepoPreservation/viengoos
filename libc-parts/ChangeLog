@@ -1,3 +1,7 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (t_setjmp_CPPFLAGS): Remove special `printf' handling.
+
 2008-05-29  Neal H. Walfield  <neal@gnu.org>
 
 	* ia32-crt0.S: Increase size of stack.

@@ -39,9 +39,11 @@ TESTS = t-ihash t-ihash64
 check_PROGRAMS = t-ihash t-ihash64
 
 t_ihash_SOURCES = t-ihash.c ihash.h ihash.c
-t_ihash_CPPFLAGS = -DTEST_LARGE=false -DS_PRINTF=printf
+t_ihash_CPPFLAGS = $(CHECK_CPPFLAGS) \
+	-DTEST_LARGE=false
 t_ihash_CFLAGS=-std=gnu99
 
 t_ihash64_SOURCES = t-ihash.c ihash.h ihash.c
-t_ihash64_CPPFLAGS = -DTEST_LARGE=true -DS_PRINTF=printf
+t_ihash64_CPPFLAGS = $(CHECK_CPPFLAGS) \
+	-DTEST_LARGE=true
 t_ihash64_CFLAGS=-std=gnu99

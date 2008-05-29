@@ -1,3 +1,10 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (t_addr_CPPFLAGS, t_addr_trans_CPPFLAGS, t_rpc_CPPFLAGS):
+	Remove special `printf' handling.
+
+	* stddef.h (S_PUTCHAR): Define analogously to `S_PRINTF'.
+
 2008-05-29  Neal H. Walfield  <neal@gnu.org>
 
 	* exceptions.h: Include <hurd/stddef.h>.

@@ -1,3 +1,8 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (t_ihash_CPPFLAGS, t_ihash64_CPPFLAGS): Remove special
+	`printf' handling.
+
 2008-02-21  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (AM_CPPFLAGS): Remove variable.

@@ -26,8 +26,8 @@
 #include <l4/types.h>
 #include <assert.h>
 
-/* A safe-printf routine.  In particular, it doesn't call malloc and
-   works in place.  This makes it appropriate for situations in which
+/* Safe printf and putchar routines.  In particular, they don't call malloc and
+   work in place.  This makes it appropriate for situations in which
    malloc is not yet working and when the state is suspected to be
    compromised (e.g., assert or panic).  */
 #ifndef S_PRINTF
@@ -38,6 +38,14 @@
 # endif
 #endif
 extern int S_PRINTF (const char *fmt, ...);
+#ifndef S_PUTCHAR
+# if defined(RM_INTERN) || defined(_L4_TEST_ENVIRONMENT)
+#  define S_PUTCHAR putchar
+# else
+#  define S_PUTCHAR s_putchar
+# endif
+#endif
+extern int S_PUTCHAR (int chr);
 
 /* Convenient debugging macros.  */
 #define DEBUG_BOLD(text) "\033[01;31m" text "\033[00m"

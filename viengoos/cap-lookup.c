@@ -355,14 +355,9 @@ slot_lookup_rel (activity_t activity,
   return rt.capp;
 }
 
-extern int s_printf (const char *fmt, ...);
-extern int s_putchar (int chr);
-
 static void
 print_nr (int width, l4_int64_t nr, bool hex)
 {
-  extern int putchar (int chr);
-
   int base = 10;
   if (hex)
     base = 16;
@@ -383,12 +378,12 @@ print_nr (int width, l4_int64_t nr, bool hex)
 
   int i;
   for (i = w; i < width; i ++)
-    s_putchar (' ');
+    S_PUTCHAR (' ');
 
   if (hex)
-    s_printf ("0x%llx", nr);
+    S_PRINTF ("0x%llx", nr);
   else
-    s_printf ("%lld", nr);
+    S_PRINTF ("%lld", nr);
 }
 
 static void
@@ -407,41 +402,41 @@ do_walk (activity_t activity, int index,
     return;
 
   if (output_prefix)
-    s_printf ("%s: ", output_prefix);
+    S_PRINTF ("%s: ", output_prefix);
   for (i = 0; i < indent; i ++)
-    s_printf (".");
+    S_PRINTF (".");
 
-  s_printf ("[ ");
+  S_PRINTF ("[ ");
   if (index != -1)
     print_nr (3, index, false);
   else
-    s_printf ("root");
-  s_printf (" ] ");
+    S_PRINTF ("root");
+  S_PRINTF (" ] ");
 
   print_nr (12, addr_prefix (addr), true);
-  s_printf ("/%d ", addr_depth (addr));
+  S_PRINTF ("/%d ", addr_depth (addr));
   if (CAP_GUARD_BITS (&cap))
-    s_printf ("| 0x%llx/%d ", CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
+    S_PRINTF ("| 0x%llx/%d ", CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
   if (CAP_SUBPAGES (&cap) != 1)
-    s_printf ("(%d/%d) ", CAP_SUBPAGE (&cap), CAP_SUBPAGES (&cap));
+    S_PRINTF ("(%d/%d) ", CAP_SUBPAGE (&cap), CAP_SUBPAGES (&cap));
 
   if (CAP_GUARD_BITS (&cap)
       && ADDR_BITS - addr_depth (addr) >= CAP_GUARD_BITS (&cap))
-    s_printf ("=> 0x%llx/%d ",
+    S_PRINTF ("=> 0x%llx/%d ",
 	    addr_prefix (addr_extend (addr,
 				      CAP_GUARD (&cap),
 				      CAP_GUARD_BITS (&cap))),
 	    addr_depth (addr) + CAP_GUARD_BITS (&cap));
 
 #ifdef RM_INTERN
-  s_printf ("@" OID_FMT " ", OID_PRINTF (cap.oid));
+  S_PRINTF ("@" OID_FMT " ", OID_PRINTF (cap.oid));
 #endif
-  s_printf ("%s", cap_type_string (cap.type));
+  S_PRINTF ("%s", cap_type_string (cap.type));
 
   if (! descend)
-    s_printf ("...");
+    S_PRINTF ("...");
 
-  s_printf ("\n");
+  S_PRINTF ("\n");
 
   if (! descend)
     return;

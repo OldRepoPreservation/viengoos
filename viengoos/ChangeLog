@@ -1,5 +1,8 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* cap-lookup.c: Unconditionally use `S_PUTCHAR' and `S_PRINTF' instead
+	of `s_putchar' and `s_printf' and remove the latters' prototypes.
+
 	* Makefile.am: Rework system of build flags for the test programs.
 
 2008-05-29  Neal H. Walfield  <neal@gnu.org>

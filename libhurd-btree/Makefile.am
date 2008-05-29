@@ -1,5 +1,5 @@
 # Makefile.am - Makefile template for libhurd-btree.
-# Copyright (C) 2004, 2007 Free Software Foundation, Inc.
+# Copyright (C) 2004, 2007, 2008 Free Software Foundation, Inc.
 # Written by Neal H. Walfield <neal@gnu.org>.
 #
 # This file is part of the GNU Hurd.
@@ -32,5 +32,4 @@ TESTS = btree-test
 
 check_PROGRAMS = btree-test
 btree_test_SOURCES = btree-test.c btree.h btree.c
-btree_test_CPPFLAGS = $(CHECK_CPPFLAGS) -DS_PRINTF=printf
-
+btree_test_CPPFLAGS = $(CHECK_CPPFLAGS)
