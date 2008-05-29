@@ -22,6 +22,10 @@
 #ifndef _HURD_EXCEPTIONS_H
 #define _HURD_EXCEPTIONS_H 1
 
+#include <hurd/stddef.h>
+
+#ifndef ASM
+
 #include <stdint.h>
 #include <hurd/cap.h>
 #include <hurd/thread.h>
@@ -106,7 +110,16 @@ RPC(exception_collect, 1, 0, addr_t, principal)
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
 #undef RPC_TARGET
+#endif /* !ASM  */
 
+/* The exception stack is 4 pages large.  The word beyond the base of
+   the stack is a pointer to the exception page, which is usually the
+   last page of the stack.  */
+#define EXCEPTION_STACK_SIZE_LOG2 (PAGESIZE_LOG2 + 2)
+#define EXCEPTION_STACK_SIZE (1 << EXCEPTION_STACK_SIZE_LOG2)
+
+#ifndef ASM
+
 /* Initialize the exception handler.  */
 extern void exception_handler_init (void);
 
@@ -141,5 +154,7 @@ extern char exception_handler_entry;
 /* The instruction immediately following the last instruction of the
    exception handler dispatcher.  */
 extern char exception_handler_end;
+
+#endif /* !ASM */
 
 #endif

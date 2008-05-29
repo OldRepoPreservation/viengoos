@@ -21,6 +21,8 @@
 #ifndef _HURD_STDDEF_H
 #define _HURD_STDDEF_H	1
 
+#ifndef ASM
+
 #include <l4/types.h>
 #include <assert.h>
 
@@ -78,13 +80,15 @@ extern void __attribute__ ((__noreturn__))
 
 #define panic(fmt, args...)			\
   panic_(__func__, __LINE__, fmt, ##args)
+
+#endif /* ! ASM  */
 
 /* XXX: We define these here as they are useful macros, everyone uses
    them and everyone includes this header file.  We should put them
    somewhere else.  */
 #if i386
-#define PAGESIZE 0x1000U
-#define PAGESIZE_LOG2 12U
+#define PAGESIZE 0x1000
+#define PAGESIZE_LOG2 12
 #else
 #error Not ported to this architecture.
 #endif
@@ -94,7 +98,9 @@ extern void __attribute__ ((__noreturn__))
 #define PAGE_SHIFT PAGESIZE_LOG2
 #define PAGE_MASK (~(PAGE_SIZE-1))
 
+#ifndef ASM
 #define likely(expr) __builtin_expect ((expr), 1)
 #define unlikely(expr) __builtin_expect ((expr), 0)
+#endif
 
 #endif	/* _HURD_STDDEF_H */

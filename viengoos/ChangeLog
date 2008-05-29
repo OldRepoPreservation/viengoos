@@ -1,3 +1,15 @@
+2008-05-29  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c: Include <hurd/exceptions.h>.
+	(ensure_stack): Change SPACE to be EXCEPTION_STACK_SIZE - PAGESIZE
+	bytes large.  Write to each page.
+	* cap-lookup.c: Include <hurd/exceptions.h>.
+	(ensure_stack): Change SPACE to be EXCEPTION_STACK_SIZE - PAGESIZE
+	bytes large.  Write to each page.
+
+	* zalloc.c (ZONE_SIZE): Add suffix the 1 with a U type qualifier.
+	(ZONES): Include one less zone.
+
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
 	* object.c (object_find_soft): Also claim the object if

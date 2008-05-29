@@ -1,3 +1,25 @@
+2008-05-29  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c (exception_handler_activated): Assume the fault is
+	on the stack if it is one page above or three pages below the
+	stack pointer.
+	(exception_handler_init): Allocate an area of address space
+	EXCEPTION_STACK_SIZE bytes larges.  Fill it with pages.  Set the
+	first page as the thread's exception page and the top of the area
+	minus one word as the stack pointer.  Set the last word to the
+	location of the exception page.
+	* ia32-exception-entry.S: Include <hurd/exceptions.h>.
+	(PAGESIZE): Don't define.
+	(_exception_handler_entry): Rewrite to not assume that the
+	exception page is at the start of the page in which the stack
+	pointer is, but at the location stored in the word after the bottom
+	of the stack.
+
+	* Makefile.am (libhurd_mm_a_CCASFLAGS): New variable.
+
+	* pager.c (ensure_stack): Change SPACE to be EXCEPTION_STACK_SIZE
+	- PAGESIZE bytes large.  Write to each page.
+
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
 	* as.h (slot_lookup): Remove parameter type.  Update users.

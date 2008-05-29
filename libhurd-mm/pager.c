@@ -90,15 +90,16 @@ pager_deinstall (struct pager *pager)
 }
 
 static void __attribute__ ((noinline))
-ensure_stack(int i)
+ensure_stack (int i)
 {
   /* XXX: If we fault on the stack while we have PAGERS_LOCK, we
      deadlock.  Ensure that we have some stack space and hope it is
      enough.  (This can't be too much as we may be running on the
      exception handler's stack.)  */
-  volatile char space[1024 + 512];
-  space[0] = 0;
-  space[sizeof (space) - 1] = 0;
+  volatile char space[EXCEPTION_STACK_SIZE - PAGESIZE];
+  int j;
+  for (j = sizeof (space) - 1; j >= 0; j -= PAGESIZE)
+    space[j] = i;
 }
 
 bool

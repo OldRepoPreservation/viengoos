@@ -455,12 +455,23 @@ thread_raise_exception (struct activity *activity,
 			struct thread *thread,
 			l4_msg_t *msg)
 {
+  l4_word_t ip = 0;
+  l4_word_t sp = 0;
+  {
+    l4_word_t c = _L4_XCHG_REGS_DELIVER;
+    l4_thread_id_t targ = thread->tid;
+    l4_word_t dummy = 0;
+    _L4_exchange_registers (&targ, &c,
+			    &sp, &ip, &dummy, &dummy, &dummy);
+  }
+
   struct object *page = cap_to_object (activity, &thread->exception_page);
   if (! page)
     {
       do_debug (3)
 	as_dump_from (activity, &thread->aspace, "");
-      debug (1, "Malformed thread (%x): no exception page", thread->tid);
+      debug (1, "Malformed thread (%x): no exception page (ip: %x, sp: %x)",
+	     thread->tid, ip, sp);
       return;
     }
 
@@ -476,14 +487,6 @@ thread_raise_exception (struct activity *activity,
 
   if (exception_page->activated_mode)
     {
-      l4_word_t c = _L4_XCHG_REGS_DELIVER;
-      l4_thread_id_t targ = thread->tid;
-      l4_word_t sp = 0;
-      l4_word_t ip = 0;
-      l4_word_t dummy = 0;
-      _L4_exchange_registers (&targ, &c,
-			      &sp, &ip, &dummy, &dummy, &dummy);
-
       debug (1, "Deferring exception delivery: thread in activated mode!"
 	     "(sp: %x, ip: %x)", sp, ip);
 
@@ -509,8 +512,8 @@ thread_raise_exception (struct activity *activity,
 	     string, c);
     }
   l4_thread_id_t targ = thread->tid;
-  l4_word_t sp = 0;
-  l4_word_t ip = 0;
+  sp = 0;
+  ip = 0;
   l4_word_t dummy = 0;
   _L4_exchange_registers (&targ, &c,
 			  &sp, &ip, &dummy, &dummy, &dummy);
@@ -541,7 +544,8 @@ thread_raise_exception (struct activity *activity,
       && ip < exception_page->exception_handler_end)
     /* Thread is transitioning.  Don't save sp and ip.  */
     {
-      debug (1, "Fault while interrupt in transition!");
+      debug (1, "Fault while interrupt in transition (ip: %x)!",
+	     ip);
       exception_page->interrupt_in_transition = 1;
     }
   else

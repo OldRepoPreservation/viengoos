@@ -44,18 +44,21 @@ enum lookup_mode
 
 #ifndef RM_INTERN
 
+#include <hurd/exceptions.h>
+
 pthread_rwlock_t as_lock = __PTHREAD_RWLOCK_INITIALIZER;
 
 static void __attribute__ ((noinline))
-ensure_stack(void)
+ensure_stack (void)
 {
   /* XXX: If we fault on the stack while we have the address space
      lock, we deadlock.  Ensure that we have some stack space and hope
      it is enough.  (This can't be too much as we may be running on
      the exception handler's stack.)  */
-  volatile char space[1024 + 512];
-  space[0] = 0;
-  space[sizeof (space) - 1] = 0;
+  volatile char space[EXCEPTION_STACK_SIZE - PAGESIZE];
+  int j;
+  for (j = sizeof (space) - 1; j >= 0; j -= PAGESIZE)
+    space[j] = 0;
 }
 
 # define AS_LOCK					\

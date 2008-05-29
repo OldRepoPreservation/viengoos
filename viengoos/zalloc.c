@@ -94,10 +94,10 @@ struct block
 
 
 /* Given a zone, return its size.  */
-#define ZONE_SIZE(x) (1 << ((x) + PAGESIZE_LOG2))
+#define ZONE_SIZE(x) (1U << ((x) + PAGESIZE_LOG2))
 
 /* Number of zones in the system.  */
-#define ZONES (sizeof (uintptr_t) * 8 - PAGESIZE_LOG2)
+#define ZONES (sizeof (uintptr_t) * 8 - PAGESIZE_LOG2 - 1)
 
 /* The zones.  */
 static struct block *zone[ZONES];

@@ -28,6 +28,7 @@ includehurddir = $(includedir)/hurd
 includehurd_HEADERS = mm.h storage.h as.h
 
 libhurd_mm_a_CPPFLAGS = $(USER_CPPFLAGS)
+libhurd_mm_a_CCASFLAGS = $(USER_CPPFLAGS) -DASM
 libhurd_mm_a_CFLAGS = $(USER_CFLAGS) -mpreferred-stack-boundary=2
 libhurd_mm_a_SOURCES = mm.h			\
 	capalloc.h capalloc.c			\

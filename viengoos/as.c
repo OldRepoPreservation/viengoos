@@ -25,6 +25,7 @@
 #include <hurd/cap.h>
 #include <hurd/stddef.h>
 #include <hurd/folio.h>
+#include <hurd/exceptions.h>
 
 #include "as.h"
 #include "bits.h"
@@ -42,9 +43,10 @@ ensure_stack(int i)
      lock, we deadlock.  Ensure that we have some stack space and hope
      it is enough.  (This can't be too much as we may be running on
      the exception handler's stack.)  */
-  volatile char space[1024 + 512];
-  space[0] = 0;
-  space[sizeof (space) - 1] = 0;
+  volatile char space[EXCEPTION_STACK_SIZE - PAGESIZE];
+  int j;
+  for (j = sizeof (space) - 1; j >= 0; j -= PAGESIZE)
+    space[j] = i;
 }
 
 # ifndef AS_LOCK

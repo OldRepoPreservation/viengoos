@@ -241,8 +241,7 @@ exception_handler_activated (struct exception_page *exception_page)
     = exception_frame_alloc (exception_page);
   utcb_state_save (exception_frame);
 
-  debug (5, "Exception handler called (0x%x.%x, exception_page: %p)",
-	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
+  debug (5, "Exception handler called (exception_page: %p)",
 	 exception_page);
 
 #ifndef NDEBUG
@@ -271,12 +270,14 @@ exception_handler_activated (struct exception_page *exception_page)
 
 	/* XXX: We assume that the stack grows down here.  */
 	uintptr_t f = (uintptr_t) ADDR_TO_PTR (fault);
-	if ((f & ~(PAGESIZE - 1)) == ((sp - 1) & ~(PAGESIZE - 1))
-	    || (f & ~(PAGESIZE - 1)) == (sp & ~(PAGESIZE - 1)))
-	  /* The fault occurs on the same page as the last byte of the
-	     interrupted SP.  It has got to be a stack fault.  Handle
-	     it here.  */
+	if (sp - PAGESIZE <= f && f <= sp + PAGESIZE * 4)
+	  /* The fault occurs within four pages of the stack pointer.
+	     It has got to be a stack fault.  Handle it here.  */
 	  {
+	    debug (5, "Handling fault at " ADDR_FMT " in activated mode "
+		   "(ip: %x, sp: %x).",
+		   ADDR_PRINTF (fault), ip, sp);
+
 	    bool r = pager_fault (fault, ip, info);
 	    if (! r)
 	      {
@@ -307,6 +308,10 @@ exception_handler_activated (struct exception_page *exception_page)
 	    return NULL;
 	  }
 
+	debug (5, "Handling fault at " ADDR_FMT " in normal mode "
+	       "(ip: %x, sp: %x).",
+	       ADDR_PRINTF (fault), ip, sp);
+
 	break;
       }
 
@@ -336,25 +341,50 @@ exception_handler_init (void)
 
   extern struct hurd_startup_data *__hurd_startup_data;
 
-  struct storage storage = storage_alloc (ADDR_VOID, cap_page,
-					  STORAGE_LONG_LIVED,
-					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
+  /* We use the start of the area (lowest address) as the exception page.  */
+  addr_t stack_area = as_alloc (EXCEPTION_STACK_SIZE_LOG2, 1, true);
+  void *stack_area_base
+    = ADDR_TO_PTR (addr_extend (stack_area, 0, EXCEPTION_STACK_SIZE_LOG2));
 
-  if (ADDR_IS_VOID (storage.addr))
-    panic ("Failed to allocate page for exception state");
+  debug (5, "Exception area: %x-%x",
+	 stack_area_base, stack_area_base + EXCEPTION_STACK_SIZE - 1);
 
-  struct exception_page *exception_page 
-    = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+  void *page;
+  for (page = stack_area_base;
+       page < stack_area_base + EXCEPTION_STACK_SIZE;
+       page += PAGESIZE)
+    {
+      addr_t slot = addr_chop (PTR_TO_ADDR (page), PAGESIZE_LOG2);
+
+      as_slot_ensure (slot);
+
+      struct storage storage;
+      storage = storage_alloc (ADDR_VOID, cap_page,
+			       STORAGE_LONG_LIVED,
+			       OBJECT_POLICY_DEFAULT,
+			       slot);
+
+      if (ADDR_IS_VOID (storage.addr))
+	panic ("Failed to allocate page for exception state");
+    }
+
+  struct exception_page *exception_page = stack_area_base;
 
   /* XXX: We assume the stack grows down!  SP is set to the end of the
      exception page.  */
-  exception_page->exception_handler_sp = (l4_word_t) exception_page + PAGESIZE;
+  exception_page->exception_handler_sp
+    = (uintptr_t) stack_area_base + EXCEPTION_STACK_SIZE;
+
+  /* The word beyond the base of the stack is a pointer to the
+     exception page.  */
+  exception_page->exception_handler_sp -= sizeof (void *);
+  * (void **) exception_page->exception_handler_sp = exception_page;
 
   exception_page->exception_handler_ip = (l4_word_t) &exception_handler_entry;
   exception_page->exception_handler_end = (l4_word_t) &exception_handler_end;
 
   struct hurd_thread_exregs_in in;
-  in.exception_page = storage.addr;
+  in.exception_page = addr_chop (PTR_TO_ADDR (exception_page), PAGESIZE_LOG2);
 
   struct hurd_thread_exregs_out out;
   err = rm_thread_exregs (ADDR_VOID, __hurd_startup_data->thread,

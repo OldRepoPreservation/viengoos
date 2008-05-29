@@ -18,9 +18,9 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-	.text
+#include <hurd/exceptions.h>
 
-#define PAGESIZE 0x1000
+	.text
 
 /* Offsets into a struct exception_page.  */
 #define MODE (0*4)
@@ -30,11 +30,12 @@
 
 #define EXCEPTION_STACK (4*4)
 
-#define ORIG_FLAGS (PAGESIZE-1*4)
-#define SAVED_EAX (PAGESIZE-2*4)
-#define SAVED_ECX (PAGESIZE-3*4)
-#define SAVED_FLAGS (PAGESIZE-4*4)
-#define SAVED_EDX (PAGESIZE-5*4)
+/* Relative to one word beyond the bottom of the stack.  */
+#define EXCEPTION_PAGE_PTR (-1*4)
+#define SAVED_EAX (-2*4)
+#define SAVED_ECX (-3*4)
+#define SAVED_FLAGS (-4*4)
+#define SAVED_EDX (-5*4)
 
 /* Offsets into a struct exception_fault.  */
 #define EF_SAVED_EAX (EF_SAVED_ECX-4)
@@ -53,43 +54,63 @@
 	.globl	exception_handler_entry, _exception_handler_entry
 exception_handler_entry:
 _exception_handler_entry:
-	/* Save the eflags before we do anything.  */
-	pushf
-	
+
+	/* How we will use the stack:
+
+	    relative to entry sp
+	     |  relative to sp after saving edx
+	     |  |
+	     v  v
+	    +0 +24 pointer to exception_page
+	    -4 +20 saved eax                     \
+	    -8 +16 saved ecx                      \  save
+	   -12 +12 saved flags                    /  area
+	   -16  +8 saved edx                     /
+	   -20  +4 entry edx
+	   -24  +0 entry eflags
+	 */
+
 	/* Adjust the stack: our saved EAX, ECX, EDX and FLAGS may be
 	there.  */
+	
 	sub $16, %esp
 	
 	/* %ESP points to the top of the exception page.  If the
 	interrupt in transition flag is not set, then we need to save
-	the caller saved registers.  Otherwise, we were interrupt
+	the caller-saved registers.  Otherwise, we were interrupted
 	while returning to normal mode and the the saved state, not
 	our registers, reflects the real user state (see big comment
 	below for more information).  */
 
 	pushl %edx
+	/* Save the eflags before we do anything serious.  */
+	pushf
+	
 	/* %EDX is now the only register which we can touch.  Make it
-	a pointer to the exception page.  */
-	mov %esp, %edx
-	and $0xfffff000, %edx
+	a pointer to the exception page.  Recall: we stashed a pointer
+	to the exception page at the word following the botton of the
+	stack.  */
+	mov 24(%esp), %edx
 
 	/* Now check if the interrupt in transition flag is set.  */
 	bt $INTERRUPT_IN_TRANSITION_BIT, MODE(%edx)
 	jc after_save
 
 	/* Nope; we need to save the current EAX, ECX and eflags.  */
-	mov %eax, SAVED_EAX(%edx)
-	mov %ecx, SAVED_ECX(%edx)
-	mov ORIG_FLAGS(%edx), %ecx
-	mov %ecx, SAVED_FLAGS(%edx)
+	mov %eax, 20(%esp)
+	mov %ecx, 16(%esp)
+	/* entry eflags.  */
 	popl %ecx
-	mov %ecx, SAVED_EDX(%edx)
+	mov %ecx, (12-4)(%esp)
+	/* entry edx.  */
+	popl %ecx
+	mov %ecx, (8-4-4)(%esp)
 	jmp after_adjust
 	
 after_save:
 	
-	/* Adjust the stack: we saved %edx there.  */
-	add $4, %esp
+	/* Adjust the stack: we don't need our entry flags or entry edx.  */
+	add $8, %esp
 	
 after_adjust:
 
@@ -147,7 +168,13 @@ after_adjust:
 	interrupt_in_transition flag set.  */
 
 	/* Reset the activation bit.  */
-	and $0xfffffffe, MODE(%edx)
+	and $(~1), MODE(%edx)
+
+	/* Set EAX to one word beyond the bottom of the stack (i.e.,
+	pointing at the pointer to the exception page.  */
+	add $PAGESIZE, %esp
+	and $(~(PAGESIZE-1)), %esp
+	mov %esp, %eax
 
 	/* Check for pending messages.  This does not need to be
 	   atomic as if we get interrupted here, we automatically
@@ -157,30 +184,34 @@ after_adjust:
 
 	/* Restore the user stack.  */
 	mov SAVED_SP(%edx), %esp
-	/* Copy the saved EIP, EAX and eflags to the stack.  */
+
+	/* Copy the saved EIP and saved flags to the user stack.  */
 	mov SAVED_IP(%edx), %ecx
 	pushl %ecx
-	mov SAVED_FLAGS(%edx), %ecx
+	mov SAVED_FLAGS(%eax), %ecx
 	pushl %ecx
 
-	mov SAVED_EAX(%edx), %eax
-	mov SAVED_ECX(%edx), %ecx
-	mov SAVED_EDX(%edx), %edx
+	/* Restore the general-purpose registers.  */
+	mov SAVED_EDX(%eax), %edx
+	mov SAVED_ECX(%eax), %ecx
+	mov SAVED_EAX(%eax), %eax
 	
 	/* Restore the saved eflags.  */
 	popf
-	/* Restore the saved EIP and in doing so the saved ESP.  */
+	/* And finally, the saved EIP and in doing so the saved ESP.  */
 	ret
 
 process_pending:	
 	/* This code is called if after leaving activated mode, we
- 	detect a pending message.  %EDX points to the exception page.  */
+ 	detect a pending message.  %EDX points to the exception page
+	and eax one word beyond the bottom of the exception stack.  */
 
 	/* Set activated mode and interrupt in transition.  */
-	or $0x5, MODE(%edx)
+	or $(1 | 4), MODE(%edx)
 
 	/* Set the ESP to the top of the stack.  */
-	lea PAGESIZE(%edx), %esp
+	mov %eax, %esp
+	add $4, %esp
 
 	/* Get the pending exception.  */
 	call exception_fetch_exception
@@ -190,28 +221,38 @@ process_pending:
 
 exception_frame_run:
 	/* EAX contains the exception frame, EDX the exception page,
-	and ESP points into the exception page.  */
+	and ESP points after the saved edx.  */
 
-	/* Change our stack to that of the exception frame.  */
+	/* Change our stack to that of the exception frame and save
+	the stack pointer (which points to the lowest address of the
+	save area) in ECX.  */
+	mov %esp, %ecx
 	lea EF_STACK_START(%eax), %esp
 	
-	/* Copy all relevant register state from the exception page to
-	the exception frame.  */
-	mov SAVED_IP(%edx), %ecx
-	pushl %ecx
+	/* Copy all relevant register state from the exception page
+	and save area to the exception frame.  We use edx as the
+	intermediate.  We can restore it from the exception stack
+	(it's the word following the base).  */
+	
+	mov SAVED_IP(%edx), %edx
+	mov %edx, EF_SAVED_IP(%eax)
 
-	mov SAVED_FLAGS(%edx), %ecx
-	pushl %ecx
-	
-	mov SAVED_EDX(%edx), %ecx
-	pushl %ecx
-	
-	mov SAVED_ECX(%edx), %ecx
-	pushl %ecx
-	
-	mov SAVED_EAX(%edx), %ecx
-	pushl %ecx
+	/* edx.  */
+	mov 0(%ecx), %edx
+	mov %edx, EF_SAVED_EDX(%eax)
+	/* flags.  */
+	mov 4(%ecx), %edx
+	mov %edx, EF_SAVED_FLAGS(%eax)
+	/* ecx.  */
+	mov 8(%ecx), %edx
+	mov %edx, EF_SAVED_ECX(%eax)
+	/* eax.  */
+	mov 12(%ecx), %edx
+	mov %edx, EF_SAVED_EAX(%eax)
 
+	/* Restore the exception page pointer (edx).  */
+	mov 16(%ecx), %edx
+	
 	/* Restore the user ESP.  */
 	mov SAVED_SP(%edx), %esp
 
@@ -219,7 +260,7 @@ exception_frame_run:
 	the interrupted state.  */
 
 	/* Reset the activation bit.  */
-	and $0xfffffffe, MODE(%edx)
+	and $(~1), MODE(%edx)
 
 	/* XXX: Check for pending message.  */
 

@@ -1,3 +1,13 @@
+2008-05-29  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.h: Include <hurd/stddef.h>.
+	[ASM]: Only define relevant macros.
+	(EXCEPTION_STACK_SIZE_LOG2): Define.
+	(EXCEPTION_STACK_SIZE): Define.
+	* stddef.h [ASM]: Only define relevant macros.
+	(PAGESIZE): Don't append C type specifier.
+	(PAGESIZE_LOG2): Likewise.
+
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (slot_lookup_rel): Remove parameter type.  Update users.
