@@ -1,3 +1,7 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am: Rework system of build flags for the test programs.
+
 2008-05-29  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c: Include <hurd/exceptions.h>.

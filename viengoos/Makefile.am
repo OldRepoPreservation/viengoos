@@ -62,8 +62,15 @@ viengoos_LDFLAGS = -u_start -e_start -N -nostdlib \
 TESTS = t-as t-activity t-link t-guard
 check_PROGRAMS = $(TESTS)
 
-t_as_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
-t_as_CFLAGS = $(viengoos_CFLAGS)
+CHECK_CPPFLAGS += \
+	-DRM_INTERN \
+	-include $(srcdir)/t-environment.h
+CHECK_LDADD = \
+	../libhurd-btree/libhurd-btree.a \
+	../libhurd-ihash/libhurd-ihash-nomalloc.a
+
+t_as_CPPFLAGS = $(CHECK_CPPFLAGS)
+t_as_CFLAGS = $(CHECK_CFLAGS)
 t_as_SOURCES = t-as.c				\
 	zalloc.h zalloc.c			\
 	memory.h memory.c			\
@@ -76,10 +83,10 @@ t_as_SOURCES = t-as.c				\
 	shutdown.h shutdown.c			\
 	panic.c					\
 	debug.h debug.c
-t_as_LDADD = $(viengoos_LDADD)
+t_as_LDADD = $(CHECK_LDADD)
 
-t_activity_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
-t_activity_CFLAGS = $(viengoos_CFLAGS)
+t_activity_CPPFLAGS = $(CHECK_CPPFLAGS)
+t_activity_CFLAGS = $(CHECK_CFLAGS)
 t_activity_SOURCES = t-activity.c		\
 	zalloc.h zalloc.c			\
 	memory.h memory.c			\
@@ -92,15 +99,15 @@ t_activity_SOURCES = t-activity.c		\
 	shutdown.h shutdown.c			\
 	panic.c					\
 	debug.h debug.c
-t_activity_LDADD = $(viengoos_LDADD)
+t_activity_LDADD = $(CHECK_LDADD)
 
-t_link_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
-t_link_CFLAGS = $(viengoos_CFLAGS)
+t_link_CPPFLAGS = $(CHECK_CPPFLAGS)
+t_link_CFLAGS = $(CHECK_CFLAGS)
 t_link_SOURCES = t-link.c list.h		\
 	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
-t_guard_CPPFLAGS = $(viengoos_CPPFLAGS) -include $(srcdir)/t-environment.h
-t_guard_CFLAGS = $(viengoos_CFLAGS) -include $(srcdir)/t-environment.h
+t_guard_CPPFLAGS = $(CHECK_CPPFLAGS)
+t_guard_CFLAGS = $(CHECK_CFLAGS)
 t_guard_SOURCES = t-guard.c			\
 	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
