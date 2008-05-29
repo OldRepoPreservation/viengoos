@@ -49,7 +49,7 @@ modules.h: $(addsuffix .S, $(files)) Makefile
 	          STRINGIFY ( $(firstword $(subst !, ,$(module))) ),	\
 		  $(wordlist 2, 2, $(subst !, ,$(module))),		\
 		  $(wordlist 3, 3, $(subst !, ,$(module))),		\
-		  $($(firstword $(subst !, ,$(module)))_commandline),	\
+		  $($(firstword $(subst !, ,$(module)))_commandline) "",\
 	          &$(firstword $(subst !, ,$(module)))_start,		\
 	          &$(firstword $(subst !, ,$(module)))_end		\
 		},							\
