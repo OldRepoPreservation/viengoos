@@ -1,5 +1,8 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* build-aux/config.guess: New file, from today's config git trunk.
+	* build-aux/config.sub: Likewise.
+
 	* configure.ac (AC_CONFIG_AUX_DIR): Instantiate.
 	(AM_INIT_AUTOMAKE): Add a number of options.
 	* README: Adapt.
