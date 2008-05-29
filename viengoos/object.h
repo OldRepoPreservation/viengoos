@@ -22,7 +22,7 @@
 #define RM_OBJECT_H
 
 #include <l4.h>
-#include <error.h>
+#include <hurd/error.h>
 #include <string.h>
 #include <assert.h>
 #include <hurd/cap.h>
