@@ -32,6 +32,11 @@ $ install -s hieronymus/hieronymus /l4/boot
 
 You need at least automake 1.9 and autoconf 2.57.
 
+If you happen to be on a multi-processor system, you can run ``make -j'' to
+have several target be built in parallel.  This may save some time.  It might
+even shorten the building time on one-processor system.  (No specific
+measurements exist currently.)
+
 
 Installation on ia32
 --------------------

@@ -1,5 +1,8 @@
 2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* Makefile.am (newlib-build/build.stamp, newlib-build/install.stamp):
+	New targets.  Used to decouple ``make install'' from ``make all''.
+
 	* patches/04-newlib-newlib-configure-ac.patch: Don't conceal errors.
 
 	* Makefile.am ($(addprefix $(srcdir)/newlib/, $(addon))): Touch the

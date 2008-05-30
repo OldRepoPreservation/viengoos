@@ -1,3 +1,7 @@
+2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* README: Suggest ``make -j''.
+
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Call AM_PROG_CC_C_O.

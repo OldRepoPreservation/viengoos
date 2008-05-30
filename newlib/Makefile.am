@@ -142,11 +142,21 @@ newlib-build/configure.stamp: $(srcdir)/newlib/patch.stamp
 	)
 	touch $@
 
-newlib-build/libc.a newlib-build/libm.a: newlib-build/configure.stamp
+newlib-build/build.stamp: newlib-build/configure.stamp
 	cd newlib-build && \
 	  make \
 	    TARGET_CFLAGS='$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
-	    all install
+	    all
+	touch $@
+
+newlib-build/install.stamp: newlib-build/build.stamp
+	cd newlib-build && \
+	  make \
+	    TARGET_CFLAGS='$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
+	    install
+	touch $@
+
+newlib-build/libc.a newlib-build/libm.a: newlib-build/install.stamp
 
 libc.a: newlib-build/libc.a
 	ln -sf newlib-build/libc.a libc.a
