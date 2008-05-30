@@ -10,4 +10,4 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-AC_CONFIG_LINKS([include/bit-array.h:libbitarray/bit-array.h])
+AC_CONFIG_LINKS([sysroot/include/bit-array.h:libbitarray/bit-array.h])

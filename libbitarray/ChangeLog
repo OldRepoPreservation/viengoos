@@ -1,3 +1,7 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* headers.m4: Link files into `sysroot/include/' instead of `include/'.
+
 2008-02-05  Neal H. Walfield  <neal@gnu.org>
 
 	* bit-array.h (bit_set_to): New function.
