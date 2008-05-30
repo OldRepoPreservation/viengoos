@@ -16,8 +16,6 @@ static addr_t activity;
 /* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
 
-#include <hurd/trace.h>
-
 int
 main (int argc, char *argv[])
 {
@@ -147,9 +145,6 @@ main (int argc, char *argv[])
   for (i = 0; i < ITERATIONS; i ++)
     {
       debug (0, DEBUG_BOLD ("starting iteration %d (%x)"), i, l4_myself ());
-
-      extern struct trace_buffer rwlock_trace;
-      trace_buffer_dump (&rwlock_trace, 20);
 
       int count;
       struct activity_stats_buffer buffer;

@@ -1,5 +1,10 @@
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
+	* activity-distribution.c: Don't include <hurd/trace.h>.
+	(main): Remove debugging cruft.
+	
+2008-05-30  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am: New file.
 	* activity-distribution.c: Likewise.
 	* shared-memory-distribution.c: Likewise.
