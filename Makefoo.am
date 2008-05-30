@@ -27,6 +27,7 @@ SYSROOT := $(abspath sysroot)
 abs_top_builddir = $(abspath $(top_builddir))
 abs_srcdir = $(abspath $(srcdir))
 abs_top_srcdir = $(abspath $(top_srcdir))
+abs_builddir = $(abspath .)
 
 
 # TODO.  ``build-aux'' hard-coded.
