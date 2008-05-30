@@ -1,3 +1,9 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* headers.m4: Link files into `sysroot/include/' instead of `include/'.
+	Create symbolic link to package's library in `sysroot/lib/'.
+	* Makefile.am [ENABLE_TESTS]: Don't build package's library.
+
 2008-01-23  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (AM_CPPFLAGS): Add -I$(LIBC)/include.

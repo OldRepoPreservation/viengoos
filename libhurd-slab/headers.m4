@@ -10,4 +10,10 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-AC_CONFIG_LINKS([include/hurd/slab.h:libhurd-slab/slab.h])
+AC_CONFIG_LINKS([sysroot/include/hurd/slab.h:libhurd-slab/slab.h])
+
+AC_CONFIG_COMMANDS_POST([
+  mkdir -p sysroot/lib libhurd-slab &&
+  ln -sf ../../libhurd-slab/libhurd-slab.a sysroot/lib/ &&
+  touch libhurd-slab/libhurd-slab.a
+])

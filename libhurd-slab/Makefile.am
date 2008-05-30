@@ -19,7 +19,9 @@
 # Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 # 02111-1307 USA.
 
+if ! ENABLE_TESTS
 lib_LIBRARIES = libhurd-slab.a
+endif
 
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = slab.h

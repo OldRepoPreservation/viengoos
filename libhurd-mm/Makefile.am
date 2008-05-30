@@ -22,7 +22,9 @@ if ARCH_IA32
   ARCH_SOURCES = ia32-exception-entry.S
 endif
 
+if ! ENABLE_TESTS
 lib_LIBRARIES = libhurd-mm.a
+endif
 
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = mm.h storage.h as.h
