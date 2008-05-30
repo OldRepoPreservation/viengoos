@@ -114,7 +114,9 @@ $(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib/unpack.stamp
 $(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib/%: $(srcdir)/addon/%
 	mkdir -p $(dir $@)
 	$(LN_S) -f $(abspath $<) $@
-#TODO	touch $@
+# Touch the file, as Make follows symlinks, the source file for sure is younger
+# than the unpack.stamp and thus those files will get linked again and again.
+	touch $@
 
 $(srcdir)/newlib/patch.stamp: $(srcdir)/newlib/unpack.stamp \
   $(addprefix $(srcdir)/newlib/,$(addsuffix .applied,$(patch_files))) \

@@ -1,3 +1,8 @@
+2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am ($(addprefix $(srcdir)/newlib/, $(addon))): Touch the
+	destination file after linking.
+
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* headers.m4: New file.
