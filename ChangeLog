@@ -1,5 +1,8 @@
 2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* configure.ac (AM_MAINTAINER_MODE): Get rid of it.
+	* README: Reflect that.
+
 	* README: Suggest ``make -j''.
 
 2008-05-30  Neal H. Walfield  <neal@gnu.org>

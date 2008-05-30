@@ -17,11 +17,11 @@ Building the code is straightforward:
 $ autoreconf -i
 $ mkdir test build
 $ cd test/
-$ ../configure --enable-maintainer-mode --enable-l4-abi=x2 \
+$ ../configure --enable-l4-abi=x2 \
 	--host=i686-pc-viengoos-gnu --enable-tests
 $ make check
 $ cd ../build/
-$ ../configure --enable-maintainer-mode --enable-l4-abi=x2 \
+$ ../configure --enable-l4-abi=x2 \
 	--host=i686-pc-viengoos-gnu --with-newlib
 $ make [to build the cross compiler]
 $ make [to build Viengoos proper]

@@ -1,5 +1,7 @@
 2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* README: No more ``--enable-maintainer-mode'' in the top-level.
+
 	* Makefile.am (newlib-build/build.stamp, newlib-build/install.stamp):
 	New targets.  Used to decouple ``make install'' from ``make all''.
 

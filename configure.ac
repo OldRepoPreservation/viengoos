@@ -34,12 +34,9 @@ dnl free to refine that.
 dnl We require GNU make.
   [-Wall -Wno-portability]
 )
-AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR([laden/laden.c])
 AC_CONFIG_HEADER([config.h])
 AC_GNU_SOURCE
-
-maintainer_mode=${enable_maintainer_mode-no}
 
 # Checks for programs.
 AC_PROG_CC
@@ -64,9 +61,7 @@ if test "x$BIBTEX" = xno; then
 fi
 AC_PATH_PROG([INKSCAPE], [inkscape], no)
 if test "x$INKSCAPE" = xno; then
-  if test "x$maintainer_mode" = xyes; then
-    missing_progs="missing_progs inkscape"
-  fi
+  missing_progs="missing_progs inkscape"
 fi
 
 
