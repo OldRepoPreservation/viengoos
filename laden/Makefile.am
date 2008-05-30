@@ -24,7 +24,9 @@ if ARCH_IA32
 endif
 
 bootdir = $(prefix)/boot
+if ! ENABLE_TESTS
 boot_PROGRAMS = laden
+endif
 
 laden_CPPFLAGS = $(AM_CPPFLAGS) \
 	$(KERNEL_CPPFLAGS) \

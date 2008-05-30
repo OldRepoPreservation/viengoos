@@ -19,7 +19,9 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
 bootdir = $(prefix)/boot
+if ! ENABLE_TESTS
 boot_PROGRAMS = ruth
+endif
 
 ruth_CPPFLAGS = $(USER_CPPFLAGS)
 ruth_CFLAGS = $(USER_CFLAGS)

@@ -1,3 +1,7 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am [ENABLE_TESTS]: Don't build package's program.
+	
 2008-05-28  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update use of slot_lookup to be consistent with

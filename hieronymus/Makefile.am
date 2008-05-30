@@ -18,7 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 bootdir = $(prefix)/boot
+if ! ENABLE_TESTS
 boot_PROGRAMS = hieronymus
+endif
 
 hieronymus_CPPFLAGS = $(USER_CPPFLAGS)
 hieronymus_CFLAGS = $(USER_CFLAGS)
