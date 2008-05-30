@@ -43,6 +43,7 @@ maintainer_mode=${enable_maintainer_mode-no}
 
 # Checks for programs.
 AC_PROG_CC
+AM_PROG_CC_C_O
 
 AM_PROG_AS
 AC_PROG_RANLIB
