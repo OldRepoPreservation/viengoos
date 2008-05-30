@@ -68,6 +68,34 @@ if test "x$INKSCAPE" = xno; then
   fi
 fi
 
+
+# Check for program specialities.
+
+# From glibc HEAD, 2007-11-07.
+AC_CACHE_CHECK(for -fgnu89-inline, libc_cv_gnu89_inline, [dnl
+cat > conftest.c <<EOF
+int foo;
+#ifdef __GNUC_GNU_INLINE__
+main () { return 0;}
+#else
+#error
+#endif
+EOF
+if AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS -S -std=gnu99 -fgnu89-inline
+			    -o conftest.s conftest.c 1>&AS_MESSAGE_LOG_FD])
+then
+  libc_cv_gnu89_inline=yes
+else
+  libc_cv_gnu89_inline=no
+fi
+rm -f conftest*])
+if test $libc_cv_gnu89_inline = yes; then
+  libc_cv_gnu89_inline=-fgnu89-inline
+else
+  libc_cv_gnu89_inline=
+fi
+
+
 # Set up the host information.
 
 AC_CANONICAL_HOST
@@ -199,13 +227,13 @@ USER_CPPFLAGS=" \
 	-D_GNU_SOURCE \
 	-I${LIBC}/include \
 	-I${ABS_SRCDIR}/libc-parts"
-USER_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
+USER_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector $libc_cv_gnu89_inline"
 USER_LDFLAGS="-u_start -e_start"
 
 KERNEL_CPPFLAGS="\
 	-D_GNU_SOURCE -DRM_INTERN \
 	-I${ABS_SRCDIR}/libc-parts"
-KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
+KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector $libc_cv_gnu89_inline"
 
 # It is debatable whether these should really contain the libc-parts' include
 # path.  Currently this is needed, as tests make use of (a few) specific
@@ -214,7 +242,7 @@ CHECK_CPPFLAGS="\
 	-D_GNU_SOURCE \
 	-D_ENABLE_TESTS \
 	-I${ABS_BUILDDIR}/sysroot/include -I${ABS_SRCDIR}/libc-parts"
-CHECK_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
+CHECK_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector $libc_cv_gnu89_inline"
 
 AC_SUBST(USER_CPPFLAGS)
 AC_SUBST(USER_CFLAGS)

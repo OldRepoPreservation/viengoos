@@ -1,3 +1,9 @@
+2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* configure.in (libc_cv_gnu89_inline): Fill depending on a compile-time
+	test, as per glibc HEAD, 2007-11-07.
+	(USER_CFLAGS, KERNEL_CFLAGS, CHECK_CFLAGS): Use it.
+	
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* configure.ac: Include `newlib/headers.m4' and
