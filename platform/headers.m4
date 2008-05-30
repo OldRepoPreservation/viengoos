@@ -13,11 +13,11 @@
 # glibc allows for more complicated sysdep constructs, which are used, e.g.,
 # for the <bits/wordsize.h> case.  We'll go for a simple solution for now.
 AC_CONFIG_LINKS([
-  include/atomic.h:platform/atomic.h
-  include/bits/atomic.h:platform/${arch}/bits/atomic.h
-  include/bits/wordsize.h:platform/${arch}/bits/wordsize.h
-  include/compiler.h:platform/compiler.h
-  include/endian.h:platform/endian.h
-  include/bits/endian.h:platform/${arch}/bits/endian.h
-  include/sys/io.h:platform/${arch}/sys/io.h
+  sysroot/include/atomic.h:platform/atomic.h
+  sysroot/include/bits/atomic.h:platform/${arch}/bits/atomic.h
+  sysroot/include/bits/wordsize.h:platform/${arch}/bits/wordsize.h
+  sysroot/include/compiler.h:platform/compiler.h
+  sysroot/include/endian.h:platform/endian.h
+  sysroot/include/bits/endian.h:platform/${arch}/bits/endian.h
+  sysroot/include/sys/io.h:platform/${arch}/sys/io.h
 ])

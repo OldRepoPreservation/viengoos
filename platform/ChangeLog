@@ -1,3 +1,7 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* headers.m4: Link files into `sysroot/include/' instead of `include/'.
+
 2008-02-20  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* amd64/sys/io.h: New file, from today's glibc CVS HEAD.
