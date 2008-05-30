@@ -143,7 +143,7 @@ AC_MSG_NOTICE([compiling for L4 ABI $l4_abi])
 m4_include([laden/config.m4])
 m4_include([viengoos/config.m4])
 
-# Create links for header file.
+# Create links for header and library files.
 m4_include([libl4/headers.m4])
 m4_include([platform/headers.m4])
 m4_include([hurd/headers.m4])
@@ -154,6 +154,8 @@ m4_include([libhurd-slab/headers.m4])
 m4_include([libpthread/headers.m4])
 m4_include([libhurd-mm/headers.m4])
 m4_include([viengoos/headers.m4])
+m4_include([newlib/headers.m4])
+m4_include([libc-parts/headers.m4])
 
 # Check for libc and components using it.
 
@@ -193,31 +195,47 @@ AC_SUBST([LIBC_M])
 
 # Compute some variables that we need everywhere.
 
-# Ripped from glibc.
-ccheaders = $(${CC} -print-file-name=include)
-SYSINCLUDES = -nostdinc -isystem ${ccheaders} -isystem ${ccheaders}-fixed
-
-USER_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
-USER_CPPFLAGS="-U__linux -U__linux__ -U__gnu_linux__ -Ulinux -D__GNU__ \
-	-D_GNU_SOURCE ${SYSINCLUDES} -I${LIBC}/include \
-	-I${ABS_BUILDDIR}/include -I${ABS_SRCDIR}/libc-parts"
-USER_LDFLAGS="-u_start -e_start -nostdlib"
-USER_LDADD="${ABS_BUILDDIR}/libc.a"
-
-KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
-KERNEL_CPPFLAGS="-U__linux -U__linux__ -U__gnu_linux__ -Ulinux -D__GNU__ \
-	-D_GNU_SOURCE -DRM_INTERN $SYSINCLUDES -I${ABS_BUILDDIR}/include \
+USER_CPPFLAGS=" \
+	-D_GNU_SOURCE \
+	-I${LIBC}/include \
 	-I${ABS_SRCDIR}/libc-parts"
+USER_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
+USER_LDFLAGS="-u_start -e_start"
 
-CHECK_CPPFLAGS="-I${ABS_BUILDDIR}/include -I${ABS_SRCDIR}/libc-parts"
+KERNEL_CPPFLAGS="\
+	-D_GNU_SOURCE -DRM_INTERN \
+	-I${ABS_SRCDIR}/libc-parts"
+KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
 
-AC_SUBST(USER_CFLAGS)
+# It is debatable whether these should really contain the libc-parts' include
+# path.  Currently this is needed, as tests make use of (a few) specific
+# libc-parts macros etc.
+CHECK_CPPFLAGS="\
+	-D_GNU_SOURCE \
+	-D_ENABLE_TESTS \
+	-I${ABS_BUILDDIR}/sysroot/include -I${ABS_SRCDIR}/libc-parts"
+CHECK_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector"
+
 AC_SUBST(USER_CPPFLAGS)
+AC_SUBST(USER_CFLAGS)
 AC_SUBST(USER_LDFLAGS)
 AC_SUBST(USER_LDADD)
-AC_SUBST(KERNEL_CFLAGS)
 AC_SUBST(KERNEL_CPPFLAGS)
+AC_SUBST(KERNEL_CFLAGS)
 AC_SUBST(CHECK_CPPFLAGS)
+AC_SUBST(CHECK_CFLAGS)
+
+
+# Do we already have a cross compiler?
+have_cross="test -x bin/$host_alias-gcc"
+AM_CONDITIONAL([HAVE_CROSS], [[$have_cross]])
+
+# Are we supposed to run the test suite only?
+AC_ARG_WITH([tests],
+[  --enable-tests          only support running the test suite)])
+AM_CONDITIONAL([ENABLE_TESTS], [[test x"${enable_tests-no}" != xno]])
+
+AM_CONDITIONAL([TRAVERSE_HIERARCHY], [[$have_cross || test x"${enable_tests-no}" != xno]])
 
 
 if test "x$missing_progs" != "x"; then
@@ -226,7 +244,7 @@ fi
 
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
-		 libc.a
+		 sysroot/lib/libc.a:libc.a.in
 		 libl4/ia32/Makefile libl4/powerpc/Makefile
 		 libl4/v2/Makefile libl4/v2/ia32/Makefile
 		 libl4/x2/Makefile

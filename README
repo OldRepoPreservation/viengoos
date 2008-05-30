@@ -14,11 +14,17 @@ How to build
 
 Building the code is straightforward:
 
-$ autoreconf -f -i -s
-$ ./configure --enable-maintainer-mode --prefix=/l4 --enable-l4-abi=x2 \
-	--build=i686-linux --host=i686-gnu --with-newlib
-$ make
-$ make install
+$ autoreconf -i
+$ mkdir test build
+$ cd test/
+$ ../configure --enable-maintainer-mode --enable-l4-abi=x2 \
+	--host=i686-pc-viengoos-gnu --enable-tests
+$ make check
+$ cd ../build/
+$ ../configure --enable-maintainer-mode --enable-l4-abi=x2 \
+	--host=i686-pc-viengoos-gnu --with-newlib
+$ make [to build the cross compiler]
+$ make [to build Viengoos proper]
 $ mkdir /l4/boot
 $ install -s laden/laden /l4/boot
 $ install -s viengoos/viengoos /l4/boot

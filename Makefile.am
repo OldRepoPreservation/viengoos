@@ -30,6 +30,7 @@ else
   NEWLIB_SUBDIRS =
 endif
 
+if TRAVERSE_HIERARCHY
 SUBDIRS = libl4 platform				\
 	$(LIBC_SUBDIRS)	$(NEWLIB_SUBDIRS)		\
 	hurd libhurd-ihash libhurd-btree libbitarray	\
@@ -42,6 +43,9 @@ SUBDIRS = libl4 platform				\
 	ruth						\
 	hieronymus					\
 	doc
+endif
+
+if HAVE_CROSS
 
 all-local: libc-stmp
 libc-stmp: @LIBC_A@ @LIBC_M@ \
@@ -52,5 +56,25 @@ libc-stmp: @LIBC_A@ @LIBC_M@ \
       libhurd-ihash/libhurd-ihash.a \
       libhurd-btree/libhurd-btree.a \
       libc-parts/libc-parts.a
-	touch libc-stmp libc.a
+	touch libc-stmp sysroot/lib/libc.a
 
+else
+
+if ! ENABLE_TESTS
+all-local: cross-compiler
+endif
+
+endif
+
+.PHONY: cross-compiler
+cross-compiler: binutils/binutils.build/install.stamp gcc/gcc.build/install.stamp
+# Now that the cross compiler is in place, we can make the build system use it.
+	if grep -q '^CC = $(host_alias)-gcc$$' < Makefile; then :; else \
+	  ./config.status --recheck; \
+	fi
+	@echo 'The cross compiler is now set-up.  Re-run `make'\' \
+	  'and proceed as usual.'
+
+include Makefoo.am
+include binutils/Makefrag.am
+include gcc/Makefrag.am

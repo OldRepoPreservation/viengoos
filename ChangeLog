@@ -1,5 +1,29 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* configure.ac: Include `newlib/headers.m4' and
+	`libc-parts/headers.m4'.
+	(ccheaders, SYSINCLUDES): Remove.
+	(USER_CPPFLAGS, USER_LDFLAGS, KERNEL_CPPFLAGS): Adapt to building with
+	a cross compiler.
+	(USER_LDADD): Remove.
+	(CHECK_CPPFLAGS): Define `_GNU_SOURCE' and `_ENABLE_TESTS'.
+	(CHECK_CFLAGS): New.
+	(HAVE_CROSS, TRAVERSE_HIERARCHY): New conditionals.
+	(--enable-tests, ENABLE_TESTS): New command line option with
+	conditional.
+	(libc.a.in): Instantiate as `sysroot/lib/libc.a'.
+	* libc.a.in: Rewritten to no longer specify file paths, but instead
+	linker switches.
+	* Makefile.am (SUBDIRS): Only recurse into if [TRAVERSE_HIERARCHY].
+	(libc-stmp): Only consider if [HAVE_CROSS].
+	[! HAVE_CROSS && ! ENABLE_TESTS]: Build `cross-compiler'.
+	(cross-compiler): New target.
+	Include `Makefoo.am', `binutils/Makefrag.am' and `gcc/Makefrag.am'.
+	* Makefoo.am: New file.
+	* binutils: New directory.
+	* gcc: Likewise.
+	* README: Update.
+
 	* build-aux/config.sub: Detect *-*-viengoos-gnu systems.
 
 	* build-aux/config.guess: New file, from today's config git trunk.

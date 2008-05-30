@@ -1,0 +1,47 @@
+# Copyright (C) 2003, 2005, 2008 Free Software Foundation, Inc.
+# 
+# This file is part of the GNU Hurd.
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Have the built cross tools appear in `$PATH'.  TODO.  Is that how it is to be
+# done properly?  TODO.  Would $(PATH_SEPARATOR) always be available already?
+PATH_orig := $(shell printenv PATH)
+PATH = $(abspath bin)$(PATH_SEPARATOR)$(PATH_orig)
+
+SYSROOT := $(abspath sysroot)
+
+# Don't use in-place evaluation, as the referenced values may not yet be
+# available.
+abs_top_builddir = $(abspath $(top_builddir))
+abs_srcdir = $(abspath $(srcdir))
+abs_top_srcdir = $(abspath $(top_srcdir))
+
+
+# TODO.  ``build-aux'' hard-coded.
+fix_config_guess_and_sub = \
+	{ find ./ -name config.guess \
+	  || echo CHOKE/ME; \
+	} | \
+	  while read f; do \
+	    ln -vsf '$(abs_top_srcdir)'/build-aux/config.guess "$$f" \
+	    || exit "$$?"; \
+	  done && \
+	{ find ./ -name config.sub \
+	  || echo CHOKE/ME; \
+	} | \
+	  while read f; do \
+	    ln -vsf '$(abs_top_srcdir)'/build-aux/config.sub "$$f" \
+	    || exit "$$?"; \
+	  done
