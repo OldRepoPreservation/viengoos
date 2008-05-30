@@ -17,7 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
-
+
+include $(top_srcdir)/Makefoo.am
+
 noinst_LIBRARIES = libc.a libm.a libc-routines.a
 
 # Remark: given that the newlib build system doesn't do any form of dependency
@@ -27,7 +29,7 @@ noinst_LIBRARIES = libc.a libm.a libc-routines.a
 # changes.  This is currently not being tracked in here.
 
 # Patches to apply to newlib's source tree.
-patch_files = 00-newlib-configure-ac.patch \
+patch_files = \
 	01-newlib-libc-sys-configure-in.patch \
 	02-newlib-newlib-libc-string-makefile-am.patch \
 	03-newlib-newlib-configure-host.patch \
@@ -107,12 +109,6 @@ rpatch:
 		(cd $(srcdir)/newlib; sh ../$(srcdir)/$${p} -R) || exit 1 ; \
 	done
 
-# Don't use in-place evaluation, as the referenced values may not yet be
-# available.
-abs_top_builddir = $(abspath $(top_builddir))
-abs_srcdir = $(abspath $(srcdir))
-abs_top_srcdir = $(abspath $(top_srcdir))
-
 # Link the addon files into the source tree.
 $(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib/unpack.stamp
 $(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib/%: $(srcdir)/addon/%
@@ -123,6 +119,8 @@ $(addprefix $(srcdir)/newlib/, $(addon)): $(srcdir)/newlib/%: $(srcdir)/addon/%
 $(srcdir)/newlib/patch.stamp: $(srcdir)/newlib/unpack.stamp \
   $(addprefix $(srcdir)/newlib/,$(addsuffix .applied,$(patch_files))) \
   $(addprefix $(srcdir)/newlib/,$(addon))
+	cd $(srcdir)/newlib/ && \
+	$(fix_config_guess_and_sub)
 	cd $(srcdir)/newlib/newlib/ && \
 	autoreconf
 	touch $@
@@ -138,7 +136,8 @@ newlib-build/configure.stamp: $(srcdir)/newlib/patch.stamp
 	--enable-newlib-io-long-double \
 	--enable-newlib-multithread \
 	--prefix=$(abs_top_builddir)/newlib/newlib-install \
-	--build=$(build_alias) --host=$(host_alias))
+	--host=$(host_alias) CC=$(host_alias)-gcc \
+	)
 	touch $@
 
 newlib-build/libc.a newlib-build/libm.a: newlib-build/configure.stamp
