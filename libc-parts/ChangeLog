@@ -1,5 +1,8 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* headers.m4: New file.
+	* Makefile.am [ENABLE_TESTS]: Don't build package's libraries.
+
 	* assert.h [_ENABLE_TESTS]: Handle as done with [_L4_TEST_ENVIRONMENT].
 	* errno.h [_ENABLE_TESTS]: Handle specially.
 	* features.h [_ENABLE_TESTS]: Use the system's standard file instead.

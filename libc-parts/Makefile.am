@@ -24,7 +24,9 @@ if ARCH_IA32
   ARCH_KERNEL_SOURCES =
 endif
 
+if ! ENABLE_TESTS
 noinst_LIBRARIES = libc-parts.a libc-kernel.a
+endif
 
 common_sources = assert.h 					\
 	strtol.c strtoll.c strtoul.c strtoull.c			\
