@@ -1,0 +1,63 @@
+# Copyright (C) 2003, 2005, 2008 Free Software Foundation, Inc.
+# 
+# This file is part of the GNU Hurd.
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# The GNU binutils version that we use.
+binutils_version = 2.18
+binutils_tarball = binutils-$(binutils_version).tar.bz2
+binutils_snapshot = ftp://ftp.gnu.org/gnu/binutils/$(binutils_tarball)
+
+$(srcdir)/binutils/$(binutils_tarball):
+	wget $(binutils_snapshot) -O $(srcdir)/binutils/$(binutils_tarball)
+
+$(srcdir)/binutils/binutils/unpack.stamp: $(srcdir)/binutils/$(binutils_tarball)
+	if test -d $(srcdir)/binutils/binutils/.; then \
+		echo "Refusing to extract over $(srcdir)/binutils/binutils"; \
+		exit 1; \
+	fi
+	( cd $(srcdir)/binutils/ \
+		&& tar xfvj $(binutils_tarball) \
+		&& mv binutils-$(binutils_version) binutils )
+	touch $@
+
+$(srcdir)/binutils/binutils/patch.stamp: $(srcdir)/binutils/binutils/unpack.stamp
+	cd $(srcdir)/binutils/binutils/ && \
+	$(fix_config_guess_and_sub)
+	touch $@
+
+binutils/binutils.build/configure.stamp: $(srcdir)/binutils/binutils/patch.stamp
+	rm -rf binutils/binutils.build
+	mkdir -p binutils/binutils.build
+	( cd binutils/binutils.build && \
+	  $(abs_srcdir)/binutils/binutils/configure \
+	    --target=$(host_alias) \
+	    --prefix='$(abs_top_builddir)' \
+	    --with-sysroot='$(SYSROOT)' \
+	    --disable-nls \
+	)
+	touch $@
+
+binutils/binutils.build/build.stamp: binutils/binutils.build/configure.stamp
+	cd binutils/binutils.build/ && \
+	$(MAKE) all
+	touch $@
+
+binutils/binutils.build/install.stamp: binutils/binutils.build/build.stamp
+	cd binutils/binutils.build/ && \
+	$(MAKE) install
+	touch $@
+
+#TODO: clean etc.

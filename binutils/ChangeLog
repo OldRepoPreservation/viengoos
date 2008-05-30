@@ -1,0 +1,3 @@
+2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefrag.am: New file.
