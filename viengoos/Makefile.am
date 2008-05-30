@@ -23,7 +23,9 @@ if ARCH_IA32
 endif
 
 bootdir = $(prefix)/boot
+if ! ENABLE_TESTS
 boot_PROGRAMS = viengoos
+endif
 
 # We need the libc headers for errno.h -I$(LIBC)/include 
 viengoos_CPPFLAGS = $(KERNEL_CPPFLAGS)
@@ -111,7 +113,9 @@ t_guard_CFLAGS = $(CHECK_CFLAGS)
 t_guard_SOURCES = t-guard.c			\
 	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
 
+if ! ENABLE_TESTS
 lib_LIBRARIES = libhurd-cap.a
+endif
 # Use a small stack alignment to decrease stack usage.
 libhurd_cap_a_CPPFLAGS = $(USER_CPPFLAGS)
 libhurd_cap_a_CFLAGS = $(USER_CFLAGS) -mpreferred-stack-boundary=2

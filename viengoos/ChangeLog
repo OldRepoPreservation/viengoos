@@ -1,5 +1,10 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* headers.m4: Link files into `sysroot/include/' instead of `include/'.
+	Create symbolic link to package's library in `sysroot/lib/'.
+	* Makefile.am [ENABLE_TESTS]: Don't build package's program and
+	library.
+
 	* viengoos.c (parse_args): Use `strtol' instead of `atoi'.
 
 	* object.h: Include <hurd/error.h> instead of <error.h>.

@@ -10,4 +10,10 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-AC_CONFIG_LINKS([include/hurd/rm.h:viengoos/rm.h])
+AC_CONFIG_LINKS([sysroot/include/hurd/rm.h:viengoos/rm.h])
+
+AC_CONFIG_COMMANDS_POST([
+  mkdir -p sysroot/lib viengoos &&
+  ln -sf ../../viengoos/libhurd-cap.a sysroot/lib/ &&
+  touch viengoos/libhurd-cap.a
+])
