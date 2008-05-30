@@ -1,5 +1,7 @@
 2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* patches/04-newlib-newlib-configure-ac.patch: Don't conceal errors.
+
 	* Makefile.am ($(addprefix $(srcdir)/newlib/, $(addon))): Touch the
 	destination file after linking.
 

@@ -76,15 +76,15 @@ More intelligently populate the targ-include directory.
 -	      cp $$i targ-include/machine/`basename $$i`; \
 -	    else true; fi ; \
 -	  done
-+	$(LN_S) $(abspath newlib.h) targ-include/newlib.h;
-+	-for dir in sys/$(sys_dir)/machine/$(machine_dir) \
++	$(LN_S) $(abspath newlib.h) targ-include/newlib.h
++	for dir in sys/$(sys_dir)/machine/$(machine_dir) \
 +		sys/$(sys_dir) machine/$(machine_dir) .; do \
 +	  for include in include .; do \
 +	    for subdir in machine sys bits .; do \
 +	      for header in $(srcdir)/libc/$$dir/$$include/$$subdir/*.h; do \
 +	        f=targ-include/$${subdir}/`basename $$header`; \
 +	        if [ "x$${header##*/}" != x'*.h' -a ! -e "$$f" ]; then \
-+	          $(LN_S) `readlink -f $$header` "$$f"; \
++	          $(LN_S) "$$(readlink -f "$$header")" "$$f" || exit "$?"; \
 +	        fi; \
 +	      done; \
 +	    done; \
