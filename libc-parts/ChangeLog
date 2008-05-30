@@ -1,3 +1,14 @@
+2008-05-30  Neal H. Walfield  <neal@gnu.org>
+
+	* s_printf.c (s_cputs): New function.
+	(s_puts): Reimplement in terms of this.
+	(print_nr): Take additional parameter, the putchar routine to use.
+	(print_signed_nr): Likewise.
+	(s_cvprintf): New function.
+	(s_vprintf): Reimplement in terms of this.
+	(s_cprintf): New function.
+	(s_printf): Call s_cvprintf, not s_vprintf.
+
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* headers.m4: New file.
