@@ -1,5 +1,10 @@
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c: Remove debugging code accidentally checked in in last
+	commit.
+
+2008-05-30  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.h (storage_check_reserve): New declaration.
 	* storage.c (MIN_FREE_PAGES): Rename from this...
 	(FREE_PAGES_LOW_WATER): ... to this and bump to 64.  Update users.

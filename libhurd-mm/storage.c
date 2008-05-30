@@ -324,9 +324,6 @@ storage_shadow_setup (struct cap *cap, addr_t folio)
 
 static bool storage_init_done;
 
-#include <hurd/trace.h>
-extern struct trace_buffer rwlock_trace;
-
 /* The minimum number of pages that should be available.  This should
    probably be per-thread (or at least per-CPU).  */
 #define FREE_PAGES_LOW_WATER 64
@@ -362,8 +359,6 @@ storage_check_reserve_internal (bool force_allocate,
     return;
 
   /* Insufficient storage reserve.  Allocate a new storage area.  */
-
-  trace_buffer_add (&rwlock_trace, "free count: %d", free_count);
 
   if (free_count > 0)
     /* XXX: as_insert calls allocate_object, which calls us.  When
