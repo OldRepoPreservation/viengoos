@@ -20,7 +20,7 @@
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = rpc.h startup.h stddef.h types.h addr.h \
 	addr-trans.h cap.h folio.h exceptions.h thread.h activity.h \
-	lock.h mutex.h rmutex.h futex.h error.h
+	lock.h mutex.h rmutex.h futex.h error.h trace.h
 
 TESTS = t-addr t-addr-trans t-rpc
 check_PROGRAMS = $(TESTS)
@@ -33,4 +33,3 @@ t_addr_trans_SOURCES = t-addr-trans.c
 
 t_rpc_CPPFLAGS = $(CHECK_CPPFLAGS)
 t_rpc_SOURCES = t-rpc.c
-
