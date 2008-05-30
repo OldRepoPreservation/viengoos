@@ -237,9 +237,6 @@ static struct storage_desc *short_lived;
    freeing.  */
 #define FREEING_THRESHOLD (FOLIO_OBJECTS / 2)
 
-/* The minimum number of pages that should be available.  */
-#define MIN_FREE_PAGES 16
-
 static void
 shadow_setup (struct cap *cap, struct storage_desc *storage)
 {
@@ -327,6 +324,172 @@ storage_shadow_setup (struct cap *cap, addr_t folio)
 
 static bool storage_init_done;
 
+#include <hurd/trace.h>
+extern struct trace_buffer rwlock_trace;
+
+/* The minimum number of pages that should be available.  This should
+   probably be per-thread (or at least per-CPU).  */
+#define FREE_PAGES_LOW_WATER 64
+/* If the number of free pages drops below this amount, the we might
+   soon have a problem.  In this case, we serialize access to the pool
+   of available pages to allow some thread that is able to allocate
+   more pages the chance to do so.  */
+#define FREE_PAGES_SERIALIZE 16
+
+static pthread_mutex_t storage_low_mutex;
+static pthread_once_t storage_low_mutex_init_once;
+
+static void
+storage_low_mutex_init (void)
+{
+  /* Initialize STORAGE_LOW_MUTEX as a recursive lock.  */
+  pthread_mutexattr_t attr;
+  pthread_mutexattr_init (&attr);
+  pthread_mutexattr_settype (&attr, PTHREAD_MUTEX_RECURSIVE);
+
+  pthread_mutex_init (&storage_low_mutex, &attr);
+
+  pthread_mutexattr_destroy (&attr);
+}
+
+static void
+storage_check_reserve_internal (bool force_allocate,
+				addr_t activity,
+				enum storage_expectancy expectancy)
+{
+ top:
+  if (! force_allocate && likely (free_count > FREE_PAGES_LOW_WATER))
+    return;
+
+  /* Insufficient storage reserve.  Allocate a new storage area.  */
+
+  trace_buffer_add (&rwlock_trace, "free count: %d", free_count);
+
+  if (free_count > 0)
+    /* XXX: as_insert calls allocate_object, which calls us.  When
+       we allocate a new folio, we need to insert it into the
+       address space.  This requires calling as_insert, which
+       results in a deadlock.  Here we try to take the lock.  If
+       we succeed, then we don't hold the lock and it is okay to
+       call as_insert.  If we fail, then either there is a lot of
+       contention or we would deadlock.  As long as the page
+       reserve is large enough, this is not a problem.  A solution
+       would be to check in as_insert whether there are any free
+       pages and if not to call some as-yet unwritten function
+       which forces the reserve to grow.  */
+    {
+      extern pthread_rwlock_t as_lock;
+      if (pthread_rwlock_trywrlock (&as_lock) == EBUSY)
+	goto out_unlock;
+
+      pthread_rwlock_unlock (&as_lock);
+    }
+
+  bool have_lock = false;
+  if (free_count < FREE_PAGES_SERIALIZE)
+    {
+      pthread_once (&storage_low_mutex_init_once, storage_low_mutex_init);
+
+      if (pthread_mutex_trylock (&storage_low_mutex) == EBUSY)
+	/* Someone else is in.  */
+	{
+	  /* Wait.  */
+	  pthread_mutex_lock (&storage_low_mutex);
+	  pthread_mutex_unlock (&storage_low_mutex);
+	  /* Retry from the beginning.  */
+	  goto top;
+	}
+
+      have_lock = true;
+    }
+
+  debug (3, "Allocating additional folio, " DEBUG_BOLD ("free count: %d"),
+	 free_count);
+
+  /* Although we have not yet allocated the objects, allocating
+     support structures for the folio may require memory causing
+     us to recurse.  Thus, we add them first.  */
+  atomic_add (&free_count, FOLIO_OBJECTS);
+
+  /* Here is the big recursive dependency!  Using the address that
+     as_alloc returns might require allocating one (or more) page
+     tables to make a slot available.  Moreover, each of those
+     page tables requires not only a cappage but also a shadow
+     page table.  */
+  addr_t addr;
+  struct cap *cap = NULL;
+  if (likely (as_init_done))
+    {
+      addr = as_alloc (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2, 1, true);
+      if (ADDR_IS_VOID (addr))
+	panic ("Failed to allocate address space!");
+
+      cap = as_slot_ensure (addr);
+      assert (cap);
+    }
+  else
+    {
+      struct hurd_object_desc *desc;
+      desc = as_alloc_slow (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2);
+      if (! desc || ADDR_IS_VOID (desc->object))
+	panic ("Failed to allocate address space!");
+
+      addr = desc->object;
+      desc->storage = addr;
+      desc->type = cap_folio;
+
+      cap = slot_lookup (meta_data_activity, addr, NULL);
+    }
+
+  /* And then the folio.  */
+  error_t err = rm_folio_alloc (activity, addr, FOLIO_POLICY_DEFAULT);
+  assert (! err);
+
+  /* Allocate and fill a descriptor.  */
+  struct storage_desc *s = storage_desc_alloc ();
+
+  s->lock = (ss_mutex_t) 0;
+  s->folio = addr;
+  memset (&s->alloced, 0, sizeof (s->alloced));
+  s->free = FOLIO_OBJECTS;
+  s->cap = cap;
+
+  if (cap)
+    shadow_setup (cap, s);
+
+  /* S is setup.  Make it available.  */
+  ss_mutex_lock (&storage_descs_lock);
+
+  if (expectancy == STORAGE_EPHEMERAL)
+    {
+      s->mode = SHORT_LIVED;
+      list_link (&short_lived, s);
+    }
+  else
+    {
+      s->mode = LONG_LIVED_ALLOCING;
+      list_link (&long_lived_allocing, s);
+    }
+
+  hurd_btree_storage_desc_insert (&storage_descs, s);
+
+  ss_mutex_unlock (&storage_descs_lock);
+
+  /* Having added the storage, we now check if we need to allocate
+     a new reserve slab buffer.  */
+  check_slab_space_reserve ();
+
+ out_unlock:
+  if (have_lock)
+    pthread_mutex_unlock (&storage_low_mutex);
+}
+
+void
+storage_check_reserve (void)
+{
+  storage_check_reserve_internal (false, meta_data_activity, STORAGE_UNKNOWN);
+}
+
 #undef storage_alloc
 struct storage
 storage_alloc (addr_t activity,
@@ -336,164 +499,65 @@ storage_alloc (addr_t activity,
 {
   assert (storage_init_done);
 
-  atomic_read_barrier ();
-  if (unlikely (free_count <= MIN_FREE_PAGES))
-    /* Insufficient storage reserve.  Allocate a new storage area.  */
+  struct storage_desc *desc;
+  bool do_allocate = false;
+  do
     {
-      if (free_count > 0)
-	/* XXX: as_insert calls allocate_object, which calls us.  When
-	   we allocate a new folio, we need to insert it into the
-	   address space.  This requires calling as_insert, which
-	   results in a deadlock.  Here we try to take the lock.  If
-	   we succeed, then we don't hold the lock and it is okay to
-	   call as_insert.  If we fail, then either there is a lot of
-	   contention or we would deadlock.  As long as the page
-	   reserve is large enough, this is not a problem.  A solution
-	   would be to check in as_insert whether there are any free
-	   pages and if not to call some as-yet unwritten function
-	   which forces the reserve to grow.  */
-	{
-	  extern pthread_rwlock_t as_lock;
-	  if (pthread_rwlock_trywrlock (&as_lock) == EBUSY)
-	    goto skip;
+      storage_check_reserve_internal (do_allocate, activity, expectancy);
 
-	  pthread_rwlock_unlock (&as_lock);
-	}
+      /* Find an appropriate storage area.  */
+      struct storage_desc *pluck (struct storage_desc *list)
+      {
+	while (list)
+	  {
+	    /* We could just wait on the lock, however, we can just as
+	       well allocate from another storage descriptor.  This may
+	       lead to allocating additional storage areas, however, this
+	       should be proportional to the contention.  */
+	    if (ss_mutex_trylock (&list->lock))
+	      return list;
 
-    do_allocate:
-      debug (3, "Allocating additional folio, free count: %d", free_count);
+	    list = list->next;
+	  }
 
-      /* Although we have not yet allocated the objects, allocating
-	 support structures for the folio may require memory causing
-	 us to recurse.  Thus, we add them first.  */
-      atomic_add (&free_count, FOLIO_OBJECTS);
+	return NULL;
+      }
 
-      /* Here is the big recursive dependency!  Using the address that
-	 as_alloc returns might require allocating one (or more) page
-	 tables to make a slot available.  Moreover, each of those
-	 page tables requires not only a cappage but also a shadow
-	 page table.  */
-      addr_t addr;
-      struct cap *cap = NULL;
-      if (likely (as_init_done))
-	{
-	  addr = as_alloc (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2, 1, true);
-	  if (ADDR_IS_VOID (addr))
-	    panic ("Failed to allocate address space!");
-
-	  cap = as_slot_ensure (addr);
-	  assert (cap);
-	}
-      else
-	{
-	  struct hurd_object_desc *desc;
-	  desc = as_alloc_slow (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2);
-	  if (! desc || ADDR_IS_VOID (desc->object))
-	    panic ("Failed to allocate address space!");
-
-	  addr = desc->object;
-	  desc->storage = addr;
-	  desc->type = cap_folio;
-
-	  cap = slot_lookup (meta_data_activity, addr, NULL);
-	}
-
-      /* And then the folio.  */
-      error_t err = rm_folio_alloc (activity, addr, FOLIO_POLICY_DEFAULT);
-      assert (! err);
-
-      /* Allocate and fill a descriptor.  */
-      struct storage_desc *s = storage_desc_alloc ();
-
-      s->lock = (ss_mutex_t) 0;
-      s->folio = addr;
-      memset (&s->alloced, 0, sizeof (s->alloced));
-      s->free = FOLIO_OBJECTS;
-      s->cap = cap;
-
-      if (cap)
-	shadow_setup (cap, s);
-
-      /* S is setup.  Make it available.  */
       ss_mutex_lock (&storage_descs_lock);
 
       if (expectancy == STORAGE_EPHEMERAL)
 	{
-	  s->mode = SHORT_LIVED;
-	  list_link (&short_lived, s);
+	  desc = pluck (short_lived);
+	  if (! desc)
+	    desc = pluck (long_lived_allocing);
+	  if (! desc)
+	    desc = pluck (long_lived_freeing);
 	}
       else
 	{
-	  s->mode = LONG_LIVED_ALLOCING;
-	  list_link (&long_lived_allocing, s);
-	}
-
-      hurd_btree_storage_desc_insert (&storage_descs, s);
-
-      ss_mutex_unlock (&storage_descs_lock);
-
-      /* Having added the storage, we now check if we need to allocate
-	 a new reserve slab buffer.  */
-      check_slab_space_reserve ();
-    }
- skip:;
-
-
-  /* Find an appropriate storage area.  */
-  struct storage_desc *pluck (struct storage_desc *list)
-  {
-    while (list)
-      {
-	/* We could just wait on the lock, however, we can just as
-	   well allocate from another storage descriptor.  This may
-	   lead to allocating additional storage areas, however, this
-	   should be proportional to the contention.  */
-	if (ss_mutex_trylock (&list->lock))
-	  return list;
-
-	list = list->next;
-      }
-
-    return NULL;
-  }
-
-  ss_mutex_lock (&storage_descs_lock);
-
-  struct storage_desc *desc;
-  if (expectancy == STORAGE_EPHEMERAL)
-    {
-      desc = pluck (short_lived);
-      if (! desc)
-	desc = pluck (long_lived_allocing);
-      if (! desc)
-	desc = pluck (long_lived_freeing);
-    }
-  else
-    {
-      desc = pluck (long_lived_allocing);
-      if (! desc)
-	{
-	  desc = pluck (long_lived_freeing);
+	  desc = pluck (long_lived_allocing);
 	  if (! desc)
-	    desc = pluck (short_lived);
-
-	  if (desc)
 	    {
-	      list_unlink (desc);
-	      list_link (&long_lived_allocing, desc);
+	      desc = pluck (long_lived_freeing);
+	      if (! desc)
+		desc = pluck (short_lived);
+
+	      if (desc)
+		{
+		  list_unlink (desc);
+		  list_link (&long_lived_allocing, desc);
+		}
 	    }
 	}
+
+      if (! desc || desc->free != 1)
+	/* Only drop this lock if we are not about to allocate the last
+	   page.  Otherwise, we still need the lock.  */
+	ss_mutex_unlock (&storage_descs_lock);
+
+      do_allocate = true;
     }
-
-  if (! desc || desc->free != 1)
-    /* Only drop this lock if we are not about to allocate the last
-       page.  Otherwise, we still need the lock.  */
-    ss_mutex_unlock (&storage_descs_lock);
-
-  if (! desc)
-    /* There are no unlocked storage areas available.  Allocate
-       one.  */
-    goto do_allocate;
+  while (! desc);
 
   /* DESC desigantes a storage area from which we can allocate a page.
      DESC->LOCK is held.  */
@@ -619,7 +683,7 @@ storage_free_ (addr_t object, bool unmap_now)
     {
       debug (1, "Folio at " ADDR_FMT " now empty", ADDR_PRINTF (folio));
 
-      if (free_count - FOLIO_OBJECTS > MIN_FREE_PAGES)
+      if (free_count - FOLIO_OBJECTS > FREE_PAGES_LOW_WATER)
 	/* There are sufficient reserve pages not including this
 	   folio.  Thus, we free STORAGE.  */
 	{

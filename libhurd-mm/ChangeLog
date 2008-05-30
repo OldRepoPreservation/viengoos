@@ -1,3 +1,19 @@
+2008-05-30  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.h (storage_check_reserve): New declaration.
+	* storage.c (MIN_FREE_PAGES): Rename from this...
+	(FREE_PAGES_LOW_WATER): ... to this and bump to 64.  Update users.
+	(FREE_PAGES_SERIALIZE): New define.
+	(storage_low_mutex): New variable.
+	(storage_low_mutex_once): Likewise.
+	(storage_low_mutex_init): New function.
+	(storage_alloc): Move folio allocation code to...
+	(storage_check_reserve_internal): ... this new function.  If the
+	number of pages is less than FREE_PAGES_SERIALIZE, take the
+	storage_low_mutex lock.
+	(storage_alloc): Call that function.
+	(storage_check_reserve): New function.
+
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* headers.m4: Link files into `sysroot/include/' instead of `include/'.

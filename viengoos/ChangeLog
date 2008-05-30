@@ -1,3 +1,9 @@
+2008-05-30  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c [! RM_INTERN]: Include <hurd/storage.h>.
+	(as_slot_ensure_full) [! RM_INTERN]: Call storage_check_reserve.
+	(as_insert) [! RM_INTERN]: Likewise.
+	
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* headers.m4: Link files into `sysroot/include/' instead of `include/'.

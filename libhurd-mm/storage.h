@@ -1,5 +1,5 @@
 /* storage.h - Storage allocation functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -95,5 +95,11 @@ extern void storage_init (void);
 
 /* Used by as_init to initialize a folio's shadow object.  */
 extern void storage_shadow_setup (struct cap *cap, addr_t folio);
+
+/* Check the amount of available storage, allocating more if required.
+   This should be called by any function that takes the as_lock and
+   allocates storage (even indirectly) after it has dropped the
+   as_lock.  */
+extern void storage_check_reserve (void);
 
 #endif /* _HURD_STORAGE_H  */

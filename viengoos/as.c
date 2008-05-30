@@ -27,6 +27,10 @@
 #include <hurd/folio.h>
 #include <hurd/exceptions.h>
 
+#ifndef RM_INTERN
+# include <hurd/storage.h>
+#endif
+
 #include "as.h"
 #include "bits.h"
 #include "rm.h"
@@ -564,6 +568,10 @@ ID (as_slot_ensure_full) (activity_t activity,
 
   AS_UNLOCK;
 
+#ifndef RM_INTERN
+  storage_check_reserve ();
+#endif
+
   return cap;
 }
 
@@ -584,6 +592,10 @@ ID (as_insert) (activity_t activity,
   cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
 
   AS_UNLOCK;
+
+#ifndef RM_INTERN
+  storage_check_reserve ();
+#endif
 
   return slot;
 }
