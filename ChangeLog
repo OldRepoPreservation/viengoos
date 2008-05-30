@@ -1,5 +1,12 @@
 2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* configure.ac (missing_progs): Rename to...
+	(missing_doc_progs): ... this.
+	(DOC): New variable.  Used to indicate whether to documentation
+	files can be built.
+	Make it non-fatal if the documentation can't be built.
+	* Makefile.am (SUBDIRS): Use $(DOC).
+
 	* configure.ac (AM_MAINTAINER_MODE): Get rid of it.
 	* README: Reflect that.
 

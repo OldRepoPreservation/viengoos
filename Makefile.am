@@ -42,7 +42,7 @@ SUBDIRS = libl4 platform				\
 	.						\
 	ruth						\
 	hieronymus					\
-	doc
+	$(DOC)
 endif
 
 if HAVE_CROSS

@@ -51,18 +51,27 @@ AC_PATH_PROG([SORT], [sort], :)
 AC_PROG_LN_S
 
 # Required for building the documentation
+missing_doc_progs=
 AC_PATH_PROG([PDFLATEX], [pdflatex], no)
 if test "x$PDFLATEX" = xno; then
-  missing_progs="$missing_progs pdflatex"
+  missing_doc_progs="$missing_doc_progs pdflatex"
 fi
 AC_PATH_PROG([BIBTEX], [bibtex], no)
 if test "x$BIBTEX" = xno; then
-  missing_progs="$missing_progs bibtex"
+  missing_doc_progs="$missing_doc_progs bibtex"
 fi
 AC_PATH_PROG([INKSCAPE], [inkscape], no)
 if test "x$INKSCAPE" = xno; then
-  missing_progs="missing_progs inkscape"
+  missing_doc_progs="$missing_doc_progs inkscape"
 fi
+DOC=
+if test x"$missing_doc_progs" != "x"; then
+  AC_MSG_WARN([[The following programs were not found:$missing_doc_progs.  ]]dnl
+[[No documentation files will be built.]])
+else
+  DOC=doc
+fi
+AC_SUBST([DOC])
 
 
 # Check for program specialities.
@@ -261,10 +270,6 @@ AM_CONDITIONAL([ENABLE_TESTS], [[test x"${enable_tests-no}" != xno]])
 
 AM_CONDITIONAL([TRAVERSE_HIERARCHY], [[$have_cross || test x"${enable_tests-no}" != xno]])
 
-
-if test "x$missing_progs" != "x"; then
-  AC_MSG_ERROR([The following programs were not found:$missing_progs])
-fi
 
 # Checks for library functions.
 AC_CONFIG_FILES([Makefile
