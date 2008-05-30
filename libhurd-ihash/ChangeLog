@@ -1,5 +1,10 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* headers.m4: Link files into `sysroot/include/' instead of `include/'.
+	Create symbolic link to package's library in `sysroot/lib/'.
+	* Makefile.am: When building package's libraries, differentiate between
+	[ENABLE_TESTS] with respect to build flags.
+
 	* Makefile.am (t_ihash_CPPFLAGS, t_ihash64_CPPFLAGS): Remove special
 	`printf' handling.
 

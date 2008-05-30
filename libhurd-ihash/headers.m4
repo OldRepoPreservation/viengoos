@@ -10,4 +10,10 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-AC_CONFIG_LINKS([include/hurd/ihash.h:libhurd-ihash/ihash.h])
+AC_CONFIG_LINKS([sysroot/include/hurd/ihash.h:libhurd-ihash/ihash.h])
+
+AC_CONFIG_COMMANDS_POST([
+  mkdir -p sysroot/lib libhurd-ihash &&
+  ln -sf ../../libhurd-ihash/libhurd-ihash.a sysroot/lib/ &&
+  touch libhurd-ihash/libhurd-ihash.a
+])

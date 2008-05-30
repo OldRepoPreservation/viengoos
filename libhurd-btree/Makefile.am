@@ -24,8 +24,14 @@ lib_LIBRARIES = libhurd-btree.a
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = btree.h
 
-libhurd_btree_a_CPPFLAGS = $(USER_CPPFLAGS) -DNCHECKS
+libhurd_btree_a_CPPFLAGS = -DNCHECKS
+if ENABLE_TESTS
+libhurd_btree_a_CPPFLAGS += $(CHECK_CPPFLAGS)
+libhurd_btree_a_CFLAGS = $(CHECK_CFLAGS)
+else
+libhurd_btree_a_CPPFLAGS += $(USER_CPPFLAGS)
 libhurd_btree_a_CFLAGS = $(USER_CFLAGS)
+endif
 libhurd_btree_a_SOURCES = btree.h btree.c
 
 TESTS = btree-test

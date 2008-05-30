@@ -27,12 +27,23 @@ includehurd_HEADERS = ihash.h
 # FIXME: Build a special libhurd-ihash.a using libc-parts for the rootservers,
 # and a normal for everybody else.
 
+if ENABLE_TESTS
+libhurd_ihash_a_CPPFLAGS = $(CHECK_CPPFLAGS)
+libhurd_ihash_a_CFLAGS = $(CHECK_CFLAGS)
+else
 libhurd_ihash_a_CPPFLAGS = $(USER_CPPFLAGS)
 libhurd_ihash_a_CFLAGS = $(USER_CFLAGS)
+endif
 libhurd_ihash_a_SOURCES = ihash.h ihash.c
 
-libhurd_ihash_nomalloc_a_CPPFLAGS = $(USER_CPPFLAGS) -DNO_MALLOC
+libhurd_ihash_nomalloc_a_CPPFLAGS = -DNO_MALLOC
+if ENABLE_TESTS
+libhurd_ihash_nomalloc_a_CPPFLAGS += $(CHECK_CPPFLAGS)
+libhurd_ihash_nomalloc_a_CFLAGS = $(CHECK_CFLAGS)
+else
+libhurd_ihash_nomalloc_a_CPPFLAGS += $(USER_CPPFLAGS)
 libhurd_ihash_nomalloc_a_CFLAGS = $(USER_CFLAGS)
+endif
 libhurd_ihash_nomalloc_a_SOURCES = ihash.h ihash.c
 
 TESTS = t-ihash t-ihash64
