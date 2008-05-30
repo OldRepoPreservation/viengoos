@@ -1,0 +1,83 @@
+# Copyright (C) 2003, 2005, 2008 Free Software Foundation, Inc.
+# 
+# This file is part of the GNU Hurd.
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# The GCC version that we use.
+gcc_version = 4.2.2
+gcc_tarball = gcc-core-$(gcc_version).tar.bz2
+gcc_snapshot = ftp://ftp.gnu.org/gnu/gcc/gcc-$(gcc_version)/$(gcc_tarball)
+
+# Patches to apply to newlib's source tree.
+gcc_patch_files = \
+	configury.patch
+
+$(srcdir)/gcc/$(gcc_tarball):
+	wget $(gcc_snapshot) -O $(srcdir)/gcc/$(gcc_tarball)
+
+$(srcdir)/gcc/gcc/unpack.stamp: $(srcdir)/gcc/$(gcc_tarball)
+	if test -d $(srcdir)/gcc/gcc/.; then \
+		echo "Refusing to extract over $(srcdir)/gcc/gcc"; \
+		exit 1; \
+	fi
+	( cd $(srcdir)/gcc/ \
+		&& tar xfvj $(gcc_tarball) \
+		&& mv gcc-$(gcc_version) gcc )
+	touch $@
+
+# Apply any local patches.  (Revert any applied older version.)
+$(addprefix $(srcdir)/gcc/gcc/,$(addsuffix .applied,$(gcc_patch_files))): $(srcdir)/gcc/gcc/unpack.stamp
+$(addprefix $(srcdir)/gcc/gcc/,$(addsuffix .applied,$(gcc_patch_files))): $(srcdir)/gcc/%.applied: $(srcdir)/%
+	if test -e "$@"; \
+	then \
+	  ( cd $(srcdir)/gcc/gcc/ && sh /dev/stdin -R ) < $@ && rm -f $@; \
+	fi
+	( cd $(srcdir)/gcc/gcc/ && sh /dev/stdin ) < $<
+	cp $< $@
+
+$(srcdir)/gcc/gcc/patch.stamp: $(srcdir)/gcc/gcc/unpack.stamp $(addprefix $(srcdir)/gcc/gcc/,$(addsuffix .applied,$(gcc_patch_files)))
+	cd $(srcdir)/gcc/gcc/ && \
+	$(fix_config_guess_and_sub)
+	touch $@
+
+gcc/gcc.build/configure.stamp: $(srcdir)/gcc/gcc/patch.stamp binutils/binutils.build/install.stamp
+	rm -rf gcc/gcc.build
+	mkdir -p gcc/gcc.build
+	( cd gcc/gcc.build && \
+	  $(abs_srcdir)/gcc/gcc/configure \
+	    --target=$(host_alias) \
+	    --prefix='$(abs_top_builddir)' \
+	    --with-sysroot='$(SYSROOT)' \
+	    --disable-nls \
+	    --disable-shared \
+	    --disable-threads \
+	    --without-headers \
+	    --with-newlib \
+	    --enable-languages=c \
+	    --with-arch=$(word 1,$(subst -, ,$(host_alias))) \
+	)
+	touch $@
+
+gcc/gcc.build/build.stamp: gcc/gcc.build/configure.stamp
+	cd gcc/gcc.build/ && \
+	$(MAKE) all-gcc
+	touch $@
+
+gcc/gcc.build/install.stamp: gcc/gcc.build/build.stamp
+	cd gcc/gcc.build/ && \
+	$(MAKE) install-gcc
+	touch $@
+
+#TODO: clean etc.

@@ -1,0 +1,285 @@
+#!/bin/sh
+
+patch -p0 -f "$@" < $0
+exit "$?"
+
+
+From here down to the GCC 4.2 TARGET CONFIGURATION PATCH END marker the text is
+a copy of the 2007-11-15 version of
+<http://www.thomas.schwinge.homeip.net/tmp/gcc-patches/gcc-4.2-target-configuration.patch>.
+
+========================================
+GCC 4.2 TARGET CONFIGURATION PATCH START
+========================================
+2007-11-15.
+
+Patch for gcc-4_2-branch and 4.2 release series.
+
+<http://gcc.gnu.org/bugzilla/show_bug.cgi?id=28102>
+<http://gcc.gnu.org/ml/gcc/2007-11/msg00289.html>
+
+TODO.  Duplicate ``i386/linux.h''?
+
+Index: gcc/config.gcc
+===================================================================
+--- gcc/config.gcc	(Revision 130085)
++++ gcc/config.gcc	(Arbeitskopie)
+@@ -456,9 +456,11 @@
+ *-*-linux*libc1* | *-*-linux*aout*)
+   # Avoid the generic linux case.
+   ;;
+-*-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-knetbsd*-gnu)
+-  # Must come before *-*-gnu* (because of *-*-linux-gnu* systems).
++*-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-knetbsd*-gnu | *-*-gnu*)
+   extra_parts="crtbegin.o crtbeginS.o crtbeginT.o crtend.o crtendS.o"
++  # TODO.  glibc / uclibc switch.  uclibc isn't usable for GNU/Hurd and
++  # probably neither for GNU/*BSD, but sharing this with GNU/Linux won't hurt
++  # as long as nobody actively tries to use it.
+   extra_options="${extra_options} linux.opt"
+   gas=yes
+   gnu_ld=yes
+@@ -466,6 +468,12 @@
+     "" | yes | posix) thread_file='posix' ;;
+   esac
+   tmake_file="t-slibgcc-elf-ver t-linux"
++   case ${target} in
++    *-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-knetbsd*-gnu)
++      :;;
++    *-*-gnu*)
++      tmake_file="$tmake_file t-gnu";;
++  esac
+   case ${target} in
+     *-*-*uclibc*)
+       tm_defines="${tm_defines} UCLIBC_DEFAULT=1"
+@@ -477,29 +485,6 @@
+   # Assume that glibc or uClibc are being used and so __cxa_atexit is provided.
+   default_use_cxa_atexit=yes
+   ;;
+-*-*-gnu*)
+-  # On the Hurd, the setup is just about the same on
+-  # each different CPU.  The specific machines that we
+-  # support are matched above and just set $cpu_type.
+-  tm_file="${cpu_type}/gnu.h"
+-  extra_parts="crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o"
+-  # GNU tools are the only tools.
+-  gas=yes
+-  gnu_ld=yes
+-  # These details are the same as for Linux.
+-  # But here we need a little extra magic.
+-  tmake_file="t-slibgcc-elf-ver t-linux t-gnu"
+-  case ${target} in
+-    alpha*)
+-      tm_file="${cpu_type}/${cpu_type}.h alpha/elf.h alpha/linux.h alpha/linux-elf.h gnu.h ${tm_file}"
+-      ;;
+-    i[34567]86-*-*)
+-      tm_file="${cpu_type}/${cpu_type}.h i386/unix.h i386/att.h dbxelf.h elfos.h svr4.h linux.h i386/linux.h gnu.h ${tm_file}"
+-      ;;
+-  esac
+-  # Assume that glibc is being used and so __cxa_atexit is provided.
+-  default_use_cxa_atexit=yes
+-  ;;
+ *-*-netbsd*)
+   tmake_file="t-slibgcc-elf-ver t-libc-ok t-netbsd t-libgcc-pic"
+   gas=yes
+@@ -601,6 +586,8 @@
+ 	tmake_file="${tmake_file} alpha/t-crtfm alpha/t-alpha alpha/t-ieee alpha/t-linux"
+ 	;;
+ alpha*-*-gnu*)
++	# This is completely untested.
++	tm_file="$tm_file alpha/elf.h alpha/linux.h alpha/linux-elf.h gnu.h alpha/gnu.h"
+ 	target_cpu_default="MASK_GAS"
+ 	tmake_file="${tmake_file} alpha/t-crtfm alpha/t-alpha alpha/t-ieee"
+ 	;;
+@@ -1087,14 +1074,18 @@
+ 	tm_file="${tm_file} i386/unix.h i386/bsd.h i386/gas.h dbxcoff.h i386/i386-coff.h"
+ 	use_fixproto=yes
+ 	;;
+-i[34567]86-*-linux* | i[34567]86-*-kfreebsd*-gnu | i[34567]86-*-knetbsd*-gnu)
++i[34567]86-*-linux* | i[34567]86-*-kfreebsd*-gnu | i[34567]86-*-knetbsd*-gnu | i[34567]86-*-gnu*)
+ 			# Intel 80386's running GNU/*
+ 			# with ELF format using glibc 2
+ 	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h svr4.h linux.h i386/linux.h"
+ 	case ${target} in
+ 	i[34567]86-*-knetbsd*-gnu) tm_file="${tm_file} knetbsd-gnu.h i386/knetbsd-gnu.h" ;;
+ 	i[34567]86-*-kfreebsd*-gnu) tm_file="${tm_file} kfreebsd-gnu.h i386/kfreebsd-gnu.h" ;;
++	i[34567]86-*-gnu*)
++		tm_file="$tm_file i386/linux.h gnu.h i386/gnu.h"
++		;;
+ 	esac
++	# TODO.  GNU/Hurd originally didn't have `t-dfprules'.
+ 	tmake_file="${tmake_file} i386/t-crtstuff i386/t-crtfm t-dfprules"
+ 	;;
+ x86_64-*-linux* | x86_64-*-kfreebsd*-gnu | x86_64-*-knetbsd*-gnu)
+@@ -1106,8 +1097,6 @@
+ 	esac
+ 	tmake_file="${tmake_file} i386/t-linux64 i386/t-crtfm t-dfprules"
+ 	;;
+-i[34567]86-*-gnu*)
+-	;;
+ i[34567]86-pc-msdosdjgpp*)
+ 	xm_file=i386/xm-djgpp.h
+ 	tm_file="dbxcoff.h ${tm_file} i386/unix.h i386/bsd.h i386/gas.h i386/djgpp.h"
+Index: gcc/config/i386/gnu.h
+===================================================================
+--- gcc/config/i386/gnu.h	(Revision 130085)
++++ gcc/config/i386/gnu.h	(Arbeitskopie)
+@@ -1,30 +1,19 @@
+ /* Configuration for an i386 running GNU with ELF as the target machine.  */
+ 
++/* TODO.  Does this belong into here or into `config/gnu.h'?  Use `ld.so' or
++   `ld.so.1'?  */
++#undef GLIBC_DYNAMIC_LINKER
++#define GLIBC_DYNAMIC_LINKER "/lib/ld.so"
++
+ #undef TARGET_VERSION
+ #define TARGET_VERSION fprintf (stderr, " (i386 GNU)");
+ 
+-#undef TARGET_OS_CPP_BUILTINS /* config.gcc includes i386/linux.h.  */
+-#define TARGET_OS_CPP_BUILTINS()		\
+-  do						\
+-    {						\
+-	HURD_TARGET_OS_CPP_BUILTINS();		\
+-    }						\
+-  while (0)
+-
+ #undef CPP_SPEC
+ #define CPP_SPEC "%{posix:-D_POSIX_SOURCE} %{bsd:-D_BSD_SOURCE}"
+ 
+ #undef CC1_SPEC
+ #define CC1_SPEC "%(cc1_cpu)"
+ 
+-#undef	LINK_SPEC
+-#define LINK_SPEC "-m elf_i386 %{shared:-shared} \
+-  %{!shared: \
+-    %{!static: \
+-      %{rdynamic:-export-dynamic} \
+-      %{!dynamic-linker:-dynamic-linker /lib/ld.so}} \
+-    %{static:-static}}"
+-
+ #undef	STARTFILE_SPEC
+ #define STARTFILE_SPEC \
+   "%{!shared: \
+@@ -36,3 +25,7 @@
+ 
+ /* FIXME: Is a Hurd-specific fallback mechanism necessary?  */
+ #undef MD_UNWIND_SUPPORT
++
++
++/* FIXME: Do we have to override `TARGET_LIBC_PROVIDES_SSP' and / or
++   `TARGET_THREAD_SSP_OFFSET'?  */
+Index: gcc/config/gnu.h
+===================================================================
+--- gcc/config/gnu.h	(Revision 130085)
++++ gcc/config/gnu.h	(Arbeitskopie)
+@@ -12,10 +12,8 @@
+ #undef STANDARD_INCLUDE_DIR
+ #define STANDARD_INCLUDE_DIR "/include"
+ 
+-/* The system headers under GNU are C++-aware.  */
+-#define NO_IMPLICIT_EXTERN_C
+-
+-#define HURD_TARGET_OS_CPP_BUILTINS()		\
++#undef LINUX_TARGET_OS_CPP_BUILTINS
++#define LINUX_TARGET_OS_CPP_BUILTINS()		\
+     do {					\
+ 	builtin_define ("__gnu_hurd__");	\
+ 	builtin_define ("__GNU__");		\
+======================================
+GCC 4.2 TARGET CONFIGURATION PATCH END
+======================================
+
+
+viengoos part of the patch is following now.
+
+diff -Nurp gcc-4.2.2.tschwinge-patched/gcc/config/i386/viengoos.h gcc-4.2.2/gcc/config/i386/viengoos.h
+--- gcc/config/i386/viengoos.h	1970-01-01 01:00:00.000000000 +0100
++++ gcc/config/i386/viengoos.h	2008-04-04 16:36:34.000000000 +0200
+@@ -0,0 +1,12 @@
++/* From i386/gnu.h.  */
++/* TODO.  */
++#undef	STARTFILE_SPEC
++#define STARTFILE_SPEC \
++  /* "crt0.o%s " */ \
++  "crtbeginT.o%s"
++
++/* From i386/linux.h.  */
++/* TODO.  */
++#undef  ENDFILE_SPEC
++#define ENDFILE_SPEC \
++  "crtend.o%s"
+diff -Nurp gcc-4.2.2.tschwinge-patched/gcc/config/viengoos.h gcc-4.2.2/gcc/config/viengoos.h
+--- gcc/config/viengoos.h	1970-01-01 01:00:00.000000000 +0100
++++ gcc/config/viengoos.h	2008-01-30 09:59:20.000000000 +0100
+@@ -0,0 +1,14 @@
++/* TODO.  */
++
++#undef LINUX_TARGET_OS_CPP_BUILTINS
++#define LINUX_TARGET_OS_CPP_BUILTINS()		\
++    do {					\
++	builtin_define ("__gnu_hurd_viengoos__");	\
++	builtin_define ("__GNU__");		\
++	builtin_define_std ("unix");		\
++	/* builtin_define_std ("MACH");	*/	\
++	builtin_assert ("system=gnu");		\
++	/* builtin_assert ("system=mach"); */	\
++	builtin_assert ("system=unix");		\
++	builtin_assert ("system=posix");	\
++    } while (0)
+diff -Nurp gcc-4.2.2.tschwinge-patched/gcc/config.gcc gcc-4.2.2/gcc/config.gcc
+--- gcc/config.gcc	2008-05-25 18:18:43.000000000 +0200
++++ gcc/config.gcc	2008-02-04 15:34:45.000000000 +0100
+@@ -456,11 +456,11 @@ case ${target} in
+ *-*-linux*libc1* | *-*-linux*aout*)
+   # Avoid the generic linux case.
+   ;;
+-*-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-knetbsd*-gnu | *-*-gnu*)
++*-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-knetbsd*-gnu | *-*-viengoos-gnu* | *-*-gnu*)
+   extra_parts="crtbegin.o crtbeginS.o crtbeginT.o crtend.o crtendS.o"
+-  # TODO.  glibc / uclibc switch.  uclibc isn't usable for GNU/Hurd and
+-  # probably neither for GNU/*BSD, but sharing this with GNU/Linux won't hurt
+-  # as long as nobody actively tries to use it.
++  # TODO.  glibc / uclibc switch.  uclibc isn't usable for GNU/Hurd, GNU/Hurd
++  # on viengoos and probably neither for GNU/*BSD, but sharing this with
++  # GNU/Linux won't hurt as long as nobody actively tries to use it.
+   extra_options="${extra_options} linux.opt"
+   gas=yes
+   gnu_ld=yes
+@@ -468,10 +468,10 @@ case ${target} in
+     "" | yes | posix) thread_file='posix' ;;
+   esac
+   tmake_file="t-slibgcc-elf-ver t-linux"
+-   case ${target} in
+-    *-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-knetbsd*-gnu)
++  case ${target} in
++    *-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-knetbsd*-gnu | *-*-viengoos-gnu*)
+       :;;
+-    *-*-gnu*)
++    *-*-viengoos-gnu* | *-*-gnu*)
+       tmake_file="$tmake_file t-gnu";;
+   esac
+   case ${target} in
+@@ -483,6 +483,7 @@ case ${target} in
+       ;;
+   esac
+   # Assume that glibc or uClibc are being used and so __cxa_atexit is provided.
++  # TODO.  viengoos?
+   default_use_cxa_atexit=yes
+   ;;
+ *-*-netbsd*)
+@@ -1074,13 +1075,15 @@ i[34567]86-*-coff*)
+ 	tm_file="${tm_file} i386/unix.h i386/bsd.h i386/gas.h dbxcoff.h i386/i386-coff.h"
+ 	use_fixproto=yes
+ 	;;
+-i[34567]86-*-linux* | i[34567]86-*-kfreebsd*-gnu | i[34567]86-*-knetbsd*-gnu | i[34567]86-*-gnu*)
++i[34567]86-*-linux* | i[34567]86-*-kfreebsd*-gnu | i[34567]86-*-knetbsd*-gnu | i[34567]86-*-viengoos-gnu* | i[34567]86-*-gnu*)
+ 			# Intel 80386's running GNU/*
+ 			# with ELF format using glibc 2
+ 	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h svr4.h linux.h i386/linux.h"
+ 	case ${target} in
+ 	i[34567]86-*-knetbsd*-gnu) tm_file="${tm_file} knetbsd-gnu.h i386/knetbsd-gnu.h" ;;
+ 	i[34567]86-*-kfreebsd*-gnu) tm_file="${tm_file} kfreebsd-gnu.h i386/kfreebsd-gnu.h" ;;
++	i[34567]86-*-viengoos-gnu*)
++		tm_file="$tm_file gnu.h viengoos.h i386/gnu.h i386/viengoos.h";;
+ 	i[34567]86-*-gnu*)
+ 		tm_file="$tm_file i386/linux.h gnu.h i386/gnu.h"
+ 		;;
