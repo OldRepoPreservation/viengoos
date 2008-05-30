@@ -1,5 +1,8 @@
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* stddef.h (S_PRINTF, S_PUTCHAR): Also consider [_ENABLE_TESTS].
+	* headers.m4: Link files into `sysroot/include/' instead of `include/'.
+
 	* Makefile.am (t_addr_CPPFLAGS, t_addr_trans_CPPFLAGS, t_rpc_CPPFLAGS):
 	Remove special `printf' handling.
 

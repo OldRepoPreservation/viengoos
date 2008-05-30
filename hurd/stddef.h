@@ -31,7 +31,7 @@
    malloc is not yet working and when the state is suspected to be
    compromised (e.g., assert or panic).  */
 #ifndef S_PRINTF
-# if defined(RM_INTERN) || defined(_L4_TEST_ENVIRONMENT)
+# if defined(RM_INTERN) || defined(_L4_TEST_ENVIRONMENT) || defined(_ENABLE_TESTS)
 #  define S_PRINTF printf
 # else
 #  define S_PRINTF s_printf
@@ -39,7 +39,7 @@
 #endif
 extern int S_PRINTF (const char *fmt, ...);
 #ifndef S_PUTCHAR
-# if defined(RM_INTERN) || defined(_L4_TEST_ENVIRONMENT)
+# if defined(RM_INTERN) || defined(_L4_TEST_ENVIRONMENT) || defined(_ENABLE_TESTS)
 #  define S_PUTCHAR putchar
 # else
 #  define S_PUTCHAR s_putchar

@@ -10,20 +10,20 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-AC_CONFIG_LINKS([include/hurd/stddef.h:hurd/stddef.h
-		 include/hurd/types.h:hurd/types.h
-		 include/hurd/startup.h:hurd/startup.h
-		 include/hurd/addr.h:hurd/addr.h
-		 include/hurd/addr-trans.h:hurd/addr-trans.h
-		 include/hurd/cap.h:hurd/cap.h
-		 include/hurd/folio.h:hurd/folio.h
-		 include/hurd/rpc.h:hurd/rpc.h
-		 include/hurd/exceptions.h:hurd/exceptions.h
-		 include/hurd/thread.h:hurd/thread.h
-		 include/hurd/activity.h:hurd/activity.h
-		 include/hurd/lock.h:hurd/lock.h
-		 include/hurd/mutex.h:hurd/mutex.h
-		 include/hurd/rmutex.h:hurd/rmutex.h
-		 include/hurd/futex.h:hurd/futex.h
-		 include/hurd/error.h:hurd/error.h
+AC_CONFIG_LINKS([sysroot/include/hurd/stddef.h:hurd/stddef.h
+		 sysroot/include/hurd/types.h:hurd/types.h
+		 sysroot/include/hurd/startup.h:hurd/startup.h
+		 sysroot/include/hurd/addr.h:hurd/addr.h
+		 sysroot/include/hurd/addr-trans.h:hurd/addr-trans.h
+		 sysroot/include/hurd/cap.h:hurd/cap.h
+		 sysroot/include/hurd/folio.h:hurd/folio.h
+		 sysroot/include/hurd/rpc.h:hurd/rpc.h
+		 sysroot/include/hurd/exceptions.h:hurd/exceptions.h
+		 sysroot/include/hurd/thread.h:hurd/thread.h
+		 sysroot/include/hurd/activity.h:hurd/activity.h
+		 sysroot/include/hurd/lock.h:hurd/lock.h
+		 sysroot/include/hurd/mutex.h:hurd/mutex.h
+		 sysroot/include/hurd/rmutex.h:hurd/rmutex.h
+		 sysroot/include/hurd/futex.h:hurd/futex.h
+		 sysroot/include/hurd/error.h:hurd/error.h
 		])
