@@ -41,6 +41,7 @@ SUBDIRS = libl4 platform				\
 	laden viengoos					\
 	.						\
 	ruth						\
+	benchmarks					\
 	hieronymus					\
 	$(DOC)
 endif

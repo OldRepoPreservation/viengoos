@@ -1,0 +1,6 @@
+2008-05-30  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am: New file.
+	* activity-distribution.c: Likewise.
+	* shared-memory-distribution.c: Likewise.
+	* boehm-gc: New directory.

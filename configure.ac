@@ -296,6 +296,8 @@ AC_CONFIG_FILES([Makefile
 		 newlib/Makefile
 		 hieronymus/Makefile
 		 ruth/Makefile
+		 benchmarks/Makefile
+		 benchmarks/boehm-gc/Makefile
 		 doc/Makefile
 		 ])
 AC_OUTPUT

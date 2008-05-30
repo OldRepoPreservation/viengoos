@@ -1,0 +1,6 @@
+2008-05-30  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am: New file.
+	* pathches: New directory.
+	* patches/01-gc-include-private-gcconfig-h.patch: New file.
+	* patches/02-gc-mach_dep-c.patch: New file.

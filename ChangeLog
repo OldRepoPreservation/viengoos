@@ -1,3 +1,10 @@
+2008-05-30  Neal H. Walfield  <neal@gnu.org>
+
+	* benchmarks: New directory.
+	* configure.ac: Generate benchmarks/Makefile and
+	benchmarks/boehm-gc/Makefile.
+	* Makefile.am (SUBDIRS): Add benchmarks.
+
 2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* configure.ac (missing_progs): Rename to...
