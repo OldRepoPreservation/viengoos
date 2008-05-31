@@ -74,5 +74,4 @@ $(addsuffix .S, $(files)): %.S: module.S $(binaries) Makefile
 	$(CPP) -DMODULE=$(subst -,_,$*) -DBINARY=$(call find_binary,$(@:.S=)) $< -o $@
 
 $(addsuffix .o, $(files)): %.o: %.S
-	$(AS) $< -o $@
-
+	$(CCAS) $(CCASFLAGS) -c -o $@ $<
