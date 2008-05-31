@@ -200,9 +200,9 @@ AC_ARG_WITH([newlib],
 [  --with-newlib          compile with Newlib's C library (see newlib/README)])
 AM_CONDITIONAL(WITH_NEWLIB, test x"${with_newlib-no}" != xno)
 
-ABS_BUILDDIR=$ac_pwd
+ABS_BUILDDIR=$(readlink -f .)
 AC_SUBST([ABS_BUILDDIR])
-ABS_SRCDIR=`readlink -f $srcdir`
+ABS_SRCDIR=$(readlink -f "$srcdir")
 AC_SUBST([ABS_SRCDIR])
 # Location of the installed headers and .a's.  We expect that
 # LIBC/libc.a and LIBC/include exists.

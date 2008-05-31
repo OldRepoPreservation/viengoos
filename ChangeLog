@@ -1,3 +1,7 @@
+2008-05-31  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* configure.ac (ABS_BUILDDIR): Use a more portable way to set.
+
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
 	* benchmarks: New directory.
