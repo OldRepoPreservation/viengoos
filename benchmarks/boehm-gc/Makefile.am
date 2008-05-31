@@ -99,11 +99,17 @@ gc-build/configure-stamp: $(srcdir)/gc/patch.stamp Makefile.am
 
 gc-build/build-stamp: gc-build/configure-stamp
 	cd gc-build && \
-	  make all gctest install
+	  make all && \
+	  make gctest
 	touch $@
 
-libgc.a: gc-build/build-stamp
-	$(LN_S) -f gc-build/.libs/libgc.a .
+gc-install/install-stamp: gc-build/build-stamp
+	cd gc-build && \
+	  make install
+	touch $@
+
+libgc.a: gc-install/install-stamp
+	$(LN_S) -f gc-install/lib/libgc.a .
 
 clean-local:
 	rm -rf gc-build

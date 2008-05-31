@@ -1,5 +1,10 @@
 2008-05-31  Thomas Schwinge  <tschwinge@gnu.org>
 
+	* Makefile.am (libgc.a): Link to the `gc-install/lib/libgc.a' one.
+
+	* Makefile.am (gc-install/install-stamp): New target.  Used to decouple
+	``make install'' from ``make all''.
+
 	* Makefile.am (gc_snapshot): Fix URL.
 	(gc-build/configure-stamp): Don't run `autoreconf'.  Support
 	separate-build-dir builds.
