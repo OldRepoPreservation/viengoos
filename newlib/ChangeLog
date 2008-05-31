@@ -1,3 +1,8 @@
+2008-05-31  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am ($(srcdir)/newlib/patch.stamp): Remove ``PACKAGE_*''
+	definitions from `newlib/newlib/newlib.hin'.
+
 2008-05-30  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* README: No more ``--enable-maintainer-mode'' in the top-level.

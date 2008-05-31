@@ -125,6 +125,10 @@ $(srcdir)/newlib/patch.stamp: $(srcdir)/newlib/unpack.stamp \
 	$(fix_config_guess_and_sub)
 	cd $(srcdir)/newlib/newlib/ && \
 	autoreconf
+# PACKAGE_* are not supposed to be defined in such public header files.
+	cd $(srcdir)/newlib/newlib/ && \
+	$(SED) /PACKAGE_/d < newlib.hin > newlib.hin.tmp && \
+	mv newlib.hin.tmp newlib.hin
 	touch $@
 
 newlib-build/configure.stamp: $(srcdir)/newlib/patch.stamp
