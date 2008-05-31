@@ -34,7 +34,7 @@ EXTRA_DIST = $(addprefix patches/, $(patch_files)) \
 
 # The source tarball.
 gc_tarball = gc-7.0.tar.gz
-gc_snapshot = $(gc_tarball)
+gc_snapshot = http://www.hpl.hp.com/personal/Hans_Boehm/gc/gc_source/$(gc_tarball)
 
 # Grab the snapshot
 $(srcdir)/$(gc_tarball):
@@ -84,10 +84,9 @@ $(srcdir)/gc/patch.stamp: $(srcdir)/gc/unpack.stamp \
 	touch $@
 
 gc-build/configure-stamp: $(srcdir)/gc/patch.stamp Makefile.am
-	( cd gc && $(fix_config_guess_and_sub) && autoreconf )
 	rm -rf gc-build
 	mkdir gc-build
-	(cd gc-build && $(srcdir)/gc/configure \
+	(cd gc-build && ../$(srcdir)/gc/configure \
 	    CPPFLAGS="$(USER_CPPFLAGS)" \
 	   CFLAGS='$(USER_CFLAGS)' \
 	   LDFLAGS='$(USER_LDFLAGS)' \

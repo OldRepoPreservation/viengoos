@@ -1,6 +1,12 @@
+2008-05-31  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am (gc_snapshot): Fix URL.
+	(gc-build/configure-stamp): Don't run `autoreconf'.  Support
+	separate-build-dir builds.
+
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am: New file.
-	* pathches: New directory.
+	* patches: New directory.
 	* patches/01-gc-include-private-gcconfig-h.patch: New file.
 	* patches/02-gc-mach_dep-c.patch: New file.
