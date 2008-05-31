@@ -1,3 +1,8 @@
+2008-05-31  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.c (storage_check_reserve_internal): If we don't get
+	AS_LOCK, don't jump to out_unlock, just return.
+
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
 	* storage.c: Remove debugging code accidentally checked in in last

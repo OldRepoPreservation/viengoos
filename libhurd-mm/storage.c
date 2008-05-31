@@ -375,7 +375,7 @@ storage_check_reserve_internal (bool force_allocate,
     {
       extern pthread_rwlock_t as_lock;
       if (pthread_rwlock_trywrlock (&as_lock) == EBUSY)
-	goto out_unlock;
+	return;
 
       pthread_rwlock_unlock (&as_lock);
     }
@@ -474,7 +474,6 @@ storage_check_reserve_internal (bool force_allocate,
      a new reserve slab buffer.  */
   check_slab_space_reserve ();
 
- out_unlock:
   if (have_lock)
     pthread_mutex_unlock (&storage_low_mutex);
 }
