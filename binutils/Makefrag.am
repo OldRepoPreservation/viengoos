@@ -50,14 +50,20 @@ binutils/binutils.build/configure.stamp: $(srcdir)/binutils/binutils/patch.stamp
 	)
 	touch $@
 
+# About MAKEINFO: See <http://sourceware.org/bugzilla/show_bug.cgi?id=5021>.
+# Will be fixed with next binutils release.
 binutils/binutils.build/build.stamp: binutils/binutils.build/configure.stamp
 	cd binutils/binutils.build/ && \
-	$(MAKE) all
+	$(MAKE) \
+	  MAKEINFO=makeinfo \
+	  all
 	touch $@
 
 binutils/binutils.build/install.stamp: binutils/binutils.build/build.stamp
 	cd binutils/binutils.build/ && \
-	$(MAKE) install
+	$(MAKE) \
+	  MAKEINFO=makeinfo \
+	  install
 	touch $@
 
 #TODO: clean etc.
