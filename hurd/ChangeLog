@@ -1,3 +1,8 @@
+2008-05-31  Neal H. Walfield  <neal@gnu.org>
+
+	* trace.h [RM_INTERN]: Don't include <hurd/mutex.h>, include
+	"../viengoos/mutex.h".
+
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
 	* trace.h: New file.

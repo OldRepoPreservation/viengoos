@@ -23,7 +23,12 @@
 
 #include <stdarg.h>
 #include <assert.h>
-#include <hurd/mutex.h>
+
+#ifdef RM_INTERN
+#  include "../viengoos/mutex.h"
+#else
+#  include <hurd/mutex.h>
+#endif
 
 struct trace_buffer
 {
