@@ -1,3 +1,7 @@
+2008-05-31  Neal H. Walfield  <neal@gnu.org>
+
+	* ucontext.h: New file.
+
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
 	* s_printf.c (s_cputs): New function.
