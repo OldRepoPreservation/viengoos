@@ -232,13 +232,13 @@ USER_CPPFLAGS=" \
 	-D_GNU_SOURCE \
 	-I${LIBC}/include \
 	-I${ABS_SRCDIR}/libc-parts"
-USER_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector $libc_cv_gnu89_inline"
+USER_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline"
 USER_LDFLAGS="-u_start -e_start"
 
 KERNEL_CPPFLAGS="\
 	-D_GNU_SOURCE -DRM_INTERN \
 	-I${ABS_SRCDIR}/libc-parts"
-KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector $libc_cv_gnu89_inline"
+KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline"
 
 # It is debatable whether these should really contain the libc-parts' include
 # path.  Currently this is needed, as tests make use of (a few) specific
@@ -247,7 +247,7 @@ CHECK_CPPFLAGS="\
 	-D_GNU_SOURCE \
 	-D_ENABLE_TESTS \
 	-I${ABS_BUILDDIR}/sysroot/include -I${ABS_SRCDIR}/libc-parts"
-CHECK_CFLAGS="-std=gnu99 -Wall -g -O2 -fno-stack-protector $libc_cv_gnu89_inline"
+CHECK_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline"
 
 AC_SUBST(USER_CPPFLAGS)
 AC_SUBST(USER_CFLAGS)
