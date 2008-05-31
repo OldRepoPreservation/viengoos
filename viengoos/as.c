@@ -219,8 +219,10 @@ ID (as_build_internal) (activity_t activity,
 	    {
 	      debug (4, "Overwriting " ADDR_FMT " with " ADDR_FMT
 		     " (at " ADDR_FMT ")",
-		     ADDR_PRINTF (addr_extend (addr_chop (addr, remaining),
-					       pte_guard, pte_gbits)),
+		     ADDR_PRINTF (addr_extend (addr_chop (addr,
+							  remaining),
+					       pte_guard,
+					       pte_gbits)),
 		     ADDR_PRINTF (addr),
 		     ADDR_PRINTF (addr_chop (addr, remaining)));
 	      /* XXX: Free any data associated with the capability
@@ -495,9 +497,12 @@ ID (as_build_internal) (activity_t activity,
 	default:
 	  AS_DUMP;
 	  panic ("Can't insert object at " ADDR_FMT ": "
-		 "%s at " ADDR_FMT " does not translate address bits",
+		 "%s at " ADDR_FMT " does not translate address bits "
+		 "(remaining: %d, gbits: %d, pte guard: %d, my guard: %d)",
 		 ADDR_PRINTF (addr), cap_type_string (pte->type),
-		 ADDR_PRINTF (addr_chop (addr, remaining)));
+		 ADDR_PRINTF (addr_chop (addr, remaining)),
+		 remaining, pte_gbits, pte_guard,
+		 extract_bits64_inv (prefix, remaining - 1, pte_gbits));
 	}
 
       /* That should not be more than we have left to translate.  */
@@ -569,7 +574,7 @@ ID (as_slot_ensure_full) (activity_t activity,
   AS_UNLOCK;
 
 #ifndef RM_INTERN
-  storage_check_reserve ();
+  storage_check_reserve (false);
 #endif
 
   return cap;
@@ -594,7 +599,7 @@ ID (as_insert) (activity_t activity,
   AS_UNLOCK;
 
 #ifndef RM_INTERN
-  storage_check_reserve ();
+  storage_check_reserve (false);
 #endif
 
   return slot;

@@ -352,7 +352,8 @@ storage_low_mutex_init (void)
 static void
 storage_check_reserve_internal (bool force_allocate,
 				addr_t activity,
-				enum storage_expectancy expectancy)
+				enum storage_expectancy expectancy,
+				bool i_may_have_lock)
 {
  top:
   if (! force_allocate && likely (free_count > FREE_PAGES_LOW_WATER))
@@ -360,7 +361,7 @@ storage_check_reserve_internal (bool force_allocate,
 
   /* Insufficient storage reserve.  Allocate a new storage area.  */
 
-  if (free_count > 0)
+  if (i_may_have_lock && free_count > 0)
     /* XXX: as_insert calls allocate_object, which calls us.  When
        we allocate a new folio, we need to insert it into the
        address space.  This requires calling as_insert, which
@@ -398,7 +399,33 @@ storage_check_reserve_internal (bool force_allocate,
       have_lock = true;
     }
 
-  debug (3, "Allocating additional folio, " DEBUG_BOLD ("free count: %d"),
+  if (free_count == 0)
+    {
+      extern pthread_rwlock_t as_lock;
+
+      int tries;
+      for (tries = 0; ; tries ++)
+	if (pthread_rwlock_trywrlock (&as_lock) == EBUSY)
+	  {
+	    int i;
+	    for (i = 0; i < 10000; i ++)
+	      l4_yield ();
+
+	    if (tries == 10)
+	      {
+		debug (0, DEBUG_BOLD ("Free count is zero and it seems "
+				      "that I have the as_lock!"));
+		break;
+	      }
+	  }
+	else
+	  {
+	    pthread_rwlock_unlock (&as_lock);
+	    break;
+	  }
+    }
+
+  debug (3, "Allocating additional folio, free count: %d",
 	 free_count);
 
   /* Although we have not yet allocated the objects, allocating
@@ -479,9 +506,10 @@ storage_check_reserve_internal (bool force_allocate,
 }
 
 void
-storage_check_reserve (void)
+storage_check_reserve (bool i_may_have_lock)
 {
-  storage_check_reserve_internal (false, meta_data_activity, STORAGE_UNKNOWN);
+  storage_check_reserve_internal (false, meta_data_activity, STORAGE_UNKNOWN,
+				  i_may_have_lock);
 }
 
 #undef storage_alloc
@@ -497,7 +525,8 @@ storage_alloc (addr_t activity,
   bool do_allocate = false;
   do
     {
-      storage_check_reserve_internal (do_allocate, activity, expectancy);
+      storage_check_reserve_internal (do_allocate, activity, expectancy,
+				      true);
 
       /* Find an appropriate storage area.  */
       struct storage_desc *pluck (struct storage_desc *list)
@@ -606,7 +635,7 @@ storage_alloc (addr_t activity,
 				       folio, idx, type,
 				       policy, 0,
 				       addr, ADDR_VOID);
-  assert (! err);
+  assertx (! err, "Allocating object %d: %d!", idx, err);
 
   /* We drop DESC->LOCK.  */
   ss_mutex_unlock (&desc->lock);

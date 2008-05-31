@@ -1,3 +1,9 @@
+2008-05-31  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c (as_slot_ensure_full): Update use of storage_check_reserve
+	to be consistent with new API.
+	(as_insert): Likewise.
+
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c [! RM_INTERN]: Include <hurd/storage.h>.

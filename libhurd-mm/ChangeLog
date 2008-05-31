@@ -1,5 +1,14 @@
 2008-05-31  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.h (storage_check_reserve): Take additional parameter
+	i_may_have_as_lock.  Update users.
+	* storage.c (storage_check_reserve_internal): Add parameter
+	i_may_have_lock.  If false, assume that we do not hold AS_LOCK.
+	(storage_check_reserve): Add parameter i_may_have_lock.  Pass to
+	storage_check_reserve_internal.
+
+2008-05-31  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (storage_check_reserve_internal): If we don't get
 	AS_LOCK, don't jump to out_unlock, just return.
 
