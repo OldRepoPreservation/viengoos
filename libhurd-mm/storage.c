@@ -333,21 +333,8 @@ static bool storage_init_done;
    more pages the chance to do so.  */
 #define FREE_PAGES_SERIALIZE 16
 
-static pthread_mutex_t storage_low_mutex;
-static pthread_once_t storage_low_mutex_init_once;
-
-static void
-storage_low_mutex_init (void)
-{
-  /* Initialize STORAGE_LOW_MUTEX as a recursive lock.  */
-  pthread_mutexattr_t attr;
-  pthread_mutexattr_init (&attr);
-  pthread_mutexattr_settype (&attr, PTHREAD_MUTEX_RECURSIVE);
-
-  pthread_mutex_init (&storage_low_mutex, &attr);
-
-  pthread_mutexattr_destroy (&attr);
-}
+static pthread_mutex_t storage_low_mutex
+  = PTHREAD_MUTEX_RECURSIVE_INITIALIZER_NP;
 
 static void
 storage_check_reserve_internal (bool force_allocate,
@@ -384,8 +371,6 @@ storage_check_reserve_internal (bool force_allocate,
   bool have_lock = false;
   if (free_count < FREE_PAGES_SERIALIZE)
     {
-      pthread_once (&storage_low_mutex_init_once, storage_low_mutex_init);
-
       if (pthread_mutex_trylock (&storage_low_mutex) == EBUSY)
 	/* Someone else is in.  */
 	{
@@ -635,7 +620,9 @@ storage_alloc (addr_t activity,
 				       folio, idx, type,
 				       policy, 0,
 				       addr, ADDR_VOID);
-  assertx (! err, "Allocating object %d: %d!", idx, err);
+  assertx (! err,
+	   "Allocating object %d from " ADDR_FMT " at " ADDR_FMT ": %d!",
+	   idx, ADDR_PRINTF (folio), ADDR_PRINTF (addr), err);
 
   /* We drop DESC->LOCK.  */
   ss_mutex_unlock (&desc->lock);
