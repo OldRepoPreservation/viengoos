@@ -15,11 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Have the built cross tools appear in `$PATH'.  TODO.  Is that how it is to be
-# done properly?  TODO.  Would $(PATH_SEPARATOR) always be available already?
-PATH_orig := $(shell printenv PATH)
-PATH = $(abspath bin)$(PATH_SEPARATOR)$(PATH_orig)
-
 SYSROOT := $(abspath sysroot)
 
 # Don't use in-place evaluation, as the referenced values may not yet be

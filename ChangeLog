@@ -1,3 +1,8 @@
+2008-06-01  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefoo.am (PATH): Move definition...
+	* configure.ac: ... here.
+
 2008-05-31  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* configure.ac (USER_CFLAGS, KERNEL_CFLAGS, CHECK_CFLAGS): Don't

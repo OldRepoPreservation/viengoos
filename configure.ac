@@ -38,6 +38,16 @@ AC_CONFIG_SRCDIR([laden/laden.c])
 AC_CONFIG_HEADER([config.h])
 AC_GNU_SOURCE
 
+
+# Find our cross compiler.
+p=$(readlink -f .)/bin
+case $PATH_SEPARATOR$PATH$PATH_SEPARATOR in
+  *$PATH_SEPARATOR$p$PATH_SEPARATOR*) :;;
+  *) PATH=$p$PATH_SEPARATOR$PATH;;
+esac
+AC_SUBST([PATH])
+
+
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O
