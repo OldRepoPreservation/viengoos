@@ -32,11 +32,15 @@
 
 struct trace_buffer
 {
-  ss_mutex_t lock;
-
   /* A descriptive name for the trace buffer.  */
   char *name;
   void *id;
+
+  bool nobacktrace;
+  bool notid;
+  bool nolock;
+
+  ss_mutex_t lock;
 
   /* Number of bytes written to the buffer so far.  */
   int written;
@@ -53,6 +57,9 @@ struct trace_buffer
   void *bt[20];
   int count;
 };
+
+#define TRACE_BUFFER_INIT(name, id, save_backtrace, print_tid, do_lock) \
+  { (name), (id), ! (save_backtrace), ! (print_tid), ! (do_lock) }
 
 static inline void
 trace_buffer_add (const char *func, const int lineno,
@@ -73,9 +80,12 @@ trace_buffer_add (const char *func, const int lineno,
 
   va_list ap;
 
-  ss_mutex_lock (&buffer->lock);
+  if (! buffer->nolock)
+    ss_mutex_lock (&buffer->lock);
 
-  s_cprintf (pc, "%x:%s:%d: ", l4_myself (), func, lineno);
+  if (! buffer->notid)
+    s_cprintf (pc, "%x:", l4_myself ());
+  s_cprintf (pc, "%s:%d: ", func, lineno);
 
   va_start (ap, fmt);
   s_cvprintf (pc, fmt, ap);
@@ -83,23 +93,28 @@ trace_buffer_add (const char *func, const int lineno,
 
   /* Include a backtrace.  */
 
-  extern int backtrace (void **array, int size);
-  buffer->count = backtrace (buffer->bt,
-			     (sizeof (buffer->bt) / sizeof (buffer->bt[0])));
-  int i;
-  pc (' '); pc ('(');
-  for (i = 0; i < buffer->count; i ++)
+  if (! buffer->nobacktrace)
     {
-      s_cprintf (pc, "%x", buffer->bt[i]);
-      if (i != buffer->count - 1)
-	pc (' ');
+      extern int backtrace (void **array, int size);
+      buffer->count = backtrace (buffer->bt,
+				 (sizeof (buffer->bt)
+				  / sizeof (buffer->bt[0])));
+      int i;
+      pc (' '); pc ('(');
+      for (i = 0; i < buffer->count; i ++)
+	{
+	  s_cprintf (pc, "%x", buffer->bt[i]);
+	  if (i != buffer->count - 1)
+	    pc (' ');
+	}
+      pc (')');
     }
-  pc (')');
 
   /* And add a terminating NUL.  */
   pc (0);
 
-  ss_mutex_unlock (&buffer->lock);
+  if (! buffer->nolock)
+    ss_mutex_unlock (&buffer->lock);
 }
 #define trace_buffer_add(buf, fmt, ...)					\
   trace_buffer_add (__FUNCTION__, __LINE__, buf, fmt, ##__VA_ARGS__)
@@ -107,14 +122,16 @@ trace_buffer_add (const char *func, const int lineno,
 static inline void
 trace_buffer_dump (struct trace_buffer *buffer, int count)
 {
-  ss_mutex_lock (&buffer->lock);
+  if (! buffer->nolock)
+    ss_mutex_lock (&buffer->lock);
 
   s_printf ("Dumping trace buffer %s(%x)\n", buffer->name, buffer->id);
 
   if (buffer->written == 0)
     {
       s_puts ("Empty.\n");
-      ss_mutex_unlock (&buffer->lock);
+      if (! buffer->nolock)
+	ss_mutex_unlock (&buffer->lock);
       return;
     }
 
@@ -141,7 +158,8 @@ trace_buffer_dump (struct trace_buffer *buffer, int count)
 	  offset --, processed ++;
 	  if (processed > sizeof (buffer->buffer))
 	    {
-	      ss_mutex_unlock (&buffer->lock);
+	      if (! buffer->nolock)
+		ss_mutex_unlock (&buffer->lock);
 	      return;
 	    }
 	  if (processed >= buffer->written)
@@ -176,9 +194,10 @@ trace_buffer_dump (struct trace_buffer *buffer, int count)
 
       record ++;
     }
-  while (offset < buffer->written);
+  while (processed < buffer->written);
 
-  ss_mutex_unlock (&buffer->lock);
+  if (! buffer->nolock)
+    ss_mutex_unlock (&buffer->lock);
 }
 
 #endif /* _HURD_TRACE_H  */
