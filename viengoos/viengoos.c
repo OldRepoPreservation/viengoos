@@ -40,6 +40,7 @@ int ss_lock_trace_count;
 #include <hurd/startup.h>
 #include <hurd/stddef.h>
 #include <hurd/thread.h>
+#include <hurd/as.h>
 
 #include <process-spawn.h>
 
@@ -51,7 +52,6 @@ int ss_lock_trace_count;
 #include "object.h"
 #include "activity.h"
 #include "thread.h"
-#include "as.h"
 #include "server.h"
 #include "shutdown.h"
 #include "output.h"

@@ -361,11 +361,11 @@ storage_check_reserve_internal (bool force_allocate,
        pages and if not to call some as-yet unwritten function
        which forces the reserve to grow.  */
     {
-      extern pthread_rwlock_t as_lock;
-      if (pthread_rwlock_trywrlock (&as_lock) == EBUSY)
+      extern pthread_rwlock_t as_rwlock;
+      if (pthread_rwlock_trywrlock (&as_rwlock) == EBUSY)
 	return;
 
-      pthread_rwlock_unlock (&as_lock);
+      pthread_rwlock_unlock (&as_rwlock);
     }
 
   bool have_lock = false;
@@ -386,11 +386,11 @@ storage_check_reserve_internal (bool force_allocate,
 
   if (free_count == 0)
     {
-      extern pthread_rwlock_t as_lock;
+      extern pthread_rwlock_t as_rwlock;
 
       int tries;
       for (tries = 0; ; tries ++)
-	if (pthread_rwlock_trywrlock (&as_lock) == EBUSY)
+	if (pthread_rwlock_trywrlock (&as_rwlock) == EBUSY)
 	  {
 	    int i;
 	    for (i = 0; i < 10000; i ++)
@@ -399,13 +399,13 @@ storage_check_reserve_internal (bool force_allocate,
 	    if (tries == 10)
 	      {
 		debug (0, DEBUG_BOLD ("Free count is zero and it seems "
-				      "that I have the as_lock!"));
+				      "that I have the as_rwlock!"));
 		break;
 	      }
 	  }
 	else
 	  {
-	    pthread_rwlock_unlock (&as_lock);
+	    pthread_rwlock_unlock (&as_rwlock);
 	    break;
 	  }
     }
@@ -424,15 +424,13 @@ storage_check_reserve_internal (bool force_allocate,
      page tables requires not only a cappage but also a shadow
      page table.  */
   addr_t addr;
-  struct cap *cap = NULL;
   if (likely (as_init_done))
     {
       addr = as_alloc (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2, 1, true);
       if (ADDR_IS_VOID (addr))
 	panic ("Failed to allocate address space!");
 
-      cap = as_slot_ensure (addr);
-      assert (cap);
+      as_ensure (addr);
     }
   else
     {
@@ -444,8 +442,6 @@ storage_check_reserve_internal (bool force_allocate,
       addr = desc->object;
       desc->storage = addr;
       desc->type = cap_folio;
-
-      cap = slot_lookup (meta_data_activity, addr, NULL);
     }
 
   /* And then the folio.  */
@@ -459,10 +455,14 @@ storage_check_reserve_internal (bool force_allocate,
   s->folio = addr;
   memset (&s->alloced, 0, sizeof (s->alloced));
   s->free = FOLIO_OBJECTS;
-  s->cap = cap;
 
-  if (cap)
-    shadow_setup (cap, s);
+  bool ret = as_slot_lookup_use (addr,
+				 ({
+				   s->cap = slot;
+				   shadow_setup (slot, s);
+				 }));
+  if (! ret)
+    assert (! as_init_done);
 
   /* S is setup.  Make it available.  */
   ss_mutex_lock (&storage_descs_lock);
@@ -631,12 +631,16 @@ storage_alloc (addr_t activity,
     /* We also have to update the shadow for ADDR.  Unfortunately, we
        don't have the cap although the caller might.  */
     {
-      struct cap *cap = slot_lookup (meta_data_activity, addr, NULL);
-      if (! cap)
-	as_dump (NULL);
-      assert (cap);
-      cap->type = type;
-      CAP_POLICY_SET (cap, policy);
+      bool ret = as_slot_lookup_use (addr,
+				     ({
+				       slot->type = type;
+				       CAP_POLICY_SET (slot, policy);
+				     }));
+      if (! ret)
+	{
+	  as_dump (NULL);
+	  assert (ret);
+	}
     }
 
   struct storage storage;

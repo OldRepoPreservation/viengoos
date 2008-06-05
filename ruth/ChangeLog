@@ -1,3 +1,9 @@
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Replace use of slot_lookup with as_cap_lookup.
+	Replace use of as_slot_ensure with as_ensure_use.  Replace use of
+	slot_lookup with as_slot_lookup_use.
+
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am [ENABLE_TESTS]: Don't build package's program.

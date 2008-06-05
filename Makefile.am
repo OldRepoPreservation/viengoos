@@ -51,7 +51,6 @@ if HAVE_CROSS
 all-local: libc-stmp
 libc-stmp: @LIBC_A@ @LIBC_M@ \
       libhurd-mm/libhurd-mm.a \
-      viengoos/libhurd-cap.a \
       libpthread/libpthread.a \
       libhurd-slab/libhurd-slab.a \
       libhurd-ihash/libhurd-ihash.a \

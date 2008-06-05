@@ -96,9 +96,9 @@ process_spawn (addr_t activity,
   ({									\
     debug (5, "Copying " ADDR_FMT " to " ADDR_FMT ,			\
 	   ADDR_PRINTF (saddr_), ADDR_PRINTF (taddr_));			\
-    as_insert (root_activity,						\
-	       ADDR_VOID, as_root_cap_, taddr_,				\
-	       ADDR_VOID, scap_, ADDR_VOID, alloc_);			\
+    as_insert_full (root_activity,					\
+		    ADDR_VOID, as_root_cap_, taddr_,			\
+		    ADDR_VOID, ADDR_VOID, scap_, alloc_);		\
   })
 
 #else
@@ -311,7 +311,7 @@ process_spawn (addr_t activity,
   /* Next unallocated object in folio.  */
   int folio_index;
 
-  struct as_insert_rt allocate_object (enum cap_type type, addr_t addr)
+  struct as_allocate_pt_ret allocate_object (enum cap_type type, addr_t addr)
     {
       debug (5, "(%s, 0x%llx/%d)",
 	     cap_type_string (type), addr_prefix (addr), addr_depth (addr));
@@ -345,11 +345,10 @@ process_spawn (addr_t activity,
 	  if (ADDR_IS_VOID (folio_local_addr))
 	    panic ("Failed to allocate address space for folio");
 
-	  struct cap *slot = as_slot_ensure (folio_local_addr);
-	  if (! slot)
-	    panic ("Failed to allocate page tables");
-
-	  slot->type = cap_folio;
+	  as_ensure_use (folio_local_addr,
+			 ({
+			   slot->type = cap_folio;
+			 }));
 
 	  error_t err = rm_folio_alloc (activity, folio_local_addr,
 					FOLIO_POLICY_DEFAULT);
@@ -381,7 +380,7 @@ process_spawn (addr_t activity,
 #endif
 	}
 
-      struct as_insert_rt rt;
+      struct as_allocate_pt_ret rt;
       memset (&rt, 0, sizeof (rt));
 
       int index = folio_index ++;
@@ -424,7 +423,12 @@ process_spawn (addr_t activity,
       return rt;
     }
 
-  struct as_insert_rt rt;
+  struct as_allocate_pt_ret allocate_page_table (addr_t addr)
+  {
+    return allocate_object (cap_cappage, addr);	
+  }
+
+  struct as_allocate_pt_ret rt;
 
 #ifdef RM_INTERN
   /* XXX: Boostrap problem.  To allocate a folio we need to assign it
@@ -472,7 +476,7 @@ process_spawn (addr_t activity,
   struct cap *slot = as_insert_custom (ADDR_VOID,
 				       as_root, as_root_cap, desc->object,
 				       ADDR_VOID, cap, activity,
-				       allocate_object, do_index);
+				       allocate_page_table, do_index);
   /* Weaken the capability.  */
   r = cap_copy_x (root_activity, as_root, slot, desc->object,
 		  as_root, *slot, desc->object,
@@ -514,22 +518,22 @@ process_spawn (addr_t activity,
 
       addr_t addr = addr_chop (PTR_TO_ADDR (ptr), PAGESIZE_LOG2);
 
-      struct as_insert_rt rt = allocate_object (ro ? cap_rpage : cap_page,
-						addr);
+      struct as_allocate_pt_ret rt = allocate_object (cap_page, addr);
 
-      struct cap *cap = as_insert_custom (ADDR_VOID,
-					  as_root, as_root_cap, addr,
-					  ADDR_VOID, rt.cap, rt.storage,
-					  allocate_object, do_index);
-
+      as_insert_custom (root_activity,
+			as_root, as_root_cap, addr,
+			ADDR_VOID, rt.cap, rt.storage,
+			allocate_page_table, do_index);
       if (ro)
-	{
-	  bool r = cap_copy_x (root_activity,
-			       as_root, cap, addr,
-			       as_root, *cap, addr,
-			       CAP_COPY_WEAKEN, CAP_PROPERTIES_VOID);
-	  assert (r);
-	}
+	as_slot_lookup_rel_use (root_activity, as_root_cap, addr,
+				({
+				  bool r = cap_copy_x (root_activity,
+						       as_root, slot, addr,
+						       as_root, *slot, addr,
+						       CAP_COPY_WEAKEN,
+						       CAP_PROPERTIES_VOID);
+				  assert (r);
+				}));
 
       void *local = rt_to_object (rt);
 
@@ -558,9 +562,9 @@ process_spawn (addr_t activity,
 
 #ifdef RM_INTERN
       addr_t addr = addr_chop (PTR_TO_ADDR (ptr), PAGESIZE_LOG2);
-      struct cap cap = object_lookup_rel (root_activity,
-					  as_root_cap, addr,
-					  cap_rpage, NULL);
+      struct cap cap = as_object_lookup_rel (root_activity,
+					     as_root_cap, addr,
+					     cap_rpage, NULL);
       local = cap_to_object (root_activity, &cap);
 #else
       local = hurd_ihash_find (&map, ptr);
@@ -608,7 +612,7 @@ process_spawn (addr_t activity,
 	      as_insert_custom (ADDR_VOID,
 				as_root, as_root_cap, desc->object,
 				ADDR_VOID, cap, desc->storage,
-				allocate_object, do_index);
+				allocate_page_table, do_index);
 
 #ifndef RM_INTERN
 	      /* Free the address space that we allocated to access
@@ -633,13 +637,13 @@ process_spawn (addr_t activity,
 	  addr_t addr = ADDR (STARTUP_DATA_ADDR + page * PAGESIZE,
 			      ADDR_BITS - PAGESIZE_LOG2);
 
-	  struct as_insert_rt rt = allocate_object (cap_page, addr);
+	  struct as_allocate_pt_ret rt = allocate_object (cap_page, addr);
 
 	  pages[page] = rt_to_object (rt);
 
 	  as_insert_custom (ADDR_VOID, as_root, as_root_cap, addr,
 			    ADDR_VOID, rt.cap, rt.storage,
-			    allocate_object, do_index);
+			    allocate_page_table, do_index);
 	}
     }
 

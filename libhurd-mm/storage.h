@@ -97,9 +97,9 @@ extern void storage_init (void);
 extern void storage_shadow_setup (struct cap *cap, addr_t folio);
 
 /* Check the amount of available storage, allocating more if required.
-   This should be called by any function that takes the as_lock and
+   This should be called by any function that takes the as_rwlock and
    allocates storage (even indirectly) after it has dropped the
-   as_lock.  Pass false if you know that you do not hold the as_lock.
+   as_rwlock.  Pass false if you know that you do not hold the as_lock.
    True otherwise.  */
 extern void storage_check_reserve (bool i_may_have_as_lock);
 

@@ -3,12 +3,12 @@
 
 #include <hurd/types.h>
 #include <hurd/stddef.h>
+#include <hurd/as.h>
 
 #include "memory.h"
 #include "cap.h"
 #include "object.h"
 #include "activity.h"
-#include "as.h"
 
 struct activity *root_activity;
 
@@ -16,7 +16,7 @@ struct activity *root_activity;
 static struct folio *folio;
 static int object;
 
-static struct as_insert_rt
+static struct as_allocate_pt_ret
 allocate_object (enum cap_type type, addr_t addr)
 {
   if (! folio || object == FOLIO_OBJECTS)
@@ -25,7 +25,7 @@ allocate_object (enum cap_type type, addr_t addr)
       object = 0;
     }
 
-  struct as_insert_rt rt;
+  struct as_allocate_pt_ret rt;
   rt.cap = folio_object_alloc (root_activity, folio, object ++,
 			       type, OBJECT_POLICY_DEFAULT, 0);
 
@@ -73,8 +73,6 @@ test (void)
 
     for (i = 0; i < N; i ++)
       {
-	struct object *object;
-
 	/* Allocate a new activity.  */
 	struct cap cap;
 	cap = folio_object_alloc (activity, folio, obj ++,

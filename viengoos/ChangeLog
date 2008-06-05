@@ -1,5 +1,48 @@
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
+	* cap-lookup.c: Move from here...
+	* ../libhurd-mm/as-lookup.c: ... to here.
+	* as.c: Move from here...
+	* ../libhurd-mm/as-build.c: ... to here.
+	* as-custom.c: Move from here...
+	* ../libhurd-mm/as-build-custom.c: ... to here.
+	* as.h: Move contents...
+	* ../libhurd-mm/as.h: ... to here...
+	* ../libhurd-mm/as-compute-gbits.h: ... and to here.
+	* bits.h: Move from here...
+	* ../libhurd-mm/bits.h: ... to here.
+	* Makefile.am (viengoos_SOURCES): Remove cap-lookup.c, as.h and
+	as.c.
+	(t_as_SOURCES): Likewise.
+	(t_activity_SOURCES): Likewise.
+	(viengoos_LDADD): Add ../libhurd-mm/libas-kernel.a.
+	(t_as_LDADD): Add ../libhurd-mm/libas-check.a.
+	(t_activity_LDADD): Likewise.
+	(lib_LIBRARIES): Remove libhurd-cap.a.
+	(libhurd_cap_a_CPPFLAGS): Remove variable.
+	(libhurd_cap_a_CFLAGS): Likewise.
+	(libhurd_cap_a_SOURCES): Likewise.
+	* server.c (server_loop): Replace use of object_lookup_rel with
+	as_object_lookup_rel.  Replace use of slot_lookup_rel with
+	as_slot_lookup_rel_use.  Replace use of cap_lookup_rel with
+	as_cap_lookup_rel.
+	* viengoos.c: Don't include "as.h", include <hurd/as.h>.
+	* t-activity.c: Don't include "as.h", include <hurd/as.h>.
+	(allocate_object): Change return type to struct
+	as_allocate_pt_ret.
+	* t-as.c: Don't include "as.h", include <hurd/as.h>.
+	(allocate_object): Change return type to struct
+	as_allocate_pt_ret.
+	(allocate_page_table): New function.
+	(try): Replace use of as_insert with as_insert_full.  Replace use
+	of slot_lookup_rel with as_slot_lookup_rel_use.  Replace use of
+	object_lookup_rel with as_object_lookup_rel.
+	(test): Likewise.
+	* t-guard.c: Don't include "as.h", include <hurd/as.h>.  Include
+	"../libhurd-mm/as-compute-gbits.h".
+
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c: Include <hurd/trace.h>.
 	(rpc_trace) [!NDEBUG]: New trace buffer.
 	(DEBUG) [!NDEBUG]: If LEVEL <= 4, add the message to the trace

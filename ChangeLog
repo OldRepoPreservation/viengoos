@@ -1,3 +1,9 @@
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
+	* libc.a.in: Remove -lhurd-cap.
+	* Makefile.am (libc-stmp): Remove dependency on
+	viengoos/libhurd-cap.a.
+
 2008-06-01  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefoo.am (PATH): Move definition...

@@ -1,7 +1,9 @@
 #define _L4_TEST_MAIN
 #include "t-environment.h"
 
-#include "as.h"
+#include <hurd/as.h>
+
+#include "../libhurd-mm/as-compute-gbits.h"
 
 int output_debug = 1;
 

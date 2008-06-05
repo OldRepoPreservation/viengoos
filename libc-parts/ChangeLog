@@ -1,3 +1,16 @@
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
+	* process-spawn.c (as_insert_custom): Replace use of as_insert
+	with as_insert_full.
+	(allocate_object): Change return type to struct
+	as_allocate_pt_ret.  Replace use of as_slot_ensure with
+	as_ensure_use.
+	(allocate_page_table): New function.
+	(process_spawn): Update use of as_insert_custom to be consistent
+	with new API, in particular, pass allocate_page_table instead of
+	allocate_object.  Replace use of object_lookup_rel with
+	as_object_lookup_rel.
+
 2008-05-31  Neal H. Walfield  <neal@gnu.org>
 
 	* ucontext.h: New file.

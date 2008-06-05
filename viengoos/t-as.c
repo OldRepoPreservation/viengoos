@@ -3,12 +3,12 @@
 
 #include <hurd/types.h>
 #include <hurd/stddef.h>
+#include <hurd/as.h>
 
 #include "memory.h"
 #include "cap.h"
 #include "object.h"
 #include "activity.h"
-#include "as.h"
 
 struct activity *root_activity;
 
@@ -16,7 +16,7 @@ struct activity *root_activity;
 static struct folio *folio;
 static int object;
 
-static struct as_insert_rt
+static struct as_allocate_pt_ret
 allocate_object (enum cap_type type, addr_t addr)
 {
   if (! folio || object == FOLIO_OBJECTS)
@@ -25,7 +25,7 @@ allocate_object (enum cap_type type, addr_t addr)
       object = 0;
     }
 
-  struct as_insert_rt rt;
+  struct as_allocate_pt_ret rt;
   rt.cap = folio_object_alloc (root_activity, folio, object ++,
 			       type, OBJECT_POLICY_DEFAULT, 0);
 
@@ -33,6 +33,12 @@ allocate_object (enum cap_type type, addr_t addr)
      for the internal interface implementations.  */
   rt.storage = ADDR (0, 0);
   return rt;
+}
+
+static struct as_allocate_pt_ret
+allocate_page_table (addr_t addr)
+{
+  return allocate_object (cap_cappage, addr);
 }
 
 extern char _start;
@@ -107,9 +113,9 @@ try (struct alloc *allocs, int count, bool dump)
       if (caps[i].type == cap_page)
 	memset (object, i, PAGESIZE);
 
-      as_insert (root_activity, ADDR_VOID, &aspace, allocs[i].addr,
-		 ADDR_VOID, object_to_cap (object), ADDR_VOID,
-		 allocate_object);
+      as_insert_full (root_activity, ADDR_VOID, &aspace, allocs[i].addr,
+		      ADDR_VOID, ADDR_VOID, object_to_cap (object),
+		      allocate_page_table);
 
       if (dump)
 	{
@@ -121,17 +127,22 @@ try (struct alloc *allocs, int count, bool dump)
       int j;
       for (j = 0; j < count; j ++)
 	{
-	  bool writable;
-	  struct cap *cap = slot_lookup_rel (root_activity,
-					     &aspace, allocs[j].addr,
-					     &writable);
-	  do_check (cap, writable, j, j <= i);
+	  struct cap *cap = NULL;
+	  bool w;
+
+	  as_slot_lookup_rel_use
+	    (root_activity, &aspace, allocs[j].addr,
+	     ({
+	       cap = slot;
+	       w = writable;
+	     }));
+	  do_check (cap, w, j, j <= i);
 
 	  struct cap c;
-	  c = object_lookup_rel (root_activity,
-				 &aspace, allocs[j].addr, -1,
-				 &writable);
-	  do_check (&c, writable, j, j <= i);
+	  c = as_object_lookup_rel (root_activity,
+				    &aspace, allocs[j].addr, -1,
+				    &w);
+	  do_check (&c, w, j, j <= i);
 	}
     }
 
@@ -139,36 +150,53 @@ try (struct alloc *allocs, int count, bool dump)
   for (i = 0; i < count; i ++)
     {
       /* Make sure allocs[i].addr maps to PAGES[i].  */
-      bool writable;
-      struct cap *cap = slot_lookup_rel (root_activity,
-					 &aspace, allocs[i].addr,
-					 &writable);
-      do_check (cap, writable, i, true);
+      struct cap *cap = NULL;
+      bool w;
 
-      struct cap c = object_lookup_rel (root_activity,
-					&aspace, allocs[i].addr, -1,
-					&writable);
-      do_check (&c, writable, i, true);
+      as_slot_lookup_rel_use (root_activity, &aspace, allocs[i].addr,
+			      ({
+				cap = slot;
+				w = writable;
+			      }));
+      do_check (cap, w, i, true);
+
+      struct cap c;
+      c = as_object_lookup_rel (root_activity,
+				&aspace, allocs[i].addr, -1,
+				&w);
+      do_check (&c, w, i, true);
 
       /* Void the capability in the returned capability slot.  */
-      cap->type = cap_void;
+      as_slot_lookup_rel_use (root_activity, &aspace, allocs[i].addr,
+			      ({
+				slot->type = cap_void;
+			      }));
 
       /* The page should no longer be found.  */
-      c = object_lookup_rel (root_activity, &aspace, allocs[i].addr, -1,
-			     NULL);
+      c = as_object_lookup_rel (root_activity, &aspace, allocs[i].addr, -1,
+				NULL);
       assert (c.type == cap_void);
 
       /* Restore the capability slot.  */
-      cap->type = allocs[i].type;
+      as_slot_lookup_rel_use (root_activity, &aspace, allocs[i].addr,
+			      ({
+				slot->type = allocs[i].type;
+			      }));
+
 
       /* The page should be back.  */
-      cap = slot_lookup_rel (root_activity,
-			     &aspace, allocs[i].addr, &writable);
-      do_check (cap, writable, i, true);
+      cap = NULL;
+      as_slot_lookup_rel_use
+	(root_activity, &aspace, allocs[i].addr,
+	 ({
+	   cap = slot;
+	   w = writable;
+	 }));
+      do_check (cap, w, i, true);
 
-      c = object_lookup_rel (root_activity,
-			     &aspace, allocs[i].addr, -1, &writable);
-      do_check (&c, writable, i, true);
+      c = as_object_lookup_rel (root_activity,
+				&aspace, allocs[i].addr, -1, &w);
+      do_check (&c, w, i, true);
 
       /* Finally, free the object.  */
       switch (caps[i].type)
@@ -189,16 +217,18 @@ try (struct alloc *allocs, int count, bool dump)
       int j;
       for (j = 0; j < count; j ++)
 	{
-	  bool writable;
-	  cap = slot_lookup_rel (root_activity,
-				 &aspace, allocs[j].addr, &writable);
 	  /* We should always get the slot (but it won't always
 	     designate an object).  */
-	  assert (cap);
+	  bool ret = as_slot_lookup_rel_use
+	    (root_activity, &aspace, allocs[j].addr,
+	     ({
+	     }));
+	  assert (ret);
 
 	  struct cap c;
-	  c = object_lookup_rel (root_activity,
-				 &aspace, allocs[j].addr, -1, &writable);
+	  bool writable;
+	  c = as_object_lookup_rel (root_activity,
+				    &aspace, allocs[j].addr, -1, &writable);
 	  do_check (&c, writable, j, i < j);
 	}
     }
@@ -207,8 +237,6 @@ try (struct alloc *allocs, int count, bool dump)
 void
 test (void)
 {
-  struct cap *cap = NULL;
-
   if (! memory_reserve ((l4_word_t) &_start, (l4_word_t) &_end,
 			memory_reservation_self))
     panic ("Failed to reserve memory for self.");
@@ -235,19 +263,22 @@ test (void)
     struct cap aspace = { type: cap_void };
 
     l4_word_t addr = 0xFA000;
-    bool writable;
-    cap = slot_lookup_rel (root_activity, &aspace, ADDR (addr, ADDR_BITS),
-			   &writable);
-    assert (cap == NULL);
+    bool ret = as_slot_lookup_rel_use (root_activity,
+				       &aspace, ADDR (addr, ADDR_BITS),
+				       ({ }));
+    assert (! ret);
 
     /* Set the root to designate ADDR.  */
     bool r = CAP_SET_GUARD (&aspace, addr, ADDR_BITS);
     assert (r);
     
-    cap = slot_lookup_rel (root_activity, &aspace, ADDR (addr, ADDR_BITS),
-			   &writable);
-    assert (cap == &aspace);
-    assert (writable);
+    ret = as_slot_lookup_rel_use (root_activity,
+				  &aspace, ADDR (addr, ADDR_BITS),
+				  ({
+				    assert (slot == &aspace);
+				    assert (writable);
+				  }));
+    assert (ret);
 
     printf ("ok.\n");
   }
@@ -321,7 +352,7 @@ test (void)
     try (allocs, sizeof (allocs) / sizeof (allocs[0]), false);
   }
 
-#warning Uncorrect failure mode
+#warning Incorrect failure mode
 #if 0
   {
     /* We do our best to not have to rearrange cappages.  However,

@@ -1,4 +1,4 @@
-/* cap-lookup.c - Address space walker.
+/* as-lookup.c - Address space walker.
    Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
@@ -20,13 +20,19 @@
 
 #include <hurd/cap.h>
 #include <hurd/folio.h>
+#include <hurd/as.h>
 #include <hurd/stddef.h>
 #include <assert.h>
 
 #include "bits.h"
 
+#ifndef RM_INTERN
+# include <pthread.h>
+pthread_rwlock_t as_rwlock;
+#endif
+
 #ifdef RM_INTERN
-#include "object.h"
+#include "../viengoos/object.h"
 #endif
 
 union rt
@@ -42,46 +48,11 @@ enum lookup_mode
     want_object
   };
 
-#ifndef RM_INTERN
-
-#include <hurd/exceptions.h>
-
-pthread_rwlock_t as_lock = __PTHREAD_RWLOCK_INITIALIZER;
-
-static void __attribute__ ((noinline))
-ensure_stack (void)
-{
-  /* XXX: If we fault on the stack while we have the address space
-     lock, we deadlock.  Ensure that we have some stack space and hope
-     it is enough.  (This can't be too much as we may be running on
-     the exception handler's stack.)  */
-  volatile char space[EXCEPTION_STACK_SIZE - PAGESIZE];
-  int j;
-  for (j = sizeof (space) - 1; j >= 0; j -= PAGESIZE)
-    space[j] = 0;
-}
-
-# define AS_LOCK					\
-  do							\
-    {							\
-      ensure_stack ();					\
-      pthread_rwlock_rdlock (&as_lock);			\
-    }							\
-  while (0)
-
-# define AS_UNLOCK pthread_rwlock_unlock (&as_lock)
-
-#else
-# define AS_LOCK do { } while (0)
-# define AS_UNLOCK do { } while (0)
-#endif
-
-
-static bool
-lookup (activity_t activity,
-	struct cap *root, addr_t address,
-	enum cap_type type, bool *writable,
-	enum lookup_mode mode, union rt *rt)
+bool
+as_lookup_rel (activity_t activity,
+	       struct cap *root, addr_t address,
+	       enum cap_type type, bool *writable,
+	       enum as_lookup_mode mode, union as_lookup_ret *rt)
 {
   struct cap *start = root;
 
@@ -242,7 +213,7 @@ lookup (activity_t activity,
 	/* We've indexed the object and have no bits remaining to
 	   translate.  */
 	{
-	  if (CAP_GUARD_BITS (root) && mode == want_object)
+	  if (CAP_GUARD_BITS (root) && mode == as_lookup_want_object)
 	    /* The caller wants an object but we haven't translated
 	       the slot's guard.  */
 	    {
@@ -278,13 +249,13 @@ lookup (activity_t activity,
 	}
     }
 
-  if (mode == want_object && cap_type_weak_p (root->type))
+  if (mode == as_lookup_want_object && cap_type_weak_p (root->type))
     w = false;
 
   if (writable)
     *writable = w;
 
-  if (mode == want_slot)
+  if (mode == as_lookup_want_slot)
     {
       if (root == &fake_slot)
 	{
@@ -300,185 +271,4 @@ lookup (activity_t activity,
       rt->cap = *root;
       return true;
     }
-}
-
-struct cap
-cap_lookup_rel (activity_t activity,
-		struct cap *root, addr_t address,
-		enum cap_type type, bool *writable)
-{
-  union rt rt;
-
-  AS_LOCK;
-
-  bool ret = lookup (activity, root, address, type, writable, want_cap, &rt);
-
-  AS_UNLOCK;
-
-  if (! ret)
-    return (struct cap) { .type = cap_void };
-  return rt.cap;
-}
-
-struct cap
-object_lookup_rel (activity_t activity,
-		   struct cap *root, addr_t address,
-		   enum cap_type type, bool *writable)
-{
-  union rt rt;
-
-  AS_LOCK;
-
-  bool ret = lookup (activity, root, address, type, writable, want_object, &rt);
-
-  AS_UNLOCK;
-
-  if (! ret)
-    return (struct cap) { .type = cap_void };
-  return rt.cap;
-}
-
-struct cap *
-slot_lookup_rel (activity_t activity,
-		 struct cap *root, addr_t address, bool *writable)
-{
-  union rt rt;
-
-  AS_LOCK;
-
-  bool ret = lookup (activity, root, address, -1, writable, want_slot, &rt);
-
-  AS_UNLOCK;
-
-  if (! ret)
-    return NULL;
-  return rt.capp;
-}
-
-static void
-print_nr (int width, l4_int64_t nr, bool hex)
-{
-  int base = 10;
-  if (hex)
-    base = 16;
-
-  l4_int64_t v = nr;
-  int w = 0;
-  if (v < 0)
-    {
-      v = -v;
-      w ++;
-    }
-  do
-    {
-      w ++;
-      v /= base;
-    }
-  while (v > 0);
-
-  int i;
-  for (i = w; i < width; i ++)
-    S_PUTCHAR (' ');
-
-  if (hex)
-    S_PRINTF ("0x%llx", nr);
-  else
-    S_PRINTF ("%lld", nr);
-}
-
-static void
-do_walk (activity_t activity, int index,
-	 struct cap *root, addr_t addr,
-	 int indent, bool descend, const char *output_prefix)
-{
-  int i;
-
-  struct cap cap = cap_lookup_rel (activity, root, addr, -1, NULL);
-  if (cap.type == cap_void)
-    return;
-
-  if (! cap_to_object (activity, &cap))
-    /* Cap is there but the object has been deallocated.  */
-    return;
-
-  if (output_prefix)
-    S_PRINTF ("%s: ", output_prefix);
-  for (i = 0; i < indent; i ++)
-    S_PRINTF (".");
-
-  S_PRINTF ("[ ");
-  if (index != -1)
-    print_nr (3, index, false);
-  else
-    S_PRINTF ("root");
-  S_PRINTF (" ] ");
-
-  print_nr (12, addr_prefix (addr), true);
-  S_PRINTF ("/%d ", addr_depth (addr));
-  if (CAP_GUARD_BITS (&cap))
-    S_PRINTF ("| 0x%llx/%d ", CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
-  if (CAP_SUBPAGES (&cap) != 1)
-    S_PRINTF ("(%d/%d) ", CAP_SUBPAGE (&cap), CAP_SUBPAGES (&cap));
-
-  if (CAP_GUARD_BITS (&cap)
-      && ADDR_BITS - addr_depth (addr) >= CAP_GUARD_BITS (&cap))
-    S_PRINTF ("=> 0x%llx/%d ",
-	    addr_prefix (addr_extend (addr,
-				      CAP_GUARD (&cap),
-				      CAP_GUARD_BITS (&cap))),
-	    addr_depth (addr) + CAP_GUARD_BITS (&cap));
-
-#ifdef RM_INTERN
-  S_PRINTF ("@" OID_FMT " ", OID_PRINTF (cap.oid));
-#endif
-  S_PRINTF ("%s", cap_type_string (cap.type));
-
-  if (! descend)
-    S_PRINTF ("...");
-
-  S_PRINTF ("\n");
-
-  if (! descend)
-    return;
-
-  if (addr_depth (addr) + CAP_GUARD_BITS (&cap) > ADDR_BITS)
-    return;
-
-  addr = addr_extend (addr, CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
-
-  switch (cap.type)
-    {
-    case cap_cappage:
-    case cap_rcappage:
-      if (addr_depth (addr) + CAP_SUBPAGE_SIZE_LOG2 (&cap) > ADDR_BITS)
-	return;
-
-      for (i = 0; i < CAP_SUBPAGE_SIZE (&cap); i ++)
-	do_walk (activity, i, root,
-		 addr_extend (addr, i, CAP_SUBPAGE_SIZE_LOG2 (&cap)),
-		 indent + 1, true, output_prefix);
-
-      return;
-
-    case cap_folio:
-      if (addr_depth (addr) + FOLIO_OBJECTS_LOG2 > ADDR_BITS)
-	return;
-
-      for (i = 0; i < FOLIO_OBJECTS; i ++)
-	do_walk (activity, i, root,
-		 addr_extend (addr, i, FOLIO_OBJECTS_LOG2),
-		 indent + 1, false, output_prefix);
-
-      return;
-
-    default:
-      return;
-    }
-}
-
-/* AS_LOCK must not be held.  */
-void
-as_dump_from (activity_t activity, struct cap *root, const char *prefix)
-{
-  do_walk (activity, -1, root, ADDR (0, 0), 0, true, prefix);
 }

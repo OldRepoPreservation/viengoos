@@ -42,11 +42,10 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	boot-modules.h boot-modules.c		\
 	memory.h memory.c			\
 	object.h object.c			\
-	cap.h cap.c cap-lookup.c		\
+	cap.h cap.c 				\
 	activity.h activity.c			\
 	thread.h thread.c			\
 	ager.h ager.c				\
-	as.h as.c				\
 	bits.h					\
 	server.h server.c			\
 	pager.h pager.c				\
@@ -56,6 +55,7 @@ viengoos_LDADD = \
 	../libhurd-btree/libhurd-btree.a \
 	../libhurd-ihash/libhurd-ihash-nomalloc.a \
 	../libc-parts/libc-kernel.a \
+	../libhurd-mm/libas-kernel.a \
 	../newlib/libc-routines.a \
 	-lgcc
 viengoos_LDFLAGS = -u_start -e_start -N -nostdlib \
@@ -76,32 +76,30 @@ t_as_CFLAGS = $(CHECK_CFLAGS)
 t_as_SOURCES = t-as.c				\
 	zalloc.h zalloc.c			\
 	memory.h memory.c			\
-	cap.h cap.c cap-lookup.c		\
+	cap.h cap.c 				\
 	object.h object.c			\
 	activity.h activity.c			\
 	thread.h thread.c			\
-	as.h as.c				\
 	output.h output.c output-stdio.c	\
 	shutdown.h shutdown.c			\
 	panic.c					\
 	debug.h debug.c
-t_as_LDADD = $(CHECK_LDADD)
+t_as_LDADD = ../libhurd-mm/libas-check.a $(CHECK_LDADD)
 
 t_activity_CPPFLAGS = $(CHECK_CPPFLAGS)
 t_activity_CFLAGS = $(CHECK_CFLAGS)
 t_activity_SOURCES = t-activity.c		\
 	zalloc.h zalloc.c			\
 	memory.h memory.c			\
-	cap.h cap.c cap-lookup.c		\
+	cap.h cap.c 				\
 	object.h object.c			\
 	activity.h activity.c			\
 	thread.h thread.c			\
-	as.h as.c				\
 	output.h output.c output-stdio.c	\
 	shutdown.h shutdown.c			\
 	panic.c					\
 	debug.h debug.c
-t_activity_LDADD = $(CHECK_LDADD)
+t_activity_LDADD = ../libhurd-mm/libas-check.a $(CHECK_LDADD)
 
 t_link_CPPFLAGS = $(CHECK_CPPFLAGS)
 t_link_CFLAGS = $(CHECK_CFLAGS)
@@ -112,12 +110,4 @@ t_guard_CPPFLAGS = $(CHECK_CPPFLAGS)
 t_guard_CFLAGS = $(CHECK_CFLAGS)
 t_guard_SOURCES = t-guard.c			\
 	output.h output.c output-stdio.c panic.c shutdown.h shutdown.c
-
-if ! ENABLE_TESTS
-lib_LIBRARIES = libhurd-cap.a
-endif
-# Use a small stack alignment to decrease stack usage.
-libhurd_cap_a_CPPFLAGS = $(USER_CPPFLAGS)
-libhurd_cap_a_CFLAGS = $(USER_CFLAGS) -mpreferred-stack-boundary=2
-libhurd_cap_a_SOURCES = cap-lookup.c as.c as.h as-custom.c
 

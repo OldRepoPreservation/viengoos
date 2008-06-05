@@ -27,6 +27,7 @@
 #include <hurd/activity.h>
 #include <hurd/futex.h>
 #include <hurd/trace.h>
+#include <hurd/as.h>
 
 #include "server.h"
 
@@ -210,9 +211,10 @@ server_loop (void)
 	  bool raise_fault = false;
 	  bool discarded = false;
 
-	  cap = object_lookup_rel (activity, &thread->aspace,
-				   ADDR (page_addr, ADDR_BITS - PAGESIZE_LOG2),
-				   type, &writable);
+	  cap = as_object_lookup_rel (activity, &thread->aspace,
+				      addr_chop (PTR_TO_ADDR (page_addr),
+						 PAGESIZE_LOG2),
+				      type, &writable);
 	  assert (cap.type == cap_void
 		  || cap.type == cap_page
 		  || cap.type == cap_rpage);
@@ -334,16 +336,19 @@ server_loop (void)
 	 the address space rooted at ROOT.  */
       error_t SLOT_ (struct cap *root, addr_t addr, struct cap **capp)
 	{
-	  bool writable;
-	  *capp = slot_lookup_rel (activity, root, addr, &writable);
-	  if (! *capp)
+	  bool w;
+	  if (! as_slot_lookup_rel_use (activity, root, addr,
+					({
+					  w = writable;
+					  *capp = slot;
+					})))
 	    {
 	      DEBUG (1, "No capability slot at 0x%llx/%d",
 		     addr_prefix (addr), addr_depth (addr));
 	      as_dump_from (activity, root, "");
 	      return ENOENT;
 	    }
-	  if (! writable)
+	  if (! w)
 	    {
 	      DEBUG (1, "Capability slot at 0x%llx/%d not writable",
 		     addr_prefix (addr), addr_depth (addr));
@@ -370,8 +375,8 @@ server_loop (void)
 		    struct cap *cap)
 	{
 	  bool writable = true;
-	  *cap = cap_lookup_rel (principal, root, addr,
-				 type, require_writable ? &writable : NULL);
+	  *cap = as_cap_lookup_rel (principal, root, addr,
+				    type, require_writable ? &writable : NULL);
 	  if (type != -1 && ! cap_types_compatible (cap->type, type))
 	    {
 	      DEBUG (1, "Addr 0x%llx/%d does not reference object of "
@@ -407,8 +412,8 @@ server_loop (void)
 	{
 	  bool writable = true;
 	  struct cap cap;
-	  cap = object_lookup_rel (principal, root, addr,
-				   type, require_writable ? &writable : NULL);
+	  cap = as_object_lookup_rel (principal, root, addr, type,
+				      require_writable ? &writable : NULL);
 	  if (type != -1 && ! cap_types_compatible (cap.type, type))
 	    {
 	      DEBUG (4, "Addr 0x%llx/%d does not reference object of "
@@ -1233,6 +1238,19 @@ server_loop (void)
 	    as_dump_from (principal, root, "");
 
 	    rm_as_dump_reply_marshal (&msg);
+
+	    break;
+	  }
+
+	case RM_rpc_trace:
+	  {
+	    err = rm_rpc_trace_send_unmarshal (&msg, &principal_addr);
+	    if (err)
+	      REPLY (err);
+
+	    trace_buffer_dump (&rpc_trace, 0);
+
+	    rm_rpc_trace_reply_marshal (&msg);
 
 	    break;
 	  }

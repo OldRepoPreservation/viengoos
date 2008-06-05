@@ -1,3 +1,120 @@
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
+	* as.h: Include <hurd/exceptions.h>.
+	[! RM_INTERN]: Include <hurd/storage.h> and <pthread.h>.
+	(as_lock_ensure_stack) [! RM_INTERN]: New function.
+	(as_lock): New function.
+	(as_lock_readonly): Likewise.
+	(as_unlock): Likewise.
+	(meta_data_activity) [RM_INTERN]: Don't declare.
+	(shadow_root) [RM_INTERN]: Don't declare.
+	(struct as_insert_rt): Rename from this...
+	(struct as_allocate_pt_ret): ... to this.  Update users.
+	(as_allocate_page_table_t): New typedef.
+	(as_allocate_page_table): New declaration.
+	(as_build): New declaration.
+	(as_build_custom): Likewise.
+	(as_slot_ensure): Remove declaration.
+	(as_ensure_full): New macro.
+	(as_ensure_use) [! RM_INTERN]: Likewise.
+	(as_ensure) [! RM_INTERN]: New function.
+	(as_insert): Rename from this...
+	(as_insert_full): ... to this.  Don't return the capability.
+	Reverse the order of the source address and cap.  Replace
+	allocate_object parameter with an allocate_page_table parameter.
+	Update users.
+	(as_insert) [! RM_INTERN]: New function.
+	(as_slot_ensure_full_custom): Rename from this...
+	(as_ensure_full_custom): ... to this.  Replace allocate_object
+	parameter with an allocate_page_table parameter.
+	(as_insert_custom): Likewise.
+	(union as_lookup_ret): New definition.
+	(as_lookup_want_cap): New definition.
+	(as_lookup_want_slot): Likewise.
+	(as_lookup_want_object): Likewise.
+	(as_lookup_rel): New declaration.
+	(slot_lookup): Remove declaration.
+	(as_slot_lookup_rel_use): Replace it with this macro.
+	(as_slot_lookup_use) [! RM_INTERN]: New macro.
+	(as_cap_lookup_rel): New function.
+	(cap_lookup): Rename from this...
+	(as_cap_lookup) [! RM_INTERN]: ... to this.  Remove activity
+	parameter.  Implement here as a static inline function.
+	(as_object_lookup_rel): New function.
+	(object_lookup): Rename from this...
+	(as_object_lookup) [! RM_INTERN]: ... to this.  Remove activity
+	parameter.  Implement here as a static inline function.
+	(as_dump_from): New declaration.
+	* as-compute-gbits.h: Include <hurd/folio.h>.
+	* as.c (allocate_object): Rename from this...
+	(as_allocate_page_table): ... to this.  Remove static qualifier.
+	Don't take parameter type, just allocate a cap_cappage.
+	(as_slot_ensure): Remove function.
+	(as_init): Replace use of slot_lookup_rel with as_slot_lookup_use
+	or as_cap_lookup as appropriate.
+	(cap_lookup): Remove function.
+	(object_lookup): Likewise.
+	(slot_lookup): Likewise.
+	(as_dump): Likewise.
+	* as-build.c: Don't include "as.h", but <hurd/as.h>.  Include
+	<hurd/rm.h>, "as-compute-gbits.h".
+	[RM_INTERN]: Don't include "object.h" but "../viengoos/object.h".
+	(CUSTOM) [ID_SUFFIX]: Define.
+	(as_build_internal): Rename from this...
+	(as_build): ... to this.  Remove static qualifier.  Replace
+	parameter allocate_object with allocate_page_table.  Use it
+	instead.
+	(as_slot_ensure_full): Remove function.
+	(as_insert): Likewise.
+	* as-build-custom.c (as_object_index_t): Remove definition.
+	(AS_LOCK): Don't define.
+	(AS_UNLOCK): Don't define.
+	(as_ensure_full_custom): New function.
+	(as_insert_custom): Likewise.
+	* as-lookup.c: Include <hurd/as.h>.
+	[RM_INTERN]: Don't include "object.h" but "../viengoos/object.h".
+	[! RM_INTERN]: Include <pthread.h>.
+	(as_lock) [! RM_INTERN]: Rename from this...
+	(as_rwlock) [! RM_INTERN]: ... to this.
+	(ensure_stack) [! RM_INTERN]: Remove function.
+	(AS_LOCK): Don't define.
+	(AS_UNLOCK): Don't define.
+	(lookup): Rename from this...
+	(as_lookup_rel): ... to this.  Change mode's type to an enum
+	as_lookup_mode.  Change rt's type to a union as_lookup_ret.  Don't
+	use want_object but as_lookup_want_object.  Don't use want_slot
+	but as_lookup_want_slot.  Don't use want_cap but
+	as_lookup_want_cap.
+	(cap_lookup_rel): Remove function.
+	(object_lookup_rel): Likewise.
+	(slot_lookup_rel): Likewise.
+	(print_nr): Move from here...
+	* as-lookup.c (do_walk): Move from here...
+	* as-dump.c (do_walk): ... to here.
+	* as-lookup.c (as_dump_from): Move from here...
+	* as-dump.c (as_dump_from): ... to here.
+	* Makefile.am (lib_LIBRARIES) [ENABLE_TESTS]: Set to libas-check.a
+	(lib_LIBRARIES) [! ENABLE_TESTS]: Add libas-kernel.a.
+	(libhurd_mm_a_SOURCES): Add bits., as-build.c as-build-custom.c,
+	as-lookup.c and as-dump.c.
+	(libas_kernel_a_CPPFLAGS): New variable.
+	(libas_kernel_a_CCASFLAGS): New variable.
+	(libas_kernel_a_CFLAGS): New variable.
+	(libas_kernel_a_SOURCES): New variable.
+	(libas_check_a_CPPFLAGS): New variable.
+	(libas_check_a_CCASFLAGS): New variable.
+	(libas_check_a_CFLAGS): New variable.
+	(libas_check_a_SOURCES): New variable.
+	* anonymous.c (fault): Replace use of as_slot_ensure with
+	as_ensure.
+	* exceptions.c (exception_handler_init): Replace use of
+	as_slot_ensure with as_ensure.
+	* storage.c (storage_check_reserve_internal): Replace use of
+	as_lock with as_rwlock.  Replace use of as_slot_ensure with and
+	slot_lookup with as_ensure and as_slot_lookup_use.
+	(storage_alloc): Replace use of slot_lookup with
+	as_slot_lookup_use.
+
 2008-06-01  Neal H. Walfield  <neal@gnu.org>
 
 	* storage.c (storage_low_mutex_init_once): Don't declare.

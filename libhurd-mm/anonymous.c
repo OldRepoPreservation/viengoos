@@ -205,9 +205,7 @@ fault (struct pager *pager,
 	  storage_desc->offset = offset;
 
 	  addr_t addr = addr_chop (PTR_TO_ADDR (page), PAGESIZE_LOG2);
-	  bool r = as_slot_ensure (addr);
-	  if (! r)
-	    panic ("Failed to ensure slot at " ADDR_FMT, ADDR_PRINTF (addr));
+	  as_ensure (addr);
 
 	  struct storage storage
 	    = storage_alloc (anon->activity,

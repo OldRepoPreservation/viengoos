@@ -1,4 +1,4 @@
-/* as.h - Address space composition helper functions interface.
+/* as-compute-gbits.h - Guard bit calculator.
    Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
@@ -18,11 +18,6 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#ifndef RM_AS_H
-#define RM_AS_H
-
-#include <l4.h>
-#include <hurd/cap.h>
 #include <hurd/folio.h>
 
 struct as_guard_cappage
@@ -33,7 +28,7 @@ struct as_guard_cappage
 
 /* Given UNTRANSLATED bits and a maximum guard length of GBITS, return
    the optimal guard length.  */
-static inline struct as_guard_cappage
+static struct as_guard_cappage
 as_compute_gbits_cappage (int untranslated_bits, int to_translate,
 			  int gbits)
 {
@@ -131,41 +126,3 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
   return gc;
 }
 
-struct as_insert_rt
-{
-  struct cap cap;
-  addr_t storage;
-};
-
-/* Callback used by the following function.  When called must return a
-   cap designating an object of type TYPE.  */
-typedef struct as_insert_rt allocate_object_callback_t (enum cap_type type,
-							addr_t addr);
-
-/* Copy the capability located at SOURCE_ADDR in the address space
-   rooted at SOURCE_AS to address ADDR in the address space rooted at
-   TARGET_AS.  Allocates any necessary page-tables in the target
-   address space.  ALLOC_OBJECT is a callback to allocate an object of
-   type TYPE at address ADDR.  The callback should NOT insert the
-   allocated object into the addresss space.  */
-extern struct cap *as_insert
-  (activity_t activity,
-   addr_t target_as, struct cap *t_as_cap, addr_t target,
-   addr_t source_as, struct cap c_cap, addr_t source,
-   allocate_object_callback_t alloc);
-
-/* Ensure that the slot designated by ADDR in the address space root
-   at AS is accessible by allocating any required page tables.  Return
-   the cap associated with ADDR.  */
-extern struct cap *as_slot_ensure_full
-  (activity_t activity,
-   addr_t as, struct cap *root, addr_t addr,
-   struct as_insert_rt
-     (*allocate_object) (enum cap_type type, addr_t addr));
-
-/* If debugging is enabled dump the address space described by ROOT.
-   PREFIX is prefixed to each line of output.  */
-extern void as_dump_from (activity_t activity, struct cap *root,
-			  const char *prefix);
-
-#endif

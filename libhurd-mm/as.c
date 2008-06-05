@@ -320,59 +320,42 @@ as_free (addr_t addr, l4_uint64_t count)
   ss_mutex_unlock (&free_spaces_lock);
 }
 
-static struct as_insert_rt
-allocate_object (enum cap_type type, addr_t addr)
+struct as_allocate_pt_ret
+as_allocate_page_table (addr_t addr)
 {
-  struct as_insert_rt rt;
+  struct as_allocate_pt_ret ret;
 
-  assert (type == cap_page || type == cap_rpage
-	  || type == cap_cappage || type == cap_rcappage);
-
-  memset (&rt, 0, sizeof (rt));
-  rt.cap.type = cap_void;
+  memset (&ret, 0, sizeof (ret));
+  ret.cap.type = cap_void;
 
   /* First allocate the real object.  */
-  struct storage storage = storage_alloc (meta_data_activity, type,
+  struct storage storage = storage_alloc (meta_data_activity, cap_cappage,
 					  STORAGE_LONG_LIVED,
 					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
   if (ADDR_IS_VOID (storage.addr))
-    return rt;
+    return ret;
 
-  debug (4, ADDR_FMT " %s -> " ADDR_FMT,
-	 ADDR_PRINTF (addr), cap_type_string (type),
-	 ADDR_PRINTF (storage.addr));
+  debug (4, ADDR_FMT " -> " ADDR_FMT,
+	 ADDR_PRINTF (addr), ADDR_PRINTF (storage.addr));
 
-  if (type == cap_cappage || type == cap_rcappage)
+  /* Then, allocate the shadow object.  */
+  struct storage shadow = storage_alloc (meta_data_activity, cap_page,
+					 STORAGE_LONG_LIVED,
+					 OBJECT_POLICY_DEFAULT,
+					 ADDR_VOID);
+  if (ADDR_IS_VOID (shadow.addr))
     {
-      /* Then, allocate the shadow object.  */
-      struct storage shadow = storage_alloc (meta_data_activity, cap_page,
-					     STORAGE_LONG_LIVED,
-					     OBJECT_POLICY_DEFAULT,
-					     ADDR_VOID);
-      if (ADDR_IS_VOID (shadow.addr))
-	{
-	  storage_free (storage.addr, false);
-	  return rt;
-	}
-      cap_set_shadow (storage.cap,
-		      ADDR_TO_PTR (addr_extend (shadow.addr,
-						0, PAGESIZE_LOG2)));
+      storage_free (storage.addr, false);
+      return ret;
     }
+  cap_set_shadow (storage.cap,
+		  ADDR_TO_PTR (addr_extend (shadow.addr,
+					    0, PAGESIZE_LOG2)));
 
-  rt.storage = storage.addr;
-  rt.cap = *storage.cap;
+  ret.storage = storage.addr;
+  ret.cap = *storage.cap;
 
-  return rt;
-}
-
-struct cap *
-as_slot_ensure (addr_t addr)
-{
-  assert (as_init_done);
-
-  return as_slot_ensure_full (meta_data_activity,
-			      ADDR_VOID, &shadow_root, addr,
-			      allocate_object);
+  return ret;
 }
 
 #define DESC_ADDITIONAL ((PAGESIZE + sizeof (struct hurd_object_desc) - 1) \
@@ -522,9 +505,12 @@ as_init (void)
       /* We know that the slot that contains the capability that
 	 designates this object is already shadowed as we shadow depth
 	 first.  */
-      struct cap *cap = slot_lookup_rel (meta_data_activity,
-					 &shadow_root, addr,
-					 NULL);
+      struct cap *cap = NULL;
+      /* Normally, this would not be kosher as it violates the locking
+	 scheme, however, we know that we are the only thread.  */
+      as_slot_lookup_use (addr, ({ cap = slot; }));
+
+      assert (cap);
       assertx (cap_types_compatible (cap->type, desc->type),
 	       ADDR_FMT ": type mismatch; kernel says %s, desc says %s",
 	       ADDR_PRINTF (addr),
@@ -717,16 +703,13 @@ as_init (void)
       debug (5, "Checking that " ADDR_FMT " is a %s",
 	     ADDR_PRINTF (addr), cap_type_string (type));
 
-      struct cap *cap = slot_lookup_rel (meta_data_activity,
-					 &shadow_root, addr, NULL);
-      assertx (cap, "addr: " ADDR_FMT "; type: %s",
-	       ADDR_PRINTF (addr), cap_type_string (type));
+      struct cap cap = as_cap_lookup (addr, -1, NULL);
 
-      assertx (cap->type == type,
+      assertx (cap.type == type,
 	       "user: %s != kernel: %s",
-	       cap_type_string (cap->type), cap_type_string (type));
+	       cap_type_string (cap.type), cap_type_string (type));
 
-      struct cap_properties properties2 = CAP_PROPERTIES_GET (*cap);
+      struct cap_properties properties2 = CAP_PROPERTIES_GET (cap);
       assert (properties.policy.discardable == properties2.policy.discardable);
       assertx (properties.policy.priority == properties2.policy.priority,
 	       ADDR_FMT "(%s) %d != %d",
@@ -784,26 +767,6 @@ as_alloced_dump (const char *prefix)
 	      free_space->region.start, free_space->region.end);
 
   ss_mutex_unlock (&free_spaces_lock);
-}
-
-struct cap
-cap_lookup (activity_t activity,
-	    addr_t address, enum cap_type type, bool *writable)
-{
-  return cap_lookup_rel (activity, &shadow_root, address, type, writable);
-}
-
-struct cap
-object_lookup (activity_t activity,
-	       addr_t address, enum cap_type type, bool *writable)
-{
-  return object_lookup_rel (activity, &shadow_root, address, type, writable);
-}
-
-struct cap *
-slot_lookup (activity_t activity, addr_t address, bool *writable)
-{
-  return slot_lookup_rel (activity, &shadow_root, address, writable);
 }
 
 /* Walk the address space, depth first.  VISIT is called for each
@@ -1082,13 +1045,4 @@ as_walk (int (*visit) (addr_t addr,
     }
 
   return do_walk (&shadow_root, ADDR (0, 0), true);
-}
-
-void
-as_dump (const char *prefix)
-{
-  extern void as_dump_from (activity_t activity,
-			    struct cap *root, const char *prefix);
-
-  as_dump_from (meta_data_activity, &shadow_root, prefix);
 }

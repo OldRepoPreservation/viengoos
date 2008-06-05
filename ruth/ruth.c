@@ -84,16 +84,15 @@ main (int argc, char *argv[])
 	       bool writable,
 	       void *cookie)
       {
-	struct cap *slot = slot_lookup (activity, addr, NULL);
+	struct cap cap = as_cap_lookup (addr, -1, NULL);
 
-	assert (slot);
-	assert (type == slot->type);
+	assert (type == cap.type);
 	if (type == cap_cappage || type == cap_rcappage || type == cap_folio)
-	  assertx (slot->shadow,
+	  assertx (cap.shadow,
 		   ADDR_FMT ", %s",
 		   ADDR_PRINTF (addr), cap_type_string (type));
 	else
-	  assert (! slot->shadow);
+	  assert (! cap.shadow);
 
 	if (type == cap_folio)
 	  {
@@ -168,10 +167,6 @@ main (int argc, char *argv[])
       {
 	addr_t f = addr_extend (root, i, bits);
 
-	struct cap *slot = as_slot_ensure (f);
-	assert (slot);
-	slot->type = cap_folio;
-
 	error_t err = rm_folio_alloc (activity, f, FOLIO_POLICY_DEFAULT);
 	assert (! err);
 
@@ -180,7 +175,13 @@ main (int argc, char *argv[])
 			   OBJECT_POLICY_DEFAULT, ADDR_VOID);
 	struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
 							  0, PAGESIZE_LOG2));
-	cap_set_shadow (slot, shadow);
+
+	as_ensure_use (f,
+		       ({
+			 slot->type = cap_folio;
+			 cap_set_shadow (slot, shadow);
+		       }));
+
 	memset (shadow, 0, PAGESIZE);
 
 	int j;
@@ -195,9 +196,8 @@ main (int argc, char *argv[])
 	    assert (! err);
 	    assert (type == cap_folio);
 
-	    struct cap *slot = slot_lookup (activity, f, NULL);
-	    assert (slot);
-	    assert (slot->type == cap_folio);
+	    struct cap cap = as_cap_lookup (f, -1, NULL);
+	    assert (cap.type == cap_folio);
 	  }
       }
 
@@ -208,12 +208,17 @@ main (int argc, char *argv[])
 	error_t err = rm_folio_free (activity, f);
 	assert (! err);
 
-	struct cap *slot = slot_lookup (activity, f, NULL);
-	assert (slot);
-	assert (slot->type == cap_folio);
-	slot->type = cap_void;
+	void *shadow = NULL;
+	bool ret = as_slot_lookup_use
+	  (f,
+	   ({
+	     assert (slot->type == cap_folio);
+	     slot->type = cap_void;
+				    
+	     shadow = cap_get_shadow (slot);
+	   }));
+	assert (ret);
 
-	void *shadow = cap_get_shadow (slot);
 	assert (shadow);
 	storage_free (addr_chop (PTR_TO_ADDR (shadow), PAGESIZE_LOG2), 1);
       }
@@ -1013,8 +1018,7 @@ main (int argc, char *argv[])
     addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
     assert (! ADDR_IS_VOID (addr));
 
-    bool r = as_slot_ensure (addr);
-    assert (r);
+    as_ensure (addr);
 
     addr_t storage = storage_alloc (activity, cap_page,
 				    STORAGE_MEDIUM_LIVED,

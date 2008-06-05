@@ -697,57 +697,8 @@ cap_copy (activity_t activity,
 		     CAP_PROPERTIES_GET (source));
 }
 
-#ifndef RM_INTERN
-#include <pthread.h>
-
-/* When reading or modifying the address space metadata, this
-   lock must be held.  */
-extern pthread_rwlock_t as_lock;
-#endif
-
 /* Dump the address space rooted at ROOT.  */
 extern void as_dump_from (activity_t activity, struct cap *root,
 			  const char *prefix);
-
-/* Return the value of the capability at ADDR or, if an object, the
-   value of the capability designating the object, in the address
-   space rooted by ROOT.
-
-   TYPE is the required type.  If the type is incompatible
-   (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
-   TYPE is -1, then any type is acceptable.  May cause paging.  If
-   non-NULL, returns whether the slot is writable in *WRITABLE.
-
-   This function locks (and unlocks) as_lock.  */
-extern struct cap cap_lookup_rel (activity_t activity,
-				  struct cap *root, addr_t addr,
-				  enum cap_type type, bool *writable);
-
-/* Return the value of the capability designating the object at ADDR
-   in the address space rooted by ROOT.  Unlike cap_lookup_rel, does
-   not return the capability if the address designates the slot rather
-   than the object itself.
-
-   TYPE is the required type.  If the type is incompatible
-   (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
-   TYPE is -1, then any type is acceptable.  May cause paging.  If
-   non-NULL, returns whether the slot is writable in *WRITABLE.
-
-   This function locks (and unlocks) as_lock.  */
-extern struct cap object_lookup_rel (activity_t activity,
-				     struct cap *root, addr_t addr,
-				     enum cap_type type, bool *writable);
-
-/* Return the capability slot at ADDR or, if an object, the slot
-   referencing the object, in the address space rooted by ROOT.
-
-   May cause paging.  If WRITABLE is non-NULL, returns whether the
-   slot is writable in *WRITABLE (it is not writable if it was
-   accessed via a read-only cappage).
-
-   This function locks (and unlocks) as_lock.  */
-extern struct cap *slot_lookup_rel (activity_t activity,
-				    struct cap *root, addr_t addr,
-				    bool *writable);
 
 #endif

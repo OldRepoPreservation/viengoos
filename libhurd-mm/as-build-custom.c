@@ -1,4 +1,4 @@
-/* as-custom.c - Address space composition helper functions.
+/* as-build-custom.c - Address space composition helper functions.
    Copyright (C) 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
@@ -22,22 +22,35 @@
 #include <hurd/addr.h>
 #include <hurd/cap.h>
 
-/* PT designates a cappage or a folio.  The cappage or folio is at
-   address PT_ADDR.  Index the object designed by PTE returning the
-   location of the idx'th capability slot.  If the capability is
-   implicit (in the case of a folio), return a fabricated capability
-   in *FAKE_SLOT and return FAKE_SLOT.  Return NULL on failure.  */
-typedef struct cap *(*as_object_index_t) (activity_t activity,
-					  struct cap *pt,
-					  addr_t pt_addr, int idx,
-					  struct cap *fake_slot);
-
 /* Expose as_slot_ensure_full_custom and as_insert_custom.  */
 #define ID_SUFFIX custom
 #define OBJECT_INDEX_ARG_TYPE as_object_index_t
 
-/* Require that the caller worry about mutual exclusion.  */
-#define AS_LOCK
-#define AS_UNLOCK
+#include "as-build.c"
 
-#include "as.c"
+struct cap *
+as_ensure_full_custom (activity_t activity,
+		       addr_t as_root_addr, struct cap *root, addr_t addr,
+		       as_allocate_page_table_t as_allocate_page_table,
+		       as_object_index_t object_index)
+{
+  return as_build_custom (activity, as_root_addr, root, addr,
+			  as_allocate_page_table, object_index,
+			  true);
+}
+
+struct cap *
+as_insert_custom (activity_t activity,
+		  addr_t as_root_addr, struct cap *root, addr_t addr,
+		  addr_t entry_as, struct cap entry, addr_t entry_addr,
+		  as_allocate_page_table_t as_allocate_page_table,
+		  as_object_index_t object_index)
+{
+  struct cap *slot = as_build_custom (activity, as_root_addr, root, addr,
+				      as_allocate_page_table,
+				      object_index, false);
+  assert (slot);
+  cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
+
+  return slot;
+}

@@ -2,7 +2,6 @@ GROUP(
   -lcrt
   -lm
   -lhurd-mm
-  -lhurd-cap
   -lpthread
   -lhurd-slab
   -lhurd-ihash

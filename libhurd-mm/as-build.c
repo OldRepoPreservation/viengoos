@@ -1,4 +1,4 @@
-/* as.c - Address space composition helper functions.
+/* as-build.c - Address space composition helper functions.
    Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
@@ -26,64 +26,66 @@
 #include <hurd/stddef.h>
 #include <hurd/folio.h>
 #include <hurd/exceptions.h>
+#include <hurd/as.h>
+#include <hurd/rm.h>
 
 #ifndef RM_INTERN
 # include <hurd/storage.h>
 #endif
 
-#include "as.h"
+#include "as-compute-gbits.h"
 #include "bits.h"
-#include "rm.h"
 
 #ifdef RM_INTERN
-#include "object.h"
+#include "../viengoos/object.h"
+#endif
+
+#ifdef ID_SUFFIX
+# define CUSTOM
 #endif
 
 #ifndef RM_INTERN
-static void __attribute__ ((noinline))
-ensure_stack(int i)
-{
-  /* XXX: If we fault on the stack while we have the address space
-     lock, we deadlock.  Ensure that we have some stack space and hope
-     it is enough.  (This can't be too much as we may be running on
-     the exception handler's stack.)  */
-  volatile char space[EXCEPTION_STACK_SIZE - PAGESIZE];
-  int j;
-  for (j = sizeof (space) - 1; j >= 0; j -= PAGESIZE)
-    space[j] = i;
-}
+# include <hurd/trace.h>
 
-# ifndef AS_LOCK
-#  define AS_LOCK						\
+# ifdef CUSTOM
+extern struct trace_buffer as_trace;
+# else
+/* The buffer is protected by the as_lock lock.  */
+struct trace_buffer as_trace = TRACE_BUFFER_INIT ("as_trace", 0,
+						  true, true, false);
+# endif
+
+# define DEBUG(level, fmt, ...)					\
   do								\
-     {								\
-       extern pthread_rwlock_t as_lock;				\
-								\
-       ensure_stack (1);					\
-       pthread_rwlock_wrlock (&as_lock);			\
-     }								\
-   while (0)
-# endif
-
-# ifndef AS_UNLOCK
-#  define AS_UNLOCK				\
-  do						\
-    {						\
-      extern pthread_rwlock_t as_lock;		\
-						\
-      pthread_rwlock_unlock (&as_lock);		\
-    }						\
+    {								\
+      debug (level, fmt, ##__VA_ARGS__);			\
+      trace_buffer_add (&as_trace, fmt, ##__VA_ARGS__);		\
+    }								\
   while (0)
-# endif
 
-# define AS_DUMP rm_as_dump (ADDR_VOID, as_root_addr)
+# define PANIC(fmt, ...)					\
+  do								\
+    {								\
+      trace_buffer_dump (&as_trace, 0);				\
+      panic (fmt, ##__VA_ARGS__);				\
+    }								\
+  while (0)
 
 #else
 
-# define AS_LOCK do { } while (0)
-# define AS_UNLOCK do { } while (0)
-# define AS_DUMP as_dump_from (activity, as_root, __func__);
+# define DEBUG(level, fmt, ...)					\
+  debug (level, fmt, ##__VA_ARGS__)
 
+# define PANIC(fmt, ...)					\
+  panic (fmt, ##__VA_ARGS__)
+
+#endif
+
+
+#ifdef RM_INTERN
+# define AS_DUMP as_dump_from (activity, as_root, __func__)
+#else
+# define AS_DUMP rm_as_dump (ADDR_VOID, as_root_addr)
 #endif
 
 /* The following macros allow providing specialized address-space
@@ -134,7 +136,7 @@ do_index (activity_t activity, struct cap *pte, addr_t pt_addr, int idx,
     {
       /* The type should now have been set to cap_void.  */
       assert (pte->type == cap_void);
-      panic ("No object at " ADDR_FMT, ADDR_PRINTF (pt_addr));
+      PANIC ("No object at " ADDR_FMT, ADDR_PRINTF (pt_addr));
     }
 
   switch (pte->type)
@@ -147,7 +149,7 @@ do_index (activity_t activity, struct cap *pte, addr_t pt_addr, int idx,
       struct folio *folio = (struct folio *) pt;
 
       if (folio_object_type (folio, idx) == cap_void)
-	panic ("Can't use void object at " ADDR_FMT " for address translation",
+	PANIC ("Can't use void object at " ADDR_FMT " for address translation",
 	       ADDR_PRINTF (pt_addr));
 
       *fake_slot = folio_object_cap (folio, idx);
@@ -173,18 +175,16 @@ do_index (activity_t activity, struct cap *pte, addr_t pt_addr, int idx,
    If MAY_OVERWRITE is true, the function may overwrite an existing
    capability.  Otherwise, only capability slots containing a void
    capability are used.  */
-static struct cap *
-ID (as_build_internal) (activity_t activity,
-			addr_t as_root_addr, struct cap *as_root, addr_t addr,
-			struct as_insert_rt (*allocate_object) (enum cap_type
-								type,
-								addr_t addr)
-			OBJECT_INDEX_PARAM,
-			bool may_overwrite)
+struct cap *
+ID (as_build) (activity_t activity,
+	       addr_t as_root_addr, struct cap *as_root, addr_t addr,
+	       as_allocate_page_table_t allocate_page_table
+	       OBJECT_INDEX_PARAM,
+	       bool may_overwrite)
 {
   struct cap *pte = as_root;
 
-  debug (4, "Ensuring slot at " ADDR_FMT, ADDR_PRINTF (addr));
+  DEBUG (4, "Ensuring slot at " ADDR_FMT, ADDR_PRINTF (addr));
   assert (! ADDR_IS_VOID (addr));
 
   /* The number of bits to translate.  */
@@ -217,7 +217,7 @@ ID (as_build_internal) (activity_t activity,
 	{
 	  if (remaining == pte_gbits && may_overwrite)
 	    {
-	      debug (4, "Overwriting " ADDR_FMT " with " ADDR_FMT
+	      DEBUG (4, "Overwriting " ADDR_FMT " with " ADDR_FMT
 		     " (at " ADDR_FMT ")",
 		     ADDR_PRINTF (addr_extend (addr_chop (addr,
 							  remaining),
@@ -242,7 +242,7 @@ ID (as_build_internal) (activity_t activity,
 	       capability at PREFIX.  */
 	    {
 	      AS_DUMP;
-	      panic ("There is already a %s object at %llx/%d!",
+	      PANIC ("There is already a %s object at %llx/%d!",
 		     cap_type_string (pte->type),
 		     addr_prefix (addr), addr_depth (addr));
 	    }
@@ -390,11 +390,11 @@ ID (as_build_internal) (activity_t activity,
 	  /* XXX: If we use a subpage, we just ignore the rest of the
 	     page.  This is a bit of a waste but makes the code
 	     simpler.  */
-	  /* ALLOCATE_OBJECT wants the number of significant bits
+	  /* ALLOCATE_PAGE_TABLE wants the number of significant bits
 	     translated to this object; REMAINING is number of bits
 	     remaining to translate.  */
 	  addr_t pt_addr = addr_chop (addr, remaining);
-	  struct as_insert_rt rt = allocate_object (cap_cappage, pt_addr);
+	  struct as_allocate_pt_ret rt = allocate_page_table (pt_addr);
 	  if (rt.cap.type == cap_void)
 	    /* No memory.  */
 	    return NULL;
@@ -496,7 +496,7 @@ ID (as_build_internal) (activity_t activity,
 
 	default:
 	  AS_DUMP;
-	  panic ("Can't insert object at " ADDR_FMT ": "
+	  PANIC ("Can't insert object at " ADDR_FMT ": "
 		 "%s at " ADDR_FMT " does not translate address bits "
 		 "(remaining: %d, gbits: %d, pte guard: %d, my guard: %d)",
 		 ADDR_PRINTF (addr), cap_type_string (pte->type),
@@ -509,7 +509,7 @@ ID (as_build_internal) (activity_t activity,
       if (width > remaining)
 	{
 	  AS_DUMP;
-	  panic ("Translating " ADDR_FMT ": can't index %d-bit %s at "
+	  PANIC ("Translating " ADDR_FMT ": can't index %d-bit %s at "
 		 ADDR_FMT "; not enough bits (%d)",
 		 ADDR_PRINTF (addr), width, cap_type_string (pte->type),
 		 ADDR_PRINTF (addr_chop (addr, remaining)), remaining);
@@ -521,7 +521,7 @@ ID (as_build_internal) (activity_t activity,
       pte = do_index (activity, pte, addr_chop (addr, remaining), idx,
 		      &fake_slot);
       if (! pte)
-	panic ("Failed to index object at " ADDR_FMT,
+	PANIC ("Failed to index object at " ADDR_FMT,
 	       ADDR_PRINTF (addr_chop (addr, remaining)));
 
       if (type == cap_folio)
@@ -555,52 +555,4 @@ ID (as_build_internal) (activity_t activity,
     }
 
   return pte;
-}
-
-/* Ensure that the slot designated by A is accessible.  */
-struct cap *
-ID (as_slot_ensure_full) (activity_t activity,
-			  addr_t as_root_addr, struct cap *root, addr_t a,
-			  struct as_insert_rt
-			  (*allocate_object) (enum cap_type type, addr_t addr)
-			  OBJECT_INDEX_PARAM)
-{
-  AS_LOCK;
-
-  struct cap *cap = ID (as_build_internal) (activity, as_root_addr, root, a,
-					    allocate_object, OBJECT_INDEX_ARG
-					    true);
-
-  AS_UNLOCK;
-
-#ifndef RM_INTERN
-  storage_check_reserve (false);
-#endif
-
-  return cap;
-}
-
-struct cap *
-ID (as_insert) (activity_t activity,
-		addr_t as_root_addr, struct cap *root, addr_t addr,
-		addr_t entry_as, struct cap entry, addr_t entry_addr,
-		struct as_insert_rt (*allocate_object) (enum cap_type type,
-							addr_t addr)
-		OBJECT_INDEX_PARAM)
-{
-  AS_LOCK;
-
-  struct cap *slot = ID (as_build_internal) (activity, as_root_addr,
-					     root, addr, allocate_object,
-					     OBJECT_INDEX_ARG false);
-  assert (slot);
-  cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
-
-  AS_UNLOCK;
-
-#ifndef RM_INTERN
-  storage_check_reserve (false);
-#endif
-
-  return slot;
 }

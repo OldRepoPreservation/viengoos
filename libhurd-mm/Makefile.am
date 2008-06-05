@@ -22,8 +22,10 @@ if ARCH_IA32
   ARCH_SOURCES = ia32-exception-entry.S
 endif
 
-if ! ENABLE_TESTS
-lib_LIBRARIES = libhurd-mm.a
+if ENABLE_TESTS
+lib_LIBRARIES = libas-check.a
+else
+lib_LIBRARIES = libhurd-mm.a libas-kernel.a
 endif
 
 includehurddir = $(includedir)/hurd
@@ -33,12 +35,26 @@ libhurd_mm_a_CPPFLAGS = $(USER_CPPFLAGS)
 libhurd_mm_a_CCASFLAGS = $(USER_CPPFLAGS) -DASM
 libhurd_mm_a_CFLAGS = $(USER_CFLAGS) -mpreferred-stack-boundary=2
 libhurd_mm_a_SOURCES = mm.h			\
+	bits.h					\
 	capalloc.h capalloc.c			\
 	storage.h storage.c			\
 	as.h as.c				\
+	as-build.c as-build-custom.c		\
+	as-lookup.c				\
+	as-dump.c				\
 	exceptions.c				\
 	pager.h pager.c				\
 	anonymous.h anonymous.c			\
 	mmap.c sbrk.c				\
 	mm-init.c				\
 	$(ARCH_SOURCES)
+
+libas_kernel_a_CPPFLAGS = $(KERNEL_CPPFLAGS)
+libas_kernel_a_CCASFLAGS = $(KERNEL_CPPFLAGS) -DASM
+libas_kernel_a_CFLAGS = $(KERNEL_CFLAGS) -mpreferred-stack-boundary=2
+libas_kernel_a_SOURCES = as.h bits.h as-build.c as-lookup.c as-dump.c
+
+libas_check_a_CPPFLAGS = $(CHECK_CPPFLAGS) -DRM_INTERN
+libas_check_a_CCASFLAGS = $(CHECK_CPPFLAGS) -DASM
+libas_check_a_CFLAGS = $(KERNEL_CFLAGS) -mpreferred-stack-boundary=2
+libas_check_a_SOURCES = as.h bits.h as-build.c as-lookup.c as-dump.c

@@ -1,3 +1,22 @@
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h: Don't include <pthread.h>.
+	(as_lock): Remove declaration.
+	(cap_lookup_rel): Likewise.
+	(object_lookup_rel): Likewise.
+	(slot_lookup_rel): Likewise.
+
+2008-06-03  Neal H. Walfield  <neal@gnu.org>
+
+	* trace.h (struct trace_buffer): New fields nobacktrace, notid,
+	and nolock.
+	(TRACE_BUFFER_INIT): New macro.
+	(trace_buffer_add): Only lock if BUFFER->NOLOCK is not set.  Only
+	print the caller's tid if BUFFER->NOTID is not set.  Only print a
+	backtrack if BUFFER->NOBACKTRACE is not set.
+	(trace_buffer_dump): Only lock if BUFFER->NOLOCK is not set.  Loop
+	while PROCESSED, not OFFSET, is less than BUFFER->WRITTEN.
+
 2008-05-31  Neal H. Walfield  <neal@gnu.org>
 
 	* trace.h [RM_INTERN]: Don't include <hurd/mutex.h>, include
