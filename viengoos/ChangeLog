@@ -1,3 +1,7 @@
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
+	* mutex.h (abort): Add declaration.
+
 2008-05-31  Neal H. Walfield  <neal@gnu.org>
 
 	* as.c (as_slot_ensure_full): Update use of storage_check_reserve

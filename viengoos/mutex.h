@@ -28,6 +28,9 @@
 
 typedef l4_thread_id_t ss_mutex_t;
 
+/* Used by the atomic operations.  */
+extern void abort (void);
+
 static inline void
 ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lock)
 {
