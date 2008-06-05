@@ -1242,19 +1242,6 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_rpc_trace:
-	  {
-	    err = rm_rpc_trace_send_unmarshal (&msg, &principal_addr);
-	    if (err)
-	      REPLY (err);
-
-	    trace_buffer_dump (&rpc_trace, 0);
-
-	    rm_rpc_trace_reply_marshal (&msg);
-
-	    break;
-	  }
-
 	case RM_futex:
 	  {
 	    /* Helper function to wake and requeue waiters.  */
