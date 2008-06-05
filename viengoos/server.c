@@ -26,6 +26,7 @@
 #include <hurd/thread.h>
 #include <hurd/activity.h>
 #include <hurd/futex.h>
+#include <hurd/trace.h>
 
 #include "server.h"
 
@@ -38,12 +39,32 @@
 #include "activity.h"
 #include "viengoos.h"
 
-/* Like debug but also prints the method id.  */
+#ifndef NDEBUG
+
+struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
+						   false, false, false);
+
+/* Like debug but also prints the method id and saves to the trace
+   buffer if level is less than or equal to 4.  */
 #define DEBUG(level, format, args...)					\
-  debug (level, "(%x %s %d) " format,					\
-	 thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"		\
-         : rm_method_id_string (label), label,				\
-	##args)
+  do									\
+    {									\
+      if (level <= 4)							\
+	trace_buffer_add (&rpc_trace, "(%x %s %d) " format,		\
+			  thread->tid,					\
+			  l4_is_pagefault (msg_tag) ? "pagefault"	\
+			  : rm_method_id_string (label), label,		\
+			  ##args);					\
+      debug (level, "(%x %s %d) " format,				\
+	     thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"	\
+	     : rm_method_id_string (label), label,			\
+	     ##args);							\
+    }									\
+  while (0)
+
+#else
+#define DEBUG(level, format, args...) do {} while (0)
+#endif
 
 void
 server_loop (void)
@@ -55,6 +76,9 @@ server_loop (void)
   l4_msg_t msg;
 
   bool have_lock = false;
+#ifndef NDEBUG
+  bool rpc_trace_just_dumped = false;
+#endif
 
   for (;;)
     {
@@ -67,18 +91,37 @@ server_loop (void)
       l4_thread_id_t from = l4_anythread;
       l4_msg_tag_t msg_tag;
 
+#ifndef NDEBUG
+      l4_time_t max_idle
+	= rpc_trace_just_dumped ? L4_NEVER : l4_time_period (5000 * 1000);
+#else
+      l4_time_t max_idle = L4_NEVER;
+#endif
+
       /* Only accept untyped items--no strings, no mappings.  */
       l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);
       if (do_reply)
 	{
 	  l4_msg_load (msg);
-	  msg_tag = l4_reply_wait (to, &from);
+
+	  msg_tag = l4_reply_wait_timeout (to, max_idle, &from);
 	}
       else
-	msg_tag = l4_wait (&from);
+	msg_tag = l4_wait_timeout (max_idle, &from);
 
       if (l4_ipc_failed (msg_tag))
 	{
+#ifndef NDEBUG
+	  if ((l4_error_code () & 1) && ((l4_error_code () >> 1) & 0x7) == 1)
+	    /* Receive timeout.  This means that we have not gotten
+	       any message in the last few seconds.  Perhaps there is
+	       a dead-lock.  Dump the rpc trace.  */
+	    {
+	      trace_buffer_dump (&rpc_trace, 0);
+	      rpc_trace_just_dumped = true;
+	    }
+#endif
+
 	  debug (0, "%s %x failed: %u", 
 		 l4_error_code () & 1 ? "Receiving from" : "Sending to",
 		 l4_error_code () & 1 ? from : to,
@@ -87,6 +130,10 @@ server_loop (void)
 	  do_reply = 0;
 	  continue;
 	}
+#ifndef NDEBUG
+      else
+	rpc_trace_just_dumped = false;
+#endif
 
       l4_msg_store (msg_tag, msg);
       l4_word_t label;
@@ -249,8 +296,8 @@ server_loop (void)
 	      continue;
 	    }
 
-	  DEBUG (5, "%s fault at %x, replying with %p (" OID_FMT ")",
-		 w ? "Write" : "Read", fault, page, OID_PRINTF (cap.oid));
+	  DEBUG (5, "%s fault at %x (ip=%x), replying with %p (" OID_FMT ")",
+		 w ? "Write" : "Read", fault, ip, page, OID_PRINTF (cap.oid));
 	  l4_map_item_t map_item
 	    = l4_map_item (l4_fpage_add_rights (l4_fpage ((uintptr_t) page,
 							  PAGESIZE),
@@ -481,8 +528,6 @@ server_loop (void)
 	  principal = activity;
 	}
 
-      DEBUG (5, "");
-
       switch (label)
 	{
 	case RM_folio_alloc:
@@ -494,6 +539,8 @@ server_loop (void)
 						 &folio_addr, &policy);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, "(" ADDR_FMT ")", ADDR_PRINTF (folio_addr));
 
 	    struct cap *folio_slot = SLOT (&thread->aspace, folio_addr);
 
@@ -517,6 +564,8 @@ server_loop (void)
 						&folio_addr);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, "(" ADDR_FMT ")", ADDR_PRINTF (folio_addr));
 
 	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
 							   folio_addr,
@@ -546,6 +595,16 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
+	    DEBUG (4, "(" ADDR_FMT ", %d, %s, (%s, %d), %d, "
+		   ADDR_FMT", "ADDR_FMT")",
+
+		   ADDR_PRINTF (folio_addr), idx, cap_type_string (type),
+		   policy.discardable ? "discardable" : "precious",
+		   policy.priority,
+		   return_code,
+		   ADDR_PRINTF (object_addr),
+		   ADDR_PRINTF (object_weak_addr));
+
 	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
 							   folio_addr,
 							   cap_folio, true);
@@ -563,11 +622,6 @@ server_loop (void)
 	    struct cap *object_weak_slot = NULL;
 	    if (! ADDR_IS_VOID (object_weak_addr))
 	      object_weak_slot = SLOT (&thread->aspace, object_weak_addr);
-
-	    DEBUG (4, "(folio: %llx/%d, idx: %d, type: %s, target: %llx/%d)",
-		   addr_prefix (folio_addr), addr_depth (folio_addr),
-		   idx, cap_type_string (type),
-		   addr_prefix (object_addr), addr_depth (object_addr));
 
 	    struct cap cap;
 	    cap = folio_object_alloc (principal,
@@ -605,6 +659,9 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
+	    DEBUG (4, "(" ADDR_FMT ", %d)",
+		   ADDR_PRINTF (folio_addr), flags);
+
 	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
 							   folio_addr,
 							   cap_folio, true);
@@ -636,6 +693,30 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
+	    DEBUG (4, "(" ADDR_FMT "@" ADDR_FMT "+%d -> "
+		   ADDR_FMT "@" ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
+
+		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
+		   idx,
+		   ADDR_PRINTF (target_as_addr), ADDR_PRINTF (target_addr),
+		   
+		   CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
+		   ? "copy subpage/" : "",
+		   CAP_COPY_COPY_ADDR_TRANS_GUARD & flags
+		   ? "copy trans guard/" : "",
+		   CAP_COPY_COPY_SOURCE_GUARD & flags
+		   ? "copy src guard/" : "",
+		   CAP_COPY_WEAKEN & flags ? "weak/" : "",
+		   CAP_COPY_DISCARDABLE_SET & flags ? "discardable/" : "",
+		   CAP_COPY_PRIORITY_SET & flags ? "priority" : "",
+
+		   properties.policy.discardable ? "discardable" : "precious",
+		   properties.policy.priority,
+		   CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+		   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
+		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
+		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
+
 	    struct cap *root = ROOT (source_as_addr);
 	    object_cap = CAP (root, source_addr, -1, false);
 
@@ -649,6 +730,30 @@ server_loop (void)
 	       &source_as_addr, &source_addr, &flags, &properties);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, "(" ADDR_FMT "@" ADDR_FMT "+%d <- "
+		   ADDR_FMT "@" ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
+
+		   ADDR_PRINTF (target_as_addr), ADDR_PRINTF (target_addr),
+		   idx,
+		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
+		   
+		   CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
+		   ? "copy subpage/" : "",
+		   CAP_COPY_COPY_ADDR_TRANS_GUARD & flags
+		   ? "copy trans guard/" : "",
+		   CAP_COPY_COPY_SOURCE_GUARD & flags
+		   ? "copy src guard/" : "",
+		   CAP_COPY_WEAKEN & flags ? "weak/" : "",
+		   CAP_COPY_DISCARDABLE_SET & flags ? "discardable/" : "",
+		   CAP_COPY_PRIORITY_SET & flags ? "priority" : "",
+
+		   properties.policy.discardable ? "discardable" : "precious",
+		   properties.policy.priority,
+		   CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+		   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
+		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
+		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
 
 	    root = ROOT (target_as_addr);
 	    object_cap = CAP (root, target_addr, -1, true);
@@ -701,6 +806,29 @@ server_loop (void)
 					      &flags, &properties);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, "(" ADDR_FMT "@" ADDR_FMT " <- "
+		   ADDR_FMT "@" ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
+
+		   ADDR_PRINTF (target_as_addr), ADDR_PRINTF (target_addr),
+		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
+		   
+		   CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
+		   ? "copy subpage/" : "",
+		   CAP_COPY_COPY_ADDR_TRANS_GUARD & flags
+		   ? "copy trans guard/" : "",
+		   CAP_COPY_COPY_SOURCE_GUARD & flags
+		   ? "copy src guard/" : "",
+		   CAP_COPY_WEAKEN & flags ? "weak/" : "",
+		   CAP_COPY_DISCARDABLE_SET & flags ? "discardable/" : "",
+		   CAP_COPY_PRIORITY_SET & flags ? "priority" : "",
+
+		   properties.policy.discardable ? "discardable" : "precious",
+		   properties.policy.priority,
+		   CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+		   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
+		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
+		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
 
 	    root = ROOT (target_as_addr);
 	    target = SLOT (root, target_addr);
@@ -769,6 +897,9 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
+	    DEBUG (4, ADDR_FMT "@" ADDR_FMT "+%d",
+		   ADDR_PRINTF (root_addr), ADDR_PRINTF (source_addr), idx);
+
 	    struct cap *root = ROOT (root_addr);
 
 	    /* We don't look up the argument directly as we need to
@@ -809,6 +940,9 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
+	    DEBUG (4, ADDR_FMT "@" ADDR_FMT,
+		   ADDR_PRINTF (root_addr), ADDR_PRINTF (source_addr));
+
 	    struct cap *root = ROOT (root_addr);
 
 	    struct cap source = CAP (root, source_addr, -1, false);
@@ -826,6 +960,8 @@ server_loop (void)
 	      (&msg, &principal_addr, &object_addr);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (object_addr));
 
 	    struct object *object = OBJECT (&thread->aspace,
 					    object_addr, -1, true);
@@ -847,6 +983,9 @@ server_loop (void)
 	      (&msg, &principal_addr, &object_addr, &clear);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, ADDR_FMT ", %sclear",
+		   ADDR_PRINTF (object_addr), clear ? "" : "no ");
 
 	    struct object *object = OBJECT (&thread->aspace,
 					    object_addr, -1, true);
@@ -875,6 +1014,8 @@ server_loop (void)
 						   &control, &in);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (target));
 
 	    struct thread *t
 	      = (struct thread *) OBJECT (&thread->aspace,
@@ -956,6 +1097,8 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
+	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (addr));
+
 	    struct object *object = OBJECT (&thread->aspace, addr, -1, true);
 
 	    thread->wait_reason = THREAD_WAIT_DESTROY;
@@ -974,6 +1117,8 @@ server_loop (void)
 						     &flags, &in);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, "");
 
 	    if (principal_cap.type != cap_activity_control
 		&& (flags & (ACTIVITY_POLICY_STORAGE_SET
@@ -1015,10 +1160,9 @@ server_loop (void)
 	    err = rm_activity_stats_send_unmarshal (&msg, &principal_addr,
 						    &until_period);
 	    if (err)
-	      {
-		debug (0, "");
-		REPLY (err);
-	      }
+	      REPLY (err);
+
+	    DEBUG (4, "%d", until_period);
 
 	    int period = principal->current_period - 1;
 	    if (period < 0)
@@ -1081,6 +1225,8 @@ server_loop (void)
 					     &root_addr);
 	    if (err)
 	      REPLY (err);
+
+	    DEBUG (4, "");
 
 	    struct cap *root = ROOT (root_addr);
 
@@ -1152,44 +1298,43 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    do_debug (5)
-	      {
-		const char *op_string = "unknown";
-		switch (op)
-		  {
-		  case FUTEX_WAIT:
-		    op_string = "wait";
-		    break;
-		  case FUTEX_WAKE_OP:
-		    op_string = "wake op";
-		    break;
-		  case FUTEX_WAKE:
-		    op_string = "wake";
-		    break;
-		  case FUTEX_CMP_REQUEUE:
-		    op_string = "cmp requeue";
-		    break;
-		  }
+	    {
+	      const char *op_string = "unknown";
+	      switch (op)
+		{
+		case FUTEX_WAIT:
+		  op_string = "wait";
+		  break;
+		case FUTEX_WAKE_OP:
+		  op_string = "wake op";
+		  break;
+		case FUTEX_WAKE:
+		  op_string = "wake";
+		  break;
+		case FUTEX_CMP_REQUEUE:
+		  op_string = "cmp requeue";
+		  break;
+		}
 
-		char *mode = "unknown";
+	      char *mode = "unknown";
 
-		struct object *page = cap_to_object (principal,
-						     &thread->exception_page);
-		if (page && object_type (page) == cap_page)
-		  {
-		    struct exception_page *exception_page
-		      = (struct exception_page *) page;
+	      struct object *page = cap_to_object (principal,
+						   &thread->exception_page);
+	      if (page && object_type (page) == cap_page)
+		{
+		  struct exception_page *exception_page
+		    = (struct exception_page *) page;
 
-		    if (exception_page->activated_mode)
-		      mode = "activated";
-		    else
-		      mode = "normal";
-		  }
+		  if (exception_page->activated_mode)
+		    mode = "activated";
+		  else
+		    mode = "normal";
+		}
 
-		DEBUG (0, "(%p, %s, 0x%x, %d, %p, %d) (thread in %s)",
-		       addr1, op_string, val1, val2.value, addr2, val3.value,
-		       mode);
-	      }
+	      DEBUG (4, "(%p, %s, 0x%x, %d, %p, %d) (thread in %s)",
+		     addr1, op_string, val1, val2.value, addr2, val3.value,
+		     mode);
+	    }
 
 	    switch (op)
 	      {

@@ -1,5 +1,14 @@
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c: Include <hurd/trace.h>.
+	(rpc_trace) [!NDEBUG]: New trace buffer.
+	(DEBUG) [!NDEBUG]: If LEVEL <= 4, add the message to the trace
+	buffer.
+	(server_loop) [!NDEBUG]: If 5 seconds pass without an RPC, dump
+	the trace buffer.  Improve debugging output.
+
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
 	* mutex.h (abort): Add declaration.
 
 2008-05-31  Neal H. Walfield  <neal@gnu.org>
