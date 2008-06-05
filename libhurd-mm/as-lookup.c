@@ -35,18 +35,25 @@ pthread_rwlock_t as_rwlock;
 #include "../viengoos/object.h"
 #endif
 
-union rt
-{
-  struct cap cap;
-  struct cap *capp;
-};
-
-enum lookup_mode
-  {
-    want_cap,
-    want_slot,
-    want_object
-  };
+#ifndef NDEBUG
+#define DUMP_OR_RET(ret)			\
+  {						\
+    if (dump_path)				\
+      {						\
+	debug (0, "Bye.");			\
+	return ret;				\
+      }						\
+    else					\
+      {						\
+	dump_path = true;			\
+	goto dump_path;				\
+      }						\
+  }
+#else
+#define DUMP_OR_RET(ret)			\
+  if (dump_path)				\
+    return ret;
+#endif
 
 bool
 as_lookup_rel (activity_t activity,
@@ -54,7 +61,11 @@ as_lookup_rel (activity_t activity,
 	       enum cap_type type, bool *writable,
 	       enum as_lookup_mode mode, union as_lookup_ret *rt)
 {
+  bool dump_path = false;
+
   struct cap *start = root;
+ dump_path:;
+  root = start;
 
   l4_uint64_t addr = addr_prefix (address);
   l4_word_t remaining = addr_depth (address);
@@ -67,8 +78,19 @@ as_lookup_rel (activity_t activity,
   /* Assume the object is writable until proven otherwise.  */
   int w = true;
 
+  if (dump_path)
+    debug (0, "Looking up %s at " ADDR_FMT,
+	   mode == as_lookup_want_cap ? "cap"
+	   : (mode == as_lookup_want_slot ? "slot" : "object"),
+	   ADDR_PRINTF (address));
+
   while (remaining > 0)
     {
+      if (dump_path)
+	debug (0, "Cap at " ADDR_FMT ": " CAP_FMT " (%d)",
+	       ADDR_PRINTF (addr_chop (address, remaining)),
+	       CAP_PRINTF (root), remaining);
+
       assert (CAP_TYPE_MIN <= root->type && root->type <= CAP_TYPE_MAX);
 
       if (root->type == cap_rcappage)
@@ -85,7 +107,7 @@ as_lookup_rel (activity_t activity,
 		     
 	      /* Translating this capability does not provide write
 		 access.  The requested type is strong, bail.  */
-	      return false;
+	      DUMP_OR_RET (false);
 	    }
 
 	  w = false;
@@ -102,13 +124,15 @@ as_lookup_rel (activity_t activity,
 		     "translate %d-bit guard at /%d",
 		     addr_prefix (address), addr_depth (address),
 		     remaining, gdepth, ADDR_BITS - remaining);
-	      return false;
+
+	      DUMP_OR_RET (false);
 	    }
 
 	  int guard = extract_bits64_inv (addr, remaining - 1, gdepth);
 	  if (CAP_GUARD (root) != guard)
 	    {
-	      debug (5, "Translating " ADDR_FMT ": guard 0x%llx/%d does "
+	      debug (dump_path ? 0 : 5,
+		     "Translating " ADDR_FMT ": guard 0x%llx/%d does "
 		     "not match 0x%llx's bits %d-%d => 0x%x",
 		     ADDR_PRINTF (address),
 		     CAP_GUARD (root), CAP_GUARD_BITS (root), addr,
@@ -117,6 +141,10 @@ as_lookup_rel (activity_t activity,
 	    }
 
 	  remaining -= gdepth;
+
+	  if (dump_path)
+	    debug (0, "Translating guard: %d/%d (%d)",
+		   guard, gdepth, remaining);
 	}
 
       if (remaining == 0)
@@ -139,7 +167,7 @@ as_lookup_rel (activity_t activity,
 		       "to index %d-bit cappage at " ADDR_FMT,
 		       ADDR_PRINTF (address), remaining, bits,
 		       ADDR_PRINTF (addr_chop (address, remaining)));
-		return false;
+		DUMP_OR_RET (false);
 	      }
 
 	    struct object *object = cap_to_object (activity, root);
@@ -148,6 +176,7 @@ as_lookup_rel (activity_t activity,
 #ifdef RM_INTERN
 		debug (1, "Failed to get object with OID " OID_FMT,
 		       OID_PRINTF (root->oid));
+		DUMP_OR_RET (false);
 #endif
 		return false;
 	      }
@@ -156,6 +185,10 @@ as_lookup_rel (activity_t activity,
 	      + extract_bits64_inv (addr, remaining - 1, bits);
 	    assert (0 <= offset && offset < CAPPAGE_SLOTS);
 	    remaining -= bits;
+
+	    if (dump_path)
+	      debug (0, "Indexing cappage: %d/%d (%d)",
+		     offset, bits, remaining);
 
 	    root = &object->caps[offset];
 	    break;
@@ -168,7 +201,7 @@ as_lookup_rel (activity_t activity,
 		     "to index folio at " ADDR_FMT,
 		     ADDR_PRINTF (address), remaining,
 		     ADDR_PRINTF (addr_chop (address, remaining)));
-	      return false;
+	      DUMP_OR_RET (false);
 	    }
 
 	  struct object *object = cap_to_object (activity, root);
@@ -178,7 +211,7 @@ as_lookup_rel (activity_t activity,
 		debug (1, "Failed to get object with OID " OID_FMT,
 		       OID_PRINTF (root->oid));
 #endif
-		return false;
+		DUMP_OR_RET (false);
 	      }
 
 	  struct folio *folio = (struct folio *) object;
@@ -192,6 +225,11 @@ as_lookup_rel (activity_t activity,
 #endif
 
 	  remaining -= FOLIO_OBJECTS_LOG2;
+
+	  if (dump_path)
+	    debug (0, "Indexing folio: %d/%d (%d)",
+		   i, FOLIO_OBJECTS_LOG2, remaining);
+
 	  break;
 
 	default:
@@ -201,7 +239,8 @@ as_lookup_rel (activity_t activity,
 	     area for which it has a pager.  */
 	  do_debug (4)
 	    as_dump_from (activity, start, NULL);
-	  debug (4, "Translating " ADDR_FMT ", encountered a %s at "
+	  debug (dump_path ? 0 : 5,
+		 "Translating " ADDR_FMT ", encountered a %s at "
 		 ADDR_FMT " but expected a cappage or a folio",
 		 ADDR_PRINTF (address),
 		 cap_type_string (root->type),
@@ -217,7 +256,8 @@ as_lookup_rel (activity_t activity,
 	    /* The caller wants an object but we haven't translated
 	       the slot's guard.  */
 	    {
-	      debug (4, "Found slot at %llx/%d but referenced object "
+	      debug (dump_path ? 0 : 4,
+		     "Found slot at %llx/%d but referenced object "
 		     "(%s) has an untranslated guard of %lld/%d!",
 		     addr_prefix (address), addr_depth (address),
 		     cap_type_string (root->type), CAP_GUARD (root),
@@ -229,6 +269,11 @@ as_lookup_rel (activity_t activity,
 	}
     }
   assert (remaining == 0);
+
+  if (dump_path)
+    debug (0, "Cap at " ADDR_FMT ": " CAP_FMT,
+	   ADDR_PRINTF (addr_chop (address, CAP_GUARD_BITS (root))),
+	   CAP_PRINTF (root));
 
   if (type != -1 && type != root->type)
     /* Types don't match.  */
@@ -242,7 +287,8 @@ as_lookup_rel (activity_t activity,
 	{
 	  do_debug (4)
 	    as_dump_from (activity, start, __func__);
-	  debug (4, "cap at " ADDR_FMT " designates a %s but want a %s",
+	  debug (dump_path ? 0 : 4,
+		 "cap at " ADDR_FMT " designates a %s but want a %s",
 		 ADDR_PRINTF (address), cap_type_string (root->type),
 		 cap_type_string (type));
 	  return false;
@@ -261,7 +307,7 @@ as_lookup_rel (activity_t activity,
 	{
 	  debug (1, "%llx/%d resolves to a folio object but want a slot",
 		 addr_prefix (address), addr_depth (address));
-	  return false;
+	  DUMP_OR_RET (false);
 	}
       rt->capp = root;
       return true;

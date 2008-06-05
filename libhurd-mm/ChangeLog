@@ -1,5 +1,10 @@
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
+	* as-lookup.c (DUMP_OR_RET): New macro.
+	(as_lookup_rel): On a likely user error, print a trace.
+
+2008-06-05  Neal H. Walfield  <neal@gnu.org>
+
 	* as.h: Include <hurd/exceptions.h>.
 	[! RM_INTERN]: Include <hurd/storage.h> and <pthread.h>.
 	(as_lock_ensure_stack) [! RM_INTERN]: New function.
