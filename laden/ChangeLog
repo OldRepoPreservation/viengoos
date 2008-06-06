@@ -1,3 +1,8 @@
+2008-06-06  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-cmain.c (find_components): Reserve 20% of available memory
+	for L4.
+
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am [ENABLE_TESTS]: Don't build package's program.

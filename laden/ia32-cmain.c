@@ -1,5 +1,5 @@
 /* ia32-cmain.c - Startup code for the ia32.
-   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -332,6 +332,8 @@ find_components (void)
      memory by default to allow arbitrary device access.  */
   add_memory_map (0, -1, L4_MEMDESC_SHARED, 0);
 
+  uint64_t total_memory = 0;
+
   /* Now add what GRUB tells us.  */
   if (CHECK_FLAG (mbi->flags, 6))
     {
@@ -362,6 +364,9 @@ find_components (void)
 			  mmap->type == 1
 			  ? L4_MEMDESC_CONVENTIONAL : L4_MEMDESC_ARCH,
 			  mmap->type == 1 ? 0 : mmap->type);
+
+	  if (mmap->type == 1)
+	    total_memory += mmap->length;
 	}
     }
   else if (CHECK_FLAG (mbi->flags, 0))
@@ -379,8 +384,11 @@ find_components (void)
   add_memory_map (0xa0000, 0xf0000 - 1, L4_MEMDESC_SHARED, 0);
 
 #ifdef _L4_X2
-  /* Reserve some conventional memory for the kernel.  */
-#define KMEM_SIZE	(16 * 0x100000)
+#define KMEM_MIN_CHUNK 0x400000
+
+  /* Reserve 20% of the conventional memory for the kernel.  */
+  uint64_t kmem_needed = ((total_memory / 5) + KMEM_MIN_CHUNK)
+    & ~(KMEM_MIN_CHUNK - 1);
 
   /* The upper limit for the end of the kernel memory.  */
 #define KMEM_MAX	(240 * 0x100000 - 1)
@@ -397,26 +405,38 @@ find_components (void)
 	  if (mmap->type != 1)
 	    continue;
 
-	  if (((uint32_t) mmap->length) >= KMEM_SIZE
-	      && ((uint32_t) mmap->base_addr) <= KMEM_MAX - KMEM_SIZE)
+	  if (((uint32_t) mmap->length) >= KMEM_MIN_CHUNK
+	      && ((uint32_t) mmap->base_addr) <= KMEM_MAX - KMEM_MIN_CHUNK)
 	    {
-	      uint32_t high = ((uint32_t) mmap->base_addr)
-			       + ((uint32_t) mmap->length) - 1;
-	      uint32_t low;
+	      uint32_t low = (uint32_t) mmap->base_addr;
+	      uint32_t high = low + (uint32_t) mmap->length - 1;
 
 	      if (high > KMEM_MAX)
 		high = KMEM_MAX;
-	      low = high - KMEM_SIZE;
-	      /* Round up to the next super page (4 MB).  */
-	      low = (low + 0x3fffff) & ~0x3fffff;
+
+	      /* Round up.  */
+	      low = (low + KMEM_MIN_CHUNK - 1) & ~(KMEM_MIN_CHUNK - 1);
+	      /* Round down (high is last valid byte!).  */
+	      high = ((high + 1) & ~(KMEM_MIN_CHUNK - 1)) - 1;
+
+	      if (high - low + 1 > kmem_needed)
+		low = high + 1 - kmem_needed;
+	      if (high - low + 1 < KMEM_MIN_CHUNK)
+		continue;
 
 	      add_memory_map (low, high, L4_MEMDESC_RESERVED, 0);
+
+	      kmem_needed -= high - low + 1;
 	    }
 	}
+
+      if (kmem_needed)
+	panic ("Failed to reserve %d kb memory for the kernel!",
+	       kmem_needed);
     }
   else if (CHECK_FLAG (mbi->flags, 0))
     {
-      if ((mbi->mem_upper << 10) >= KMEM_SIZE)
+      if ((mbi->mem_upper << 10) >= kmem_needed)
 	{
 	  uint32_t high = (mbi->mem_upper << 10) + 0x100000;
 	  uint32_t low;
@@ -424,9 +444,9 @@ find_components (void)
 	  if (high > KMEM_MAX)
 	    high = KMEM_MAX;
 
-	  low = high - KMEM_SIZE;
+	  low = high - kmem_needed;
 	  /* Round up to the next super page (4 MB).  */
-	  low = (low + 0x3fffff) & ~0x3fffff;
+	  low = (low + KMEM_MIN_CHUNK - 1) & ~(KMEM_MIN_CHUNK - 1);
 
 	  add_memory_map (low, high, L4_MEMDESC_RESERVED, 0);
 	}
