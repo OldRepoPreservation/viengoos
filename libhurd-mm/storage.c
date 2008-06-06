@@ -456,13 +456,14 @@ storage_check_reserve_internal (bool force_allocate,
   memset (&s->alloced, 0, sizeof (s->alloced));
   s->free = FOLIO_OBJECTS;
 
-  bool ret = as_slot_lookup_use (addr,
-				 ({
-				   s->cap = slot;
-				   shadow_setup (slot, s);
-				 }));
-  if (! ret)
-    assert (! as_init_done);
+  if (likely (as_init_done))
+    {
+      bool ret = as_slot_lookup_use (addr,
+				     ({
+				       shadow_setup (slot, s);
+				     }));
+      assert (ret);
+    }
 
   /* S is setup.  Make it available.  */
   ss_mutex_lock (&storage_descs_lock);
@@ -593,7 +594,7 @@ storage_alloc (addr_t activity,
     {
       assert (bit_alloc (desc->alloced, sizeof (desc->alloced), 0) == -1);
 
-      debug (1, "Folio at " ADDR_FMT " full", ADDR_PRINTF (folio));
+      debug (3, "Folio at " ADDR_FMT " full", ADDR_PRINTF (folio));
 
       list_unlink (desc);
 
@@ -818,7 +819,7 @@ storage_init (void)
       if (! sdesc)
 	/* Haven't seen this folio yet.  */
 	{
-	  debug (0, "Adding folio " ADDR_FMT, ADDR_PRINTF (folio));
+	  debug (5, "Adding folio " ADDR_FMT, ADDR_PRINTF (folio));
 
 	  folio_count ++;
 

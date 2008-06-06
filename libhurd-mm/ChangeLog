@@ -1,3 +1,11 @@
+2008-06-06  Neal H. Walfield  <neal@gnu.org>
+
+	* as.c (as_init): Configure a capability's shadow when we process
+	the capability, not when we process its containing cappage or
+	folio.
+	* storage.c (storage_check_reserve_internal): Only set up the
+	shadow object if AS_INIT_DONE is true.
+
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
 	* as-lookup.c (DUMP_OR_RET): New macro.

@@ -427,8 +427,6 @@ as_alloc_slow (int width)
     panic ("Failed to find a free slot!");
   assert (! ADDR_IS_VOID (slot));
 
-  debug (3, "Using slot %llx/%d", addr_prefix (slot), addr_depth (slot));
-
   /* Set the guard on the slot.  */
   int gbits = ADDR_BITS - addr_depth (slot) - width;
   assert (gbits >= 0);
@@ -486,8 +484,8 @@ as_init (void)
 
   hurd_btree_free_space_tree_init (&free_spaces);
 
-  /* We start with a tabula rasa and then remove the regions that are
-     actually in use.  */
+  /* We start with a tabula rasa and then "allocate" the regions that
+     are actually in use.  */
   as_free (ADDR (0, 0), 1);
 
   /* Then, we create the shadow page tables and mark the allocation
@@ -496,56 +494,53 @@ as_init (void)
   void add (struct hurd_object_desc *desc, addr_t addr)
     {
       error_t err;
-      int i;
-      struct object *shadow;
 
-      debug (5, "Adding object %llx/%d",
-	     addr_prefix (addr), addr_depth (addr));
+      debug (5, "Adding object " ADDR_FMT " (%s)",
+	     ADDR_PRINTF (addr), cap_type_string (desc->type));
 
-      /* We know that the slot that contains the capability that
-	 designates this object is already shadowed as we shadow depth
-	 first.  */
-      struct cap *cap = NULL;
-      /* Normally, this would not be kosher as it violates the locking
-	 scheme, however, we know that we are the only thread.  */
-      as_slot_lookup_use (addr, ({ cap = slot; }));
+      l4_word_t type;
+      struct cap_properties properties;
+      err = rm_cap_read (meta_data_activity, ADDR_VOID, addr,
+			 &type, &properties);
+      assert (! err);
+      assertx (cap_types_compatible (type, desc->type),
+	       "%s != %s",
+	       cap_type_string (type),
+	       cap_type_string (desc->type));
 
-      assert (cap);
-      assertx (cap_types_compatible (cap->type, desc->type),
-	       ADDR_FMT ": type mismatch; kernel says %s, desc says %s",
-	       ADDR_PRINTF (addr),
-	       cap_type_string (cap->type), cap_type_string (desc->type));
+      int gbits = CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans);
+      addr_t slot_addr = addr_chop (addr, gbits);
 
-      int slots_log2;
+      as_slot_lookup_use (slot_addr,
+			  ({
+			    slot->type = type;
+			    CAP_PROPERTIES_SET (slot, properties);
+			  }));
 
       switch (desc->type)
 	{
-	case cap_page:
-	case cap_rpage:
-	  as_alloc_at (addr, 1);
-	  return;
+	default:
+	  /* Don't allocate the AS associated with the storage.  It is
+	     dominated by its containing folio.  */
+	  if (! ADDR_EQ (addr, desc->storage))
+	    as_alloc_at (addr, 1);
+	  break;
 
 	case cap_void:
 	  assert (! "void descriptor?");
 	  return;
 
-	default:
-	  /* This object's address was already reserved when its
-	     parent cap page was added.  */
-	  return;
-
 	case cap_cappage:
-	case cap_rcappage:;
-	  /* We shadow the content of cappages.  */
-
+	case cap_rcappage:
 	  if (ADDR_BITS - addr_depth (addr)
-	      < CAP_SUBPAGE_SIZE_LOG2 (cap))
-	    /* The cappage is unusable for addressing.  */
-	    return;
-	  else
-	    /* We release the addresses used by ADDR and will fill it
-	       in appropriately.  */
-	    as_free (addr, 1);
+	      < CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans))
+	    /* The cappage is unusable for addressing, assuming it is
+	       in-use.  */
+	    {
+	      if (! ADDR_EQ (addr, desc->storage))
+		as_alloc_at (addr, 1);
+	      return;
+	    }
 
 	  struct storage shadow_storage
 	    = storage_alloc (meta_data_activity,
@@ -553,79 +548,27 @@ as_init (void)
 			     OBJECT_POLICY_DEFAULT, ADDR_VOID);
 	  if (ADDR_IS_VOID (shadow_storage.addr))
 	    panic ("Out of space.");
-	  shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
-					     0, PAGESIZE_LOG2));
-	  cap_set_shadow (cap, shadow);
-
-	  slots_log2 = CAP_SUBPAGE_SIZE_LOG2 (cap);
-
+	  struct object *shadow
+	    = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
+					0, PAGESIZE_LOG2));
+	  as_slot_lookup_use (addr,
+			      ({
+				cap_set_shadow (slot, shadow);
+			      }));
 	  break;
 
 	case cap_folio:
-	  if (ADDR_BITS - addr_depth (addr) < FOLIO_OBJECTS_LOG2)
-	    /* The folio is unusable for addressing.  */
-	    return;
- 
-	  storage_shadow_setup (cap, addr);
-	  shadow = cap_get_shadow (cap);
-
-	  slots_log2 = FOLIO_OBJECTS_LOG2;
-
+	  /* Folios are not available for use.  */
+	  as_alloc_at (addr, 1);
+	  as_slot_lookup_use (addr,
+			      ({
+				storage_shadow_setup (slot, addr);
+			      }));
 	  break;
 	}
 
-      /* We expect at least one non-void capability per
-	 cappage.  */
-      bool have_one = false;
-
-      /* XXX: Would be nice to have syscall bundling here.  */
-      for (i = 0; i < (1 << slots_log2); i ++)
-	{
-	  struct cap *slot = &shadow->caps[i];
-
-	  addr_t slot_addr = addr_extend (addr, i, slots_log2);
-	  l4_word_t type;
-	  struct cap_properties properties;
-	  err = rm_cap_read (meta_data_activity, ADDR_VOID, slot_addr,
-			     &type, &properties);
-	  if (err)
-	    panic ("Error reading cap %d: %d", i, err);
-	  slot->type = type;
-	  CAP_PROPERTIES_SET (slot, properties);
-
-	  if (type != cap_void)
-	    /* Mark the slot as free--unless we are in a folio.  */
-	    {
-	      have_one = true;
-
-	      if (desc->type != cap_folio
-		  && (addr_depth (slot_addr) + CAP_GUARD_BITS (slot)
-		      <= ADDR_BITS))
-		{
-		  addr_t object = addr_extend (slot_addr, CAP_GUARD (slot),
-					       CAP_GUARD_BITS (slot));
-		  as_alloc_at (object, 1);
-		}
-	    }
-	}
-
-      assert (have_one);
       return;
     }
-
-  /* Shadow the root capability.  */
-  l4_word_t type;
-  struct cap_properties properties;
-  err = rm_cap_read (meta_data_activity, ADDR_VOID, ADDR (0, 0),
-		     &type, &properties);
-  assert (err == 0);
-  shadow_root.type = type;
-  CAP_PROPERTIES_SET (&shadow_root, properties);
-
-  if (type != cap_void)
-    as_alloc_at (ADDR (CAP_GUARD (&shadow_root),
-		       CAP_GUARD_BITS (&shadow_root)),
-		 1);
 
   /* We assume that the address space is well-formed and that all
      objects in the address space are described by hurd object
