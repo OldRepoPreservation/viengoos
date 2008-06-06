@@ -184,7 +184,7 @@ ID (as_build) (activity_t activity,
 {
   struct cap *pte = as_root;
 
-  DEBUG (4, "Ensuring slot at " ADDR_FMT, ADDR_PRINTF (addr));
+  DEBUG (5, "Ensuring slot at " ADDR_FMT, ADDR_PRINTF (addr));
   assert (! ADDR_IS_VOID (addr));
 
   /* The number of bits to translate.  */
@@ -202,59 +202,57 @@ ID (as_build) (activity_t activity,
 
   do
     {
+      DEBUG (5, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%d)",
+	     ADDR_PRINTF (addr_chop (addr, remaining)),
+	     CAP_PRINTF (pte),
+	     ADDR_PRINTF (addr_chop (addr,
+				     remaining - CAP_GUARD_BITS (pte))),
+	     remaining);
+
       uint64_t pte_guard = CAP_GUARD (pte);
       int pte_gbits = CAP_GUARD_BITS (pte);
+
+      uint64_t addr_guard;
+      if (remaining >= pte_gbits)
+	addr_guard = extract_bits64_inv (prefix,
+					 remaining - 1, pte_gbits);
+      else
+	addr_guard = -1;
 
       /* If PTE's guard matches, the designated page table translates
 	 our address.  Otherwise, we need to insert a page table and
 	 indirect access to the object designated by PTE via it.  */
 
-      if (pte->type != cap_void
-	  && remaining >= pte_gbits
-	  && pte_guard == extract_bits64_inv (prefix, remaining - 1, pte_gbits))
-	/* PTE's (possibly zero-width) guard matches and the
-	   designated object translates ADDR.  */
+      if (remaining == pte_gbits && pte_guard == addr_guard)
+	/* Overwriting an existing object.  */
 	{
-	  if (remaining == pte_gbits && may_overwrite)
-	    {
-	      DEBUG (4, "Overwriting " ADDR_FMT " with " ADDR_FMT
-		     " (at " ADDR_FMT ")",
-		     ADDR_PRINTF (addr_extend (addr_chop (addr,
-							  remaining),
-					       pte_guard,
-					       pte_gbits)),
-		     ADDR_PRINTF (addr),
-		     ADDR_PRINTF (addr_chop (addr, remaining)));
-	      /* XXX: Free any data associated with the capability
-		 (e.g., shadow pages).  */
-	      break;
-	    }
-
-	  /* Subtract the number of bits the guard translates.  */
+	  remaining = 0;
+	  DEBUG (5, "Matched guard %lld/%d, remaining: %d",
+		 pte_guard, pte_gbits, remaining);
+	  break;
+	}
+      else if ((pte->type == cap_cappage || pte->type == cap_rcappage
+		|| pte->type == cap_folio)
+	       && remaining >= pte_gbits
+	       && pte_guard == addr_guard)
+	/* PTE's (possibly zero-width) guard matches and the
+	   designated object translates ADDR.  We index the object
+	   below.  */
+	{
 	  remaining -= pte_gbits;
-	  assert (remaining >= 0);
+	  DEBUG (5, "Matched guard %lld/%d, remaining: %d",
+		 pte_guard, pte_gbits, remaining);
 
 	  if (remaining == 0)
-	    /* PTE is not a void capability yet the guard translates
-	       all of the bits and we may not overwrite the
-	       capability.  This means that PTE references an object
-	       at PREFIX.  This is a problem: we want to insert a
-	       capability at PREFIX.  */
-	    {
-	      AS_DUMP;
-	      PANIC ("There is already a %s object at %llx/%d!",
-		     cap_type_string (pte->type),
-		     addr_prefix (addr), addr_depth (addr));
-	    }
-
-	  /* We index the object designated by PTE below.  */
+	    break;
 	}
       else
-	/* There are two scenarios that lead us here: (1) the pte is
-	   void or (2) the addresses at which we want to insert the
-	   object does not match the guard at PTE.  Perhaps in the
-	   former (as we only have 22 guard bits) and definately in
-	   the latter, we need to introduce a new page table.
+	/* There are two scenarios that lead us here: (1) the pte
+	   designates an object that does not translate bits or (2)
+	   the addresses at which we want to insert the object does
+	   not match the guard at PTE.  Perhaps in the former (as we
+	   only have 22 guard bits) and definately in the latter, we
+	   need to introduce a new page table.
 
 	   Consider the second scenario:
 
@@ -447,6 +445,22 @@ ID (as_build) (activity_t activity,
 	     currently designates.  */
 	  addr_t pte_addr = addr_chop (pt_addr, gbits);
 
+	  DEBUG (5, ADDR_FMT ": indirecting pte at " ADDR_FMT
+		 " (" ADDR_FMT ":" CAP_FMT "); "
+		 "common guard: %d, %d bit cappage, remaining: %d;  "
+		 "pt: " ADDR_FMT "(storage: " ADDR_FMT "), "
+		 "old target now via index %d "
+		 "(in pt storage: " ADDR_FMT ")",
+		 ADDR_PRINTF (addr),
+		 ADDR_PRINTF (pte_addr),
+		 ADDR_PRINTF (addr_extend (pte_addr,
+					   CAP_GUARD (pte),
+					   CAP_GUARD_BITS (pte))),
+		 CAP_PRINTF (pte),
+		 gbits, subpage_bits, remaining,
+		 ADDR_PRINTF (pt_addr), ADDR_PRINTF (rt.storage),
+		 pivot_idx, ADDR_PRINTF (pivot_addr));
+
 	  struct cap_addr_trans addr_trans = pte->addr_trans;
 	  int d = tilobject - gbits - subpage_bits;
 	  CAP_ADDR_TRANS_SET_GUARD (&addr_trans,
@@ -517,6 +531,9 @@ ID (as_build) (activity_t activity,
 
       int idx = extract_bits64_inv (prefix, remaining - 1, width);
 
+      DEBUG (5, "Indexing %s, %d bits wide, with %d",
+	     cap_type_string (pte->type), width, idx);
+
       enum cap_type type = pte->type;
       pte = do_index (activity, pte, addr_chop (addr, remaining), idx,
 		      &fake_slot);
@@ -533,10 +550,26 @@ ID (as_build) (activity_t activity,
     }
   while (remaining > 0);
 
-  if (! may_overwrite)
-    assertx (pte->type == cap_void,
-	     ADDR_FMT " contains a %s but may not overwrite",
-	     ADDR_PRINTF (addr), cap_type_string (pte->type));
+  if (pte->type != cap_void)
+    {
+      if (may_overwrite)
+	{
+	  DEBUG (5, "Overwriting %s at " ADDR_FMT,
+		 cap_type_string (pte->type),
+		 ADDR_PRINTF (addr));
+	  /* XXX: Free any data associated with the capability
+	     (e.g., shadow pages).  */
+	}
+      else
+	{
+	  AS_DUMP;
+	  PANIC ("There is already a %s object at " ADDR_FMT
+		 " but may not overwrite.",
+		 cap_type_string (pte->type),
+		 ADDR_PRINTF (addr));
+	}
+    }
+
 
   int gbits = remaining;
   /* It is safe to use an int as a guard has a most 22 bits.  */

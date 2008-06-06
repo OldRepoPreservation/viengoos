@@ -1,5 +1,12 @@
 2008-06-06  Neal H. Walfield  <neal@gnu.org>
 
+	* as-build.c (as_build): If a pte's guard matches but the
+	designated object is not a cappage or a folio, don't match the
+	guard and try to index the object, instead, indirect access to the
+	object via a page table.
+
+2008-06-06  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (as_init): Configure a capability's shadow when we process
 	the capability, not when we process its containing cappage or
 	folio.
