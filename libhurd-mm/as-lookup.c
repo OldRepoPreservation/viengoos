@@ -87,9 +87,12 @@ as_lookup_rel (activity_t activity,
   while (remaining > 0)
     {
       if (dump_path)
-	debug (0, "Cap at " ADDR_FMT ": " CAP_FMT " (%d)",
+	debug (0, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%d)",
 	       ADDR_PRINTF (addr_chop (address, remaining)),
-	       CAP_PRINTF (root), remaining);
+	       CAP_PRINTF (root),
+	       ADDR_PRINTF (addr_chop (address,
+				       remaining - CAP_GUARD_BITS (root))),
+	       remaining);
 
       assert (CAP_TYPE_MIN <= root->type && root->type <= CAP_TYPE_MAX);
 
@@ -271,9 +274,12 @@ as_lookup_rel (activity_t activity,
   assert (remaining == 0);
 
   if (dump_path)
-    debug (0, "Cap at " ADDR_FMT ": " CAP_FMT,
-	   ADDR_PRINTF (addr_chop (address, CAP_GUARD_BITS (root))),
-	   CAP_PRINTF (root));
+    debug (0, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%d)",
+	   ADDR_PRINTF (addr_chop (address, remaining)),
+	   CAP_PRINTF (root),
+	   ADDR_PRINTF (addr_chop (address,
+				   remaining - CAP_GUARD_BITS (root))),
+	   remaining);
 
   if (type != -1 && type != root->type)
     /* Types don't match.  */

@@ -1,3 +1,25 @@
+2008-06-07  Neal H. Walfield  <neal@gnu.org>
+
+	* as-build.c (as_build): When a guard completes an address
+	translation, do not subtract the bits translated by the guard from
+	REMAINING.  Only assume that capabilities that are void and have a
+	zero length guard are unused.  When inserting a page table, only
+	copy the pivot if it is in use.
+	
+	* as.h (AS_CHECK_SHADOW): New macro.
+	(AS_CHECK_SHADOW2): Likewise.
+	(as_ensure_full): Use them here.
+	(as_insert_full): Likewise.
+	(as_slot_lookup_rel_use): Likewise.
+	(as_cap_lookup_rel): Likewise.
+	(as_object_lookup_rel): Likewise.
+	* as-build.c (as_build): Likewise.  Improve debugging output.
+	* as.h (as_ensure): Change from a function to a macro.
+	(as_insert_full): Correctly check the return value from cap_copy.
+	* as-compute-gbits.h (as_compute_gbits_cappage): Use assertx to
+	assert the conditions and to print out their values on failure.
+	* as-lookup.c (as_lookup_rel): Improve debugging output.
+
 2008-06-06  Neal H. Walfield  <neal@gnu.org>
 
 	* as-build.c (as_build): If a pte's guard matches but the

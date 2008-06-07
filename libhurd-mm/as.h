@@ -144,6 +144,66 @@ extern activity_t meta_data_activity;
 extern struct cap shadow_root;
 #endif
 
+#if defined (RM_INTERN) || defined (NDEBUG)
+#define AS_CHECK_SHADOW(root_addr, addr, cap, code)
+#define AS_CHECK_SHADOW2(__acs_root_cap, __acs_addr, __acs_cap, __acs_code)
+#else
+#include <hurd/trace.h>
+
+#define AS_CHECK_SHADOW(__acs_root_addr, __acs_addr, __acs_cap,		\
+			__acs_code)					\
+  do									\
+    {									\
+      l4_word_t __acs_type = -1;					\
+      struct cap_properties __acs_p;					\
+      error_t __acs_err;						\
+									\
+      __acs_err = rm_cap_read (meta_data_activity,			\
+			       (__acs_root_addr), (__acs_addr),		\
+			       &__acs_type, &__acs_p);			\
+									\
+      if (! (! __acs_err						\
+	     && __acs_type == (__acs_cap)->type				\
+	     && __acs_p.addr_trans.raw == (__acs_cap)->addr_trans.raw	\
+	     && __acs_p.policy.priority == (__acs_cap)->priority	\
+	     && !!__acs_p.policy.discardable == !!(__acs_cap)->discardable)) \
+	{								\
+	  debug (0,							\
+		 ADDR_FMT "@" ADDR_FMT ": err: %d; type: %s =? %s; "	\
+		 "guard: %lld/%d =? %lld/%d; subpage: %d/%d =? %d/%d; "	\
+		 "priority: %d =? %d; discardable: %d =? %d",		\
+		 ADDR_PRINTF ((__acs_root_addr)), ADDR_PRINTF ((__acs_addr)), \
+		 __acs_err,						\
+		 cap_type_string ((__acs_cap)->type),			\
+		 cap_type_string (__acs_type),				\
+		 CAP_GUARD ((__acs_cap)), CAP_GUARD_BITS ((__acs_cap)),	\
+		 CAP_ADDR_TRANS_GUARD (__acs_p.addr_trans),		\
+		 CAP_ADDR_TRANS_GUARD_BITS (__acs_p.addr_trans),	\
+		 CAP_SUBPAGE ((__acs_cap)), CAP_SUBPAGES_LOG2 ((__acs_cap)), \
+		 CAP_ADDR_TRANS_SUBPAGE (__acs_p.addr_trans),		\
+		 CAP_ADDR_TRANS_SUBPAGES_LOG2 (__acs_p.addr_trans),	\
+		 (__acs_cap)->priority, __acs_p.policy.priority,	\
+		 !!(__acs_cap)->discardable, !!__acs_p.policy.discardable); \
+	  {								\
+	    extern struct trace_buffer as_trace;			\
+	    trace_buffer_dump (&as_trace, 0);				\
+	  }								\
+	  { (__acs_code); }						\
+	  assert (! "Shadow caps inconsistent!");			\
+	}								\
+    }									\
+  while (0)
+
+#define AS_CHECK_SHADOW2(__acs_root_cap, __acs_addr, __acs_cap, \
+			 __acs_code)				\
+  do								\
+    {								\
+      if ((__acs_root_cap) == &shadow_root)			\
+	AS_CHECK_SHADOW(ADDR_VOID, (__acs_addr), (__acs_cap),	\
+			(__acs_code));				\
+    }								\
+  while (0)
+#endif
 
 struct as_allocate_pt_ret
 {
@@ -233,6 +293,7 @@ struct cap *as_build_custom (activity_t activity,
       									\
       { (__asef_code); }						\
 									\
+      AS_CHECK_SHADOW (__asef_as_root_addr, __asef_addr, slot, {});	\
       as_unlock ();							\
     }									\
   while (0)
@@ -256,14 +317,11 @@ struct cap *as_build_custom (activity_t activity,
   while (0)
 
 /* Like as_ensure_use, however, does not execute any code.  */
-static inline void
-as_ensure (addr_t addr)
-{
-  as_ensure_full (meta_data_activity,
-		  ADDR_VOID, &shadow_root, addr,
-		  as_allocate_page_table,
-		  ({;}));
-}
+#define as_ensure(__ae_addr)				\
+  as_ensure_full (meta_data_activity,			\
+		  ADDR_VOID, &shadow_root, __ae_addr,	\
+		  as_allocate_page_table,		\
+		  ({;}))
 #endif
 
 /* Copy the capability located at SOURCE_ADDR (whose corresponding
@@ -286,19 +344,29 @@ as_insert_full (activity_t activity,
 		addr_t source_addr, struct cap source_cap,
 		as_allocate_page_table_t allocate_page_table)
 {
+  AS_CHECK_SHADOW (source_as_root_addr, source_addr, &source_cap, {});
+
   as_ensure_full (activity,
 		  target_as_root_addr, target_as_root_cap,
 		  target_addr,
 		  allocate_page_table,
 		  ({
-		    error_t err;
-		    err = cap_copy (activity,
-				    target_as_root_addr, 
-				    slot,		
-				    target_addr,	
-				    source_as_root_addr, 
-				    source_cap,	
-				    source_addr);	
+		    bool ret;
+		    ret = cap_copy (activity,
+				    target_as_root_addr,
+				    slot,
+				    target_addr,
+				    source_as_root_addr,
+				    source_cap,
+				    source_addr);
+		    assertx (ret,
+			     ADDR_FMT "@" ADDR_FMT
+			     " <- " ADDR_FMT "@" ADDR_FMT " (" CAP_FMT ")",
+			     ADDR_PRINTF (target_as_root_addr),
+			     ADDR_PRINTF (target_addr),
+			     ADDR_PRINTF (source_as_root_addr),
+			     ADDR_PRINTF (source_addr),
+			     CAP_PRINTF (&source_cap));
 		  }));
 }
 
@@ -313,6 +381,7 @@ as_insert (addr_t target_addr,
 		  as_allocate_page_table);
 }
 #endif
+
 
 #ifndef RM_INTERN
 /* Variant of as_ensure_full that doesn't assume the default shadow
@@ -401,6 +470,8 @@ extern bool as_lookup_rel (activity_t activity,
       {									\
 	struct cap *slot __attribute__ ((unused)) = __alru_ret_val.capp; \
 	(__alru_code);							\
+									\
+	AS_CHECK_SHADOW2(__alru_root, __alru_addr, slot, {});		\
       }									\
 									\
     as_unlock ();							\
@@ -440,10 +511,14 @@ as_cap_lookup_rel (activity_t activity,
   bool ret = as_lookup_rel (activity, root, addr, type, writable,
 			    as_lookup_want_cap, &ret_val);
 
+  if (ret)
+    AS_CHECK_SHADOW2 (root, addr, &ret_val.cap, {});
+
   as_unlock ();
 
   if (! ret)
     return (struct cap) { .type = cap_void };
+
   return ret_val.cap;
 }
 
@@ -481,10 +556,14 @@ as_object_lookup_rel (activity_t activity,
   bool ret = as_lookup_rel (activity, root, addr, type, writable,
 			    as_lookup_want_object, &ret_val);
 
+  if (ret)
+    AS_CHECK_SHADOW2 (root, addr, &ret_val.cap, {});
+
   as_unlock ();
 
   if (! ret)
     return (struct cap) { .type = cap_void };
+
   return ret_val.cap;
 }
 

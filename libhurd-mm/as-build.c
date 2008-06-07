@@ -184,7 +184,8 @@ ID (as_build) (activity_t activity,
 {
   struct cap *pte = as_root;
 
-  DEBUG (5, "Ensuring slot at " ADDR_FMT, ADDR_PRINTF (addr));
+  DEBUG (5, DEBUG_BOLD ("Ensuring slot at " ADDR_FMT) " may overwrite: %d",
+	 ADDR_PRINTF (addr), may_overwrite);
   assert (! ADDR_IS_VOID (addr));
 
   /* The number of bits to translate.  */
@@ -202,12 +203,17 @@ ID (as_build) (activity_t activity,
 
   do
     {
-      DEBUG (5, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%d)",
-	     ADDR_PRINTF (addr_chop (addr, remaining)),
+      addr_t pte_addr = addr_chop (addr, remaining);
+
+      DEBUG (5, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT "; "
+	     "remaining: %d",
+	     ADDR_PRINTF (pte_addr),
 	     CAP_PRINTF (pte),
 	     ADDR_PRINTF (addr_chop (addr,
 				     remaining - CAP_GUARD_BITS (pte))),
 	     remaining);
+
+      AS_CHECK_SHADOW (as_root_addr, pte_addr, pte, {});
 
       uint64_t pte_guard = CAP_GUARD (pte);
       int pte_gbits = CAP_GUARD_BITS (pte);
@@ -223,14 +229,17 @@ ID (as_build) (activity_t activity,
 	 our address.  Otherwise, we need to insert a page table and
 	 indirect access to the object designated by PTE via it.  */
 
-      if (remaining == pte_gbits && pte_guard == addr_guard)
-	/* Overwriting an existing object.  */
-	{
-	  remaining = 0;
-	  DEBUG (5, "Matched guard %lld/%d, remaining: %d",
-		 pte_guard, pte_gbits, remaining);
-	  break;
-	}
+      if (pte->type == cap_void
+	  && pte_gbits == remaining
+	  && pte_guard == addr_guard)
+	/* Use the current pte, perhaps overwriting an existing
+	   object.  We only reuse a PTE if it has no guard bits.  If
+	   the slot is void and has guard, we assume that it has been
+	   ensured and is about to be used.  If the slot is being used
+	   in this way and we are here, the guard must be non-zero as
+	   the other context may only use a slot if it owns the
+	   area.  */
+	break;
       else if ((pte->type == cap_cappage || pte->type == cap_rcappage
 		|| pte->type == cap_folio)
 	       && remaining >= pte_gbits
@@ -243,8 +252,9 @@ ID (as_build) (activity_t activity,
 	  DEBUG (5, "Matched guard %lld/%d, remaining: %d",
 		 pte_guard, pte_gbits, remaining);
 
-	  if (remaining == 0)
-	    break;
+	  /* If REMAINING is 0, we should have executed the preceding
+	     if clause.  */
+	  assert (remaining > 0);
 	}
       else
 	/* There are two scenarios that lead us here: (1) the pte
@@ -315,16 +325,17 @@ ID (as_build) (activity_t activity,
 	     depths is that it makes removing entries from the tree
 	     easier.  */
 
-	  /* The number of bits until the next object.  */
+	  /* The minimum number of bits until either the object or the
+	     object that is in the way.  */
 	  int tilobject;
 
 	  /* GBITS is the amount of guard that we use to point to the
 	     cappage we will allocate.
 
 	     REMAINER - GBITS - log2 (sizeof (cappage)) is the guard
-	     length of each entry in the new page.  */
+	     length of the pte in the new cappage.  */
 	  int gbits;
-	  if (pte->type == cap_void)
+	  if (pte->type == cap_void && pte_gbits == 0)
 	    {
 	      int space = l4_msb64 (extract_bits64 (prefix, 0, remaining));
 	      if (space <= CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS)
@@ -370,6 +381,13 @@ ID (as_build) (activity_t activity,
 	     achieve this.  */
 	  int untranslated_bits = remaining + ADDR_BITS - addr_depth (addr);
 
+	  if (! (untranslated_bits > 0 && tilobject > 0 && gbits >= 0
+		 && untranslated_bits >= tilobject
+		 && untranslated_bits >= gbits
+		 && tilobject >= gbits))
+	    PANIC ("untranslated_bits: %d, tilobject: %d, gbits: %d",
+		   untranslated_bits, tilobject, gbits);
+
 	  struct as_guard_cappage gc
 	    = as_compute_gbits_cappage (untranslated_bits,
 					tilobject, gbits);
@@ -380,22 +398,28 @@ ID (as_build) (activity_t activity,
 	  /* Account the bits translated by the guard.  */
 	  remaining -= gbits;
 
-	  int subpage_bits = gc.cappage_width;
-	  assert (subpage_bits >= 0);
-	  assert (subpage_bits <= CAPPAGE_SLOTS_LOG2);
+	  int pt_width = gc.cappage_width;
+	  if (! (pt_width > 0 && pt_width <= CAPPAGE_SLOTS_LOG2))
+	    PANIC ("pt_width: %d", pt_width);
 
 	  /* Allocate a new page table.  */
 	  /* XXX: If we use a subpage, we just ignore the rest of the
 	     page.  This is a bit of a waste but makes the code
 	     simpler.  */
-	  /* ALLOCATE_PAGE_TABLE wants the number of significant bits
-	     translated to this object; REMAINING is number of bits
-	     remaining to translate.  */
 	  addr_t pt_addr = addr_chop (addr, remaining);
 	  struct as_allocate_pt_ret rt = allocate_page_table (pt_addr);
 	  if (rt.cap.type == cap_void)
 	    /* No memory.  */
 	    return NULL;
+
+	  struct cap pt_cap = rt.cap;
+	  addr_t pt_phys_addr = rt.storage;
+	  /* do_index requires that the subpage specification be
+	     correct.  */
+	  CAP_SET_SUBPAGE (&pt_cap,
+			   0, 1 << (CAPPAGE_SLOTS_LOG2 - pt_width));
+
+
 
 	  /* We've now allocated a new page table.  
 
@@ -421,69 +445,71 @@ ID (as_build) (activity_t activity,
 	         (note: the new PTE may be the same as the pivot).
 	  */
 
-	  /* 1.a) Get the pivot PTE.  */
 	  int pivot_idx = extract_bits_inv (pte_guard,
 					    pte_gbits - gbits - 1,
-					    subpage_bits);
-
-	  /* do_index requires that the subpage specification be
-	     correct.  */
-	  struct cap pt_cap = rt.cap;
-	  CAP_SET_SUBPAGE (&pt_cap,
-			   0, 1 << (CAPPAGE_SLOTS_LOG2 - subpage_bits));
-
-	  struct cap *pivot_cap = do_index (activity,
-					    &pt_cap, pt_addr,
-					    pivot_idx, &fake_slot);
-	  assert (pivot_cap != &fake_slot);
-
-	  addr_t pivot_addr = addr_extend (rt.storage,
-					   pivot_idx,
-					   CAPPAGE_SLOTS_LOG2);
-
-	  /* 1.b) Make the pivot designate the object the PTE
-	     currently designates.  */
-	  addr_t pte_addr = addr_chop (pt_addr, gbits);
+					    pt_width);
+	  addr_t pivot_phys_addr = addr_extend (pt_phys_addr,
+						pivot_idx,
+						CAPPAGE_SLOTS_LOG2);
 
 	  DEBUG (5, ADDR_FMT ": indirecting pte at " ADDR_FMT
-		 " (" ADDR_FMT ":" CAP_FMT "); "
+		 " -> " ADDR_FMT " " CAP_FMT " with page table at " ADDR_FMT
 		 "common guard: %d, %d bit cappage, remaining: %d;  "
 		 "pt: " ADDR_FMT "(storage: " ADDR_FMT "), "
 		 "old target now via index %d "
 		 "(in pt storage: " ADDR_FMT ")",
 		 ADDR_PRINTF (addr),
 		 ADDR_PRINTF (pte_addr),
-		 ADDR_PRINTF (addr_extend (pte_addr,
-					   CAP_GUARD (pte),
-					   CAP_GUARD_BITS (pte))),
+		 ADDR_PRINTF (addr_chop (addr, remaining)),
 		 CAP_PRINTF (pte),
-		 gbits, subpage_bits, remaining,
-		 ADDR_PRINTF (pt_addr), ADDR_PRINTF (rt.storage),
-		 pivot_idx, ADDR_PRINTF (pivot_addr));
+		 ADDR_PRINTF (pt_addr),
+		 gbits, pt_width, remaining,
+		 ADDR_PRINTF (pt_addr), ADDR_PRINTF (pt_phys_addr),
+		 pivot_idx, ADDR_PRINTF (pivot_phys_addr));
 
-	  struct cap_addr_trans addr_trans = pte->addr_trans;
-	  int d = tilobject - gbits - subpage_bits;
-	  CAP_ADDR_TRANS_SET_GUARD (&addr_trans,
-				    extract_bits64 (pte_guard, 0, d), d);
+	  /* 1.) Copy the PTE into the new page table.  Adjust the
+	     guard in the process.  This is only necessary if PTE
+	     actually designates something.  */
+	  bool need_pivot = ! (pte->type == cap_void && pte_gbits == 0);
+	  struct cap *pivot_cap = NULL;
+	  if (need_pivot)
+	    {
+	      /* 1.a) Get the pivot PTE.  */
 
-	  bool r = cap_copy_x (activity,
-			       ADDR_VOID, pivot_cap, pivot_addr,
-			       as_root_addr, *pte, pte_addr,
-			       CAP_COPY_COPY_ADDR_TRANS_GUARD,
-			       CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
-					       addr_trans));
-	  assert (r);
+	      pivot_cap = do_index (activity,
+				    &pt_cap, pt_addr, pivot_idx,
+				    &fake_slot);
+	      assert (pivot_cap != &fake_slot);
 
-	  /* 2) Set PTE to point to PT.  */
+	      /* 1.b) Make the pivot designate the object the PTE
+		 currently designates.  */
+	      struct cap_addr_trans addr_trans = pte->addr_trans;
+	      int d = pte_gbits - gbits - pt_width;
+	      CAP_ADDR_TRANS_SET_GUARD (&addr_trans,
+					extract_bits64 (pte_guard, 0, d), d);
+
+	      bool r = cap_copy_x (activity,
+				   ADDR_VOID, pivot_cap, pivot_phys_addr,
+				   as_root_addr, *pte, pte_addr,
+				   CAP_COPY_COPY_ADDR_TRANS_GUARD,
+				   CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
+						   addr_trans));
+	      assert (r);
+	    }
+
+	  /* 2) Set PTE to point to the new page table (PT).  */
 	  pte_guard = extract_bits64_inv (pte_guard,
 					  pte_gbits - 1, gbits);
+
+	  struct cap_addr_trans addr_trans;
+	  bool r;
 	  r = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans,
 						pte_guard, gbits,
 						0 /* We always use the
 						     first subpage in
 						     a page.  */,
 						1 << (CAPPAGE_SLOTS_LOG2
-						      - subpage_bits));
+						      - pt_width));
 	  assert (r);
 
 	  r = cap_copy_x (activity, as_root_addr, pte, pte_addr,
@@ -492,6 +518,32 @@ ID (as_build) (activity_t activity,
 			  | CAP_COPY_COPY_ADDR_TRANS_GUARD,
 			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
 	  assert (r);
+
+#ifndef NDEBUG
+# ifndef CUSTOM
+	  /* We can't use this check with a custom function as
+	     as_lookup does not (yet) support a custom indexer.  */
+	  if (need_pivot)
+	    {
+	      addr_t pivot_addr = addr_extend (pt_addr,
+					       pivot_idx, pt_width);
+	      union as_lookup_ret rt;
+	      bool ret = as_lookup_rel (activity,
+					as_root, pivot_addr, -1,
+					NULL, as_lookup_want_slot,
+					&rt);
+	      if (! (ret && rt.capp == pivot_cap))
+		as_dump_from (activity, as_root, "");
+	      assertx (ret && rt.capp == pivot_cap,
+		       ADDR_FMT ": %sfound, got %p, expected %p",
+		       ADDR_PRINTF (pivot_addr),
+		       ret ? "" : "not ", ret ? rt.capp : 0, pivot_cap);
+
+	      AS_CHECK_SHADOW (as_root_addr, pivot_addr, pivot_cap, { });
+	      AS_CHECK_SHADOW (as_root_addr, pte_addr, pte, { });
+	    }
+# endif
+#endif
 	}
 
       /* Index the object designated by PTE to find the next PTE.  The
@@ -511,12 +563,9 @@ ID (as_build) (activity_t activity,
 	default:
 	  AS_DUMP;
 	  PANIC ("Can't insert object at " ADDR_FMT ": "
-		 "%s at " ADDR_FMT " does not translate address bits "
-		 "(remaining: %d, gbits: %d, pte guard: %d, my guard: %d)",
-		 ADDR_PRINTF (addr), cap_type_string (pte->type),
-		 ADDR_PRINTF (addr_chop (addr, remaining)),
-		 remaining, pte_gbits, pte_guard,
-		 extract_bits64_inv (prefix, remaining - 1, pte_gbits));
+		 ADDR_FMT ": " CAP_FMT " does translate address bits",
+		 ADDR_PRINTF (addr),
+		 CAP_PRINTF (pte));
 	}
 
       /* That should not be more than we have left to translate.  */
@@ -531,9 +580,6 @@ ID (as_build) (activity_t activity,
 
       int idx = extract_bits64_inv (prefix, remaining - 1, width);
 
-      DEBUG (5, "Indexing %s, %d bits wide, with %d",
-	     cap_type_string (pte->type), width, idx);
-
       enum cap_type type = pte->type;
       pte = do_index (activity, pte, addr_chop (addr, remaining), idx,
 		      &fake_slot);
@@ -547,15 +593,18 @@ ID (as_build) (activity_t activity,
 	assert (pte != &fake_slot);
 
       remaining -= width;
+
+      DEBUG (5, "Indexing %s/%d[%d]; remaining: %d",
+	     cap_type_string (type), width, idx, remaining);
     }
   while (remaining > 0);
 
-  if (pte->type != cap_void)
+  if (! (pte->type == cap_void && CAP_GUARD_BITS (pte) == 0))
     {
       if (may_overwrite)
 	{
-	  DEBUG (5, "Overwriting %s at " ADDR_FMT,
-		 cap_type_string (pte->type),
+	  DEBUG (5, "Overwriting " CAP_FMT " at " ADDR_FMT,
+		 CAP_PRINTF (pte),
 		 ADDR_PRINTF (addr));
 	  /* XXX: Free any data associated with the capability
 	     (e.g., shadow pages).  */
@@ -563,16 +612,17 @@ ID (as_build) (activity_t activity,
       else
 	{
 	  AS_DUMP;
-	  PANIC ("There is already a %s object at " ADDR_FMT
-		 " but may not overwrite.",
-		 cap_type_string (pte->type),
-		 ADDR_PRINTF (addr));
+	  PANIC ("There is already an object at " ADDR_FMT
+		 " (" CAP_FMT ") but may not overwrite.",
+		 ADDR_PRINTF (addr),
+		 CAP_PRINTF (pte));
 	}
     }
 
 
   int gbits = remaining;
-  /* It is safe to use an int as a guard has a most 22 bits.  */
+  /* It is safe to use an int as a guard has a most 22 significant
+     bits.  */
   int guard = extract_bits64 (prefix, 0, gbits);
   if (gbits != CAP_GUARD_BITS (pte) || guard != CAP_GUARD (pte))
     {
@@ -586,6 +636,26 @@ ID (as_build) (activity_t activity,
 		      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
       assert (r);
     }
+
+#ifndef NDEBUG
+# ifndef CUSTOM
+  /* We can't use this check with a custom function as as_lookup does
+     not (yet) support a custom indexer.  */
+  {
+    union as_lookup_ret rt;
+    bool ret = as_lookup_rel (activity,
+			      as_root, addr, -1,
+			      NULL, as_lookup_want_slot,
+			      &rt);
+    if (! (ret && rt.capp == pte))
+      as_dump_from (activity, as_root, "");
+    assertx (ret && rt.capp == pte,
+	     ADDR_FMT ": %sfound, got %p, expected %p",
+	     ADDR_PRINTF (addr),
+	     ret ? "" : "not ", ret ? rt.capp : 0, pte);
+  }
+# endif
+#endif
 
   return pte;
 }

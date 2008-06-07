@@ -40,13 +40,12 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
      then 8-bit cappage at /ADDR_BITS-7-12-i*8, i > 0, i.e., /44, /36,
      etc.  */
 
-  assert (untranslated_bits > 0);
-  assert (to_translate > 0);
-  assert (gbits >= 0);
-
-  assert (untranslated_bits >= to_translate);
-  assert (untranslated_bits >= gbits);
-  assert (to_translate >= gbits);
+  assertx (untranslated_bits > 0 && to_translate > 0 && gbits >= 0
+	   && untranslated_bits >= to_translate
+	   && untranslated_bits >= gbits
+	   && to_translate >= gbits,
+	   "untranslated_bits: %d, to_translate: %d, gbits: %d",
+	   untranslated_bits, to_translate, gbits);
 
   if (untranslated_bits <= PAGESIZE_LOG2)
     ;
