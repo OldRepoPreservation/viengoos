@@ -229,9 +229,7 @@ ID (as_build) (activity_t activity,
 	 our address.  Otherwise, we need to insert a page table and
 	 indirect access to the object designated by PTE via it.  */
 
-      if (pte->type == cap_void
-	  && pte_gbits == remaining
-	  && pte_guard == addr_guard)
+      if (pte_gbits == remaining && pte_guard == addr_guard)
 	/* Use the current pte, perhaps overwriting an existing
 	   object.  We only reuse a PTE if it has no guard bits.  If
 	   the slot is void and has guard, we assume that it has been
@@ -336,17 +334,22 @@ ID (as_build) (activity_t activity,
 	     length of the pte in the new cappage.  */
 	  int gbits;
 	  if (pte->type == cap_void && pte_gbits == 0)
+	    /* The slot is available.  */
 	    {
 	      int space = l4_msb64 (extract_bits64 (prefix, 0, remaining));
 	      if (space <= CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS)
-		/* The slot is available and the remaining bits to
-		   translate fit in the guard.  */
+		/* The remaining bits to translate fit in the
+		   guard, we are done.  */
 		break;
 
+	      /* The guard value requires more than
+		 CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS bits.  We need to
+		 insert a page table.  */
 	      gbits = tilobject = remaining;
 	    }
 	  else
-	    /* Find the size of the common prefix.  */
+	    /* PTE designates a live object.  Find the size of the
+	       common prefix.  */
 	    {
 	      uint64_t a = pte_guard;
 	      int max = pte_gbits > remaining ? remaining : pte_gbits;
@@ -369,7 +372,7 @@ ID (as_build) (activity_t activity,
 	       before the most significant non-zero bit.  We can
 	       include all of the initial zero bits plus up to the
 	       next CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS bits.  */
-	    gbits = (gbits - firstset) + CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS;
+	    gbits -= firstset - CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS;
 
 	  /* We want to choose the guard length such that the cappage
 	     that we insert occurs at certain positions so as minimize
@@ -504,7 +507,9 @@ ID (as_build) (activity_t activity,
 	  struct cap_addr_trans addr_trans;
 	  bool r;
 	  r = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans,
-						pte_guard, gbits,
+						extract_bits64 (pte_guard,
+								0, gbits),
+						gbits,
 						0 /* We always use the
 						     first subpage in
 						     a page.  */,
@@ -600,12 +605,15 @@ ID (as_build) (activity_t activity,
   while (remaining > 0);
 
   if (! (pte->type == cap_void && CAP_GUARD_BITS (pte) == 0))
+    /* PTE in use.  */
     {
       if (may_overwrite)
 	{
-	  DEBUG (5, "Overwriting " CAP_FMT " at " ADDR_FMT,
+	  DEBUG (5, "Overwriting " CAP_FMT " at " ADDR_FMT " -> " ADDR_FMT,
 		 CAP_PRINTF (pte),
-		 ADDR_PRINTF (addr));
+		 ADDR_PRINTF (addr),
+		 ADDR_PRINTF (addr_extend (addr, CAP_GUARD (pte),
+					   CAP_GUARD_BITS (pte))));
 	  /* XXX: Free any data associated with the capability
 	     (e.g., shadow pages).  */
 	}
