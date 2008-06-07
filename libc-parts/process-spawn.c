@@ -345,15 +345,17 @@ process_spawn (addr_t activity,
 	  if (ADDR_IS_VOID (folio_local_addr))
 	    panic ("Failed to allocate address space for folio");
 
-	  as_ensure_use (folio_local_addr,
-			 ({
-			   slot->type = cap_folio;
-			 }));
+	  as_ensure (folio_local_addr);
 
 	  error_t err = rm_folio_alloc (activity, folio_local_addr,
 					FOLIO_POLICY_DEFAULT);
 	  if (err)
 	    panic ("Failed to allocate folio");
+
+	  as_slot_lookup_use (folio_local_addr,
+			      ({
+				slot->type = cap_folio;
+			      }));
 #endif
 
 	  folio_index = 0;

@@ -1,3 +1,9 @@
+2008-06-07  Neal H. Walfield  <neal@gnu.org>
+
+	* process-spawn.c (process_spawn): When allocating a folio, only
+	update the shadow capability's type after the folio has actually
+	been allocated.
+
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
 	* process-spawn.c (as_insert_custom): Replace use of as_insert
