@@ -1,5 +1,11 @@
 2008-06-07  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (AS_CHECK_SHADOW): If only the types differ and the
+	difference is that the shadow capability says the type is
+	cap_void, then do not error out.
+
+2008-06-07  Neal H. Walfield  <neal@gnu.org>
+
 	* as-build.c (as_build): When a guard completes an address
 	translation, do not subtract the bits translated by the guard from
 	REMAINING.  Only assume that capabilities that are void and have a

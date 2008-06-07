@@ -163,7 +163,13 @@ extern struct cap shadow_root;
 			       &__acs_type, &__acs_p);			\
 									\
       if (! (! __acs_err						\
-	     && __acs_type == (__acs_cap)->type				\
+	     /* It's okay if the cap's type is void and the kernel's	\
+		type somethine else as long as the rest matches.  This	\
+	        just means that the object has been inserted by the	\
+		shadow not yet updated, which is not required to be	\
+		atomic.  */						\
+	     && (__acs_type == (__acs_cap)->type			\
+		 || (__acs_cap)->type == cap_void)			\
 	     && __acs_p.addr_trans.raw == (__acs_cap)->addr_trans.raw	\
 	     && __acs_p.policy.priority == (__acs_cap)->priority	\
 	     && !!__acs_p.policy.discardable == !!(__acs_cap)->discardable)) \
