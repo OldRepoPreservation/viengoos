@@ -1,5 +1,14 @@
 2008-06-10  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.h (storage_have_reserve): New declaration.
+	* storage.c (storage_have_reserve): New function.
+	(storage_check_reserve_internal): Use it.
+	* as.h (as_lock): Check whether there is sufficient memory.
+	(as_lock_readonly): Likewise.
+	(as_unlock): Don't check here.
+
+2008-06-10  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (struct storage_desc): Remove field cap.  Replace with
 	field shadow.  Update users.
 

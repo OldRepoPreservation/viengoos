@@ -104,7 +104,21 @@ as_lock (void)
 
   as_lock_ensure_stack (EXCEPTION_STACK_SIZE - PAGESIZE);
 
-  pthread_rwlock_wrlock (&as_rwlock);
+  storage_check_reserve (false);
+
+  for (;;)
+    {
+      pthread_rwlock_wrlock (&as_rwlock);
+
+      if (! storage_have_reserve ())
+	{
+	  pthread_rwlock_unlock (&as_rwlock);
+
+	  storage_check_reserve (false);
+	}
+      else
+	break;
+    }
 }
 
 static inline void
@@ -114,7 +128,21 @@ as_lock_readonly (void)
 
   as_lock_ensure_stack (EXCEPTION_STACK_SIZE - PAGESIZE);
 
-  pthread_rwlock_rdlock (&as_rwlock);
+  storage_check_reserve (false);
+
+  for (;;)
+    {
+      pthread_rwlock_rdlock (&as_rwlock);
+
+      if (! storage_have_reserve ())
+	{
+	  pthread_rwlock_unlock (&as_rwlock);
+
+	  storage_check_reserve (false);
+	}
+      else
+	break;
+    }
 }
 
 static inline void
@@ -123,8 +151,6 @@ as_unlock (void)
   extern pthread_rwlock_t as_rwlock;
 
   pthread_rwlock_unlock (&as_rwlock);
-
-  storage_check_reserve (false);
 }
 #else
 # define as_lock() do {} while (0)

@@ -337,6 +337,12 @@ static bool storage_init_done;
 static pthread_mutex_t storage_low_mutex
   = PTHREAD_MUTEX_RECURSIVE_INITIALIZER_NP;
 
+bool
+storage_have_reserve (void)
+{
+  return likely (free_count > FREE_PAGES_LOW_WATER);
+}
+
 static void
 storage_check_reserve_internal (bool force_allocate,
 				addr_t activity,
@@ -344,7 +350,7 @@ storage_check_reserve_internal (bool force_allocate,
 				bool i_may_have_lock)
 {
  top:
-  if (! force_allocate && likely (free_count > FREE_PAGES_LOW_WATER))
+  if (! force_allocate && storage_have_reserve ())
     return;
 
   /* Insufficient storage reserve.  Allocate a new storage area.  */

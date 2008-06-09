@@ -96,6 +96,9 @@ extern void storage_init (void);
 /* Used by as_init to initialize a folio's shadow object.  */
 extern void storage_shadow_setup (struct cap *cap, addr_t folio);
 
+/* Return whether there is sufficient reserve storage.  */
+extern bool storage_have_reserve (void);
+
 /* Check the amount of available storage, allocating more if required.
    This should be called by any function that takes the as_rwlock and
    allocates storage (even indirectly) after it has dropped the
