@@ -348,12 +348,12 @@ as_allocate_page_table (addr_t addr)
       storage_free (storage.addr, false);
       return ret;
     }
-  cap_set_shadow (storage.cap,
-		  ADDR_TO_PTR (addr_extend (shadow.addr,
-					    0, PAGESIZE_LOG2)));
 
   ret.storage = storage.addr;
   ret.cap = *storage.cap;
+  cap_set_shadow (&ret.cap,
+		  ADDR_TO_PTR (addr_extend (shadow.addr,
+					    0, PAGESIZE_LOG2)));
 
   return ret;
 }

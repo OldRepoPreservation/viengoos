@@ -1,5 +1,10 @@
 2008-06-10  Neal H. Walfield  <neal@gnu.org>
 
+	* as.c (as_allocate_page_table): Don't change STORAGE.CAP's
+	shadow, only change RET.CAP's shadow.
+
+2008-06-10  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.h (storage_have_reserve): New declaration.
 	* storage.c (storage_have_reserve): New function.
 	(storage_check_reserve_internal): Use it.
