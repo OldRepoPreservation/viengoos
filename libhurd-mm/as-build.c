@@ -205,12 +205,17 @@ ID (as_build) (activity_t activity,
     {
       addr_t pte_addr = addr_chop (addr, remaining);
 
-      DEBUG (5, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT "; "
+      DEBUG (5, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%x); "
 	     "remaining: %d",
 	     ADDR_PRINTF (pte_addr),
 	     CAP_PRINTF (pte),
 	     ADDR_PRINTF (addr_chop (addr,
 				     remaining - CAP_GUARD_BITS (pte))),
+#ifdef RM_INTERN
+	     0,
+#else
+	     cap_get_shadow (pte),
+#endif
 	     remaining);
 
       AS_CHECK_SHADOW (as_root_addr, pte_addr, pte, {});
@@ -333,7 +338,9 @@ ID (as_build) (activity_t activity,
 	     REMAINER - GBITS - log2 (sizeof (cappage)) is the guard
 	     length of the pte in the new cappage.  */
 	  int gbits;
-	  if (pte->type == cap_void && pte_gbits == 0)
+
+	  bool need_pivot = ! (pte->type == cap_void && pte_gbits == 0);
+	  if (! need_pivot)
 	    /* The slot is available.  */
 	    {
 	      int space = l4_msb64 (extract_bits64 (prefix, 0, remaining));
@@ -451,29 +458,47 @@ ID (as_build) (activity_t activity,
 	  int pivot_idx = extract_bits_inv (pte_guard,
 					    pte_gbits - gbits - 1,
 					    pt_width);
+	  addr_t pivot_addr = addr_extend (pt_addr,
+					   pivot_idx, pt_width);
 	  addr_t pivot_phys_addr = addr_extend (pt_phys_addr,
 						pivot_idx,
 						CAPPAGE_SLOTS_LOG2);
 
-	  DEBUG (5, ADDR_FMT ": indirecting pte at " ADDR_FMT
-		 " -> " ADDR_FMT " " CAP_FMT " with page table at " ADDR_FMT
-		 "common guard: %d, %d bit cappage, remaining: %d;  "
-		 "pt: " ADDR_FMT "(storage: " ADDR_FMT "), "
-		 "old target now via index %d "
-		 "(in pt storage: " ADDR_FMT ")",
+	  int pivot_gbits = pte_gbits - gbits - pt_width;
+	  int pivot_guard = extract_bits64 (pte_guard, 0, pivot_gbits);
+
+	  if (! ADDR_EQ (addr_extend (pivot_addr, pivot_guard, pivot_gbits),
+			 addr_extend (pte_addr, pte_guard, pte_gbits)))
+	    {
+	      PANIC ("old pte target: " ADDR_FMT " != pivot target: " ADDR_FMT,
+		     addr_extend (pte_addr, pte_guard, pte_gbits),
+		     addr_extend (pivot_addr, pivot_guard, pivot_gbits));
+	    }
+
+	  DEBUG (0, ADDR_FMT ": indirecting pte at " ADDR_FMT
+		 " -> " ADDR_FMT " " CAP_FMT " with page table/%d at "
+		 ADDR_FMT "(%x) " "common guard: %d, remaining: %d;  "
+		 "old target (need pivot: %d) now via pt[%d] "
+		 "(" ADDR_FMT "-> " DEBUG_BOLD (ADDR_FMT) ")",
 		 ADDR_PRINTF (addr),
 		 ADDR_PRINTF (pte_addr),
-		 ADDR_PRINTF (addr_chop (addr, remaining)),
+		 ADDR_PRINTF (addr_extend (pte_addr, CAP_GUARD (pte),
+					   CAP_GUARD_BITS (pte))),
 		 CAP_PRINTF (pte),
-		 ADDR_PRINTF (pt_addr),
-		 gbits, pt_width, remaining,
-		 ADDR_PRINTF (pt_addr), ADDR_PRINTF (pt_phys_addr),
-		 pivot_idx, ADDR_PRINTF (pivot_phys_addr));
+		 pt_width, ADDR_PRINTF (pt_addr),
+#ifdef RM_INTERN
+		 0,
+#else
+		 cap_get_shadow (&pt_cap),
+#endif
+		 gbits, remaining,
+		 need_pivot, pivot_idx, ADDR_PRINTF (pivot_addr),
+		 ADDR_PRINTF (addr_extend (pivot_addr,
+					   pivot_guard, pivot_gbits)));
 
 	  /* 1.) Copy the PTE into the new page table.  Adjust the
 	     guard in the process.  This is only necessary if PTE
 	     actually designates something.  */
-	  bool need_pivot = ! (pte->type == cap_void && pte_gbits == 0);
 	  struct cap *pivot_cap = NULL;
 	  if (need_pivot)
 	    {
@@ -486,30 +511,31 @@ ID (as_build) (activity_t activity,
 
 	      /* 1.b) Make the pivot designate the object the PTE
 		 currently designates.  */
-	      struct cap_addr_trans addr_trans = pte->addr_trans;
-	      int d = pte_gbits - gbits - pt_width;
-	      CAP_ADDR_TRANS_SET_GUARD (&addr_trans,
-					extract_bits64 (pte_guard, 0, d), d);
+	      struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
 
-	      bool r = cap_copy_x (activity,
-				   ADDR_VOID, pivot_cap, pivot_phys_addr,
-				   as_root_addr, *pte, pte_addr,
-				   CAP_COPY_COPY_ADDR_TRANS_GUARD,
-				   CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
-						   addr_trans));
+	      bool r;
+	      r = CAP_ADDR_TRANS_SET_GUARD (&addr_trans,
+					    pivot_guard, pivot_gbits);
+	      assert (r);
+
+	      r = cap_copy_x (activity,
+			      ADDR_VOID, pivot_cap, pivot_phys_addr,
+			      as_root_addr, *pte, pte_addr,
+			      CAP_COPY_COPY_ADDR_TRANS_GUARD,
+			      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
+					      addr_trans));
 	      assert (r);
 	    }
 
 	  /* 2) Set PTE to point to the new page table (PT).  */
 	  pte_guard = extract_bits64_inv (pte_guard,
 					  pte_gbits - 1, gbits);
+	  pte_gbits = gbits;
 
-	  struct cap_addr_trans addr_trans;
+	  struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
 	  bool r;
 	  r = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans,
-						extract_bits64 (pte_guard,
-								0, gbits),
-						gbits,
+						pte_guard, pte_gbits,
 						0 /* We always use the
 						     first subpage in
 						     a page.  */,
@@ -530,8 +556,6 @@ ID (as_build) (activity_t activity,
 	     as_lookup does not (yet) support a custom indexer.  */
 	  if (need_pivot)
 	    {
-	      addr_t pivot_addr = addr_extend (pt_addr,
-					       pivot_idx, pt_width);
 	      union as_lookup_ret rt;
 	      bool ret = as_lookup_rel (activity,
 					as_root, pivot_addr, -1,
@@ -601,12 +625,23 @@ ID (as_build) (activity_t activity,
 
       DEBUG (5, "Indexing %s/%d[%d]; remaining: %d",
 	     cap_type_string (type), width, idx, remaining);
+
+      if (remaining == 0)
+	AS_CHECK_SHADOW (as_root_addr, addr, pte, {});
     }
   while (remaining > 0);
 
   if (! (pte->type == cap_void && CAP_GUARD_BITS (pte) == 0))
     /* PTE in use.  */
     {
+      if (remaining != CAP_GUARD_BITS (pte)
+	  && extract_bits64 (prefix, 0, remaining) != CAP_GUARD (pte))
+	DEBUG (0, "Overwriting " CAP_FMT " at " ADDR_FMT " -> " ADDR_FMT,
+	       CAP_PRINTF (pte),
+	       ADDR_PRINTF (addr),
+	       ADDR_PRINTF (addr_extend (addr, CAP_GUARD (pte),
+					 CAP_GUARD_BITS (pte))));
+
       if (may_overwrite)
 	{
 	  DEBUG (5, "Overwriting " CAP_FMT " at " ADDR_FMT " -> " ADDR_FMT,
@@ -643,6 +678,8 @@ ID (as_build) (activity_t activity,
 		      CAP_COPY_COPY_ADDR_TRANS_GUARD,
 		      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
       assert (r);
+
+      AS_CHECK_SHADOW (as_root_addr, addr_chop (addr, gbits), pte, { });
     }
 
 #ifndef NDEBUG

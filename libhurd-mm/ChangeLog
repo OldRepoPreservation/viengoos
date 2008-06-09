@@ -1,5 +1,10 @@
 2008-06-10  Neal H. Walfield  <neal@gnu.org>
 
+	* as-build.c (as_build): Improve debugging output.  Add more
+	checks.
+
+2008-06-10  Neal H. Walfield  <neal@gnu.org>
+
 	* as.c (as_allocate_page_table): Don't change STORAGE.CAP's
 	shadow, only change RET.CAP's shadow.
 
