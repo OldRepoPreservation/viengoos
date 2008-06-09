@@ -1,3 +1,10 @@
+2008-06-10  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.c (struct storage_desc): Remove field cap.  Replace with
+	field shadow.  Update users.
+
+	(storage_free_): Clear the object's shadow.
+
 2008-06-07  Neal H. Walfield  <neal@gnu.org>
 
 	* as-build.c (as_build): If the remaining bits match the PTE's

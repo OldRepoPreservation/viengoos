@@ -58,7 +58,7 @@ struct storage_desc
   /* The address of the folio.  */
   addr_t folio;
   /* The location of the shadow cap designating this folio.  */
-  struct cap *cap;
+  struct object *shadow;
 
   /* Which objects are allocated.  */
   unsigned char alloced[FOLIO_OBJECTS / 8];
@@ -238,44 +238,44 @@ static struct storage_desc *short_lived;
 #define FREEING_THRESHOLD (FOLIO_OBJECTS / 2)
 
 static void
-shadow_setup (struct cap *cap, struct storage_desc *storage)
+shadow_setup (struct cap *cap, struct storage_desc *desc)
 {
-  /* We do not need to hold STORAGE->LOCK here as either we are in the
+  /* We do not need to hold DESC->LOCK here as either we are in the
      init phase and thus single threaded or we are initializing a new
      storage descriptor, which is still unreachable from any other
      thread.  */
 
   struct object *shadow;
 
-  int idx = bit_alloc (storage->alloced, sizeof (storage->alloced), 0);
+  int idx = bit_alloc (desc->alloced, sizeof (desc->alloced), 0);
   if (likely (idx != -1))
     {
-      storage->free --;
+      desc->free --;
       atomic_decrement (&free_count);
 
       error_t err = rm_folio_object_alloc (meta_data_activity,
-					   storage->folio, idx, cap_page,
+					   desc->folio, idx, cap_page,
 					   OBJECT_POLICY_DEFAULT, 0,
 					   ADDR_VOID, ADDR_VOID);
       assert (err == 0);
-      shadow = ADDR_TO_PTR (addr_extend (addr_extend (storage->folio,
+      shadow = ADDR_TO_PTR (addr_extend (addr_extend (desc->folio,
 						      idx, FOLIO_OBJECTS_LOG2),
 					 0, PAGESIZE_LOG2));
 
-      if (storage->free == 0)
+      if (desc->free == 0)
 	/* This can happen when starting up.  */
 	{
 	  assert (! as_init_done);
 
 	  ss_mutex_lock (&storage_descs_lock);
-	  ss_mutex_lock (&storage->lock);
+	  ss_mutex_lock (&desc->lock);
 
-	  /* STORAGE->FREE may be zero if someone came along and deallocated
+	  /* DESC->FREE may be zero if someone came along and deallocated
 	     a page between our dropping and retaking the lock.  */
-	  if (storage->free == 0)
-	    list_unlink (storage);
+	  if (desc->free == 0)
+	    list_unlink (desc);
 
-	  ss_mutex_unlock (&storage->lock);
+	  ss_mutex_unlock (&desc->lock);
 	  ss_mutex_unlock (&storage_descs_lock);
 	}
     }
@@ -294,9 +294,9 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
       shadow = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
     }
 
-  storage->cap = cap;
-  cap->type = cap_folio;
+  desc->shadow = shadow;
 
+  cap->type = cap_folio;
   cap_set_shadow (cap, shadow);
 
   if (idx != -1)
@@ -305,6 +305,7 @@ shadow_setup (struct cap *cap, struct storage_desc *storage)
       CAP_PROPERTIES_SET (&shadow->caps[idx],
 			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
 					  CAP_ADDR_TRANS_VOID));
+      cap_set_shadow (&shadow->caps[idx], shadow);
     }
 }
 
@@ -606,7 +607,15 @@ storage_alloc (addr_t activity,
       ss_mutex_unlock (&storage_descs_lock);
     }
 
-  struct object *shadow = desc->cap ? cap_get_shadow (desc->cap) : NULL;
+  error_t err = rm_folio_object_alloc (meta_data_activity,
+				       folio, idx, type,
+				       policy, 0,
+				       addr, ADDR_VOID);
+  assertx (! err,
+	   "Allocating object %d from " ADDR_FMT " at " ADDR_FMT ": %d!",
+	   idx, ADDR_PRINTF (folio), ADDR_PRINTF (addr), err);
+
+  struct object *shadow = desc->shadow;
   struct cap *cap = NULL;
   if (likely (!! shadow))
     {
@@ -617,14 +626,6 @@ storage_alloc (addr_t activity,
   else
     assert (! as_init_done);
 
-  error_t err = rm_folio_object_alloc (meta_data_activity,
-				       folio, idx, type,
-				       policy, 0,
-				       addr, ADDR_VOID);
-  assertx (! err,
-	   "Allocating object %d from " ADDR_FMT " at " ADDR_FMT ": %d!",
-	   idx, ADDR_PRINTF (folio), ADDR_PRINTF (addr), err);
-
   /* We drop DESC->LOCK.  */
   ss_mutex_unlock (&desc->lock);
 
@@ -632,11 +633,17 @@ storage_alloc (addr_t activity,
     /* We also have to update the shadow for ADDR.  Unfortunately, we
        don't have the cap although the caller might.  */
     {
-      bool ret = as_slot_lookup_use (addr,
-				     ({
-				       slot->type = type;
-				       CAP_POLICY_SET (slot, policy);
-				     }));
+      bool ret = as_slot_lookup_use
+	(addr,
+	 ({
+	   slot->type = type;
+	   cap_set_shadow (slot, NULL);
+	   if (type == cap_page || type == cap_rpage)
+	     cap_set_shadow (slot,
+			     ADDR_TO_PTR (addr_extend (addr,
+						       0, PAGESIZE_LOG2)));
+	   CAP_POLICY_SET (slot, policy);
+	 }));
       if (! ret)
 	{
 	  as_dump (NULL);
@@ -687,7 +694,7 @@ storage_free_ (addr_t object, bool unmap_now)
 
   storage->free ++;
 
-  struct object *shadow = storage->cap ? cap_get_shadow (storage->cap) : NULL;
+  struct object *shadow = storage->shadow;
 
   if (storage->free == FOLIO_OBJECTS
       || ((storage->free == FOLIO_OBJECTS - 1)
@@ -710,8 +717,11 @@ storage_free_ (addr_t object, bool unmap_now)
 	  ss_mutex_unlock (&storage_descs_lock);
 
 
-	  cap_set_shadow (storage->cap, NULL);
-	  storage->cap->type = cap_void;
+	  as_slot_lookup_use (folio,
+			      ({
+				cap_set_shadow (slot, NULL);
+				slot->type = cap_void;
+			      }));
 
 	  storage_desc_free (storage);
 
@@ -770,6 +780,7 @@ storage_free_ (addr_t object, bool unmap_now)
   if (likely (!! shadow))
     {
       shadow->caps[idx].type = cap_void;
+      cap_set_shadow (&shadow->caps[idx], NULL);
       CAP_PROPERTIES_SET (&shadow->caps[idx],
 			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
 					  CAP_ADDR_TRANS_VOID));
