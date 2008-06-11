@@ -108,6 +108,7 @@ putchar (int chr)
   return device_putchar (default_device, chr);
 }
 
+#ifndef _ENABLE_TESTS
 int
 puts (const char *str)
 {
@@ -131,6 +132,7 @@ printf (const char *fmt, ...)
 
   return r;
 }
+#endif
 
 int
 device_getchar (struct output_driver *device)

@@ -1,5 +1,11 @@
 2008-06-11  Neal H. Walfield  <neal@gnu.org>
 
+	* output.c (puts) [_ENABLE_TESTS]: Don't define.
+	(vprintf) [_ENABLE_TESTS]: Likewise.
+	(printf) [_ENABLE_TESTS]: Likewise.
+
+2008-06-11  Neal H. Walfield  <neal@gnu.org>
+
 	* output.h: Include <s-printf.h>.
 	(device_puts): Remove declaration.
 	(device_vprintf): Likewise.
