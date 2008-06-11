@@ -1,3 +1,9 @@
+2008-06-11  Neal H. Walfield  <neal@gnu.org>
+
+	* s-printf.h: New file.
+	* Makefile.am (common_sources): Add s-printf.h.
+	* s_printf.c: Include "s-printf.h".
+
 2008-06-07  Neal H. Walfield  <neal@gnu.org>
 
 	* process-spawn.c (process_spawn): When allocating a folio, only

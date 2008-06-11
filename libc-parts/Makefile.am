@@ -30,7 +30,7 @@ endif
 
 common_sources = assert.h 					\
 	strtol.c strtoll.c strtoul.c strtoull.c			\
-	setjmp.h backtrace.c s_printf.c startup.c		\
+	setjmp.h backtrace.c s-printf.h s_printf.c startup.c	\
 	panic.c _exit.c						\
 	elf.h loader.h loader.c					\
 	process-spawn.h process-spawn.c

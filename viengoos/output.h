@@ -71,22 +71,20 @@ bool output_init (struct output_driver *device, const char *conf,
 /* Deactivate the output driver.  Must be called after the last time
    putchar or any other output routine is called.  */
 void output_deinit (struct output_driver *device);
+
+#include <s-printf.h>
 
-
-/* Print the single character CHR on the output device.  */
+/* Print the single character CHR on the device DEVICE.  */
 int device_putchar (struct output_driver *device, int chr);
+
+/* Read a single character from the device DEVICE.  */
+int device_getchar (struct output_driver *device);
+
 int putchar (int chr);
-
-int device_puts (struct output_driver *device, const char *str);
 int puts (const char *str);
-
-int device_vprintf (struct output_driver *device, const char *fmt, va_list ap);
 int vprintf (const char *fmt, va_list ap);
-
-int device_printf (struct output_driver *device, const char *fmt, ...);
 int printf (const char *fmt, ...);
 
-int device_getchar (struct output_driver *device);
 int getchar (void);
 
 #endif	/* _OUTPUT_H */

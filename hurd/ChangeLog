@@ -1,3 +1,7 @@
+2008-06-11  Neal H. Walfield  <neal@gnu.org>
+
+	* trace.h: Include <s-printf.h>.
+
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h: Don't include <pthread.h>.

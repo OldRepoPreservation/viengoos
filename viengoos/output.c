@@ -1,5 +1,5 @@
 /* output.c - Output routines.
-   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -108,197 +108,16 @@ putchar (int chr)
   return device_putchar (default_device, chr);
 }
 
-
-int
-device_puts (struct output_driver *device, const char *str)
-{
-  while (*str != '\0')
-    device_putchar (device, *(str++));
-
-  device_putchar (device, '\n');
-
-  return 0;
-}
-
 int
 puts (const char *str)
 {
-  return device_puts (default_device, str);
-}
-
-
-static void
-print_nr (struct output_driver *device, unsigned long long nr, int base)
-{
-  static char *digits = "0123456789abcdef";
-  char str[30];
-  int i = 0;
-
-  do
-    {
-      str[i++] = digits[nr % base];
-      nr = nr / base;
-    }
-  while (nr);
-
-  i--;
-  while (i >= 0)
-    device_putchar (device, str[i--]);
-}
-  
-
-static void
-print_signed_nr (struct output_driver *device, long long nr, int base)
-{
-  unsigned long long unr;
-
-  if (nr < 0)
-    {
-      device_putchar (device, '-');
-      unr = -nr;
-    }
-  else
-    unr = nr;
-
-  print_nr (device, unr, base);
-}
-  
-
-int
-device_vprintf (struct output_driver *device, const char *fmt, va_list ap)
-{
-  const char *p = fmt;
-
-  while (*p != '\0')
-    {
-      if (*p != '%')
-	{
-	  device_putchar (device, *(p++));
-	  continue;
-	}
-
-      p++;
-      switch (*p)
-	{
-	case '%':
-	  device_putchar (device, '%');
-	  p++;
-	  break;
-
-	case 'l':
-	  p++;
-	  if (*p != 'l')
-	    {
-	      device_putchar (device, '%');
-	      device_putchar (device, 'l');
-	      device_putchar (device, *(p++));
-	      continue;
-	    }
-	  p++;
-	  switch (*p)
-	    {
-	    case 'o':
-	      print_nr (device, va_arg (ap, unsigned long long), 8);
-	      p++;
-	      break;
-
-	    case 'd':
-	    case 'i':
-	      print_signed_nr (device, va_arg (ap, long long), 10);
-	      p++;
-	      break;
-
-	    case 'x':
-	    case 'X':
-	      print_nr (device, va_arg (ap, unsigned long long), 16);
-	      p++;
-	      break;
-
-	    case 'u':
-	      print_nr (device, va_arg (ap, unsigned long long), 10);
-	      p++;
-	      break;
-
-	    default:
-	      device_putchar (device, '%');
-	      device_putchar (device, 'l');
-	      device_putchar (device, 'l');
-	      device_putchar (device, *(p++));
-	      break;
-	    }
-	  break;
-
-	case 'o':
-	  print_nr (device, va_arg (ap, unsigned int), 8);
-	  p++;
-	  break;
-
-	case 'd':
-	case 'i':
-	  print_signed_nr (device, va_arg (ap, int), 10);
-	  p++;
-	  break;
-
-	case 'x':
-	case 'X':
-	  print_nr (device, va_arg (ap, unsigned int), 16);
-	  p++;
-	  break;
-
-	case 'u':
-	  print_nr (device, va_arg (ap, unsigned int), 10);
-	  p++;
-	  break;
-
-	case 'c':
-	  device_putchar (device, va_arg (ap, int));
-	  p++;
-	  break;
-
-	case 's':
-	  {
-	    char *str = va_arg (ap, char *);
-	    while (*str)
-	      device_putchar (device, *(str++));
-	  }
-	  p++;
-	  break;
-
-	case 'p':
-	  device_putchar (device, '0');
-	  device_putchar (device, 'x');
-	  print_nr (device, (unsigned int) va_arg (ap, void *), 16);
-	  p++;
-	  break;
-
-	default:
-	  device_putchar (device, '%');
-	  device_putchar (device, *p);
-	  p++;
-	  break;
-	}
-    }
-
-  return 0;
+  return s_puts (str);
 }
 
 int
 vprintf (const char *fmt, va_list ap)
 {
-  return device_vprintf (default_device, fmt, ap);
-}
-
-
-int
-device_printf (struct output_driver *device, const char *fmt, ...)
-{
-  va_list ap;
-
-  va_start (ap, fmt);
-  int r = device_vprintf (device, fmt, ap);
-  va_end (ap);
-
-  return r;
+  return s_vprintf (fmt, ap);
 }
 
 int
@@ -307,7 +126,7 @@ printf (const char *fmt, ...)
   va_list ap;
 
   va_start (ap, fmt);
-  int r = vprintf (fmt, ap);
+  int r = s_vprintf (fmt, ap);
   va_end (ap);
 
   return r;

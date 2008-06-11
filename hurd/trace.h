@@ -30,6 +30,8 @@
 #  include <hurd/mutex.h>
 #endif
 
+#include <s-printf.h>
+
 struct trace_buffer
 {
   /* A descriptive name for the trace buffer.  */

@@ -1,3 +1,18 @@
+2008-06-11  Neal H. Walfield  <neal@gnu.org>
+
+	* output.h: Include <s-printf.h>.
+	(device_puts): Remove declaration.
+	(device_vprintf): Likewise.
+	(device_printf): Likewise.
+	* output.c (device_puts): Remove function.
+	(print_nr): Likewise.
+	(print_signed_nr): Likewise.
+	(device_vprintf): Likewise.
+	(device_printf): Likewise.
+	(puts): Implement in terms of s_puts.
+	(vprintf): Implement in terms of s_vprintf.
+	(printf): Likewise.
+
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
 	* cap-lookup.c: Move from here...

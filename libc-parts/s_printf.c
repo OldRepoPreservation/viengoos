@@ -1,4 +1,4 @@
-/* s_printf.c - Simply output routines.
+/* s_printf.c - Simple output routines.
    Copyright (C) 2003, 2007, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
@@ -30,6 +30,8 @@
 
 #include <stdarg.h>
 #include <hurd/rm.h>
+
+#include "s-printf.h"
 
 /* Print the single character CHR on the output device.  */
 int
