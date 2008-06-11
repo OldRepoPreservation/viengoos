@@ -1,3 +1,7 @@
+2008-06-11  Neal H. Walfield  <neal@gnu.org>
+
+	* mm-init.c (mm_init): Set OUTPUT_DEBUG to 1.
+
 2008-06-10  Neal H. Walfield  <neal@gnu.org>
 
 	* as-build.c (as_build): Improve debugging output.  Add more

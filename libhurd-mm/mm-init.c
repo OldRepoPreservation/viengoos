@@ -41,8 +41,7 @@ mm_init (addr_t activity)
   assert (! mm_init_done);
 
   extern int output_debug;
-
-  output_debug = 4;
+  output_debug = 1;
 
   if (ADDR_IS_VOID (activity))
     meta_data_activity = __hurd_startup_data->activity;
