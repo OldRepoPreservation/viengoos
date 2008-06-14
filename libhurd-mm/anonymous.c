@@ -370,18 +370,20 @@ anonymous_pager_alloc (addr_t activity,
 	  if ((flags & ANONYMOUS_FIXED))
 	    goto error_with_buffer;
 	}
+      else
+	{
+	  alloced = true;
 
-      alloced = true;
+	  /* The region that we are actually paging.  */
+	  anon->pager.region.start = PTR_TO_ADDR (hint);
+	  anon->pager.region.count = size;
 
-      /* The region that we are actually paging.  */
-      anon->pager.region.start = PTR_TO_ADDR (hint);
-      anon->pager.region.count = size;
+	  /* The region that we allocated.  */
+	  anon->alloced_region.start = addr;
+	  anon->alloced_region.count = count;
 
-      /* The region that we allocated.  */
-      anon->alloced_region.start = addr;
-      anon->alloced_region.count = count;
-
-      *addr_out = hint;
+	  *addr_out = hint;
+	}
     }
 
   if (! alloced)

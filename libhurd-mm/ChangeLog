@@ -1,3 +1,8 @@
+2008-06-14  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.c (anonymous_pager_alloc): If allocating a specific
+	address fails, really fail.
+
 2008-06-11  Neal H. Walfield  <neal@gnu.org>
 
 	* mm-init.c (mm_init): Set OUTPUT_DEBUG to 1.
