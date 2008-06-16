@@ -1,5 +1,9 @@
 2008-06-16  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h (as_dump_from): Remove declaration.
+
+2008-06-16  Neal H. Walfield  <neal@gnu.org>
+
 	* addr.h (addr_add): New function.
 	(addr_sub): Likewise.
 

@@ -407,8 +407,8 @@ enum
    (PRINCIPAL and the address spaces are looked up in the context of
    the caller.)
 
-   By default, preserves SOURCE's subpage specification and TARGET's
-   guard.
+   By default, preserves SOURCE's subpage specification and copies
+   TARGET's guard and policy.
 
    If CAP_COPY_COPY_SUBPAGE is set, then uses the subpage
    specification in CAP_PROPERTIES.  If CAP_COPY_COPY_ADDR_TRANS_GUARD
@@ -696,9 +696,5 @@ cap_copy (activity_t activity,
 		     CAP_COPY_DISCARDABLE_SET | CAP_COPY_PRIORITY_SET,
 		     CAP_PROPERTIES_GET (source));
 }
-
-/* Dump the address space rooted at ROOT.  */
-extern void as_dump_from (activity_t activity, struct cap *root,
-			  const char *prefix);
 
 #endif
