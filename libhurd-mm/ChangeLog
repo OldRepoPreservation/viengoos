@@ -1,3 +1,7 @@
+2008-06-16  Neal H. Walfield  <neal@gnu.org>
+
+	* sbrk.c (sbrk): Improve debugging output.
+
 2008-06-14  Neal H. Walfield  <neal@gnu.org>
 
 	* anonymous.c (anonymous_pager_alloc): If allocating a specific

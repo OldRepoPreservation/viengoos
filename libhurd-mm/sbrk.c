@@ -67,6 +67,7 @@ sbrk (intptr_t inc)
       brk -= inc;
       errno = ENOMEM;
       p = (void *) -1;
+      debug (0, "sbrk: sbrk memory exhausted!");
     }
 
   ss_mutex_unlock (&lock);
