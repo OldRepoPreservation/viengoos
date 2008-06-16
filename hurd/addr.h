@@ -157,4 +157,19 @@ addr_extract (addr_t addr, int width)
 #define PTR_TO_ADDR(ptr_) \
   (ADDR ((uintptr_t) (ptr_), ADDR_BITS))
 
+static inline addr_t
+addr_add (addr_t addr, uint64_t count)
+{
+  int w = ADDR_BITS - addr_depth (addr);
+
+  return ADDR (addr_prefix (addr) + (count << w),
+	       addr_depth (addr));
+}
+
+static inline addr_t
+addr_sub (addr_t addr, uint64_t count)
+{
+  return addr_add (addr, - count);
+}
+
 #endif

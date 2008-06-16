@@ -1,3 +1,8 @@
+2008-06-16  Neal H. Walfield  <neal@gnu.org>
+
+	* addr.h (addr_add): New function.
+	(addr_sub): Likewise.
+
 2008-06-11  Neal H. Walfield  <neal@gnu.org>
 
 	* trace.h: Include <s-printf.h>.
