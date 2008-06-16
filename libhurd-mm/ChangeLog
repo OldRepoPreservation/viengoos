@@ -1,5 +1,45 @@
 2008-06-16  Neal H. Walfield  <neal@gnu.org>
 
+	* map.h: New file.
+	* map.c: New file.
+	* Makefile.am (libhurd_mm_a_SOURCES): Add map.h and map.c.
+	* headers.m4: Link map.h to sysroot/include/hurd/map.h.
+	* pager.h: Rewrite.
+	* pager.c: Likewise.
+	* anonymous.h (ANONYMOUS_STAGING_AREA): New define.
+	(anonymous_pager_fill_t): Don't pass the base of the region.  Pass
+	the location of the storage corresponding to the pages on which
+	the faults were raised and the offset into the region.  Update
+	users.
+	(struct anonymous_pager): Add fields map_area, map_area_count and
+	lock.  Remove field alloced_region.
+	(anonymous_pager_alloc): Replace size parameter with length
+	parameter.  Take access parameter indicating the desired access.
+	Update users.
+	* anonymous.c (offset_compare): Compare the values, not the
+	pointers.
+	(fault): Update signature to be consistent with new API.  Lock
+	ANON->LOCK.  Always look up the storage descriptor corresponding
+	to the faulted page.  Copy the storage to the faulted address as
+	required.  Update how we call ANON->FILL to be consistent with the
+	new API.
+	(destroy): Free ANON->STAGING_AREA.
+	(anonymous_pager_alloc): Update signature to be consistent with
+	new API.  Allocate the staging area if ANONYMOUS_STAGING_AREA is
+	set.  Allocate it separately from the main map.  Create a map
+	corresponding to the region.
+	(anonymous_pager_destroy): Just lock ANON->LOCK.  Don't call
+	destroy, call pager_deinit.
+	* mmap.c: Include <hurd/map.h>.
+	(mmap): Add support for protection other than read/write.
+	(munmap): Rewrite to use new API.  Use map_split to support
+	splitting of memory maps.
+	* exceptions.c: Don't include "pager.h", include "map.h".
+	(exception_handler_normal): Don't call pager_fault but map_fault.
+	(exception_handler_activated): Likewise.
+
+2008-06-16  Neal H. Walfield  <neal@gnu.org>
+
 	* sbrk.c (sbrk): Improve debugging output.
 
 2008-06-14  Neal H. Walfield  <neal@gnu.org>

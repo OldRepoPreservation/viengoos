@@ -70,11 +70,13 @@ main (int argc, char *argv[])
   printf ("%d kb memory available\n", available / 1024);
 
   bool my_fill (struct anonymous_pager *anon,
-		void *base, uintptr_t offset,
-		uintptr_t pages,
+		uintptr_t offset, uintptr_t count,
+		void *pages[],
 		struct exception_info info)
   {
-    * (int *) (base + offset) = 1;
+    uintptr_t *p = pages[0];
+    p[0] = offset;
+    p[1] = l4_myself ();
     return true;
   }
 
@@ -107,7 +109,7 @@ main (int argc, char *argv[])
 	  /* Allocate a (discardable) buffer.  */
 	  {
 	    pagers[i]
-	      = anonymous_pager_alloc (ADDR_VOID, NULL, SIZE,
+	      = anonymous_pager_alloc (ADDR_VOID, NULL, SIZE, MAP_ACCESS_ALL,
 				       OBJECT_POLICY (true,
 						      OBJECT_PRIORITY_LRU),
 				       0, my_fill, &buffers[i]);
@@ -116,8 +118,15 @@ main (int argc, char *argv[])
 	  }
 
 	int j;
-	for (j = 0; j < SIZE / PAGESIZE; j ++)
-	  t += * (int *) (buffers[i] + j * PAGESIZE);
+	for (j = 0; j < SIZE; j += PAGESIZE)
+	  {
+	    uintptr_t *p = buffers[i] + j;
+	    assertx (p[0] == j && p[1] == l4_myself (),
+		     "%x: %x =? %x, thread: %x",
+		     p, p[0], j, p[1]);
+
+	    t += * (int *) (buffers[i] + j);
+	  }
 
 	/* 100ms.  */
 	l4_sleep (l4_time_period (100 * 1000));

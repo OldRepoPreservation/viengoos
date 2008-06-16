@@ -43,6 +43,7 @@ libhurd_mm_a_SOURCES = mm.h			\
 	as-lookup.c				\
 	as-dump.c				\
 	exceptions.c				\
+	map.h map.c				\
 	pager.h pager.c				\
 	anonymous.h anonymous.c			\
 	mmap.c sbrk.c				\

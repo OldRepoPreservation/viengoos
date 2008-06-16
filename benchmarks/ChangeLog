@@ -1,5 +1,11 @@
 2008-06-16  Neal H. Walfield  <neal@gnu.org>
 
+	* activity-distribution.c (main): Update use of
+	anonymous_pager_alloc to be consistent with new API.  Update fill
+	functions to be consistent with new API.
+
+2008-06-16  Neal H. Walfield  <neal@gnu.org>
+
 	* shared-memory-distribution.c (main): Set NEXT_PERIOD based on
 	the first stat buffer, not the last one.
 

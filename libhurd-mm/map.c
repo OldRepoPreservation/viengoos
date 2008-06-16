@@ -1,341 +1,352 @@
-/* map.c - Map management.
-   Copyright (C) 2004, 2005 Free Software Foundation, Inc.
+/* map.c - Generic map implementation.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2, or (at
-   your option) any later version.
-   
-   The GNU Hurd is distributed in the hope that it will be useful, but
+   GNU Hurd is free software: you can redistribute it and/or modify it
+   under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   GNU Hurd is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
-   
-   You should have received a copy of the GNU General Public License
-   along with the GNU Hurd; see the file COPYING.  If not, write to
-   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
-   USA.  */
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with GNU Hurd.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #if HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-#include <stdint.h>
-#include <string.h>
-#include <compiler.h>
-#include <assert.h>
-
-#include <hurd/startup.h>
-#include <hurd/btree.h>
+#include <hurd/storage.h>
+#include <hurd/as.h>
 #include <hurd/slab.h>
+#include <l4.h>
 
-#include "vm.h"
-#include "priv.h"
+#include <string.h>
 
-/* Initialized by the machine-specific startup-code.  */
-extern struct hurd_startup_data *__hurd_startup_data;
+#include "map.h"
+#include "pager.h"
 
-void
-map_system_init (void)
+static error_t
+slab_alloc (void *hook, size_t size, void **ptr)
 {
-  error_t err;
-  int i;
-  struct map *map;
+  struct storage storage = storage_alloc (meta_data_activity, cap_page,
+					  STORAGE_LONG_LIVED,
+					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
+  if (ADDR_IS_VOID (storage.addr))
+    panic ("Out of space.");
+  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
-  pthread_mutex_init (&as.lock, NULL);
-  hurd_btree_map_tree_init (&as.mappings);
-
-  /* Reserve the virtual memory where the startup code lies.  */
-  map = map_alloc ();
-  assert (map);
-  err = map_init (map, (uintptr_t) HURD_STARTUP_ADDR, HURD_STARTUP_SIZE,
-		  NULL, 0, NULL);
-  assert_perror (err);
-
-  /* The UTCB.  */
-  map = map_alloc ();
-  assert (map);
-  err = map_init (map, l4_address (__hurd_startup_data->utcb_area),
-		  l4_size (__hurd_startup_data->utcb_area),
-		  NULL, 0, NULL);
-  assert_perror (err);
-
-  /* And the kip.  */
-  map = map_alloc ();
-  assert (map);
-  err = map_init (map, (uintptr_t) l4_kip (), l4_kip_area_size (),
-		  NULL, 0, NULL);
-  assert_perror (err);
-
-  /* Add the program code, data segment, etc which can be found in the
-     start up data.  */
-  for (i = 0; i < __hurd_startup_data->mapc; i ++)
-    {
-      struct hurd_startup_map *mapv = &__hurd_startup_data->mapv[i];
-
-      map = map_alloc ();
-      assert (map);
-
-      /* XXX: Wrong, wrong, wrong.  Right now we just make sure we
-	 know about the virtual address region the mapping uses and
-	 assume that there won't be any page faults.  */
-      // lookup store (mapv->cont.server, mapv->cont.cap_handle) add
-      // these memory to it (but we would need to copy them to the
-      // default container.
-      err = map_init (map, (l4_word_t) mapv->vaddr, mapv->size,
-		      NULL, mapv->offset & ~0x7, 0);
-      assert_perror (err);
-
-      /* FIXME: Do something with the access rights (in the lower
-	 three bits of offset).  */
-    }
-}
-
-bool map_spare_integrate;
-struct map map_spare;
-struct hurd_memory memory_spare;
-
-/* This is the allocation_buffer call back for the map slab.  If this
-   is called then someone has called map_alloc and hence map_lock is
-   locked.  */
-error_t
-core_slab_allocate_buffer (void *hook, size_t size, void **ptr)
-{
-  error_t err;
-  int i;
-  uintptr_t vaddr;
-
-  assert ((size & (size - 1)) == 0);
-
-  /* Find an unused virtual memory address.  */
-  if (EXPECT_FALSE (! mm_init_done))
-    {
-      /* We are not yet initialized.  Initialize the mapping database.  */
-
-      /* The mapping database is not yet up so we cannot use the
-	 normal functions to search it for a free virtual memory
-	 region.
-
-	 FIXME: We assume that the only things mapped into memory are
-	 the mappings done by the start up code which we can find out
-	 about by looking in __hurd_startup_data.  But this is just
-	 not the case!  We need to make sure we don't overwrite the
-	 startup code as well as discount regions covered by the KIP
-	 and the UTCB. */
-      bool vaddr_free;
-      vaddr = VIRTUAL_MEMORY_START;
-      do
-	{
-	  struct map *map;
-
-	  /* The proposed index is free unless proven not to be.  */
-	  vaddr_free = true;
-
-	  /* Check the startup data.  */
-	  if (overlap (vaddr, size,
-		       (uintptr_t) HURD_STARTUP_ADDR, HURD_STARTUP_SIZE))
-	    {
-	      vaddr_free = false;
-	      vaddr = (((uintptr_t) HURD_STARTUP_ADDR + HURD_STARTUP_SIZE
-			+ size - 1)
-		       & ~(size - 1));
-	      continue;
-	    }
-
-	  /* Loop over the startup maps.  */
-	  for (i = 0; i < __hurd_startup_data->mapc; i ++)
-	    {
-	      struct hurd_startup_map *mapv = &__hurd_startup_data->mapv[i];
-
-	      /* Does the index overlap with a virtual address?  */
-	      if (overlap (vaddr, size, (uintptr_t) mapv->vaddr, mapv->size))
-		{
-		  /* Seems to.  This is a bad index.  */
-		  vaddr_free = false;
-		  /* Calculate the next candidate virtual memory
-		     address.  Remember to mask out the rights which
-		     are in the lower three bits of the offset.  */
-		  vaddr = (((mapv->offset & ~0x7) + mapv->size + size - 1)
-			   & ~(size - 1));
-		  break;
-		}
-	    }
-
-	  if (! vaddr_free)
-	    continue;
-
-	  /* We may have already allocated a map structure which the
-	     above search would not find.  */
-	  map = map_find_first (vaddr, size);
-	  if (map)
-	    {
-	      vaddr_free = false;
-	      vaddr = ((map->vm.start + map->vm.size + size - 1)
-		       & ~(size - 1));
-	    }
-	}
-      while (! vaddr_free);
-    }
-  else
-    vaddr = as_find_free (size, size);
-
-  /* Save the mapping in the spare map.  We cannot call map_alloc as
-     it is likely (indirectly) invoking us because its slab is out of
-     memory.  But once we return, it will noticed that we set
-     map_spare_integrate and add this mapping to the mapping
-     database.  */
-  assert (! map_spare_integrate);
-
-  /* We allocate and map the data ourselves even in the case where the
-     pager is already up: clearly we are going to use the memory as
-     soon as we return.  */
-  err = memory_alloc_into (&memory_spare, size);
-  if (err)
-    {
-      debug ("memory_alloc_into failed! %d\n", err);
-      return err;
-    }
-
-  map_spare.store = &core_store;
-  map_spare.store_offset = memory_spare.cont_start;
-  map_spare.vm.start = vaddr;
-  map_spare.vm.size = size;
-  map_spare_integrate = true;
-
-  err = hurd_memory_map (&memory_spare, 0, size, vaddr);
-  if (err)
-    /* Hmm, failure.  Nevertheless we managed to allocate the memory.
-       Let's just ignore it and assume that whatever went wrong will
-       go away when the memory is eventually faulted in.  */
-    debug ("hurd_memory_map failed! %d\n", err);
-
-  *ptr = (void *) vaddr;
   return 0;
 }
 
-error_t
-core_slab_deallocate_buffer (void *hook, void *buffer, size_t size)
+static error_t
+slab_dealloc (void *hook, void *buffer, size_t size)
 {
-  error_t err = hurd_vm_release ((uintptr_t) buffer, size);
-  assert_perror (err);
+  assert (size == PAGESIZE);
+
+  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  storage_free (addr, false);
+
   return 0;
 }
-
-struct hurd_slab_space map_slab
-  = HURD_SLAB_SPACE_INITIALIZER (struct map,
-				 core_slab_allocate_buffer,
-				 core_slab_deallocate_buffer,
-				 NULL, NULL, NULL);
 
-struct map *
+/* Storage descriptors are alloced from a slab.  */
+static struct hurd_slab_space map_slab
+ = HURD_SLAB_SPACE_INITIALIZER (struct map,
+				slab_alloc, slab_dealloc, NULL, NULL, NULL);
+
+static struct map *
 map_alloc (void)
 {
-  error_t err;
-  struct map *map;
-
- start:
-  err = hurd_slab_alloc (&map_slab, (void *) &map);
+  void *buffer;
+  error_t err = hurd_slab_alloc (&map_slab, &buffer);
   if (err)
-    return 0;
+    panic ("Out of memory!");
 
-  /* If map_spare_integrate is true then a new slab was just
-     allocated.  We use the new map to copy over the data and allocate
-     another one for the caller.  */
-  if (EXPECT_FALSE (map_spare_integrate))
+  memset (buffer, 0, sizeof (struct map));
+  return buffer;
+}
+
+static void
+map_free (struct map *storage)
+{
+  hurd_slab_dealloc (&map_slab, storage);
+}
+
+static void
+list_link (struct map **list, struct map *e)
+{
+  e->map_list_next = *list;
+  if (e->map_list_next)
+    e->map_list_next->map_list_prevp = &e->map_list_next;
+  e->map_list_prevp = list;
+  *list = e;
+}
+
+static void
+list_unlink (struct map *e)
+{
+  assert (e->map_list_prevp);
+
+  *e->map_list_prevp = e->map_list_next;
+  if (e->map_list_next)
+    e->map_list_next->map_list_prevp = e->map_list_prevp;
+
+#ifndef NDEBUG
+  /* Try to detect multiple unlink.  */
+  e->map_list_next = NULL;
+  e->map_list_prevp = NULL;
+#endif
+}
+
+ss_mutex_t maps_lock;
+hurd_btree_map_t maps;
+
+static bool
+map_install (struct map *map)
+{
+  assert (! ss_mutex_trylock (&maps_lock));
+  assert (! ss_mutex_trylock (&map->pager->lock));
+
+  /* No zero length maps.  */
+  assert (map->region.length > 0);
+  /* Multiples of page size.  */
+  assert ((map->region.start & (PAGESIZE - 1)) == 0);
+  assert ((map->region.length & (PAGESIZE - 1)) == 0);
+  assert ((map->offset & (PAGESIZE - 1)) == 0);
+
+  assert (map->offset + map->region.length <= map->pager->length);
+
+  assert ((map->access & ~MAP_ACCESS_ALL) == 0);
+
+
+  debug (5, "Installing %c%c map at %x+%x referencing %x starting at %x",
+	 map->access & MAP_ACCESS_READ ? 'r' : '~',
+	 map->access & MAP_ACCESS_WRITE ? 'w' : '~',
+	 map->region.start, map->region.length, map->pager, map->offset);
+
+
+  /* Insert into the mapping database.  */
+  struct map *conflict = hurd_btree_map_insert (&maps, map);
+  if (conflict)
     {
-      struct hurd_memory memory, *f;
-
-      memcpy (map, &map_spare, sizeof (struct map));
-      map_insert (map);
-
-      /* We can't allocate it using memory_alloc() as that might call
-	 the slab's buffer allocation routine and overwrite
-	 MEMORY_SPARE.  Copy it here, then allocate it and only then
-	 copy over.  */
-      memcpy (&memory, &memory_spare, sizeof (struct hurd_memory));
-      map_spare_integrate = false;
-
-      err = hurd_slab_alloc (&memory_slab, (void *) &f);
-      assert_perror (err);
-
-      memcpy (f, &memory, sizeof (struct hurd_memory));
-      hurd_store_cache (&core_store, map->store_offset, f);
-
-      goto start;
+      debug (1, "Can't install map at %x+%d; conflicts "
+	     "with map at %x+%d",
+	     map->region.start, map->region.length,
+	     conflict->region.start, conflict->region.length);
+      return false;
     }
+  map->connected = true;
+
+  /* Attach to its pager.  */
+  list_link (&map->pager->maps, map);
+
+  return true;
+}
+
+struct map *
+map_create (struct region region, enum map_access access,
+	    struct pager *pager, uintptr_t offset)
+{
+  maps_lock_lock ();
+  ss_mutex_lock (&pager->lock);
+
+  struct map *map = map_alloc ();
+
+  map->region = region;
+  map->pager = pager;
+  map->offset = offset;
+  map->access = access;
+
+  if (! map_install (map))
+    {
+      map_free (map);
+      map = NULL;
+    }
+
+  ss_mutex_unlock (&pager->lock);
+  maps_lock_unlock ();
 
   return map;
 }
 
-error_t
-map_init (struct map *map, uintptr_t vm_addr, size_t size,
-	  hurd_store_t *store, size_t store_offset,
-	  uintptr_t *vm_used_addr)
+
+void
+map_disconnect (struct map *map)
 {
-  if (vm_addr == 0)
-    vm_addr = as_find_free (size, getpagesize ());
+  assert (! ss_mutex_trylock (&maps_lock));
+
+  assert (map->connected);
+  hurd_btree_map_detach (&maps, map);
+  map->connected = false;
+}
+
+void
+map_destroy (struct map *map)
+{
+  ss_mutex_lock (&map->pager->lock);
+
+  assert (! map->connected);
+
+  /* Drop our reference.  */
+  assert (map->pager->maps);
+
+  if (map->pager->maps == map && ! map->map_list_next)
+    /* This is the last reference.  */
+    {
+      map->pager->maps = NULL;
+      if (map->pager->no_refs)
+	map->pager->no_refs (map->pager);
+    }
   else
     {
-      struct map *map = map_find_first (vm_addr, size);
-      if (map)
-	return EEXIST;
+      list_unlink (map);
+      ss_mutex_unlock (&map->pager->lock);
     }
 
-  map->vm.start = vm_addr;
-  map->vm.size = size;
-  map->store = store;
-  map->store_offset = store_offset;
-
-  if (vm_used_addr)
-    *vm_used_addr = vm_addr;
-
-  map_insert (map);
-
-  return 0;
+  map_free (map);
 }
 
-void
-map_insert (struct map *map)
-{
-  error_t err = hurd_btree_map_insert (&as.mappings, map);
-  assert_perror (err);
-}
-
-void
-map_detach (struct map *map)
-{
-  assert (hurd_btree_map_find (&as.mappings, &map->vm));
-  hurd_btree_map_detach (&as.mappings, map);
-}
-
-void
-map_free (struct map *map)
-{
-  map_detach (map);
-  hurd_slab_dealloc (&map_slab, (void *) map);
-}
 
 struct map *
-map_find_first (uintptr_t address, size_t size)
+map_split (struct map *map, uintptr_t offset)
 {
-  struct region region = { address, size };
-  struct map *map = hurd_btree_map_find (&as.mappings, &region);
+  assert (! ss_mutex_trylock (&maps_lock));
 
-  if (! map)
-    return NULL;
+  debug (5, "splitting %x+%x at %x", 
+	 map->region.start, map->region.length, offset);
 
-  for (;;)
+  if (offset <= 0 || offset >= map->region.length)
     {
-      if (map->vm.start <= address)
-	return map;
-
-      struct map *prev = hurd_btree_map_prev (map);
-      if (prev && overlap (address, size, prev->vm.start, prev->vm.size))
-	map = prev;
-      else
-	return map;
+      debug (0, "Invalid offset into map.");
+      return NULL;
     }
+
+  if (offset % PAGESIZE != 0)
+    {
+      debug (0, "Offset does not designate a sub-tree boundary.");
+      return NULL;
+    }
+
+  struct map *second = map_alloc ();
+  *second = *map;
+
+  second->region.start = map->region.start + offset;
+  second->region.length = map->region.length - offset;
+
+  /* This is kosher: it does not change the ordering of the mapping in
+     the tree.  */
+  map->region.length = offset;
+
+  debug (5, "%x+%x, %x+%x",
+	 map->region.start, map->region.length,
+	 second->region.start, second->region.length);
+
+
+  /* This can't fail.  We have the lock and we just made the space
+     available.  */
+  ss_mutex_lock (&second->pager->lock);
+#ifndef NDEBUG
+  memset (&second->node, 0, sizeof (second->node));
+#endif
+  bool ret = map_install (second);
+  assert (ret);
+  ss_mutex_unlock (&second->pager->lock);
+
+  return second;
+}
+
+bool
+map_join (struct map *first, struct map *second)
+{
+  assert (! ss_mutex_trylock (&maps_lock));
+
+  if (first->pager != second->pager)
+    return false;
+
+  if (first->access != second->access)
+    return false;
+
+  if (first->region.start + first->region.length != second->region.start)
+    /* SECOND does not follow FIRST.  */
+    {
+      if (second->region.start + second->region.length == first->region.start)
+	/* But FIRST does follow SECOND.  Swap.  */
+	{
+	  struct map *t = first;
+	  first = second;
+	  second = t;
+	}
+      else
+	return false;
+    }
+
+  uintptr_t length = second->region.length;
+
+  map_disconnect (second);
+
+  /* It is kosher to call this with MAPS_LOCK held as FIRST is another
+     reference.  */
+  map_destroy (second);
+
+  /* We can only update this after we detach SECOND from the tree.  */
+  first->offset += length;
+
+  return true;
+}
+
+bool
+map_fault (addr_t fault_addr, uintptr_t ip, struct exception_info info)
+{
+  /* Find the map.  */
+  struct region region;
+
+  if (addr_depth (fault_addr) == ADDR_BITS - PAGESIZE_LOG2)
+    fault_addr = addr_extend (fault_addr, 0, PAGESIZE_LOG2);
+  region.start = (uintptr_t) ADDR_TO_PTR (fault_addr);
+
+  region.length = 1;
+
+  maps_lock_lock ();
+
+  struct map *map = map_find (region);
+  if (! map)
+    {
+      debug (0, "No map covers " ADDR_FMT, ADDR_PRINTF (fault_addr));
+      maps_lock_unlock ();
+      return false;
+    }
+
+  /* Note: write access implies read access.  */
+  if (((info.access & L4_FPAGE_WRITABLE) && ! (map->access & MAP_ACCESS_WRITE))
+      || ! map->access)
+    {
+      debug (0, "Invalid %s access at " ADDR_FMT ": " MAP_FMT,
+	     info.access & L4_FPAGE_WRITABLE ? "write" : "read",
+	     ADDR_PRINTF (fault_addr), MAP_PRINTF (map));
+
+      maps_lock_unlock ();
+      return false;
+    }
+
+  struct pager *pager = map->pager;
+  uintptr_t offset = map->offset + (region.start - map->region.start);
+  bool ro = (map->access & MAP_ACCESS_WRITE) ? false : true;
+
+  maps_lock_unlock ();
+
+  /* Propagate the fault.  */
+  bool r = pager->fault (pager, offset, 1, ro,
+			 (uintptr_t) ADDR_TO_PTR (fault_addr), ip, info);
+  if (! r)
+    debug (0, "Map did not resolve fault at " ADDR_FMT,
+	   ADDR_PRINTF (fault_addr));
+
+  return r;
 }

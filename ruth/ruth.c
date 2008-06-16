@@ -267,16 +267,40 @@ main (int argc, char *argv[])
   {
     printf ("Checking mmap... ");
 
-#define SIZE (16 * PAGESIZE)
-    void *buffer = mmap (0, SIZE, PROT_READ | PROT_WRITE,
+    const int pages = 16;
+    void *buffer = mmap (0, pages * PAGESIZE, PROT_READ | PROT_WRITE,
 			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     assert (buffer != MAP_FAILED);
 
-    char *p;
-    for (p = buffer; (uintptr_t) p < (uintptr_t) buffer + SIZE; p ++)
-      *p = 1;
-    for (p = buffer; (uintptr_t) p < (uintptr_t) buffer + SIZE; p ++)
-      assert (*p == 1);
+    struct { int start; int count; } order[] = { { 1, 2 },
+						 { 3, 3 },
+						 { 10, 2 },
+						 { 15, 1 } };
+    bool unmapped[pages];
+    memset (unmapped, 0, sizeof (unmapped));
+
+    int j;
+    for (j = 0; j < pages; j ++)
+      *(int *) (buffer + j * PAGESIZE) = j;
+
+    int i;
+    for (i = 0; i < sizeof (order) / sizeof (order[0]); i ++)
+      {
+	assert (order[i].start + order[i].count <= pages);
+
+	munmap (buffer + order[i].start * PAGESIZE, order[i].count * PAGESIZE);
+
+	for (j = order[i].start; j < order[i].start + order[i].count; j ++)
+	  unmapped[j] = true;
+
+	for (j = 0; j < pages; j ++)
+	  if (! unmapped[j])
+	    assertx (*(int *) (buffer + j * PAGESIZE) == j,
+		     "%d =? %d",
+		     *(int *) (buffer + j * PAGESIZE), j);
+      }
+
+    munmap (buffer, pages * PAGESIZE);
 
     printf ("ok.\n");
   }
@@ -892,11 +916,13 @@ main (int argc, char *argv[])
     const int s = 4 * PAGESIZE;
 
     bool fill (struct anonymous_pager *anon,
-	       void *base, uintptr_t offset,
-	       uintptr_t pages,
+	       uintptr_t offset, uintptr_t count,
+	       void *pages[],
 	       struct exception_info info)
     {
-      int *p = base + offset;
+      assert (count == 1);
+
+      int *p = pages[0];
       int i;
       for (i = 0; i < PAGESIZE / sizeof (int); i ++)
 	p[i] = offset / sizeof (int) + i;
@@ -906,46 +932,8 @@ main (int argc, char *argv[])
 
     void *addr;
     struct anonymous_pager *pager
-      = anonymous_pager_alloc (ADDR_VOID, NULL, s,
+      = anonymous_pager_alloc (ADDR_VOID, NULL, s, MAP_ACCESS_ALL,
 			       OBJECT_POLICY_DEFAULT, 0,
-			       fill, &addr);
-    assert (pager);
-
-    int *p = addr;
-    int i;
-    for (i = 0; i < s / sizeof (int); i ++)
-      assert (p[i] == i);
-
-    printf ("ok\n");
-  }
-
-  {
-    printf ("Checking rendered regions (all at once)... ");
-
-    const int s = 4 * PAGESIZE;
-
-    bool fill (struct anonymous_pager *anon,
-	       void *base, uintptr_t offset,
-	       uintptr_t pages,
-	       struct exception_info info)
-    {
-      static int once;
-
-      assert (! once);
-      once = true;
-
-      int *p = base;
-      int i;
-      for (i = 0; i < s / sizeof (int); i ++)
-	p[i] = i;
-
-      return true;
-    }
-
-    void *addr;
-    struct anonymous_pager *pager
-      = anonymous_pager_alloc (ADDR_VOID, NULL, s,
-			       OBJECT_POLICY_DEFAULT, ANONYMOUS_NO_RECURSIVE,
 			       fill, &addr);
     assert (pager);
 
@@ -961,14 +949,16 @@ main (int argc, char *argv[])
     printf ("Checking discardability... ");
 
     bool fill (struct anonymous_pager *anon,
-	       void *base, uintptr_t offset,
-	       uintptr_t pages,
+	       uintptr_t offset, uintptr_t count,
+	       void *pages[],
 	       struct exception_info info)
     {
+      assert (count == 1);
+
       if (! info.discarded)
 	return true;
 
-      * (int *) (base + offset) = offset / PAGESIZE;
+      * (int *) pages[0] = offset / PAGESIZE;
 
       return true;
     }
@@ -991,7 +981,7 @@ main (int argc, char *argv[])
 
     void *addr;
     struct anonymous_pager *pager
-      = anonymous_pager_alloc (ADDR_VOID, NULL, goal * PAGESIZE,
+      = anonymous_pager_alloc (ADDR_VOID, NULL, goal * PAGESIZE, MAP_ACCESS_ALL,
 			       OBJECT_POLICY (true, OBJECT_PRIORITY_LRU), 0,
 			       fill, &addr);
     assert (pager);

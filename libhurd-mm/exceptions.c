@@ -29,7 +29,7 @@
 #include <signal.h>
 #include <string.h>
 
-#include "pager.h"
+#include "map.h"
 #include "as.h"
 
 extern struct hurd_startup_data *__hurd_startup_data;
@@ -190,11 +190,25 @@ exception_handler_normal (struct exception_frame *exception_frame)
 	if (err)
 	  panic ("Failed to unmarshal exception: %d", err);
 
-	bool r = pager_fault (fault, ip, info);
+	bool r = map_fault (fault, ip, info);
 	if (! r)
 	  {
-	    debug (0, "Fault at " ADDR_FMT " (ip: %p)",
-		   ADDR_PRINTF (fault), ip);
+	    debug (0, "SIGSEGV at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, ecx: %p, edx: %p, eflags: %p)",
+		   ADDR_PRINTF (fault), ip, sp,
+		   exception_frame->regs[0],
+		   exception_frame->regs[1],
+		   exception_frame->regs[2],
+		   exception_frame->regs[3]);
+
+	    extern int backtrace (void **array, int size);
+
+	    void *a[20];
+	    int count = backtrace (a, sizeof (a) / sizeof (a[0]));
+	    int i;
+	    s_printf ("Backtrace: ");
+	    for (i = 0; i < count; i ++)
+	      s_printf ("%p ", a[i]);
+	    s_printf ("\n");
 
 	    siginfo_t si;
 	    memset (&si, 0, sizeof (si));
@@ -279,7 +293,7 @@ exception_handler_activated (struct exception_page *exception_page)
 		   "(ip: %x, sp: %x).",
 		   ADDR_PRINTF (fault), ip, sp);
 
-	    bool r = pager_fault (fault, ip, info);
+	    bool r = map_fault (fault, ip, info);
 	    if (! r)
 	      {
 		debug (0, "Fault at " ADDR_FMT " (ip: %p)",

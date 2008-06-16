@@ -51,42 +51,71 @@ enum
        required.  */
     ANONYMOUS_NO_RECURSIVE = 1 << 3,
 
-    /* Make access to the region thead-safe by creating a staging area
-       which the fill function has access but which is only mapped
-       into public area when the fill function returns.  */
+    /* Make access to the region thead-safe by blocking access to
+       mapped regions while a fill function is executing.  The use of
+       this flag may prevent a mapping that would seem to fit at a
+       particular address from succeeding as the actual virtual
+       address space area may be larger than the requested area.  */
     ANONYMOUS_THREAD_SAFE = 1 << 4,
+
+    /* Whether to provide a full staging area.  Unless this flag is
+       specified, the fill function may only reliably access the
+       indicated pages at the specified locations.  If the fill
+       function needs to access other parts of the region (e.g., it
+       decompresses an image all at once, filling the whole region),
+       then it can specify this flag and access the backing store via
+       a so-called staging area.  The use of this flag represents a
+       slight performance penalty.  */
+    ANONYMOUS_STAGING_AREA = 1 << 5,
   };
 
-/* Generate the content for the page starting at page START and
-   continuing for PAGES pages.  This function will not be invoked
-   recursively.  The ANONYMOUS_NO_RECURSIVE flag determines what
-   happens if the fill function causes a fault in the region it
-   manages.  The implementation serializes calls to the fill
-   function.  */
+/* Generate the content for the pager ANON starting at byte OFFSET and
+   continuing for COUNT pages.  This function will not be invoked
+   recursively or concurrently.  The ANONYMOUS_NO_RECURSIVE flag
+   determines what happens if the fill function causes a fault in the
+   region it manages.  The implementation serializes calls to the fill
+   function.  The function may only touch other pages if it is using a
+   staging area (the ANONYMOUS_STAGING_AREA was set at creation
+   time).  */
 typedef bool (*anonymous_pager_fill_t) (struct anonymous_pager *anon,
-					void *base, uintptr_t offset,
-					uintptr_t pages,
+					uintptr_t offset, uintptr_t count,
+					void *pages[],
 					struct exception_info info);
 
 struct anonymous_pager
 {
   struct pager pager;
 
-  /* Activity against which storage should be allocated.  */
-  addr_t activity;
-
-  /* The address space that we actually allocated vs the address space
-     covered by the pager.  */
-  struct pager_region alloced_region;
-
-  /* The start of the staging area.  Only valid if
-     ANONYMOUS_THREAD_SAFE is set.  */
+  /* The staging area.  Only valid if ANONYMOUS_STAGING_AREA is
+     set.  */
   void *staging_area;
+
+  /* The implementation does not modify this value and assigns it no
+     specific semantic meaning; the callbacks functions are free to
+     use it as they see fit.  */
+  void *cookie;
+
+  /* The rest of the variables are private to the implementation.  */
+
+
+  /* The user's window onto the pager.  */
+  addr_t map_area;
+  int map_area_count;
+
+  ss_mutex_t lock;
 
   /* The storage used by this pager.  */
   hurd_btree_t storage;
 
   uintptr_t flags;
+
+
+  /* Activity against which storage should be allocated.  */
+  addr_t activity;
+
+  /* The policy to use when allocating memory.  */
+  struct object_policy policy;
+
 
   /* If not NULL, called when a fault is raised due to lack of storage
      or when a page that has been discarded is accessed.  */
@@ -94,21 +123,15 @@ struct anonymous_pager
 
   /* The thread in the fill function.  (If none, NULL.)  */
   l4_thread_id_t fill_thread;
+  /* Used to serialize the fill function.  */
   ss_mutex_t fill_lock;
-
-  struct object_policy policy;
-
-  /* The implementation does not modify this value and assigns it no
-     specific semantic meaning; the callbacks functions are free to
-     use it as they see fit.  */
-  void *cookie;
 };
 
-/* Set up an anonymous pager to cover a region SIZE bytes large.
+/* Set up an anonymous pager to cover a region LENGTH bytes long.
    ADDR_HINT indicates the preferred starting address.  Unless
    ANONYMOUS_FIXED is included in FLAGS, the implementation may choose
    another address.  (The region will be allocated using as_alloc.)
-   Both ADDR and SIZE must be a multiple of the base page size.  If
+   Both ADDR and LENGTH must be a multiple of the base page size.  If
    the specified region overlaps with an existing pager, EEXIST is
    returned.  The chosen start address is returned in *ADDR_OUT.
 
@@ -137,7 +160,8 @@ struct anonymous_pager
    returns.  */
 extern struct anonymous_pager *anonymous_pager_alloc (addr_t activity,
 						      void *addr_hint,
-						      size_t size,
+						      uintptr_t length,
+						      enum map_access access,
 						      struct object_policy p,
 						      uintptr_t flags,
 						      anonymous_pager_fill_t f,

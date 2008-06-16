@@ -1,3 +1,9 @@
+2008-06-16  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Improve mmap test.  Update use of
+	anonymous_pager_alloc to be consistent with new API.  Update fill
+	functions to be consistent with new API.  Remove redundant test.
+
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Replace use of slot_lookup with as_cap_lookup.

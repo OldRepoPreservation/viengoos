@@ -49,9 +49,9 @@ struct storage_desc
 static int
 offset_compare (const uintptr_t *a, const uintptr_t *b)
 {
-  if (a < b)
+  if (*a < *b)
     return -1;
-  return a != b;
+  return *a != *b;
 }
 
 BTREE_CLASS (storage_desc, struct storage_desc,
@@ -60,6 +60,8 @@ BTREE_CLASS (storage_desc, struct storage_desc,
 static error_t
 slab_alloc (void *hook, size_t size, void **ptr)
 {
+  assert (size == PAGESIZE);
+
   struct storage storage = storage_alloc (meta_data_activity, cap_page,
 					  STORAGE_LONG_LIVED,
 					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
@@ -83,8 +85,8 @@ slab_dealloc (void *hook, void *buffer, size_t size)
 
 /* Storage descriptors are alloced from a slab.  */
 static struct hurd_slab_space storage_desc_slab
- = HURD_SLAB_SPACE_INITIALIZER (struct storage_desc,
-				slab_alloc, slab_dealloc, NULL, NULL, NULL);
+  = HURD_SLAB_SPACE_INITIALIZER (struct storage_desc,
+				 slab_alloc, slab_dealloc, NULL, NULL, NULL);
 
 static struct storage_desc *
 storage_desc_alloc (void)
@@ -103,10 +105,10 @@ storage_desc_free (struct storage_desc *storage)
   hurd_slab_dealloc (&storage_desc_slab, storage);
 }
 
-/* Anonymous pagers are allocated from a slab.  */
+/* Storage descriptors are alloced from a slab.  */
 static struct hurd_slab_space anonymous_pager_slab
- = HURD_SLAB_SPACE_INITIALIZER (struct anonymous_pager,
-				slab_alloc, slab_dealloc, NULL, NULL, NULL);
+  = HURD_SLAB_SPACE_INITIALIZER (struct anonymous_pager,
+				 slab_alloc, slab_dealloc, NULL, NULL, NULL);
 
 #if 0
 void
@@ -116,8 +118,8 @@ anonymous_pager_ensure (struct anonymous_pager *anon,
   assert ((addr & (PAGESIZE - 1)) == 0);
   assert ((count & (PAGESIZE - 1)) == 0);
 
-  assert (addr_prefix (anon->pager.region.start) <= addr);
-  // assert (addr + count * PAGESIZE < addr_prefix (anon->pager.region.start) <= addr);
+  assert (addr_prefix (anon->pager->region.start) <= addr);
+  // assert (addr + count * PAGESIZE < addr_prefix (anon->pager->region.start) <= addr);
 
   addr_t page = addr_chop (PTR_TO_ADDR (addr), PAGESIZE_LOG2);
 
@@ -131,14 +133,14 @@ anonymous_pager_ensure (struct anonymous_pager *anon,
 #endif
 
 static bool
-fault (struct pager *pager,
-       addr_t addr, uintptr_t ip, struct exception_info info)
+fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
+       uintptr_t fault_addr, uintptr_t ip, struct exception_info info)
 {
-  assert (! ss_mutex_trylock (&pager->lock));
-
-  debug (5, "Fault at " ADDR_FMT, ADDR_PRINTF (addr));
+  debug (5, "Fault at %x", fault_addr);
 
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+
+  ss_mutex_lock (&anon->lock);
 
   bool recursive = false;
   if (anon->fill)
@@ -148,14 +150,10 @@ fault (struct pager *pager,
 	  if (anon->fill_thread == l4_myself ())
 	    recursive = true;
 
-	  ss_mutex_unlock (&anon->pager.lock);
-
 	  if (! recursive)
 	    /* Wait for the fill lock.  */
 	    ss_mutex_lock (&anon->fill_lock);
 	}
-      else
-	ss_mutex_unlock (&anon->pager.lock);
 
       if (! recursive)
 	assert (anon->fill_thread == l4_nilthread);
@@ -164,65 +162,85 @@ fault (struct pager *pager,
       if (! recursive && (anon->flags & ANONYMOUS_THREAD_SAFE))
 	/* Revoke access to the visible region.  */
 	{
-	  /* XXX: Do it.  */
+	  assert (anon->map_area_count == 1);
+	  as_ensure_use
+	    (anon->map_area,
+	     ({
+	       /* XXX: Do it.  Where to get a void capability?  */
+	     }));
 	}
     }
 
-  uintptr_t page;
-  if (addr_depth (addr) == ADDR_BITS)
-    page = (uintptr_t) ADDR_TO_PTR (addr) & ~(PAGESIZE - 1);
-  else
-    {
-      assert (addr_depth (addr) == ADDR_BITS - PAGESIZE_LOG2);
-      page = (uintptr_t) addr_prefix (addr);
-    }
+  assert (offset < pager->length);
 
-  assert (page >= addr_prefix (pager->region.start));
-  uintptr_t offset = page - addr_prefix (pager->region.start);
-  assert (offset < PAGER_REGION_LENGTH (pager->region));
+  offset &= ~(PAGESIZE - 1);
+  fault_addr &= ~(PAGESIZE - 1);
 
+  struct storage_desc *storage_desc = NULL;
   if (! (anon->flags & ANONYMOUS_NO_ALLOC))
     {
       hurd_btree_storage_desc_t *storage_descs;
       storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
 
-      struct storage_desc *storage_desc = NULL;
+      storage_desc = hurd_btree_storage_desc_find (storage_descs, &offset);
+
       if (info.discarded)
 	{
 	  /* We can only fault on a page that we already have a descriptor
 	     for if the page was discardable.  Thus, if the pager is not
 	     an anonymous pager, we know that there is no descriptor for
 	     the page.  */
+	  assert (storage_desc);
 	  assert (anon->policy.discardable);
 	  assert (anon->fill);
 
-	  storage_desc = hurd_btree_storage_desc_find (storage_descs, &page);
+	  rm_object_discarded_clear (ADDR_VOID, storage_desc->storage);
 	}
-
-      if (! storage_desc)
-	{
-	  storage_desc = storage_desc_alloc ();
-	  storage_desc->offset = offset;
-
-	  addr_t addr = addr_chop (PTR_TO_ADDR (page), PAGESIZE_LOG2);
-	  as_ensure (addr);
-
-	  struct storage storage
-	    = storage_alloc (anon->activity,
-			     cap_page, STORAGE_UNKNOWN, anon->policy, addr);
-	  if (ADDR_IS_VOID (storage.addr))
-	    panic ("Out of memory.");
-	  storage_desc->storage = storage.addr;
-
-	  struct storage_desc *conflict;
-	  conflict = hurd_btree_storage_desc_insert (storage_descs,
-						     storage_desc);
-	  assert (! conflict);
-	}
-      else if (info.discarded)
-	rm_object_discarded_clear (ADDR_VOID, storage_desc->storage);
       else
-	panic ("Fault invoked for no reason?!");
+	{
+	  if (! storage_desc)
+	    /* Seems we have not yet allocated a page.  */
+	    {
+	      storage_desc = storage_desc_alloc ();
+	      storage_desc->offset = offset;
+
+	      struct storage storage
+		= storage_alloc (anon->activity,
+				 cap_page, STORAGE_UNKNOWN, anon->policy,
+				 ADDR_VOID);
+	      if (ADDR_IS_VOID (storage.addr))
+		panic ("Out of memory.");
+	      storage_desc->storage = storage.addr;
+
+	      struct storage_desc *conflict;
+	      conflict = hurd_btree_storage_desc_insert (storage_descs,
+							 storage_desc);
+	      assertx (! conflict,
+		       "Fault address: %x, offset: %x",
+		       fault_addr, offset);
+	    }
+
+	  /* We generate a fake shadow cap for the storage as we know
+	     its contents (It is a page that is in a folio with the
+	     policy ANON->POLICY.)  */
+	  struct cap page;
+	  memset (&page, 0, sizeof (page));
+	  page.type = cap_page;
+	  CAP_POLICY_SET (&page, anon->policy);
+
+	  addr_t addr = addr_chop (PTR_TO_ADDR (fault_addr), PAGESIZE_LOG2);
+	  as_ensure_use
+	    (addr,
+	     ({
+	       bool ret;
+	       ret = cap_copy_x (meta_data_activity,
+				 ADDR_VOID, slot, addr,
+				 ADDR_VOID, page, storage_desc->storage,
+				 read_only ? CAP_COPY_WEAKEN : 0,
+				 CAP_PROPERTIES_VOID);
+	       assert (ret);
+	     }));
+	}
     }
 
   bool r = true;
@@ -231,10 +249,16 @@ fault (struct pager *pager,
     {
       if (! recursive || ! (anon->flags & ANONYMOUS_NO_RECURSIVE))
 	{
-	  void *base = anon->staging_area
-	    ?: (void *) (uintptr_t) addr_prefix (pager->region.start);
-
-	  r = anon->fill (anon, base, offset, 1, info);
+	  debug (5, "Fault at %x, storage: " ADDR_FMT,
+		 fault_addr,
+		 ADDR_PRINTF (storage_desc
+			      ? storage_desc->storage : ADDR_VOID));
+	  void *pages[1]
+	    = { storage_desc
+		? ADDR_TO_PTR (addr_extend (storage_desc->storage,
+					    0, PAGESIZE_LOG2))
+		: (void *) fault_addr };
+	  r = anon->fill (anon, offset, 1, pages, info);
 	}
 
       if (! recursive)
@@ -242,15 +266,19 @@ fault (struct pager *pager,
 	  if ((anon->flags & ANONYMOUS_THREAD_SAFE))
 	    /* Restore access to the visible region.  */
 	    {
-	      /* XXX: Do it.  */
+	      as_ensure_use
+		(anon->map_area,
+		 ({
+		   /* XXX: Do it.  */
+		 }));
 	    }
 
 	  anon->fill_thread = l4_nilthread;
 	  ss_mutex_unlock (&anon->fill_lock);
 	}
     }
-  else
-    ss_mutex_unlock (&anon->pager.lock);
+
+  ss_mutex_unlock (&anon->lock);
 
   return r;
 }
@@ -258,13 +286,23 @@ fault (struct pager *pager,
 static void
 destroy (struct pager *pager)
 {
+  assert (! ss_mutex_trylock (&pager->lock));
+  assert (! pager->maps);
+
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
 
-  as_free (anon->alloced_region.start, anon->alloced_region.count);
+  /* Free the map area.  */
+  as_free (anon->map_area, anon->map_area_count);
 
-  if ((anon->flags & ANONYMOUS_THREAD_SAFE))
-    as_free (PTR_TO_ADDR (anon->staging_area),
-	     PAGER_REGION_LENGTH (anon->pager.region));
+  if (anon->staging_area)
+    /* Free the staging area.  */
+    {
+      assert ((anon->flags & ANONYMOUS_STAGING_AREA));
+      as_free (addr_chop (PTR_TO_ADDR (anon->staging_area), PAGESIZE_LOG2),
+	       anon->pager.length / PAGESIZE);
+    }
+  else
+    assert (! (anon->flags & ANONYMOUS_STAGING_AREA));
 
   /* Free the allocated storage.  */
   hurd_btree_storage_desc_t *storage_descs;
@@ -285,6 +323,7 @@ destroy (struct pager *pager)
       storage_desc_free (node);
     }
 
+
   /* There is no need to unlock &anon->pager.lock: we free it.  */
 
   /* And free its storage.  */
@@ -293,16 +332,16 @@ destroy (struct pager *pager)
 
 struct anonymous_pager *
 anonymous_pager_alloc (addr_t activity,
-		       void *hint, size_t size,
+		       void *hint, uintptr_t length, enum map_access access,
 		       struct object_policy policy,
 		       uintptr_t flags, anonymous_pager_fill_t fill,
 		       void **addr_out)
 {
   assert (addr_out);
-  debug (5, "(%p, %d pages, %x)", hint, size / PAGESIZE, flags);
+  debug (5, "(%p, %d pages, %x)", hint, length / PAGESIZE, flags);
   assert (((uintptr_t) hint & (PAGESIZE - 1)) == 0);
-  assert ((size & (PAGESIZE - 1)) == 0);
-  assert (size > 0);
+  assert ((length & (PAGESIZE - 1)) == 0);
+  assert (length > 0);
 
   if ((flags & ANONYMOUS_NO_ALLOC))
     assert (fill);
@@ -315,55 +354,65 @@ anonymous_pager_alloc (addr_t activity,
   struct anonymous_pager *anon = buffer;
   memset (anon, 0, sizeof (*anon));
 
+  anon->pager.length = length;
+  anon->pager.fault = fault;
+  anon->pager.no_refs = destroy;
 
-  addr_t addr;
+  anon->activity = activity;
+  anon->flags = flags;
+
+  anon->fill = fill;
+  anon->policy = policy;
+
+  if (! pager_init (&anon->pager))
+    goto error_with_buffer;
+
   int width = PAGESIZE_LOG2;
-  int count = size >> width;
-
-  if (hint)
-    addr = addr_chop (PTR_TO_ADDR (hint), width);
-  else
-    addr = ADDR_VOID;
+  int count = length >> width;
 
   if ((flags & ANONYMOUS_THREAD_SAFE))
-    /* Round size up to the smallest power of two greater than or
-       equal to SIZE.  In this way, when a fault comes in, protecting
-       the visible region is relatively easy: we replace the single
-       capability that dominates the visible region with a void
-       capability and restore it on the way out.  */
+    /* We want to be able to disable access to the data via the mapped
+       window.  We round size up to the smallest power of two greater
+       than or equal to LENGTH.  In this way, when a fault comes in,
+       disabling access is relatively easy: we just replace the single
+       capability that dominates the mapped with a void capability and
+       restore it on the way out.  */
     {
       /* This flag makes no sense if a fill function is not also
 	 specified.  */
       assert (fill);
 
       count = 1;
-      /* l4_msb (4k * 2 - 1) - 1 = 12.  */
-      width = l4_msb (size * 2 - 1) - 1;
+      /* e.g., l4_msb (4k * 2 - 1) - 1 = 12.  */
+      width = l4_msb (length * 2 - 1) - 1;
 
       if (hint)
-	/* We will allocate a region whose size 1 << WIDTH.  This may
-	   not cover all of the requested region if the starting
+	/* We will allocate a region whose size is 1 << WIDTH.  This
+	   may not cover all of the requested region if the starting
 	   address is not aligned on a 1 << WIDTH boundary.  Consider
 	   a requested address of 12k and a size of 8k.  In this case,
-	   WIDTH is 13 and addr_chop (hint, WIDTH) => 8k thus
-	   yielding the region 8-16k, yet, the requested region is
-	   12k-20k!  In such cases, we just need to double the width
-	   to cover the whole region.  */
+	   WIDTH is 13 and addr_chop (hint, WIDTH) => 8k thus yielding
+	   the region 8-16k, yet, the requested region is 12k-20k!  In
+	   such cases, we just need to double the width to cover the
+	   whole region.  */
 	{
-	  int extra = 0;
 	  if (((uintptr_t) hint & ((1 << width) - 1)) + (1 << width)
-	      < (uintptr_t) hint + size)
-	    extra = 1;
-
-	  addr = addr_chop (PTR_TO_ADDR (hint), width + extra);
+	      < (uintptr_t) hint + length)
+	    width ++;
 	}
     }
 
+  /* Allocate the map area.  */
+
   bool alloced = false;
-  if (! ADDR_IS_VOID (addr))
+  if (hint)
     /* Caller wants a specific address range.  */
     {
-      bool r = as_alloc_at (addr, count);
+      /* NB: this may round HINT down if we need a power-of-2 staging
+	 area!  */
+      anon->map_area = addr_chop (PTR_TO_ADDR (hint), width);
+
+      bool r = as_alloc_at (anon->map_area, count);
       if (! r)
 	/* No room for this region.  */
 	{
@@ -373,79 +422,48 @@ anonymous_pager_alloc (addr_t activity,
       else
 	{
 	  alloced = true;
-
-	  /* The region that we are actually paging.  */
-	  anon->pager.region.start = PTR_TO_ADDR (hint);
-	  anon->pager.region.count = size;
-
-	  /* The region that we allocated.  */
-	  anon->alloced_region.start = addr;
-	  anon->alloced_region.count = count;
-
 	  *addr_out = hint;
 	}
     }
-
   if (! alloced)
     {
-      addr_t region = as_alloc (width, count, true);
-      if (ADDR_IS_VOID (region))
+      anon->map_area = as_alloc (width, count, true);
+      if (ADDR_IS_VOID (anon->map_area))
 	goto error_with_buffer;
 
-      anon->pager.region.start = anon->alloced_region.start = region;
-      anon->pager.region.count = anon->alloced_region.count = count;
-
-      *addr_out = ADDR_TO_PTR (addr_extend (region, 0, width));
+      *addr_out = ADDR_TO_PTR (addr_extend (anon->map_area, 0, width));
     }
 
-  assertx (PAGER_REGION_LENGTH (anon->pager.region) == size,
-	   "%llx != %x",
-	   PAGER_REGION_LENGTH (anon->pager.region), size);
+  anon->map_area_count = count;
 
-  if ((flags & ANONYMOUS_THREAD_SAFE))
+
+  if ((flags & ANONYMOUS_STAGING_AREA))
     /* We need a staging area.  */
     {
-      addr_t staging = as_alloc (width, count, true);
-      if (ADDR_IS_VOID (staging))
-	goto error_with_area;
+      addr_t staging_area = as_alloc (PAGESIZE_LOG2, length / PAGESIZE, true);
+      if (ADDR_IS_VOID (staging_area))
+	goto error_with_map_area;
 
-      anon->staging_area = ADDR_TO_PTR (addr_extend (staging, 0, width));
+      anon->staging_area = ADDR_TO_PTR (addr_extend (staging_area,
+						     0, PAGESIZE_LOG2));
     }
-  else
-    anon->staging_area
-      = ADDR_TO_PTR (addr_extend (anon->pager.region.start, 0,
-				  ADDR_BITS
-				  - addr_depth (anon->pager.region.start)));
 
-  anon->pager.fault = fault;
-  anon->pager.destroy = destroy;
 
-  anon->activity = activity;
-  anon->flags = flags;
+  /* Install the map.  */
+  struct region region = { (uintptr_t) *addr_out, length };
+  struct map *map = map_create (region, access, &anon->pager, 0);
+  /* There is no way that we get a region conflict.  */
+  if (! map)
+    panic ("Memory exhausted.");
 
-  anon->fill = fill;
-  anon->policy = policy;
 
-  /* Install the pager.  */
-  ss_mutex_lock (&pagers_lock);
-  bool r = pager_install (&anon->pager);
-  ss_mutex_unlock (&pagers_lock);
-  if (! r)
-    /* Ooops!  There is a region conflict.  */
-    goto error_with_staging;
-
-  debug (5, "Installed pager at " ADDR_FMT " spanning %d pages",
-	 ADDR_PRINTF (anon->pager.region.start),
-	 (int) PAGER_REGION_LENGTH (anon->pager.region) / PAGESIZE);
+  debug (5, "Installed pager at %x spanning %d pages",
+	 *addr_out, length / PAGESIZE);
 
   return anon;
 
- error_with_staging:
-  if ((flags & ANONYMOUS_THREAD_SAFE))
-    as_free (PTR_TO_ADDR (anon->staging_area),
-	     PAGER_REGION_LENGTH (anon->pager.region));
- error_with_area:
-  as_free (anon->alloced_region.start, anon->alloced_region.count);
+ error_with_map_area:
+  as_free (anon->map_area, anon->map_area_count);
  error_with_buffer:
   hurd_slab_dealloc (&anonymous_pager_slab, anon);
 
@@ -455,10 +473,7 @@ anonymous_pager_alloc (addr_t activity,
 void
 anonymous_pager_destroy (struct anonymous_pager *anon)
 {
-  ss_mutex_lock (&pagers_lock);
-  pager_deinstall (&anon->pager);
-  ss_mutex_unlock (&pagers_lock);
+  ss_mutex_lock (&anon->lock);
 
-  ss_mutex_lock (&anon->pager.lock);
-  destroy (&anon->pager);
+  pager_deinit (&anon->pager);
 }
