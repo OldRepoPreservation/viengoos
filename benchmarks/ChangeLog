@@ -1,3 +1,8 @@
+2008-06-16  Neal H. Walfield  <neal@gnu.org>
+
+	* shared-memory-distribution.c (main): Set NEXT_PERIOD based on
+	the first stat buffer, not the last one.
+
 2008-05-30  Neal H. Walfield  <neal@gnu.org>
 
 	* activity-distribution.c: Don't include <hurd/trace.h>.

@@ -104,7 +104,9 @@ main (int argc, char *argv[])
       rm_activity_stats (activity, next_period, &buffer, &count);
       assert (count > 0);
       if (i != 0)
-	assert (buffer.stats[0].period != stats[i - 1][0].period);
+	assertx (buffer.stats[0].period != stats[i - 1][0].period,
+		 "%x != %x",
+		 buffer.stats[0].period, stats[i - 1][0].period);
 
       stats[i][0] = buffer.stats[0];
 
@@ -116,7 +118,7 @@ main (int argc, char *argv[])
 	  stats[i][1 + j] = buffer.stats[0];
 	}
 
-      next_period = buffer.stats[0].period + 1;
+      next_period = stats[i][0].period + 1;
     }
 
   terminate = true;
