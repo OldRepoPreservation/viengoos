@@ -1,3 +1,7 @@
+2008-06-16  Neal H. Walfield  <neal@gnu.org>
+
+	* patches/01-gc-include-private-gcconfig-h.patch: Define USE_MMAP.
+
 2008-05-31  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am (libgc.a): Link to the `gc-install/lib/libgc.a' one.

@@ -6,6 +6,14 @@ Tweak the configuration.
 
 --- gc/include/private/gcconfig.h~	2007-06-29 02:00:09.000000000 +0200
 +++ gc/include/private/gcconfig.h	2008-02-21 17:08:20.000000000 +0100
+@@ -1267,6 +1267,7 @@
+ #   endif
+ #   ifdef HURD
+ #     define OS_TYPE "HURD"
++#     define USE_MMAP
+ #     define STACK_GROWS_DOWN
+ #     define HEURISTIC2
+ #     define SIG_SUSPEND SIGUSR1
 @@ -1275,7 +1275,7 @@
        extern int _end[];
  #     define DATAEND ((ptr_t) (_end))
