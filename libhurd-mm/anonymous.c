@@ -194,7 +194,12 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	  assert (anon->policy.discardable);
 	  assert (anon->fill);
 
-	  rm_object_discarded_clear (ADDR_VOID, storage_desc->storage);
+	  error_t err;
+	  err = rm_object_discarded_clear (ADDR_VOID, storage_desc->storage);
+	  assertx (err == 0, "%d", err);
+
+	  debug (5, "Clearing discarded bit for %p / " ADDR_FMT,
+		 fault_addr, ADDR_PRINTF (storage_desc->storage));
 	}
       else
 	{
@@ -218,7 +223,13 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	      assertx (! conflict,
 		       "Fault address: %x, offset: %x",
 		       fault_addr, offset);
+
+	      debug (5, "Allocating storage for %p at " ADDR_FMT,
+		     fault_addr, ADDR_PRINTF (storage_desc->storage));
 	    }
+	  else
+	    debug (5, "Copying storage " ADDR_FMT " to %p",
+		   ADDR_PRINTF (storage_desc->storage), fault_addr);
 
 	  /* We generate a fake shadow cap for the storage as we know
 	     its contents (It is a page that is in a folio with the

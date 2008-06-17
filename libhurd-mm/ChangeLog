@@ -1,5 +1,10 @@
 2008-06-17  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.c (fault): Assert that calling
+	rm_object_discarded_clear does not fail.
+
+2008-06-17  Neal H. Walfield  <neal@gnu.org>
+
 	* core.c: Remove dead file.
 	* memory.c: Likewise.
 	* priv.h: Likewise.
