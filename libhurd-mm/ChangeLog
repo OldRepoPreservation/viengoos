@@ -1,3 +1,12 @@
+2008-06-17  Neal H. Walfield  <neal@gnu.org>
+
+	* core.c: Remove dead file.
+	* memory.c: Likewise.
+	* priv.h: Likewise.
+	* store.c: Likewise.
+	* vm.h: Likewise.
+	* vm.c: Likewise.
+
 2008-06-16  Neal H. Walfield  <neal@gnu.org>
 
 	* map.h: New file.
