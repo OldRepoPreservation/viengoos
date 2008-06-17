@@ -1,3 +1,8 @@
+2008-06-17  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.h (EXCEPTION_INFO_FMT): New define.
+	(EXCEPTION_INFO_PRINTF): Likewise.
+
 2008-06-16  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (as_dump_from): Remove declaration.
