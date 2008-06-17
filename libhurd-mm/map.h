@@ -48,16 +48,17 @@ struct region
   uintptr_t length;
 };
 
-#define REGION_FMT "%x+%d"
-#define REGION_PRINTF(region) (region).start, (region).length
+#define REGION_FMT "%x-%x(%x)"
+#define REGION_PRINTF(region) \
+  (region).start, ((region).start + (region).length - 1), (region).length
 
 /* Compare two regions.  Two regions are considered equal if there is
    any overlap at all.  */
 static int
 region_compare (const struct region *a, const struct region *b)
 {
-  l4_uint64_t a_end = a->start + a->length - 1;
-  l4_uint64_t b_end = b->start + b->length - 1;
+  uintptr_t a_end = a->start + (a->length - 1);
+  uintptr_t b_end = b->start + (b->length - 1);
 
   if (a_end < b->start)
     return -1;
@@ -110,7 +111,7 @@ struct map
   struct map **map_list_prevp;
 };
 
-#define MAP_FMT REGION_FMT "@%p+%x(%s%s)"
+#define MAP_FMT REGION_FMT " @ %p+%x (%s%s)"
 #define MAP_PRINTF(map)						\
   REGION_PRINTF ((map)->region),				\
     (map)->pager, (map)->offset,				\

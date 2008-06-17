@@ -126,17 +126,19 @@ map_install (struct map *map)
   assert ((map->access & ~MAP_ACCESS_ALL) == 0);
 
 
-  debug (5, "Installing %c%c map at %x+%x referencing %x starting at %x",
+  debug (5, "Installing %c%c map at %x+%x(%x) referencing %x starting at %x",
 	 map->access & MAP_ACCESS_READ ? 'r' : '~',
 	 map->access & MAP_ACCESS_WRITE ? 'w' : '~',
-	 map->region.start, map->region.length, map->pager, map->offset);
+	 map->region.start, map->region.start + map->region.length,
+	 map->region.length,
+	 map->pager, map->offset);
 
 
   /* Insert into the mapping database.  */
   struct map *conflict = hurd_btree_map_insert (&maps, map);
   if (conflict)
     {
-      debug (1, "Can't install map at %x+%d; conflicts "
+      debug (0, "Can't install map at %x+%d; conflicts "
 	     "with map at %x+%d",
 	     map->region.start, map->region.length,
 	     conflict->region.start, conflict->region.length);
@@ -244,7 +246,7 @@ map_split (struct map *map, uintptr_t offset)
      the tree.  */
   map->region.length = offset;
 
-  debug (5, "%x+%x, %x+%x",
+  debug (0, "%x+%x, %x+%x",
 	 map->region.start, map->region.length,
 	 second->region.start, second->region.length);
 
@@ -309,8 +311,8 @@ map_fault (addr_t fault_addr, uintptr_t ip, struct exception_info info)
 
   if (addr_depth (fault_addr) == ADDR_BITS - PAGESIZE_LOG2)
     fault_addr = addr_extend (fault_addr, 0, PAGESIZE_LOG2);
-  region.start = (uintptr_t) ADDR_TO_PTR (fault_addr);
 
+  region.start = (uintptr_t) ADDR_TO_PTR (fault_addr);
   region.length = 1;
 
   maps_lock_lock ();
@@ -318,7 +320,15 @@ map_fault (addr_t fault_addr, uintptr_t ip, struct exception_info info)
   struct map *map = map_find (region);
   if (! map)
     {
-      debug (0, "No map covers " ADDR_FMT, ADDR_PRINTF (fault_addr));
+      debug (0, "No map covers " ADDR_FMT "(" EXCEPTION_INFO_FMT ")",
+	     ADDR_PRINTF (fault_addr),
+	     EXCEPTION_INFO_PRINTF (info));
+
+      for (map = hurd_btree_map_first (&maps);
+	   map;
+	   map = hurd_btree_map_next (map))
+	debug (0, MAP_FMT, MAP_PRINTF (map));
+      
       maps_lock_unlock ();
       return false;
     }

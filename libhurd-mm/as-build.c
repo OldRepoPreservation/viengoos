@@ -475,7 +475,7 @@ ID (as_build) (activity_t activity,
 		     addr_extend (pivot_addr, pivot_guard, pivot_gbits));
 	    }
 
-	  DEBUG (0, ADDR_FMT ": indirecting pte at " ADDR_FMT
+	  DEBUG (5, ADDR_FMT ": indirecting pte at " ADDR_FMT
 		 " -> " ADDR_FMT " " CAP_FMT " with page table/%d at "
 		 ADDR_FMT "(%x) " "common guard: %d, remaining: %d;  "
 		 "old target (need pivot: %d) now via pt[%d] "

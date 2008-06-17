@@ -1,5 +1,18 @@
 2008-06-17  Neal H. Walfield  <neal@gnu.org>
 
+	* as-build.c (as_build): Improve debugging output.
+	* map.c (map_install): Improve debugging output.
+	(map_split): Likewise.
+	(map_fault): Likewise.
+	* map.h (REGION_FMT): Also print the end address.
+	(REGION_PRINTF): Update accordingly.
+	(MAP_FMT): Make output cleaner.
+
+	(region_compare): Use a unintptr_t for the end, not an
+	l4_uint64_t.
+
+2008-06-17  Neal H. Walfield  <neal@gnu.org>
+
 	* as-lookup.c (as_lookup_rel_internal): New function.
 	(as_lookup_rel): Implement this in terms of it.
 	(as_dump_path_rel): New function.
