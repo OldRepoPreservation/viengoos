@@ -39,6 +39,7 @@ pager_init (struct pager *pager)
 	 pager->length, pager->length / PAGESIZE);
 
   pager->maps = 0;
+  pager->lock = 0;
 
   return true;
 }
@@ -48,14 +49,19 @@ pager_deinit (struct pager *pager)
 {
   maps_lock_lock ();
 
-  /* Destroy all but one references with MAPS_LOCK held.  */
+  /* Destroy all but one references with MAPS_LOCK held.  When we
+     destroy the last reference, map_destroy will call the pager's no
+     ref call back, which may destroy PAGER.  */
+
   ss_mutex_lock (&pager->lock);
-  while (pager->maps)
+  assert (pager->maps);
+  for (;;)
     {
       struct map *map = pager->maps;
       map_disconnect (map);
 
       if (! map->map_list_next)
+	/* The last reference.  */
 	{
 	  maps_lock_unlock ();
 
@@ -68,11 +74,4 @@ pager_deinit (struct pager *pager)
       map_destroy (map);
       ss_mutex_lock (&pager->lock);
     }
-
-  ss_mutex_unlock (&pager->lock);
-  maps_lock_unlock ();
-
-  /* PAGER may no longer be valid: destroying the last mapping will
-     have called pager's no refs callback, which may have destroyed
-     PAGER.  */
 }

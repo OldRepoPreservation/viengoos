@@ -1,5 +1,11 @@
 2008-06-17  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.c (pager_init): Clear PAGER->LOCK.
+
+	(pager_deinit): Don't use a while loop but an infinite loop.
+
+2008-06-17  Neal H. Walfield  <neal@gnu.org>
+
 	* as-build.c (as_build): Improve debugging output.
 	* map.c (map_install): Improve debugging output.
 	(map_split): Likewise.
