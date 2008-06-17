@@ -17,24 +17,29 @@
 
 # The GCC version that we use.
 gcc_version = 4.2.2
-gcc_tarball = gcc-core-$(gcc_version).tar.bz2
-gcc_snapshot = ftp://ftp.gnu.org/gnu/gcc/gcc-$(gcc_version)/$(gcc_tarball)
+gcc_tarballs = gcc-core-$(gcc_version).tar.bz2 gcc-g++-$(gcc_version).tar.bz2
+gcc_snapshot = $(addprefix ftp://ftp.gnu.org/gnu/gcc/gcc-$(gcc_version)/,$(1))
 
-# Patches to apply to newlib's source tree.
+# Patches to apply to GCC's source tree.
 gcc_patch_files = \
 	configury.patch
 
-$(srcdir)/gcc/$(gcc_tarball):
-	wget $(gcc_snapshot) -O $(srcdir)/gcc/$(gcc_tarball)
+$(addprefix $(srcdir)/gcc/,$(gcc_tarballs)): $(srcdir)/gcc/%:
+	cd $(srcdir)/gcc/ && \
+	wget $(call gcc_snapshot, $*)
 
-$(srcdir)/gcc/gcc/unpack.stamp: $(srcdir)/gcc/$(gcc_tarball)
+$(srcdir)/gcc/gcc/unpack.stamp: $(addprefix $(srcdir)/gcc/,$(gcc_tarballs))
 	if test -d $(srcdir)/gcc/gcc/.; then \
 		echo "Refusing to extract over $(srcdir)/gcc/gcc"; \
 		exit 1; \
 	fi
-	( cd $(srcdir)/gcc/ \
-		&& tar xfvj $(gcc_tarball) \
-		&& mv gcc-$(gcc_version) gcc )
+	for f in $^; do \
+	  ( cd $(srcdir)/gcc/ && \
+	    tar xvj ) \
+	      < "$$f" \
+	      || exit "$$?"; \
+	done
+	mv $(srcdir)/gcc/gcc-$(gcc_version) $(srcdir)/gcc/gcc
 	touch $@
 
 # Apply any local patches.  (Revert any applied older version.)
@@ -65,7 +70,7 @@ gcc/gcc.build/configure.stamp: $(srcdir)/gcc/gcc/patch.stamp binutils/binutils.b
 	    --disable-threads \
 	    --without-headers \
 	    --with-newlib \
-	    --enable-languages=c \
+	    --enable-languages=c,c++ \
 	    --with-arch=$(word 1,$(subst -, ,$(host_alias))) \
 	)
 	touch $@
