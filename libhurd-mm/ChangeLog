@@ -1,5 +1,11 @@
 2008-06-17  Neal H. Walfield  <neal@gnu.org>
 
+	* as-lookup.c (as_lookup_rel_internal): New function.
+	(as_lookup_rel): Implement this in terms of it.
+	(as_dump_path_rel): New function.
+
+2008-06-17  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.c (fault): Assert that calling
 	rm_object_discarded_clear does not fail.
 

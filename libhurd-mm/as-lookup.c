@@ -55,13 +55,14 @@ pthread_rwlock_t as_rwlock;
     return ret;
 #endif
 
-bool
-as_lookup_rel (activity_t activity,
-	       struct cap *root, addr_t address,
-	       enum cap_type type, bool *writable,
-	       enum as_lookup_mode mode, union as_lookup_ret *rt)
+static bool
+as_lookup_rel_internal (activity_t activity,
+			struct cap *root, addr_t address,
+			enum cap_type type, bool *writable,
+			enum as_lookup_mode mode, union as_lookup_ret *rt,
+			bool dump)
 {
-  bool dump_path = false;
+  bool dump_path = dump;
 
   struct cap *start = root;
  dump_path:;
@@ -323,4 +324,26 @@ as_lookup_rel (activity_t activity,
       rt->cap = *root;
       return true;
     }
+}
+
+bool
+as_lookup_rel (activity_t activity,
+	       struct cap *root, addr_t address,
+	       enum cap_type type, bool *writable,
+	       enum as_lookup_mode mode, union as_lookup_ret *rt)
+{
+  return as_lookup_rel_internal (activity,
+				 root, address, type, writable, mode, rt,
+				 false);
+}
+
+bool
+as_dump_path_rel (activity_t activity,
+		  struct cap *root, addr_t address,
+		  enum cap_type type, bool *writable,
+		  enum as_lookup_mode mode, union as_lookup_ret *rt)
+{
+  return as_lookup_rel_internal (activity,
+				 root, address, type, writable, mode, rt,
+				 true);
 }
