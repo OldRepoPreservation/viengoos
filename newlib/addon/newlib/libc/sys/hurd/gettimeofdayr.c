@@ -4,11 +4,18 @@
 #include <sys/times.h>
 #include <errno.h>
 
+#include <l4/schedule.h>
+
 int
 gettimeofday (struct timeval *ptimeval, void *ptimezone)
 {
-  errno = EOPNOTSUPP;
-  return -1;
+  /* This implementation is useful for measurements.  */
+  l4_clock_t t = l4_system_clock ();
+
+  ptimeval->tv_sec = t / 1000000;
+  ptimeval->tv_usec = t % 1000000;
+
+  return 0;
 }
 
 int
