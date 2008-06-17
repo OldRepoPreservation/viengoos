@@ -157,13 +157,13 @@ static inline enum cap_type
 folio_object_type (struct folio *folio, int object)
 {
 #ifdef RM_INTERN
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   if (object == -1)
     return cap_folio;
   return folio->types[object];
 #else
-  assert (object >= 0 && object <= FOLIO_OBJECTS);
+  assert (object >= 0 && object < FOLIO_OBJECTS);
   return folio->objects[object].type;
 #endif
 }
@@ -171,7 +171,7 @@ folio_object_type (struct folio *folio, int object)
 static inline void
 folio_object_type_set (struct folio *folio, int object, enum cap_type type)
 {
-  assert (object >= 0 && object <= FOLIO_OBJECTS);
+  assert (object >= 0 && object < FOLIO_OBJECTS);
 
 #ifdef RM_INTERN
   folio->types[object] = type;
@@ -186,12 +186,12 @@ folio_object_policy (struct folio *folio, int object)
   struct object_policy policy;
 
 #ifdef RM_INTERN
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   policy.discardable = folio->misc[object + 1].discardable;
   policy.priority = folio->misc[object + 1].priority;
 #else
-  assert (object >= 0 && object <= FOLIO_OBJECTS);
+  assert (object >= 0 && object < FOLIO_OBJECTS);
 
   policy.discardable = folio->objects[object].discardable;
   policy.priority = folio->objects[object].priority;
@@ -205,12 +205,12 @@ folio_object_policy_set (struct folio *folio, int object,
 			 struct object_policy policy)
 {
 #ifdef RM_INTERN
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   folio->misc[object + 1].discardable = policy.discardable;
   folio->misc[object + 1].priority = policy.priority;
 #else
-  assert (object >= 0 && object <= FOLIO_OBJECTS);
+  assert (object >= 0 && object < FOLIO_OBJECTS);
 
   folio->objects[object].discardable = policy.discardable;
   folio->objects[object].priority = policy.priority;
@@ -223,7 +223,7 @@ folio_object_policy_set (struct folio *folio, int object,
 static inline bool
 folio_object_wait_queue_p (struct folio *folio, int object)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   return bit_test (folio->wait_queues_p, object + 1);
 }
@@ -232,7 +232,7 @@ static inline void
 folio_object_wait_queue_p_set (struct folio *folio, int object,
 			       bool valid)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   bit_set_to (folio->wait_queues_p, sizeof (folio->wait_queues_p),
 	      object + 1, valid);
@@ -241,7 +241,7 @@ folio_object_wait_queue_p_set (struct folio *folio, int object,
 static inline oid_t
 folio_object_wait_queue (struct folio *folio, int object)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   return folio->wait_queues[object + 1];
 }
@@ -250,7 +250,7 @@ static inline void
 folio_object_wait_queue_set (struct folio *folio, int object,
 			     oid_t head)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   folio->wait_queues[object + 1] = head;
 }
@@ -258,7 +258,7 @@ folio_object_wait_queue_set (struct folio *folio, int object,
 static inline uint32_t
 folio_object_version (struct folio *folio, int object)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   return folio->misc[object + 1].version;
 }
@@ -267,7 +267,7 @@ static inline void
 folio_object_version_set (struct folio *folio, int object,
 			  uint32_t version)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   folio->misc[object + 1].version = version;
 }
@@ -275,7 +275,7 @@ folio_object_version_set (struct folio *folio, int object,
 static inline bool
 folio_object_content (struct folio *folio, int object)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   return folio->misc[object + 1].content;
 }
@@ -284,7 +284,7 @@ static inline void
 folio_object_content_set (struct folio *folio, int object,
 			  bool content)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   folio->misc[object + 1].content = content;
 }
@@ -292,7 +292,7 @@ folio_object_content_set (struct folio *folio, int object,
 static inline bool
 folio_object_discarded (struct folio *folio, int object)
 {
-  assert (object >= 0 && object <= FOLIO_OBJECTS);
+  assert (object >= 0 && object < FOLIO_OBJECTS);
 
   return bit_test (folio->discarded, object);
 }
@@ -300,7 +300,7 @@ folio_object_discarded (struct folio *folio, int object)
 static inline void
 folio_object_discarded_set (struct folio *folio, int object, bool valid)
 {
-  assert (object >= 0 && object <= FOLIO_OBJECTS);
+  assert (object >= 0 && object < FOLIO_OBJECTS);
 
   bit_set_to (folio->discarded, sizeof (folio->discarded),
 	      object, valid);
@@ -309,7 +309,7 @@ folio_object_discarded_set (struct folio *folio, int object, bool valid)
 static inline bool
 folio_object_referenced (struct folio *folio, int object)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   return bit_test (folio->referenced, object + 1);
 }
@@ -317,7 +317,7 @@ folio_object_referenced (struct folio *folio, int object)
 static inline void
 folio_object_referenced_set (struct folio *folio, int object, bool p)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   bit_set_to (folio->referenced, sizeof (folio->referenced), object + 1, p);
 }
@@ -325,7 +325,7 @@ folio_object_referenced_set (struct folio *folio, int object, bool p)
 static inline bool
 folio_object_dirty (struct folio *folio, int object)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   return bit_test (folio->dirty, object + 1);
 }
@@ -333,7 +333,7 @@ folio_object_dirty (struct folio *folio, int object)
 static inline void
 folio_object_dirty_set (struct folio *folio, int object, bool p)
 {
-  assert (object >= -1 && object <= FOLIO_OBJECTS);
+  assert (object >= -1 && object < FOLIO_OBJECTS);
 
   bit_set_to (folio->dirty, sizeof (folio->dirty), object + 1, p);
 }
@@ -399,14 +399,18 @@ RPC(folio_alloc, 3, 0, addr_t, principal, addr_t, folio,
 /* Free the folio designated by FOLIO.  PRINCIPAL pays.  */
 RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
 
-/* Allocate INDEXth object in folio FOLIO as an object of type TYPE.
-   (Passing cap_void as the value of type simply destroys any existing
-   object without allocating a new object.)  POLICY specifies the
-   object's policy when accessed via the folio.  If OBJECT_SLOT is not
-   ADDR_VOID, then stores a capability to the allocated object in
-   OBJECT_SLOT.  If OBJECT_WEAK_SLOT is not ADDR_VOID, stores a weaken
-   reference to the created object.  If an object is destroyed and
-   there are waiters, they are passed the return code RETURN_CODE.  */
+/* Destroys the INDEXth object in folio FOLIO and allocate in its
+   place an object of tye TYPE.  If TYPE is CAP_VOID, any existing
+   object is destroyed, however, no object is instantiated in its
+   place.  POLICY specifies the object's policy when accessed via the
+   folio.  If an object is destroyed and there are waiters, they are
+   passed the return code RETURN_CODE.
+
+   If OBJECT_SLOT is not ADDR_VOID, then stores a capability to the
+   allocated object in OBJECT_SLOT.  If OBJECT_WEAK_SLOT is not
+   ADDR_VOID, stores a weaken reference to the created object.  If an
+   object is destroyed and there are waiters, they are passed the
+   return code RETURN_CODE.  */
 RPC(folio_object_alloc, 8, 0, addr_t, principal,
     addr_t, folio, uintptr_t, index, uintptr_t, type,
     struct object_policy, policy, uintptr_t, return_code,

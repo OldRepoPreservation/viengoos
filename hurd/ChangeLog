@@ -1,5 +1,26 @@
 2008-06-17  Neal H. Walfield  <neal@gnu.org>
 
+	* folio.h (folio_object_type): Correctly bound-check OBJECT.
+	(folio_object_type_set): Likewise.
+	(folio_object_policy): Likewise.
+	(folio_object_policy_set): Likewise.
+	(folio_object_wait_queue_p): Likewise.
+	(folio_object_wait_queue_p_set): Likewise.
+	(folio_object_wait_queue): Likewise.
+	(folio_object_wait_queue_set): Likewise.
+	(folio_object_version): Likewise.
+	(folio_object_version_set): Likewise.
+	(folio_object_content): Likewise.
+	(folio_object_content_set): Likewise.
+	(folio_object_discarded): Likewise.
+	(folio_object_discarded_set): Likewise.
+	(folio_object_referenced): Likewise.
+	(folio_object_referenced_set): Likewise.
+	(folio_object_dirty): Likewise.
+	(folio_object_dirty_set): Likewise.
+
+2008-06-17  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.h (EXCEPTION_INFO_FMT): New define.
 	(EXCEPTION_INFO_PRINTF): Likewise.
 
