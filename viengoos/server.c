@@ -433,8 +433,9 @@ server_loop (void)
 	  *objectp = cap_to_object (principal, &cap);
 	  if (! *objectp)
 	    {
-	      DEBUG (4, "Addr 0x%llx/%d, dangling pointer",
-		     addr_prefix (addr), addr_depth (addr));
+	      DEBUG (4, "Addr " ADDR_FMT " contains a dangling pointer: "
+		     CAP_FMT,
+		     ADDR_PRINTF (addr), CAP_PRINTF (&cap));
 	      return ENOENT;
 	    }
 
@@ -968,12 +969,21 @@ server_loop (void)
 
 	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (object_addr));
 
-	    struct object *object = OBJECT (&thread->aspace,
-					    object_addr, -1, true);
+	    /* We can't look up the object here as object_lookup
+	       returns NULL if the object's discardable bit is
+	       set!  Instead, we lookup the capability.  */
+	    struct cap cap = CAP (&thread->aspace, object_addr, -1, true);
 
-	    struct folio *folio = objects_folio (principal, object);
-	    int offset = objects_folio_offset (object);
-	    folio_object_discarded_set (folio, offset, false);
+	    int idx = (cap.oid % (1 + FOLIO_OBJECTS)) - 1;
+	    oid_t foid = cap.oid - idx - 1;
+
+	    struct folio *folio = (struct folio *)
+	      object_find (activity, foid, OBJECT_POLICY_VOID);
+
+	    if (folio_object_version (folio, idx) != cap.version)
+	      REPLY (ENOENT);
+
+	    folio_object_discarded_set (folio, idx, false);
 
 	    rm_object_discarded_clear_reply_marshal (&msg);
 	    break;

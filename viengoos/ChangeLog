@@ -1,3 +1,9 @@
+2008-06-17  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): In the object_discarded_clear
+	implementation, don't use cap_to_object, which ignores discarded
+	object, to find the object but look it up manually.
+
 2008-06-11  Neal H. Walfield  <neal@gnu.org>
 
 	* output.c (puts) [_ENABLE_TESTS]: Don't define.
