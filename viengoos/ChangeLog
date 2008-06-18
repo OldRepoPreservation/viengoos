@@ -1,3 +1,8 @@
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): Implement the cap_rubout method.
+	* rm.h (rm_method_id_string): Handle RM_cap_rubout.
+
 2008-06-17  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): In the object_discarded_clear

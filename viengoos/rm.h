@@ -51,6 +51,8 @@ rm_method_id_string (int id)
       return "folio_object_alloc";
     case RM_cap_copy:
       return "cap_copy";
+    case RM_cap_rubout:
+      return "cap_rubout";
     case RM_cap_read:
       return "cap_read";
     case RM_object_slot_copy_out:

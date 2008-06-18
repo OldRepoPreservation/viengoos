@@ -369,6 +369,7 @@ struct cap
 enum
   {
     RM_cap_copy = 300,
+    RM_cap_rubout,
     RM_cap_read,
 
     RM_object_slot_copy_out = 400,
@@ -431,6 +432,11 @@ RPC(cap_copy, 7, 0, addr_t, principal,
     addr_t, target_address_space, addr_t, target,
     addr_t, source_address_space, addr_t, source,
     l4_word_t, flags, struct cap_properties, properties)
+
+/* Overwrite the capability slot TARGET in address space
+   TARGET_ADDRESS_SPACE with a void capability.  */
+RPC(cap_rubout, 3, 0, addr_t, principal,
+    addr_t, target_address_space, addr_t, target)
 
 /* Returns the public bits of the capability CAP in TYPE and
    CAP_PROPERTIES.  */

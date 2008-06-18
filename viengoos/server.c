@@ -274,7 +274,7 @@ server_loop (void)
 
 	  if (raise_fault)
 	    {
-	      DEBUG (5, "fault (ip: %x; fault: %x.%c%s)!",
+	      DEBUG (4, "fault (ip: %x; fault: %x.%c%s)!",
 		     ip, fault, w ? 'w' : 'r', discarded ? " discarded" : "");
 
 	      l4_word_t c = _L4_XCHG_REGS_DELIVER;
@@ -298,7 +298,7 @@ server_loop (void)
 	      continue;
 	    }
 
-	  DEBUG (5, "%s fault at %x (ip=%x), replying with %p (" OID_FMT ")",
+	  DEBUG (4, "%s fault at %x (ip=%x), replying with %p (" OID_FMT ")",
 		 w ? "Write" : "Read", fault, ip, page, OID_PRINTF (cap.oid));
 	  l4_map_item_t map_item
 	    = l4_map_item (l4_fpage_add_rights (l4_fpage ((uintptr_t) page,
@@ -887,6 +887,34 @@ server_loop (void)
 		rm_cap_copy_reply_marshal (&msg);
 		break;
 	      }
+	    break;
+	  }
+
+	case RM_cap_rubout:
+	  {
+	    addr_t target_as_addr;
+	    addr_t target_addr;
+
+	    err = rm_cap_rubout_send_unmarshal (&msg,
+						&principal_addr,
+						&target_as_addr,
+						&target_addr);
+	    if (err)
+	      REPLY (err);
+
+	    DEBUG (4, ADDR_FMT "@" ADDR_FMT,
+		   ADDR_PRINTF (target_as_addr),
+		   ADDR_PRINTF (target_addr));
+
+	    struct cap *root = ROOT (target_as_addr);
+
+	    /* We don't look up the argument directly as we need to
+	       respect any subpag specification for cappages.  */
+	    struct cap *target = SLOT (root, target_addr);
+
+	    target->type = cap_void;
+
+	    rm_cap_rubout_reply_marshal (&msg);
 	    break;
 	  }
 
