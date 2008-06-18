@@ -42,7 +42,7 @@ _L4_kernel_interface (_L4_api_version_t *api_version,
 			: "=a" (kip), "=c" (*api_version),
 			"=d" (*api_flags), "=S" (*kernel_id));
 
-  return kip;
+  return (_L4_kip_t) kip;
 #else
   _L4_TEST_KERNEL_INTERFACE_IMPL
 #endif	/* _L4_TEST_ENVIRONMENT */

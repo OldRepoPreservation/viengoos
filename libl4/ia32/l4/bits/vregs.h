@@ -32,7 +32,7 @@ _L4_utcb (void)
 #ifndef _L4_TEST_ENVIRONMENT
   _L4_word_t *utcb;
 
-  __asm__ __volatile__ ("movl %%gs:4, %[utcb]"
+  __asm__ __volatile__ ("movl %%gs:0, %[utcb]"
 			: [utcb] "=r" (utcb));
 
   return utcb;
@@ -63,7 +63,7 @@ _L4_attribute_always_inline
 _L4_utcb_base (void)
 {
   /* 256 is a magic number, which unfortunately is not exported.  */
-  return ((void *) _L4_utcb () - 256);
+  return (_L4_word_t *) ((char *) _L4_utcb () - 256);
 }
 
 /* Get the local thread ID.  */

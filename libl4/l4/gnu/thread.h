@@ -202,9 +202,9 @@ l4_user_defined_handle (void)
 
 static inline void
 _L4_attribute_always_inline
-l4_set_user_defined_handle (l4_word_t new)
+l4_set_user_defined_handle (l4_word_t handle)
 {
-  _L4_set_user_defined_handle (new);
+  _L4_set_user_defined_handle (handle);
 }
 
 

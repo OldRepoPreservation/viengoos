@@ -1,3 +1,11 @@
+2008-06-18  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* ia32/l4/bits/syscall.h (_L4_kernel_interface): Cast return value.
+	* ia32/l4/bits/vregs.h (_L4_utcb_base): Don't do calculations with a
+	void *.  Cast return value.
+	* l4/gnu/thread.h (l4_set_user_defined_handle): Change name of argument
+	as to avoid using a C++ keyword.
+
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* headers.m4: Link files into `sysroot/include/' instead of `include/'.
