@@ -188,17 +188,26 @@ extern struct cap shadow_root;
 			       (__acs_root_addr), (__acs_addr),		\
 			       &__acs_type, &__acs_p);			\
 									\
+      bool die = false;							\
       if (! (! __acs_err						\
-	     /* It's okay if the cap's type is void and the kernel's	\
-		type somethine else as long as the rest matches.  This	\
-	        just means that the object has been inserted by the	\
-		shadow not yet updated, which is not required to be	\
-		atomic.  */						\
-	     && (__acs_type == (__acs_cap)->type			\
-		 || (__acs_cap)->type == cap_void)			\
-	     && __acs_p.addr_trans.raw == (__acs_cap)->addr_trans.raw	\
-	     && __acs_p.policy.priority == (__acs_cap)->priority	\
-	     && !!__acs_p.policy.discardable == !!(__acs_cap)->discardable)) \
+	     && ((__acs_type == (__acs_cap)->type			\
+		  && __acs_p.addr_trans.raw == (__acs_cap)->addr_trans.raw \
+		  && __acs_p.policy.priority == (__acs_cap)->priority	\
+		  && (!!__acs_p.policy.discardable			\
+		      == !!(__acs_cap)->discardable))			\
+		 /* It's okay if the cap's type is void and the kernel's \
+		    type somethine else as long as the guard matches.   \
+		    This means that the object has been inserted but the \
+		    shadow not yet updated, which is not required to be	\
+		    atomic.  */						\
+		 || (((__acs_cap)->type == cap_void			\
+		      && (CAP_ADDR_TRANS_GUARD (__acs_p.addr_trans)	\
+			  == CAP_GUARD (__acs_cap))			\
+		      && (CAP_ADDR_TRANS_GUARD_BITS (__acs_p.addr_trans) \
+			  == CAP_GUARD_BITS (__acs_cap)))))))		\
+	die = true;							\
+									\
+      if (die)								\
 	{								\
 	  debug (0,							\
 		 ADDR_FMT "@" ADDR_FMT ": err: %d; type: %s =? %s; "	\

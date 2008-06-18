@@ -1,5 +1,10 @@
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (AS_CHECK_SHADOW): Don't fail if the kernel says the
+	capability's type is void but everything else matches.
+
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
 	* mmap.c (mmap): If MAP_FIXED is specified, first unmap the
 	region.
 	(mmap): Don't panic if we fail to create a pager, just return
