@@ -85,4 +85,33 @@ gcc/gcc.build/install.stamp: gcc/gcc.build/build.stamp
 	$(MAKE) install-gcc
 	touch $@
 
+
+# libstdc++
+
+libstdc++: gcc/gcc.build/$(host_alias)/libstdc++-v3/install.stamp
+
+# While it would be desirable to have the following two target re-ran each
+# turn, stamp files (to inhibit this) are being created nevertheless, as the
+# GCC build system doesn't do dependency tracking to external (header) files,
+# so nothing would be rebuilt anyway.
+gcc/gcc.build/$(host_alias)/libstdc++-v3/build.stamp: gcc/gcc.build/build.stamp gcc/gcc.build/frob-Makefile-FLAGS_FOR_TARGET
+	cd gcc/gcc.build/ && \
+	$(MAKE) all-target-libstdc++-v3
+	touch $@
+
+gcc/gcc.build/$(host_alias)/libstdc++-v3/install.stamp: gcc/gcc.build/$(host_alias)/libstdc++-v3/build.stamp
+	cd gcc/gcc.build/ && \
+	$(MAKE) install-target-libstdc++-v3
+	touch $@
+
+# Doing this is needed to teach GCC about where to find the libc headers, etc.
+# TODO.  It also does provoke a bunch of warnings in the libstdc++ compilation.
+# Someone might want to sort that out...
+gcc/gcc.build/frob-Makefile-FLAGS_FOR_TARGET: gcc/gcc.build/Makefile
+	sed '/^FLAGS_FOR_TARGET/s%$$% $(USER_CPPFLAGS) $(USER_CFLAGS)%' \
+	  < $^ > $^.new && \
+	mv $^.new $^
+	touch $@
+
+
 #TODO: clean etc.
