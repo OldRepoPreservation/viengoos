@@ -40,7 +40,7 @@ struct storage_desc
 {
   hurd_btree_node_t node;
   
-  /* Offset from start of mapping.  */
+  /* Offset from start of pager.  */
   uintptr_t offset;
   /* The allocated storage.  */
   addr_t storage;
@@ -49,6 +49,24 @@ struct storage_desc
 static int
 offset_compare (const uintptr_t *a, const uintptr_t *b)
 {
+  bool have_range = (*a & 1) || (*b & 1);
+  if (unlikely (have_range))
+    /* If the least significant bit is set, then we the following word
+       is the length.  In this case, we are interested in overlap.  */
+    {
+      uintptr_t a_start = *a & ~1;
+      uintptr_t a_end = a_start + ((*a & 1) ? a[1] : 0);
+      uintptr_t b_start = *b & ~1;
+      uintptr_t b_end = b_start + ((*b & 1) ? b[1] : 0);
+
+      if (a_end < b_start)
+	return -1;
+      if (a_start > b_end)
+	return 1;
+      /* Overlap.  */
+      return 0;
+    }
+
   if (*a < *b)
     return -1;
   return *a != *b;
@@ -295,15 +313,85 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 }
 
 static void
+mdestroy (struct map *map)
+{
+  struct anonymous_pager *anon = (struct anonymous_pager *) map->pager;
+
+#ifndef NDEBUG
+  /* Void the area.  */
+  addr_t addr;
+  for (addr = ADDR (map->region.start, ADDR_BITS - PAGESIZE_LOG2);
+       addr_prefix (addr) < map->region.start + map->region.length;
+       addr = addr_add (addr, 1))
+    {
+      /* This may fail if the page has not yet been faulted in.  */
+      as_slot_lookup_use
+	(addr,
+	 ({
+	   error_t err;
+	   err = rm_cap_rubout (meta_data_activity, ADDR_VOID, addr);
+	   assert (! err);
+	   slot->type = cap_void;
+	 }));
+    }
+#endif
+
+  /* XXX: We assume that every byte is mapped by at most one mapping.
+     We may have to reexamine this assumption if we allow multiple
+     mappings onto the same part of a pager (e.g., via mremap).  */
+
+  /* Free the storage in this region.  */
+
+  uintptr_t offset[2];
+  offset[0] = map->offset | 1;
+  offset[1] = map->region.length;
+
+  hurd_btree_storage_desc_t *storage_descs;
+  storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
+
+  struct storage_desc *next
+    = hurd_btree_storage_desc_find (storage_descs, &offset[0]);
+  if (next)
+    {
+      /* We destory STORAGE_DESC.  Grab its pervious pointer
+	 first.  */
+      struct storage_desc *prev = hurd_btree_storage_desc_prev (next);
+
+      int dir;
+      struct storage_desc *storage_desc;
+      for (dir = 0; dir < 2; dir ++, next = prev)
+	while ((storage_desc = next))
+	  {
+	    next = (dir == 0 ? hurd_btree_storage_desc_next (storage_desc)
+		    : hurd_btree_storage_desc_prev (storage_desc));
+
+	    if (storage_desc->offset < map->region.start
+		|| (storage_desc->offset
+		    > map->region.start + map->region.length - 1))
+	      break;
+
+	    storage_free (storage_desc->storage, false);
+
+#ifndef NDEBUG
+	    /* When reallocating, we expect that the node field is 0.
+	       libhurd-btree asserts this, so make it so.  */
+	    memset (storage_desc, 0, sizeof (struct storage_desc));
+#endif
+	    storage_desc_free (storage_desc);
+	  }
+    }
+
+  /* Free the map area.  Should we also free the staging area?  */
+  as_free (PTR_TO_ADDR (map->region.start), map->region.length);
+}
+
+static void
 destroy (struct pager *pager)
 {
   assert (! ss_mutex_trylock (&pager->lock));
   assert (! pager->maps);
 
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
-
-  /* Free the map area.  */
-  as_free (anon->map_area, anon->map_area_count);
 
   if (anon->staging_area)
     /* Free the staging area.  */
@@ -428,7 +516,13 @@ anonymous_pager_alloc (addr_t activity,
 	/* No room for this region.  */
 	{
 	  if ((flags & ANONYMOUS_FIXED))
-	    goto error_with_buffer;
+	    {
+	      debug (0, "(%x, %x (%x)): Specified range " ADDR_FMT "+%d "
+		     "in use and ANONYMOUS_FIXED specified",
+		     hint, length, hint + length - 1,
+		     ADDR_PRINTF (anon->map_area), count);
+	      goto error_with_buffer;
+	    }
 	}
       else
 	{
@@ -440,7 +534,11 @@ anonymous_pager_alloc (addr_t activity,
     {
       anon->map_area = as_alloc (width, count, true);
       if (ADDR_IS_VOID (anon->map_area))
-	goto error_with_buffer;
+	{
+	  debug (0, "(%x, %x (%x)): No VA available",
+		 hint, length, hint + length - 1);
+	  goto error_with_buffer;
+	}
 
       *addr_out = ADDR_TO_PTR (addr_extend (anon->map_area, 0, width));
     }
@@ -462,7 +560,7 @@ anonymous_pager_alloc (addr_t activity,
 
   /* Install the map.  */
   struct region region = { (uintptr_t) *addr_out, length };
-  struct map *map = map_create (region, access, &anon->pager, 0);
+  struct map *map = map_create (region, access, &anon->pager, 0, mdestroy);
   /* There is no way that we get a region conflict.  */
   if (! map)
     panic ("Memory exhausted.");

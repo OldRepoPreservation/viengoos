@@ -68,6 +68,11 @@ region_compare (const struct region *a, const struct region *b)
   return 0;
 }
 
+/* Forward.  */
+struct pager;
+struct map;
+
+
 enum map_access
   {
     MAP_ACCESS_NONE = 0,
@@ -77,8 +82,8 @@ enum map_access
     MAP_ACCESS_ALL = MAP_ACCESS_READ | MAP_ACCESS_WRITE,
   };
 
-/* Forward.  */
-struct pager;
+/* Call-back invoked when destroying a map.  */
+typedef void (*map_destroy_t) (struct map *map);
 
 struct map
 {
@@ -109,6 +114,9 @@ struct map
   /* Each map is attached to its pager's list of maps.  */
   struct map *map_list_next;
   struct map **map_list_prevp;
+
+
+  map_destroy_t destroy;
 };
 
 #define MAP_FMT REGION_FMT " @ %p+%x (%s%s)"
@@ -167,11 +175,13 @@ maps_lock_unlock (void)
 }
 
 /* Map the region REGION with access described by ACCESS to the pager
-   PAGER starting at offset OFFSET.  Maps may not overlap.  Returns
-   true on success, false otherwise.  This function takes and releases
-   MAPS_LOCK and PAGER->LOCK.  */
+   PAGER starting at offset OFFSET.  DESTROY is a callback called just
+   before the map is fully destroyed.  It may be NULL.  Maps may not
+   overlap.  Returns true on success, false otherwise.  This function
+   takes and releases MAPS_LOCK and PAGER->LOCK.  */
 extern struct map *map_create (struct region region, enum map_access access,
-			       struct pager *pager, uintptr_t offset);
+			       struct pager *pager, uintptr_t offset,
+			       map_destroy_t destroy);
 
 /* Disconnect the map MAP from MAPS.  MAP will no longer resolve
    faults, however, any previously mapped pages may remain accessible.

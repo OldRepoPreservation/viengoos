@@ -154,7 +154,8 @@ map_install (struct map *map)
 
 struct map *
 map_create (struct region region, enum map_access access,
-	    struct pager *pager, uintptr_t offset)
+	    struct pager *pager, uintptr_t offset,
+	    map_destroy_t destroy)
 {
   maps_lock_lock ();
   ss_mutex_lock (&pager->lock);
@@ -165,6 +166,7 @@ map_create (struct region region, enum map_access access,
   map->pager = pager;
   map->offset = offset;
   map->access = access;
+  map->destroy = destroy;
 
   if (! map_install (map))
     {
@@ -199,16 +201,23 @@ map_destroy (struct map *map)
   /* Drop our reference.  */
   assert (map->pager->maps);
 
+  if (map->destroy)
+    map->destroy (map);
+
   if (map->pager->maps == map && ! map->map_list_next)
     /* This is the last reference.  */
     {
       map->pager->maps = NULL;
+
       if (map->pager->no_refs)
 	map->pager->no_refs (map->pager);
+      else
+	ss_mutex_unlock (&map->pager->lock);
     }
   else
     {
       list_unlink (map);
+
       ss_mutex_unlock (&map->pager->lock);
     }
 

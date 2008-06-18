@@ -4,20 +4,20 @@
 
    This file is part of the GNU Hurd.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+   GNU Hurd is free software: you can redistribute it and/or modify it
+   under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   License along with GNU Hurd.  If not, see
+   <http://www.gnu.org/licenses/>.  */
+
 
 #include <hurd/stddef.h>
 #include <hurd/addr.h>
@@ -59,6 +59,10 @@ mmap (void *addr, size_t length, int protect, int flags,
 		 addr);
 	  return MAP_FAILED;
 	}
+
+      /* Unmap any existing mapping.  */
+      if (munmap (addr, length) == -1)
+	return MAP_FAILED;
     }
   else
     {
@@ -78,7 +82,10 @@ mmap (void *addr, size_t length, int protect, int flags,
 				 (flags & MAP_FIXED) ? ANONYMOUS_FIXED: 0,
 				 NULL, &addr);
   if (! pager)
-    panic ("Failed to create pager!");
+    {
+      debug (0, "Failed to create pager!");
+      return MAP_FAILED;
+    }
 
   debug (5, "Allocated memory %x-%x", addr, addr + length);
 

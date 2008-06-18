@@ -1,3 +1,24 @@
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
+	* mmap.c (mmap): If MAP_FIXED is specified, first unmap the
+	region.
+	(mmap): Don't panic if we fail to create a pager, just return
+	MAP_FAILED.
+
+	* map.h (map_destroy_t): New define.
+	(struct map): Add field destroy.
+	(map_create): Take additional argument destroy.
+	* map.c (map_create): Take additional argument destroy.  Set
+	MAP->DESTROY to it.
+	(map_destroy): Call MAP->DESTROY.  If MAP->PAGER->NO_REFS is NULL,
+	unlock MAP->PAGER->LOCK.
+	* anonymous.c (offset_compare): Support comparing ranges.
+	(mdestroy): New function.
+	(destroy): Don't free ANON->MAP_AREA.
+	(anonymous_pager_alloc): Pass mdestroy to map_create.
+	* mprotect.c: New file.
+	* Makefile.am (libhurd_mm_a_SOURCES): Add mprotect.c.
+
 2008-06-17  Neal H. Walfield  <neal@gnu.org>
 
 	* pager.c (pager_init): Clear PAGER->LOCK.
