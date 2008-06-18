@@ -43,7 +43,8 @@ typedef addr_t thread_t;
 struct exception_frame
 {
 #if i386
-  l4_word_t regs[5];
+  /* eax, ecx, edx, eflags, eip, ebx, edi, esi.  */
+  l4_word_t regs[8];
 #else
 # error Not ported to this architecture!
 #endif

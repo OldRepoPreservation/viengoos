@@ -38,13 +38,15 @@
 #define SAVED_EDX (-5*4)
 
 /* Offsets into a struct exception_fault.  */
-#define EF_SAVED_EAX (EF_SAVED_ECX-4)
-#define EF_SAVED_ECX (EF_SAVED_EDX-4)
-#define EF_SAVED_EDX (EF_SAVED_FLAGS-4)
-#define EF_SAVED_FLAGS (EF_SAVED_IP-4)
-#define EF_SAVED_IP (EF_STACK_START-4)
-#define EF_STACK_START (5*4)
-#define EF_NEXT (5*4)
+#define EF_SAVED_EAX 0
+#define EF_SAVED_ECX 4
+#define EF_SAVED_EDX 8
+#define EF_SAVED_FLAGS 12
+#define EF_SAVED_IP 16
+#define EF_SAVED_EBX 20
+#define EF_SAVED_EDI 24
+#define EF_SAVED_ESI 28
+#define EF_NEXT 32
 
 #define ACTIVATED_MODE_BIT 0
 #define PENDING_MESSAGE_BIT 1
@@ -223,12 +225,6 @@ exception_frame_run:
 	/* EAX contains the exception frame, EDX the exception page,
 	and ESP points after the saved edx.  */
 
-	/* Change our stack to that of the exception frame and save
-	the stack pointer (which points to the lowest address of the
-	save area) in ECX.  */
-	mov %esp, %ecx
-	lea EF_STACK_START(%eax), %esp
-	
 	/* Copy all relevant register state from the exception page
 	and save area to the exception frame.  We use edx as the
 	intermediate.  We can restore it from the exception stack
@@ -238,20 +234,24 @@ exception_frame_run:
 	mov %edx, EF_SAVED_IP(%eax)
 
 	/* edx.  */
-	mov 0(%ecx), %edx
+	mov 0(%esp), %edx
 	mov %edx, EF_SAVED_EDX(%eax)
 	/* flags.  */
-	mov 4(%ecx), %edx
+	mov 4(%esp), %edx
 	mov %edx, EF_SAVED_FLAGS(%eax)
 	/* ecx.  */
-	mov 8(%ecx), %edx
+	mov 8(%esp), %edx
 	mov %edx, EF_SAVED_ECX(%eax)
 	/* eax.  */
-	mov 12(%ecx), %edx
+	mov 12(%esp), %edx
 	mov %edx, EF_SAVED_EAX(%eax)
 
+	mov %ebx, EF_SAVED_EBX(%eax)
+	mov %edi, EF_SAVED_EDI(%eax)
+	mov %esi, EF_SAVED_ESI(%eax)
+
 	/* Restore the exception page pointer (edx).  */
-	mov 16(%ecx), %edx
+	mov 16(%esp), %edx
 	
 	/* Restore the user ESP.  */
 	mov SAVED_SP(%edx), %esp

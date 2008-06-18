@@ -1,5 +1,23 @@
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.c (exception_handler_normal): If the fault is
+	unhandled, print the register state.
+	(exception_handler_activated): Likewise.
+	* ia32-exception-entry.S (EF_STACK_START): Don't define.
+	(EF_SAVED_EAX): Define with an absolute value.
+	(EF_SAVED_ECX): Likewise.
+	(EF_SAVED_EDX): Likewise.
+	(EF_SAVED_FLAGS): Likewise.
+	(EF_SAVED_IP): Likewise.
+	(EF_NEXT): Likewise.
+	(EF_SAVED_EBX): New define.
+	(EF_SAVED_EDI): New define.
+	(EF_SAVED_ESI): New define.
+	(exception_frame_run): Address the saved register values relative
+	to ESP.  Also save EBX, EDI and ESI.
+
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
 	* as.h (AS_CHECK_SHADOW): Don't fail if the kernel says the
 	capability's type is void but everything else matches.
 

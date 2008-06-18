@@ -193,12 +193,16 @@ exception_handler_normal (struct exception_frame *exception_frame)
 	bool r = map_fault (fault, ip, info);
 	if (! r)
 	  {
-	    debug (0, "SIGSEGV at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, ecx: %p, edx: %p, eflags: %p)",
+	    debug (0, "SIGSEGV at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
+		   "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, eflags: %p)",
 		   ADDR_PRINTF (fault), ip, sp,
 		   exception_frame->regs[0],
+		   exception_frame->regs[5],
 		   exception_frame->regs[1],
 		   exception_frame->regs[2],
-		   exception_frame->regs[3]);
+		   exception_frame->regs[3],
+		   exception_frame->regs[6],
+		   exception_frame->regs[7]);
 
 	    extern int backtrace (void **array, int size);
 
@@ -296,8 +300,17 @@ exception_handler_activated (struct exception_page *exception_page)
 	    bool r = map_fault (fault, ip, info);
 	    if (! r)
 	      {
-		debug (0, "Fault at " ADDR_FMT " (ip: %p)",
-		       ADDR_PRINTF (fault), ip);
+		debug (0, "SIGSEGV at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
+		       "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, "
+		       "eflags: %p)",
+		       ADDR_PRINTF (fault), ip, sp,
+		       exception_frame->regs[0],
+		       exception_frame->regs[5],
+		       exception_frame->regs[1],
+		       exception_frame->regs[2],
+		       exception_frame->regs[3],
+		       exception_frame->regs[6],
+		       exception_frame->regs[7]);
 
 		siginfo_t si;
 		memset (&si, 0, sizeof (si));

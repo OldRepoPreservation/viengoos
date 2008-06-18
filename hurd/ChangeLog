@@ -1,5 +1,9 @@
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (struct exception_frame): Make regs elements large.
+
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (RM_cap_rubout): Define.
 	(cap_rubout): New method.
 
