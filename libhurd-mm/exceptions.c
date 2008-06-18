@@ -194,15 +194,16 @@ exception_handler_normal (struct exception_frame *exception_frame)
 	if (! r)
 	  {
 	    debug (0, "SIGSEGV at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
-		   "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, eflags: %p)",
+		   "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, "
+		   "eflags: %p)",
 		   ADDR_PRINTF (fault), ip, sp,
 		   exception_frame->regs[0],
 		   exception_frame->regs[5],
 		   exception_frame->regs[1],
 		   exception_frame->regs[2],
-		   exception_frame->regs[3],
 		   exception_frame->regs[6],
-		   exception_frame->regs[7]);
+		   exception_frame->regs[7],
+		   exception_frame->regs[3]);
 
 	    extern int backtrace (void **array, int size);
 
@@ -308,9 +309,9 @@ exception_handler_activated (struct exception_page *exception_page)
 		       exception_frame->regs[5],
 		       exception_frame->regs[1],
 		       exception_frame->regs[2],
-		       exception_frame->regs[3],
 		       exception_frame->regs[6],
-		       exception_frame->regs[7]);
+		       exception_frame->regs[7],
+		       exception_frame->regs[3]);
 
 		siginfo_t si;
 		memset (&si, 0, sizeof (si));
