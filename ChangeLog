@@ -1,3 +1,7 @@
+2008-06-18  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* Makefile.am [HAVE_CROSS] (all-local): Depend on libstdc++.
+
 2008-06-05  Neal H. Walfield  <neal@gnu.org>
 
 	* libc.a.in: Remove -lhurd-cap.
