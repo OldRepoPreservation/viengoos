@@ -1,0 +1,20 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+Don't define NO_CLOCK or SMALL_CONFIG.
+
+--- gc/configure.ac~	2007-06-30 17:40:15.000000000 +0200
++++ gc/configure.ac	2008-06-18 16:43:51.000000000 +0200
+@@ -541,8 +541,8 @@
+ dnl some functionality.  We also enable the "small" configuration.
+ dnl These is only correct when targetting an embedded system.  FIXME.
+ if test -n "${with_cross_host}"; then
+-   AC_DEFINE(NO_CLOCK)
+-   AC_DEFINE(SMALL_CONFIG)
++dnl   AC_DEFINE(NO_CLOCK)
++dnl   AC_DEFINE(SMALL_CONFIG)
+    AC_DEFINE(NO_DEBUGGING)
+ fi
+ 
+

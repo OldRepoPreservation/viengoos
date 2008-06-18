@@ -24,7 +24,9 @@ noinst_LIBRARIES = libgc.a
 
 # Patches to apply to the source tree.
 patch_files = 01-gc-include-private-gcconfig-h.patch \
-	02-gc-mach_dep-c.patch
+	02-gc-mach_dep-c.patch \
+	03-gc-configure-ac.patch \
+	04-gc-alloc-c.patch
 
 # Files to link into newlib's source tree (relative to $(srcdir)/addon)
 addon = 

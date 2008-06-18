@@ -1,3 +1,15 @@
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (patch_files): Add 03-gc-configure-ac.patch and
+	04-gc-alloc-c.patch.
+	* patches/03-gc-configure-ac.patch: New file.
+	* patches/04-gc-alloc-c.patch: Likewise.
+
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
+	* patches/01-gc-include-private-gcconfig-h.patch: Define
+	USE_MUNMAP.
+
 2008-06-16  Neal H. Walfield  <neal@gnu.org>
 
 	* patches/01-gc-include-private-gcconfig-h.patch: Define USE_MMAP.
