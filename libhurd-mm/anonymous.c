@@ -51,13 +51,13 @@ offset_compare (const uintptr_t *a, const uintptr_t *b)
 {
   bool have_range = (*a & 1) || (*b & 1);
   if (unlikely (have_range))
-    /* If the least significant bit is set, then we the following word
-       is the length.  In this case, we are interested in overlap.  */
+    /* If the least significant bit is set, then the following word is
+       the length.  In this case, we are interested in overlap.  */
     {
       uintptr_t a_start = *a & ~1;
-      uintptr_t a_end = a_start + ((*a & 1) ? a[1] : 0);
+      uintptr_t a_end = a_start + ((*a & 1) ? a[1] - 1 : 0);
       uintptr_t b_start = *b & ~1;
-      uintptr_t b_end = b_start + ((*b & 1) ? b[1] : 0);
+      uintptr_t b_end = b_start + ((*b & 1) ? b[1] - 1 : 0);
 
       if (a_end < b_start)
 	return -1;
@@ -353,6 +353,8 @@ mdestroy (struct map *map)
     = hurd_btree_storage_desc_find (storage_descs, &offset[0]);
   if (next)
     {
+      int count = 0;
+
       /* We destory STORAGE_DESC.  Grab its pervious pointer
 	 first.  */
       struct storage_desc *prev = hurd_btree_storage_desc_prev (next);
@@ -365,20 +367,25 @@ mdestroy (struct map *map)
 	    next = (dir == 0 ? hurd_btree_storage_desc_next (storage_desc)
 		    : hurd_btree_storage_desc_prev (storage_desc));
 
-	    if (storage_desc->offset < map->region.start
+	    if (storage_desc->offset < map->offset
 		|| (storage_desc->offset
-		    > map->region.start + map->region.length - 1))
+		    > map->offset + map->region.length - 1))
 	      break;
 
 	    storage_free (storage_desc->storage, false);
 
+	    hurd_btree_storage_desc_detach (storage_descs, storage_desc);
 #ifndef NDEBUG
 	    /* When reallocating, we expect that the node field is 0.
 	       libhurd-btree asserts this, so make it so.  */
 	    memset (storage_desc, 0, sizeof (struct storage_desc));
 #endif
 	    storage_desc_free (storage_desc);
+
+	    count ++;
 	  }
+
+      debug (5, "Freed %d pages", count);
     }
 
   /* Free the map area.  Should we also free the staging area?  */

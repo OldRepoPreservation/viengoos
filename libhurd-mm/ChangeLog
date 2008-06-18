@@ -1,5 +1,12 @@
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.c (offset_compare): When calculating A_END, subtract
+	one from A[1].  When calculating B_END, subtract one from B[1].
+	(mdestroy): Correctly calculate the bounds.  Detach the node from
+	the tree.
+
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.c (exception_handler_normal): If the fault is
 	unhandled, print the register state.
 	(exception_handler_activated): Likewise.
