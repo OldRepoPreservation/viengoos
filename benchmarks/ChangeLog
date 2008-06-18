@@ -1,3 +1,12 @@
+2008-06-18  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (boot_PROGRAMS): Add gcbench.
+	(gcbench_CPPFLAGS): New variable.
+	(gcbench_CPPFLAGS): Likewise.
+	(gcbench_CPPFLAGS): Likewise.
+	(gcbench_CPPFLAGS): Likewise.
+	(gcbench_CPPFLAGS): Likewise.
+
 2008-06-16  Neal H. Walfield  <neal@gnu.org>
 
 	* activity-distribution.c (main): Update use of

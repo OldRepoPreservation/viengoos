@@ -22,7 +22,7 @@ bootdir = $(prefix)/boot
 if ! ENABLE_TESTS
 SUBDIRS = boehm-gc
 
-boot_PROGRAMS = shared-memory-distribution activity-distribution
+boot_PROGRAMS = shared-memory-distribution activity-distribution gcbench
 endif
 
 shared_memory_distribution_CPPFLAGS = $(USER_CPPFLAGS)
@@ -36,4 +36,10 @@ activity_distribution_CFLAGS = $(USER_CFLAGS)
 activity_distribution_LDFLAGS = $(USER_LDFLAGS)
 activity_distribution_LDADD = $(USER_LDADD)
 activity_distribution_SOURCES = activity-distribution.c
+
+gcbench_CPPFLAGS = $(USER_CPPFLAGS) -Iboehm-gc/gc-install/include
+gcbench_CFLAGS = $(USER_CFLAGS)
+gcbench_LDFLAGS = $(USER_LDFLAGS) -Lboehm-gc/gc-install/lib
+gcbench_LDADD = -lgc $(USER_LDADD)
+gcbench_SOURCES = GCbench.c
 
