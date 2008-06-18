@@ -1,5 +1,5 @@
 /* l4/gnu/thread.h - Public GNU interface for L4 threads.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.

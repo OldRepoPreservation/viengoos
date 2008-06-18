@@ -1,5 +1,5 @@
 /* l4/bits/vregs.h - L4 virtual registers for ia32.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -32,7 +32,7 @@ _L4_utcb (void)
 #ifndef _L4_TEST_ENVIRONMENT
   _L4_word_t *utcb;
 
-  __asm__ __volatile__ ("movl %%gs:0, %[utcb]"
+  __asm__ __volatile__ ("movl %%gs:4, %[utcb]"
 			: [utcb] "=r" (utcb));
 
   return utcb;
