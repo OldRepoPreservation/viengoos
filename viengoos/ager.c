@@ -29,6 +29,7 @@
 #include "activity.h"
 #include "zalloc.h"
 #include "thread.h"
+#include "pager.h"
 
 /* A frames has a single claimant.  When a frame is shared among
    multiple activities, the first activity to access claims it (that
@@ -275,7 +276,7 @@ ager_loop (l4_thread_id_t main_thread)
 	     clean and dirty pages.  Also, we need to calculate each
 	     activity's allocation, a damping factor and the
 	     pressure.  */
-	  void doit (struct activity *activity, uint32_t frames)
+	  void stats (struct activity *activity, uint32_t frames)
 	  {
 	    ACTIVITY_STATS (activity)->period = iterations / FREQ;
 
@@ -317,7 +318,7 @@ ager_loop (l4_thread_id_t main_thread)
 
 		remaining_frames -= child->frames_total;
 
-		doit (child, frames);
+		stats (child, frames);
 	      }
 
 	    ACTIVITY_STATS (activity)->clean /= FREQ;
@@ -325,11 +326,12 @@ ager_loop (l4_thread_id_t main_thread)
 	    ACTIVITY_STATS (activity)->active /= FREQ;
 	    ACTIVITY_STATS (activity)->active_local /= FREQ;
 
-	    debug (0, OID_FMT ": %d/%d (" OID_FMT ")",
+	    debug (0, OID_FMT ": %d clean, %d dirty, %d avail (" OID_FMT ")",
 		   OID_PRINTF (object_to_object_desc ((struct object *)
 						      activity)->oid), 
 		   ACTIVITY_STATS (activity)->clean,
 		   ACTIVITY_STATS (activity)->dirty,
+		   ACTIVITY_STATS (activity)->available,
 		   OID_PRINTF (activity->parent
 			       ? object_to_object_desc ((struct object *)
 							activity->parent)->oid
@@ -382,7 +384,7 @@ ager_loop (l4_thread_id_t main_thread)
 		}
 	  }
 
-	  doit (root_activity, memory_total);
+	  stats (root_activity, memory_total - PAGER_LOW_WATER_MARK);
 
 	  do_debug (1)
 	    {
