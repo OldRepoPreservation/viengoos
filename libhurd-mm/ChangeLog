@@ -1,5 +1,10 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* mprotect.c (mprotect): Only update the capabilities in the
+	region if access is being downgraded.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* as.h (as_dump_path_rel): New declaration.
 	(as_dump_path) [! RM_INTERN]: New function.
 	* as-lookup.c (as_dump_path_rel): Return void, don't take the

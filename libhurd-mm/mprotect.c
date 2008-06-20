@@ -34,7 +34,9 @@ mprotect (void *addr, size_t length, int prot)
   uintptr_t start = (uintptr_t) addr;
   uintptr_t end = start + length - 1;
 
-  debug (0, "(%p, %x (%p))", addr, length, end);
+  debug (0, "(%p, %x (%p),%s%s)", addr, length, end,
+	 prot == 0 ? " PROT_NONE" : (prot & PROT_READ ? " PROT_READ" : ""),
+	 prot & PROT_WRITE ? " PROT_WRITE" : "");
 
   struct region region = { (uintptr_t) addr, length };
 
@@ -114,10 +116,11 @@ mprotect (void *addr, size_t length, int prot)
 	    map_end = end;
 	  }
 
-	if (map->access == MAP_ACCESS_WRITE
-	    || (map->access == MAP_ACCESS_READ && access == 0))
+	if (((map->access & MAP_ACCESS_WRITE) && ! (access & PROT_WRITE))
+	    || ((map->access & MAP_ACCESS_READ) && ! (access & PROT_READ)))
 	  /* We need to reduce the permission on all capabilities in
-	     the area.  */
+	     the area.  We don't have to do this if we are increasing
+	     access: faulting will handle that.  */
 	  {
 	    map->access = access;
 
