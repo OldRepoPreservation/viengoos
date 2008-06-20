@@ -1,5 +1,11 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (storage_alloc): When calling rm_folio_object_alloc to
+	allocate storage on behalf of the caller, use ACTIVITY, not
+	META_DATA_ACTIVITY, as the principal.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* mprotect.c (mprotect): Only update the capabilities in the
 	region if access is being downgraded.
 

@@ -613,7 +613,7 @@ storage_alloc (addr_t activity,
       ss_mutex_unlock (&storage_descs_lock);
     }
 
-  error_t err = rm_folio_object_alloc (meta_data_activity,
+  error_t err = rm_folio_object_alloc (activity,
 				       folio, idx, type,
 				       policy, 0,
 				       addr, ADDR_VOID);
