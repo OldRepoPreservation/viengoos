@@ -1,5 +1,11 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.c (mdestroy): Optimize storage destruction when MAP is
+	the last reference.
+	(destroy): Assert that PAGER has no allocated storage.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* map.c (map_split): Update SECOND->OFFSET.
 
 2008-06-18  Neal H. Walfield  <neal@gnu.org>

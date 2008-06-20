@@ -340,53 +340,83 @@ mdestroy (struct map *map)
      We may have to reexamine this assumption if we allow multiple
      mappings onto the same part of a pager (e.g., via mremap).  */
 
-  /* Free the storage in this region.  */
-
-  uintptr_t offset[2];
-  offset[0] = map->offset | 1;
-  offset[1] = map->region.length;
-
   hurd_btree_storage_desc_t *storage_descs;
   storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
 
-  struct storage_desc *next
-    = hurd_btree_storage_desc_find (storage_descs, &offset[0]);
-  if (next)
+  int count = 0;
+
+  /* Free the storage in this region.  */
+  if (anon->pager.maps == map && ! map->map_list_next)
+    /* This is the last reference.  As we know that the tree will be
+       empty when we are done, we can avoid the costs of the
+       detaches.  */
     {
-      int count = 0;
+      struct storage_desc *node, *next;
+      for (node = hurd_btree_storage_desc_first (storage_descs);
+	   node;
+	   node = next)
+	{
+	  next = hurd_btree_storage_desc_next (node);
 
-      /* We destory STORAGE_DESC.  Grab its pervious pointer
-	 first.  */
-      struct storage_desc *prev = hurd_btree_storage_desc_prev (next);
+	  storage_free (node->storage, false);
 
-      int dir;
-      struct storage_desc *storage_desc;
-      for (dir = 0; dir < 2; dir ++, next = prev)
-	while ((storage_desc = next))
-	  {
-	    next = (dir == 0 ? hurd_btree_storage_desc_next (storage_desc)
-		    : hurd_btree_storage_desc_prev (storage_desc));
-
-	    if (storage_desc->offset < map->offset
-		|| (storage_desc->offset
-		    > map->offset + map->region.length - 1))
-	      break;
-
-	    storage_free (storage_desc->storage, false);
-
-	    hurd_btree_storage_desc_detach (storage_descs, storage_desc);
 #ifndef NDEBUG
-	    /* When reallocating, we expect that the node field is 0.
-	       libhurd-btree asserts this, so make it so.  */
-	    memset (storage_desc, 0, sizeof (struct storage_desc));
+	  /* When reallocating, we expect that the node field is 0.
+	     libhurd-btree asserts this, so make it so.  */
+	  memset (node, 0, sizeof (struct storage_desc));
 #endif
-	    storage_desc_free (storage_desc);
+	  storage_desc_free (node);
 
-	    count ++;
-	  }
+	  count ++;
+	}
 
-      debug (5, "Freed %d pages", count);
+#ifndef NDEBUG
+      memset (storage_descs, 0, sizeof (*storage_descs));
+#endif
     }
+  else
+    {
+      uintptr_t offset[2];
+      offset[0] = map->offset | 1;
+      offset[1] = map->region.length;
+
+      struct storage_desc *next
+	= hurd_btree_storage_desc_find (storage_descs, &offset[0]);
+      if (next)
+	{
+	  /* We destory STORAGE_DESC.  Grab its pervious pointer
+	     first.  */
+	  struct storage_desc *prev = hurd_btree_storage_desc_prev (next);
+
+	  int dir;
+	  struct storage_desc *storage_desc;
+	  for (dir = 0; dir < 2; dir ++, next = prev)
+	    while ((storage_desc = next))
+	      {
+		next = (dir == 0 ? hurd_btree_storage_desc_next (storage_desc)
+			: hurd_btree_storage_desc_prev (storage_desc));
+
+		if (storage_desc->offset < map->offset
+		    || (storage_desc->offset
+			> map->offset + map->region.length - 1))
+		  break;
+
+		storage_free (storage_desc->storage, false);
+
+		hurd_btree_storage_desc_detach (storage_descs, storage_desc);
+#ifndef NDEBUG
+		/* When reallocating, we expect that the node field is 0.
+		   libhurd-btree asserts this, so make it so.  */
+		memset (storage_desc, 0, sizeof (struct storage_desc));
+#endif
+		storage_desc_free (storage_desc);
+
+		count ++;
+	      }
+	}
+    }
+  if (count > 0)
+    debug (5, "Freed %d pages", count);
 
   /* Free the map area.  Should we also free the staging area?  */
   as_free (PTR_TO_ADDR (map->region.start), map->region.length);
@@ -410,25 +440,10 @@ destroy (struct pager *pager)
   else
     assert (! (anon->flags & ANONYMOUS_STAGING_AREA));
 
-  /* Free the allocated storage.  */
+  /* Since there are no maps, all storage should have been freed.  */
   hurd_btree_storage_desc_t *storage_descs;
   storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
-
-  struct storage_desc *node, *next;
-  for (node = hurd_btree_storage_desc_first (storage_descs); node; node = next)
-    {
-      next = hurd_btree_storage_desc_next (node);
-
-      storage_free (node->storage, false);
-
-#ifndef NDEBUG
-      /* When reallocating, we expect that the node field is 0.
-	 libhurd-btree asserts this, so make it so.  */
-      memset (node, 0, sizeof (struct storage_desc));
-#endif
-      storage_desc_free (node);
-    }
-
+  assert (! hurd_btree_storage_desc_first (storage_descs));
 
   /* There is no need to unlock &anon->pager.lock: we free it.  */
 
