@@ -207,7 +207,7 @@ AC_ARG_WITH([libc],
 AM_CONDITIONAL(WITH_LIBC, test x"${with_libc-no}" != xno)
 
 AC_ARG_WITH([newlib],
-[  --with-newlib          compile with Newlib's C library (see newlib/README)])
+[  --with-newlib           compile with Newlib's C library (see newlib/README)])
 AM_CONDITIONAL(WITH_NEWLIB, test x"${with_newlib-no}" != xno)
 
 ABS_BUILDDIR=$(readlink -f .)
@@ -238,17 +238,43 @@ AC_SUBST([LIBC_M])
 
 # Compute some variables that we need everywhere.
 
+AC_ARG_ENABLE([checks],
+	      AC_HELP_STRING([--enable-runtime-checks[=LEVEL]],
+		             [Runtime checks to enable.  level=[0,1,2,3], 0: none, 1: debugging output, 2: and asserts (default), 3: and very computationally expensive checks]),
+	      [ac_cv_runtime_checks=$enableval], [ac_cv_runtime_checks=2])
+case $ac_cv_runtime_checks in
+     3)
+       CPP_CHECKS=""
+       ;;
+     yes | 2)
+       CPP_CHECKS="-DNCHECK"
+       ;;
+     1)
+       CPP_CHECKS="-DNCHECK -DNDEBUG"
+       C_CHECKS="-Wno-unused-variable"
+       ;;
+     no | 0)
+       CPP_CHECKS="-DNCHECK -DNDEBUG -DELIDE_DEBUG"
+       C_CHECKS="-Wno-unused-variable"
+       ;;
+     *)
+       AC_MSG_ERROR([Invalid value passed to --enable-runtime-checks])
+       ;;
+esac
+
 USER_CPPFLAGS=" \
+	$CPP_CHECKS  \
 	-D_GNU_SOURCE \
 	-I${LIBC}/include \
 	-I${ABS_SRCDIR}/libc-parts"
-USER_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline"
+USER_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline $C_CHECKS"
 USER_LDFLAGS="-u_start -e_start"
 
 KERNEL_CPPFLAGS="\
+	$CPP_CHECKS \
 	-D_GNU_SOURCE -DRM_INTERN \
 	-I${ABS_SRCDIR}/libc-parts"
-KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline"
+KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline $C_CHECKS"
 
 # It is debatable whether these should really contain the libc-parts' include
 # path.  Currently this is needed, as tests make use of (a few) specific
@@ -275,7 +301,7 @@ AM_CONDITIONAL([HAVE_CROSS], [[$have_cross]])
 
 # Are we supposed to run the test suite only?
 AC_ARG_WITH([tests],
-[  --enable-tests          only support running the test suite)])
+[  --enable-tests          only support running the test suite])
 AM_CONDITIONAL([ENABLE_TESTS], [[test x"${enable_tests-no}" != xno]])
 
 AM_CONDITIONAL([TRAVERSE_HIERARCHY], [[$have_cross || test x"${enable_tests-no}" != xno]])
