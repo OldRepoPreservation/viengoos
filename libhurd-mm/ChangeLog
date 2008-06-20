@@ -1,5 +1,12 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (storage_alloc): Don't set SLOT's shadow object to
+	ADDR if it is a page, leave it as NULL.
+	(shadow_setup): Don't set the shadow page's shadow capability to
+	SHADOW.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (storage_alloc): When calling rm_folio_object_alloc to
 	allocate storage on behalf of the caller, use ACTIVITY, not
 	META_DATA_ACTIVITY, as the principal.

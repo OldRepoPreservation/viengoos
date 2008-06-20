@@ -297,6 +297,7 @@ shadow_setup (struct cap *cap, struct storage_desc *desc)
   desc->shadow = shadow;
 
   cap->type = cap_folio;
+  CAP_SET_SUBPAGE (cap, 0, 1);
   cap_set_shadow (cap, shadow);
 
   if (idx != -1)
@@ -305,7 +306,6 @@ shadow_setup (struct cap *cap, struct storage_desc *desc)
       CAP_PROPERTIES_SET (&shadow->caps[idx],
 			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
 					  CAP_ADDR_TRANS_VOID));
-      cap_set_shadow (&shadow->caps[idx], shadow);
     }
 }
 
@@ -644,10 +644,6 @@ storage_alloc (addr_t activity,
 	 ({
 	   slot->type = type;
 	   cap_set_shadow (slot, NULL);
-	   if (type == cap_page || type == cap_rpage)
-	     cap_set_shadow (slot,
-			     ADDR_TO_PTR (addr_extend (addr,
-						       0, PAGESIZE_LOG2)));
 	   CAP_POLICY_SET (slot, policy);
 	 }));
       if (! ret)
