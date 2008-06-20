@@ -9,6 +9,7 @@ on in a manner inconsistent with Viengoos' design.  If the design
 proves tenable and is accepted by the community, the L4 dependency
 will eventually be removed.
 
+
 How to build
 ------------
 
@@ -36,6 +37,26 @@ If you happen to be on a multi-processor system, you can run ``make -j'' to
 have several target be built in parallel.  This may save some time.  It might
 even shorten the building time on one-processor system.  (No specific
 measurements exist currently.)
+
+
+Documentation
+-------------
+
+A ``Viengoos Developer Reference'' is available in the `doc' subdirectory.  A
+PDF will be created during the build process.
+
+On Ubuntu hardy (probably pretty much the same for Debian and other Ubuntu
+systems) you'll need these packages installed for the documentation build to
+succeed:
+
+  * inkscape
+  * texlive-fonts-recommended
+  * texlive-latex-base
+  * texlive-latex-extra
+  * texlive-latex-recommended
+  * texlive-science
+
+Also the header files are a good source of documentation.
 
 
 Installation on ia32

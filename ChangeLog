@@ -1,3 +1,7 @@
+2008-06-20  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* README (Documentation): New section.
+
 2008-06-18  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am [HAVE_CROSS] (all-local): Depend on libstdc++.
