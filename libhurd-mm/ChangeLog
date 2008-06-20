@@ -1,5 +1,9 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* as-lookup.c (as_dump_path_rel): Don't return anything.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* as-lookup.c [RM_INTERN]: Include "../viengoos/profile.h".
 	(as_lookup_rel): Instrument.
 

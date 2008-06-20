@@ -354,8 +354,8 @@ as_dump_path_rel (activity_t activity, struct cap *root, addr_t addr)
 {
   union as_lookup_ret rt;
 
-  return as_lookup_rel_internal (activity,
-				 root, addr, -1,
-				 NULL, as_lookup_want_cap, &rt,
-				 true);
+  as_lookup_rel_internal (activity,
+			  root, addr, -1,
+			  NULL, as_lookup_want_cap, &rt,
+			  true);
 }
