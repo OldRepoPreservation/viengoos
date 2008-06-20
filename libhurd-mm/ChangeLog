@@ -1,3 +1,7 @@
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
+	* map.c (map_split): Update SECOND->OFFSET.
+
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
 	* anonymous.c (offset_compare): When calculating A_END, subtract

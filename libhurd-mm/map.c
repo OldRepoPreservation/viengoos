@@ -250,12 +250,13 @@ map_split (struct map *map, uintptr_t offset)
 
   second->region.start = map->region.start + offset;
   second->region.length = map->region.length - offset;
+  second->offset += offset;
 
   /* This is kosher: it does not change the ordering of the mapping in
      the tree.  */
   map->region.length = offset;
 
-  debug (0, "%x+%x, %x+%x",
+  debug (5, "%x+%x, %x+%x",
 	 map->region.start, map->region.length,
 	 second->region.start, second->region.length);
 
@@ -329,15 +330,17 @@ map_fault (addr_t fault_addr, uintptr_t ip, struct exception_info info)
   struct map *map = map_find (region);
   if (! map)
     {
-      debug (0, "No map covers " ADDR_FMT "(" EXCEPTION_INFO_FMT ")",
-	     ADDR_PRINTF (fault_addr),
-	     EXCEPTION_INFO_PRINTF (info));
+      do_debug (5)
+	{
+	  debug (0, "No map covers " ADDR_FMT "(" EXCEPTION_INFO_FMT ")",
+		 ADDR_PRINTF (fault_addr),
+		 EXCEPTION_INFO_PRINTF (info));
+	  for (map = hurd_btree_map_first (&maps);
+	       map;
+	       map = hurd_btree_map_next (map))
+	    debug (0, MAP_FMT, MAP_PRINTF (map));
+	}
 
-      for (map = hurd_btree_map_first (&maps);
-	   map;
-	   map = hurd_btree_map_next (map))
-	debug (0, MAP_FMT, MAP_PRINTF (map));
-      
       maps_lock_unlock ();
       return false;
     }
@@ -364,7 +367,7 @@ map_fault (addr_t fault_addr, uintptr_t ip, struct exception_info info)
   bool r = pager->fault (pager, offset, 1, ro,
 			 (uintptr_t) ADDR_TO_PTR (fault_addr), ip, info);
   if (! r)
-    debug (0, "Map did not resolve fault at " ADDR_FMT,
+    debug (5, "Map did not resolve fault at " ADDR_FMT,
 	   ADDR_PRINTF (fault_addr));
 
   return r;
