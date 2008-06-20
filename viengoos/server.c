@@ -39,6 +39,7 @@
 #include "thread.h"
 #include "activity.h"
 #include "viengoos.h"
+#include "profile.h"
 
 #ifndef NDEBUG
 
@@ -67,6 +68,8 @@ struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
 #define DEBUG(level, format, args...) do {} while (0)
 #endif
 
+#define PAGEFAULT_METHOD 2
+
 void
 server_loop (void)
 {
@@ -81,8 +84,17 @@ server_loop (void)
   bool rpc_trace_just_dumped = false;
 #endif
 
+  /* Profiling.  */
+  int method = -1;
+
   for (;;)
     {
+      if (method != -1)
+	{
+	  profile_end (method);
+	  method = -1;
+	}
+
       if (have_lock)
 	{
 	  ss_mutex_unlock (&kernel_lock);
@@ -161,6 +173,16 @@ server_loop (void)
 
       ss_mutex_lock (&kernel_lock);
       have_lock = true;
+
+
+      /* Start timer.  */
+      if (l4_is_pagefault (msg_tag))
+	method = PAGEFAULT_METHOD;
+      else
+	method = label;
+      profile_start (method,
+		     method == PAGEFAULT_METHOD ? "pagefault"
+		     : rm_method_id_string (method));
 
       /* Find the sender.  */
       struct thread *thread = thread_lookup (from);

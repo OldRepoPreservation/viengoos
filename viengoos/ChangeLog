@@ -1,5 +1,14 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* profile.c: New file.
+	* profile.h: Likewise.
+	* Makefile.am (viengoos_SOURCES): Add profile.h and profile.c.
+	* server.c: Include "profile.h".
+	(PAGEFAULT_METHOD): Define.
+	(server_loop): Add profiling code.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): If CAP_COPY_DISCARDABLE_SET or
 	CAP_COPY_PRIORITY_SET is set, also update the object's policy,
 	when appropriate.

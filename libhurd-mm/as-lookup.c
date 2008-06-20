@@ -26,6 +26,10 @@
 
 #include "bits.h"
 
+#ifdef RM_INTERN
+#include "../viengoos/profile.h"
+#endif
+
 #ifndef RM_INTERN
 # include <pthread.h>
 pthread_rwlock_t as_rwlock;
@@ -332,9 +336,17 @@ as_lookup_rel (activity_t activity,
 	       enum cap_type type, bool *writable,
 	       enum as_lookup_mode mode, union as_lookup_ret *rt)
 {
-  return as_lookup_rel_internal (activity,
-				 root, address, type, writable, mode, rt,
-				 false);
+#ifdef RM_INTERN
+  profile_start ((uintptr_t) &as_lookup_rel, "as_lookup");
+#endif
+  bool r = as_lookup_rel_internal (activity,
+				   root, address, type, writable, mode, rt,
+				   false);
+#ifdef RM_INTERN
+  profile_end ((uintptr_t) &as_lookup_rel);
+#endif
+
+  return r;
 }
 
 void

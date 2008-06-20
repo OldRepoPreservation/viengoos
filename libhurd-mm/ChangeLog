@@ -1,5 +1,10 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* as-lookup.c [RM_INTERN]: Include "../viengoos/profile.h".
+	(as_lookup_rel): Instrument.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (storage_alloc): Don't set SLOT's shadow object to
 	ADDR if it is a page, leave it as NULL.
 	(shadow_setup): Don't set the shadow page's shadow capability to

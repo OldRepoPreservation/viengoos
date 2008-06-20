@@ -49,7 +49,8 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	bits.h					\
 	server.h server.c			\
 	pager.h pager.c				\
-	list.h
+	list.h					\
+	profile.h profile.c
 
 viengoos_LDADD = \
 	../libhurd-btree/libhurd-btree.a \
