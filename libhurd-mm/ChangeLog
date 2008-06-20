@@ -1,5 +1,10 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.c (fault): When copying the storage in place, pass
+	ANON->ACTIVITY, not META_DATA_ACTIVITY, to cap_copy_x.
+	
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.c (mdestroy): Optimize storage destruction when MAP is
 	the last reference.
 	(destroy): Assert that PAGER has no allocated storage.

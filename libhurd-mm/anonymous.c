@@ -262,7 +262,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	    (addr,
 	     ({
 	       bool ret;
-	       ret = cap_copy_x (meta_data_activity,
+	       ret = cap_copy_x (anon->activity,
 				 ADDR_VOID, slot, addr,
 				 ADDR_VOID, page, storage_desc->storage,
 				 read_only ? CAP_COPY_WEAKEN : 0,
