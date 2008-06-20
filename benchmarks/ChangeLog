@@ -1,11 +1,8 @@
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (boot_PROGRAMS): Add gcbench.
-	(gcbench_CPPFLAGS): New variable.
-	(gcbench_CPPFLAGS): Likewise.
-	(gcbench_CPPFLAGS): Likewise.
-	(gcbench_CPPFLAGS): Likewise.
-	(gcbench_CPPFLAGS): Likewise.
+	(gcbench_CPPFLAGS, gcbench_CFLAGS, gcbench_LDFLAGS, gcbench_LDADD)
+	(gcbench_SOURCES): New variables.
 
 2008-06-16  Neal H. Walfield  <neal@gnu.org>
 
