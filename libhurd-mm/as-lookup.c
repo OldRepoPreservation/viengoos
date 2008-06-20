@@ -337,13 +337,13 @@ as_lookup_rel (activity_t activity,
 				 false);
 }
 
-bool
-as_dump_path_rel (activity_t activity,
-		  struct cap *root, addr_t address,
-		  enum cap_type type, bool *writable,
-		  enum as_lookup_mode mode, union as_lookup_ret *rt)
+void
+as_dump_path_rel (activity_t activity, struct cap *root, addr_t addr)
 {
+  union as_lookup_ret rt;
+
   return as_lookup_rel_internal (activity,
-				 root, address, type, writable, mode, rt,
+				 root, addr, -1,
+				 NULL, as_lookup_want_cap, &rt,
 				 true);
 }

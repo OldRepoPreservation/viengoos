@@ -617,7 +617,19 @@ as_object_lookup (addr_t addr, enum cap_type type, bool *writable)
 			       &shadow_root, addr, -1, writable);
 }
 #endif
-
+
+/* Print the path taken to get to the slot at address ADDRESS.  */
+extern void as_dump_path_rel (activity_t activity,
+			      struct cap *root, addr_t addr);
+
+#ifndef RM_INTERN
+static inline void
+as_dump_path (addr_t addr)
+{
+  as_dump_path_rel (meta_data_activity, &shadow_root, addr);
+}
+#endif
+  
 /* Walk the address space (without using the shadow page tables),
    depth first.  VISIT is called for each slot for which (1 <<
    reported capability type) & TYPES is non-zero.  TYPE is the

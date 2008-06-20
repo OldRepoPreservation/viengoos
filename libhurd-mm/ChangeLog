@@ -1,5 +1,12 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* as.h (as_dump_path_rel): New declaration.
+	(as_dump_path) [! RM_INTERN]: New function.
+	* as-lookup.c (as_dump_path_rel): Return void, don't take the
+	type, writable, mode or rt parameters, infer them.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.c (fault): When copying the storage in place, pass
 	ANON->ACTIVITY, not META_DATA_ACTIVITY, to cap_copy_x.
 	
