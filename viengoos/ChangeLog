@@ -1,5 +1,11 @@
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): If CAP_COPY_DISCARDABLE_SET or
+	CAP_COPY_PRIORITY_SET is set, also update the object's policy,
+	when appropriate.
+
+2008-06-20  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c: Include "pager.h".
 	(ager_loop): Consider total available memory as not MEMORY_TOTAL
 	but MEMORY_TOTAL - PAGER_LOW_WATER_MARK.  Improve debugging

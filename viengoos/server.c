@@ -875,6 +875,26 @@ server_loop (void)
 	    if (! r)
 	      REPLY (EINVAL);
 
+	    if ((flags & (CAP_COPY_DISCARDABLE_SET | CAP_COPY_PRIORITY_SET)))
+	      /* The caller changed the policy.  Also change it on the
+		 object.  */
+	      {
+		struct object *object = cap_to_object_soft (principal, target);
+		if (object)
+		  {
+		    struct object_desc *desc = object_to_object_desc (object);
+
+		    /* XXX: This should only be allowed if TARGET
+		       grants writable access to the object.  */
+		    if ((flags & CAP_COPY_DISCARDABLE_SET))
+		      desc->policy.discardable = properties.policy.discardable;
+
+		    if ((flags & CAP_COPY_PRIORITY_SET)
+			&& desc->activity == principal)
+		      desc->policy.priority = properties.policy.priority;
+		  }
+	      }
+
 	    switch (label)
 	      {
 	      case RM_object_slot_copy_out:
