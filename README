@@ -59,6 +59,21 @@ succeed:
 Also the header files are a good source of documentation.
 
 
+Using the Cross-Compiler
+------------------------
+
+Does the package you want to cross-compile use the GNU build system
+(`configure' script)?  If not, then...  If yes, then proceed as follows.  Do
+something like ``PATH=$PATH:/where/the/viengoos/build/is/bin'' to make sure
+that `i686-pc-viengoos-gnu-gcc' can be found via `$PATH'.  As the master GNU
+system-guessing scripts don't know about Viengoos (yet), you have to link the
+package's `config.guess' and `config.sub' to the Viengoos ones.  That's what
+`fix_config_guess_and_sub' (see `Makefoo.am') does, used in
+`newlib/Makefile.am', for example.  After that, configuring the to-be-built
+package with ``--host=i686-pc-viengoos-gnu'' is all that *should* be needed,
+for a portable package.  Otherwise you'll see things explode.
+
+
 Installation on ia32
 --------------------
 

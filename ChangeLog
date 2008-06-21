@@ -1,6 +1,10 @@
+2008-06-21  Thomas Schwinge  <tschwinge@gnu.org>
+
+	* README (Using the Cross-Compiler): New section.
+
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
-	* configure.ac (--enable-tests): New command line option.
+	* configure.ac (--enable-runtime-checks): New command line option.
 	(USER_CPPFLAGS, KERNEL_CPPFLAGS): Add $CPP_CHECKS.
 	(USER_CFLAGS, KERNEL_CFLAGS): Add $C_CHECKS.
 
