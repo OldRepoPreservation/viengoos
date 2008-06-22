@@ -122,7 +122,7 @@ list_prev (struct list_node *node)
 static inline int
 list_count (struct list *list)
 {
-#ifndef NDEBUG
+#ifndef NCHECK
   int count = 0;
   struct list_node *node;
   for (node = list_head (list); node; node = list_next (node))
@@ -313,10 +313,8 @@ list_unlink (struct list *list, struct list_node *item)
 static inline void
 list_move (struct list *target, struct list *source)
 {
-#ifndef NDEBUG
   assert (! target->head);
   assert (target->count == 0);
-#endif
 
   *target = *source;
 
@@ -364,7 +362,7 @@ list_join (struct list *target, struct list *source)
      struct foo
      {
        ...;
-       struct list_node *node;
+       struct list_node node;
      }
 
      LIST_CLASS(foo, struct foo, node, true)

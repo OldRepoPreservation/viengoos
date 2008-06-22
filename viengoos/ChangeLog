@@ -1,5 +1,11 @@
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
+	* list.h (list_count) [! NDEBUG]: Don't check the length of the
+	list in this case...
+	[! NCHECK]: ... but in this case.
+
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): In the implementation of
 	object_discarded_clear, if CAP.TYPE is void, directly return
 	ENOENT.
