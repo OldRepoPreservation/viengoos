@@ -1,5 +1,9 @@
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
+	* mprotect.c (mprotect): Tweak debugging output.
+
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.c (mdestroy) [! NDEBUG]: Don't void capability slots,
 	we destroy the associated objects, which does that.
 
