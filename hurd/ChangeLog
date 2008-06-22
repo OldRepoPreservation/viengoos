@@ -1,5 +1,9 @@
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.h (EXCEPTION_INFO_PRINTF): Clean up output.
+
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
 	* futex.h [! RM_INTERN]: Include <errno.h>.
 	(futex_wait): On error, set ERRNO and return -1.
 	(futex_timed_wait): Likewise.

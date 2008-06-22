@@ -75,13 +75,13 @@ struct exception_info
   };
 };
 
-#define EXCEPTION_INFO_FMT "%c%c%c %s %s"
+#define EXCEPTION_INFO_FMT "%c%c%c %s%s"
 #define EXCEPTION_INFO_PRINTF(info)			\
   ((info).access & L4_FPAGE_READABLE ? 'r' : '~'),	\
     ((info).access & L4_FPAGE_WRITABLE ? 'w' : '~'),	\
-    ((info).access & L4_FPAGE_EXECUTABLE ? 'r' : '~'),	\
+    ((info).access & L4_FPAGE_EXECUTABLE ? 'x' : '~'),	\
     cap_type_string ((info).type),			\
-    (info.discarded) ? "discarded" : ""
+    (info.discarded) ? " discarded" : ""
 
 /* Raise a fault at address FAULT_ADDRESS.  If IP is not 0, then IP is
    the value of the IP of the faulting thread at the time of the fault
