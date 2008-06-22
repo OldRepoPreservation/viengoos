@@ -1,5 +1,11 @@
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.c: Include "profile.h".
+	(activity_destroy): If ACTIVITY is the root activity, dump the
+	profile statistics before panicking.
+
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c: Include "profile.h".
 	(ager_loop): Profile.
 

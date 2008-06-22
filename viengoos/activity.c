@@ -24,6 +24,7 @@
 
 #include "activity.h"
 #include "object.h"
+#include "profile.h"
 
 struct activity *root_activity;
 
@@ -78,6 +79,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
   if (! victim->parent)
     {
       assert (victim == root_activity);
+      profile_stats_dump ();
       panic ("Request to destroy root activity");
     }
 
