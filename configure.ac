@@ -238,7 +238,7 @@ AC_SUBST([LIBC_M])
 
 # Compute some variables that we need everywhere.
 
-AC_ARG_ENABLE([checks],
+AC_ARG_ENABLE([runtime-checks],
 	      AC_HELP_STRING([--enable-runtime-checks[=LEVEL]],
 		             [Runtime checks to enable.  level=[0,1,2,3], 0: none, 1: debugging output, 2: and asserts (default), 3: and very computationally expensive checks]),
 	      [ac_cv_runtime_checks=$enableval], [ac_cv_runtime_checks=2])
