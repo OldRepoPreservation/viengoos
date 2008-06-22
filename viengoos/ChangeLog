@@ -1,5 +1,11 @@
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): In the implementation of
+	object_discarded_clear, if CAP.TYPE is void, directly return
+	ENOENT.
+
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.h: Include "list.h".
 	(struct thread) [! NDEBUG]: Add field futex_waiter_node.
 	[! NDEBUG]: Instantiate the futex_waiter list class.

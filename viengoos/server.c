@@ -1054,6 +1054,8 @@ server_loop (void)
 	       returns NULL if the object's discardable bit is
 	       set!  Instead, we lookup the capability.  */
 	    struct cap cap = CAP (&thread->aspace, object_addr, -1, true);
+	    if (cap.type == cap_void)
+	      REPLY (ENOENT);
 
 	    int idx = (cap.oid % (1 + FOLIO_OBJECTS)) - 1;
 	    oid_t foid = cap.oid - idx - 1;
