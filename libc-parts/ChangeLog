@@ -1,3 +1,8 @@
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
+	* errno.h (_ERRNO_H) [! _ENABLE_TESTS && ! RM_INTERN]: Undef.
+	[! _ENABLE_TESTS && ! RM_INTERN]: Include next <errno.h>.
+
 2008-06-18  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* strings.h: New file, from today's glibc CVS HEAD.

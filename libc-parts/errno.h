@@ -1,5 +1,5 @@
-/* errno.h - Simpe errno declaration for libc-pars.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+/* errno.h - Simpe errno declaration for libc-parts.
+   Copyright (C) 2003, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -36,14 +36,18 @@
    the system's <errno.h> just included.  */
 # define HURD_ERROR_H
 
-#else
+#elif defined (RM_INTERN)
 
-#include <hurd/error.h>
+# include <hurd/error.h>
 
 extern int errno;
+typedef int error_t;
+
+#else
+
+# undef _ERRNO_H
+# include_next <errno.h>
 
 #endif
-
-typedef int error_t;
 
 #endif
