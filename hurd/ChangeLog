@@ -1,5 +1,14 @@
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
+	* futex.h [! RM_INTERN]: Include <errno.h>.
+	(futex_wait): On error, set ERRNO and return -1.
+	(futex_timed_wait): Likewise.
+	(futex_wake): Likewise.
+	* mutex.h (ss_mutex_lock): If FUTEX_WAIT returns failure, print
+	some debugging information.
+
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
 	* lock.h (SS_MUTEX_LOCK, SS_MUTEX_LOCK_WAIT, SS_MUTEX_UNLOCK,
 	SS_MUTEX_TRYLOCK, SS_MUTEX_TRYLOCK_BLOCKED, SS_RMUTEX_LOCK,
 	SS_RMUTEX_LOCK_INC, SS_RMUTEX_LOCK_WAIT, SS_RMUTEX_UNLOCK,

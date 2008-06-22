@@ -1096,5 +1096,10 @@ object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
 
   thread->wait_queue_p = false;
 
+#ifndef NDEBUG
+  if (thread->wait_reason == THREAD_WAIT_FUTEX)
+    futex_waiter_list_unlink (&futex_waiters, thread);
+#endif
+
   object_wait_queue_check (activity, thread);
 }

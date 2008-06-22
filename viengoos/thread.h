@@ -1,5 +1,5 @@
 /* thread.h - Thread object interface.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -23,6 +23,8 @@
 
 #include <l4.h>
 #include <errno.h>
+
+#include "list.h"
 
 /* Forward.  */
 struct folio;
@@ -107,7 +109,17 @@ struct thread
     oid_t next;
     oid_t prev;
   } wait_queue;
+
+#ifndef NDEBUG
+  struct list_node futex_waiter_node;
+#endif
 };
+
+#ifndef NDEBUG
+LIST_CLASS(futex_waiter, struct thread, futex_waiter_node, true)
+/* List of threads waiting on a futex.  */
+extern struct futex_waiter_list futex_waiters;
+#endif
 
 /* The hardwired base of the UTCB (2.5GB).  */
 #define UTCB_AREA_BASE (0xA0000000)

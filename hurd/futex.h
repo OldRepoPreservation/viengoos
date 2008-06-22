@@ -116,6 +116,8 @@ RPC (futex, 8, 1,
 #undef RPC_TARGET
 
 #ifndef RM_INTERN
+#include <errno.h>
+
 struct futex_return
 {
   error_t err;
@@ -149,7 +151,10 @@ futex_wait (int *f, int val)
   struct futex_return ret;
   ret = futex (f, FUTEX_WAIT, val, NULL, 0, 0);
   if (ret.err)
-    return 0;
+    {
+      errno = ret.err;
+      return -1;
+    }
   return ret.ret;
 }
 
@@ -160,7 +165,10 @@ futex_timed_wait (int *f, int val, struct timespec *timespec)
   struct futex_return ret;
   ret = futex (f, FUTEX_WAIT, val, timespec, 0, 0);
   if (ret.err)
-    return 0;
+    {
+      errno = ret.err;
+      return -1;
+    }
   return ret.ret;
 }
 
@@ -171,7 +179,10 @@ futex_wake (int *f, int nwake)
   struct futex_return ret;
   ret = futex (f, FUTEX_WAKE, nwake, NULL, 0, 0);
   if (ret.err)
-    return 0;
+    {
+      errno = ret.err;
+      return -1;
+    }
   return ret.ret;
 }
 #endif /* !RM_INTERN */

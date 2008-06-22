@@ -42,6 +42,10 @@
 #include "profile.h"
 
 #ifndef NDEBUG
+struct futex_waiter_list futex_waiters;
+#endif
+
+#ifndef NDEBUG
 
 struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
 						   false, false, false);
@@ -130,6 +134,13 @@ server_loop (void)
 	       any message in the last few seconds.  Perhaps there is
 	       a dead-lock.  Dump the rpc trace.  */
 	    {
+	      struct thread *thread;
+	      while ((thread = futex_waiter_list_head (&futex_waiters)))
+		{
+		  object_wait_queue_dequeue (root_activity, thread);
+		  rpc_error_reply (thread->tid, EDEADLK);
+		}
+
 	      trace_buffer_dump (&rpc_trace, 0);
 	      rpc_trace_just_dumped = true;
 	    }
@@ -1451,6 +1462,10 @@ server_loop (void)
 		thread->wait_reason_arg = offset1;
 
 		object_wait_queue_enqueue (principal, object1, thread);
+
+#ifndef NDEBUG
+		futex_waiter_list_queue (&futex_waiters, thread);
+#endif
 
 		/* Don't reply.  */
 		do_reply = 0;

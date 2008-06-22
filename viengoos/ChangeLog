@@ -1,3 +1,17 @@
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h: Include "list.h".
+	(struct thread) [! NDEBUG]: Add field futex_waiter_node.
+	[! NDEBUG]: Instantiate the futex_waiter list class.
+	(futex_waiters) [! NDEBUG]: Declare.
+	* server.c (futex_waiters) [! NDEBUG]: New variable.
+	(server_loop) [! NDEBUG]: If we don't get an RPC for a while,
+	dequeue all thread's enqueued on FUTEX_WAITERS and return EDEADLK.
+	When blocking a thread on a futex, add THREAD to FUTEX_WAITERS.
+	* object.c (object_wait_queue_dequeue) [! NDEBUG]: If
+	THREAD->WAIT_REASON is THREAD_WAIT_FUTEX, unlink THREAD from
+	FUTEX_WAITERS.
+
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
 	* profile.c: New file.
