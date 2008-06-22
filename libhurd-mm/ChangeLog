@@ -1,3 +1,8 @@
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.c (mdestroy) [! NDEBUG]: Don't void capability slots,
+	we destroy the associated objects, which does that.
+
 2008-06-20  Neal H. Walfield  <neal@gnu.org>
 
 	* as-lookup.c (as_dump_path_rel): Don't return anything.

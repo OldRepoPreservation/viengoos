@@ -317,25 +317,6 @@ mdestroy (struct map *map)
 {
   struct anonymous_pager *anon = (struct anonymous_pager *) map->pager;
 
-#ifndef NDEBUG
-  /* Void the area.  */
-  addr_t addr;
-  for (addr = ADDR (map->region.start, ADDR_BITS - PAGESIZE_LOG2);
-       addr_prefix (addr) < map->region.start + map->region.length;
-       addr = addr_add (addr, 1))
-    {
-      /* This may fail if the page has not yet been faulted in.  */
-      as_slot_lookup_use
-	(addr,
-	 ({
-	   error_t err;
-	   err = rm_cap_rubout (meta_data_activity, ADDR_VOID, addr);
-	   assert (! err);
-	   slot->type = cap_void;
-	 }));
-    }
-#endif
-
   /* XXX: We assume that every byte is mapped by at most one mapping.
      We may have to reexamine this assumption if we allow multiple
      mappings onto the same part of a pager (e.g., via mremap).  */
