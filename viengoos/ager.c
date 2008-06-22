@@ -30,6 +30,7 @@
 #include "zalloc.h"
 #include "thread.h"
 #include "pager.h"
+#include "profile.h"
 
 /* A frames has a single claimant.  When a frame is shared among
    multiple activities, the first activity to access claims it (that
@@ -131,10 +132,12 @@ ager_loop (l4_thread_id_t main_thread)
       while (frame < frames)
 	{
 	  ss_mutex_lock (&kernel_lock);
+	  profile_start ((uintptr_t) &ager_loop, "ager");
 
 	  int count = grab ();
 	  if (count == 0)
 	    {
+	      profile_end ((uintptr_t) &ager_loop);
 	      ss_mutex_unlock (&kernel_lock);
 	      break;
 	    }
@@ -214,7 +217,8 @@ ager_loop (l4_thread_id_t main_thread)
 		    /* The object has become inactive and needs to be
 		       moved.  */
 		    {
-		      ACTIVITY_STAT_UPDATE (desc->activity, became_inactive, 1);
+		      ACTIVITY_STAT_UPDATE (desc->activity,
+					    became_inactive, 1);
 
 		      became_inactive ++;
 
@@ -238,7 +242,8 @@ ager_loop (l4_thread_id_t main_thread)
 		  if (referenced)
 		    /* The object has become active.  */
 		    {
-		      ACTIVITY_STAT_UPDATE (desc->activity, became_active, 1);
+		      ACTIVITY_STAT_UPDATE (desc->activity,
+					    became_active, 1);
 
 		      became_active ++;
 
@@ -263,6 +268,7 @@ ager_loop (l4_thread_id_t main_thread)
 		ACTIVITY_STAT_UPDATE (desc->activity, clean, 1);
 	    }
 
+	  profile_end ((uintptr_t) &ager_loop);
 	  ss_mutex_unlock (&kernel_lock);
 	}
 
@@ -270,6 +276,7 @@ ager_loop (l4_thread_id_t main_thread)
       if (iterations % FREQ == 0)
 	{
 	  ss_mutex_lock (&kernel_lock);
+	  profile_start ((uintptr_t) &ager_loop, "ager");
 
 	  /* XXX: Update the statistics.  We need to average some of
 	     the fields including the number of active, inactive,
@@ -389,12 +396,14 @@ ager_loop (l4_thread_id_t main_thread)
 	  do_debug (1)
 	    {
 	      int a = zalloc_memory + available_list_count (&available);
-	      debug (0, "%d of %d (%d%%) free; "
+	      debug (0, "%d: %d of %d (%d%%) free; "
 		     "since last interation: %d became inactive, %d active",
+		     iterations / FREQ,
 		     a, memory_total, (a * 100) / memory_total,
 		     became_inactive, became_active);
 	    }
 
+	  profile_end ((uintptr_t) &ager_loop);
 	  ss_mutex_unlock (&kernel_lock);
 	}
 
