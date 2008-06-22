@@ -40,6 +40,7 @@ struct ss_lock_trace
 #define SS_LOCK_TRACE_COUNT 1000
 extern struct ss_lock_trace ss_lock_trace[SS_LOCK_TRACE_COUNT];
 extern int ss_lock_trace_count;
+#endif /* NDEBUG */
 
 enum
   {
@@ -58,8 +59,6 @@ enum
     SS_RMUTEX_TRYLOCK_INC,
     SS_RMUTEX_TRYLOCK_BLOCKED,
   };
-
-#endif /* NDEBUG */
 
 static inline void
 ss_lock_trace_dump (void *lock)

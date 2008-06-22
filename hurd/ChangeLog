@@ -1,3 +1,11 @@
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
+	* lock.h (SS_MUTEX_LOCK, SS_MUTEX_LOCK_WAIT, SS_MUTEX_UNLOCK,
+	SS_MUTEX_TRYLOCK, SS_MUTEX_TRYLOCK_BLOCKED, SS_RMUTEX_LOCK,
+	SS_RMUTEX_LOCK_INC, SS_RMUTEX_LOCK_WAIT, SS_RMUTEX_UNLOCK,
+	SS_RMUTEX_UNLOCK_DEC, SS_RMUTEX_TRYLOCK, SS_RMUTEX_TRYLOCK_INC,
+	SS_RMUTEX_TRYLOCK_BLOCKED) [NDEBUG]: Also define in this case.
+
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (struct exception_frame): Make regs elements large.
