@@ -592,6 +592,7 @@ process_spawn (addr_t activity,
   int d = 0;
   int page = 0;
   void *pages[STARTUP_DATA_MAX_SIZE / PAGESIZE];
+  memset (pages, 0, sizeof (pages));
 
   while (d != startup_data->desc_count)
     {
@@ -615,13 +616,6 @@ process_spawn (addr_t activity,
 				as_root, as_root_cap, desc->object,
 				ADDR_VOID, cap, desc->storage,
 				allocate_page_table, do_index);
-
-#ifndef RM_INTERN
-	      /* Free the address space that we allocated to access
-		 the folios.  The only object we still need is the
-		 thread.  We'll free that folio at the very end.  */
-	      as_free (desc->storage, 1);
-#endif
 
 	      desc->storage = desc->object;
 	    }
@@ -653,6 +647,19 @@ process_spawn (addr_t activity,
   int i;
   for (i = 0; i < page; i ++)
     memcpy (pages[i], (void *) startup_data + i * PAGESIZE, PAGESIZE);
+
+#ifndef RM_INTERN
+  /* Free the address space that we allocated to access the folios.
+     The only object we still need is the thread, which we have cached
+     in a cap slot and will free at the end.  */
+  for (d = 0; d < startup_data->desc_count; d ++)
+    {
+      struct hurd_object_desc *desc = &descs[d];
+
+      if (desc->type == cap_folio)
+	as_free (desc->storage, 1);
+    }
+#endif
 
   do_debug (5)
     /* Dump the descriptors.  */

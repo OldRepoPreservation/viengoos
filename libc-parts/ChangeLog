@@ -1,5 +1,10 @@
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
+	* process-spawn.c (process_spawn): [! NDEBUG]: Only free folios
+	address space after we are really done using it.
+
+2008-06-22  Neal H. Walfield  <neal@gnu.org>
+
 	* errno.h (_ERRNO_H) [! _ENABLE_TESTS && ! RM_INTERN]: Undef.
 	[! _ENABLE_TESTS && ! RM_INTERN]: Include next <errno.h>.
 
