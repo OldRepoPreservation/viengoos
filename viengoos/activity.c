@@ -160,6 +160,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	void *ret = hurd_btree_priorities_insert (&victim->parent->priorities,
 						  desc);
 	assert (! ret);
+	victim->parent->priorities_count ++;
 
 	count ++;
       }
@@ -391,12 +392,14 @@ do_activity_dump (struct activity *activity, int indent)
 
   int active = activity_lru_list_count (&activity->active);
   int inactive = activity_lru_list_count (&activity->inactive);
+  int clean = eviction_list_count (&activity->eviction_clean);
+  int dirty = eviction_list_count (&activity->eviction_dirty);
 
-  printf ("%s %llx: %d frames (active: %d, inactive: %d) "
-	  "(total: %d); %d/%d; %d/%d\n",
+  printf ("%s %llx: %d frames (active: %d, inactive: %d, "
+	  "pending eviction: %d/%d); total: %d; s:%d/%d; c:%d/%d\n",
 	  indent_string,
 	  object_to_object_desc ((struct object *) activity)->oid,
-	  activity->frames_local, active, inactive,
+	  activity->frames_local, active, inactive, clean, dirty,
 	  activity->frames_total,
 	  activity->policy.sibling_rel.priority,
 	  activity->policy.sibling_rel.weight,

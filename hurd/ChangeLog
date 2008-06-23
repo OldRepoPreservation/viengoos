@@ -1,3 +1,7 @@
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (OBJECT_PRIORITY_DEFAULT): Define.
+
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
 	* exceptions.h (EXCEPTION_INFO_PRINTF): Clean up output.

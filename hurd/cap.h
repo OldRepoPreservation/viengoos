@@ -175,6 +175,7 @@ cap_type_strengthen (enum cap_type type)
 #define OBJECT_PRIORITY_BITS 10
 #define OBJECT_PRIORITY_MIN (-(1 << (OBJECT_PRIORITY_BITS - 1)))
 #define OBJECT_PRIORITY_LRU (0)
+#define OBJECT_PRIORITY_DEFAULT (0)
 #define OBJECT_PRIORITY_MAX ((1 << (OBJECT_PRIORITY_BITS - 1)) - 1)
 
 struct object_policy
