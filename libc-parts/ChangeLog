@@ -1,3 +1,9 @@
+2008-06-24  Neal H. Walfield  <neal@gnu.org>
+
+	* assert.h (build_assert): Define.
+	
+	(assertx): Call _exit on failure.
+
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
 	* s-printf.h (s_printf): Use gcc's format attribute.

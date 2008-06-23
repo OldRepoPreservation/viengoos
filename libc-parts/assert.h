@@ -24,6 +24,8 @@
 
 #include <hurd/stddef.h>
 
+#define build_assert(__expr) (void) (sizeof (char[(__expr)? 1 : -1]))
+
 #if defined(_L4_TEST_ENVIRONMENT) || defined(_ENABLE_TESTS)
 # include_next <assert.h>
 # define assertx(__ax_expr, __ax_fmt, ...)		\
@@ -69,7 +71,11 @@
 	  S_PRINTF ("%p ", a[i]);					\
 	S_PRINTF ("\n");						\
 									\
-	for (;;);							\
+	for (;;)							\
+	  {								\
+	    extern void _exit (int);					\
+	    _exit(128);							\
+	  }								\
       }									\
   } while (0)
 
