@@ -318,7 +318,7 @@ update_stats (void)
 	}
 
 	if (activity->policy.child_rel.priority == priority)
-	  ACTIVITY_STATS (p)->available_local
+	  ACTIVITY_STATS (activity)->available_local
 	    = comp_avail (activity,
 			  activity->policy.child_rel.weight,
 			  activity->frames_local,

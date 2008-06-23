@@ -1,5 +1,10 @@
 2008-06-24  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c (update_stats): When we mean ACTIVITY, use ACTIVITY, not
+	P.
+
+2008-06-24  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (object_desc_claim): Declare and initialize EC.
 
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
