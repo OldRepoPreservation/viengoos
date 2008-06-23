@@ -1,5 +1,10 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (struct activity_stats): New fields available_local,
+	pending_eviction and discarded.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* stddef.h (panic_): Use gcc's format attribute.
 
 2008-06-23  Neal H. Walfield  <neal@gnu.org>

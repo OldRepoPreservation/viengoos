@@ -77,6 +77,7 @@ struct activity_stats
      allocate assuming other allocations do not otherwise change.
      This implies stealing from others.  */
   uint32_t available;
+  uint32_t available_local;
   
   /* The maximum amount of memory that the user of this activity ought
      to allocate in the next few seconds.  If negative, the amount of
@@ -106,6 +107,8 @@ struct activity_stats
      DIRTY.  */
   uint32_t clean;
   uint32_t dirty;
+  /* Number of frames pending eviction.  */
+  uint32_t pending_eviction;
 
 
   /* Based on recency information, the number of active frames
@@ -142,6 +145,9 @@ struct activity_stats
   /* Number of frames that were accounted to this activity and
      scheduled for eviction.  */
   uint32_t evicted;
+  /* Number of frames that were accounted to this activity (not its
+     children), had the discarded bit set, and were discarded.  */
+  uint32_t discarded;
   /* Number of frames paged-in on behalf of this activity.  This does
      not include pages marked empty that do not require disk
      activity.  */

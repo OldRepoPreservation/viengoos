@@ -502,6 +502,9 @@ pager_collect (int goal)
 
 	  if (! victim)
 	    break;
+
+	  ACTIVITY_STATS (victim)->pressure += 4;
+
 	  assert (victim);
 	}
       while (victim != parent);

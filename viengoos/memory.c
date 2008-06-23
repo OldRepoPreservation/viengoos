@@ -396,7 +396,10 @@ memory_frame_allocate (struct activity *activity)
 
 	  bool discarded = desc->dirty;
 	  if (discarded)
-	    assert (desc->policy.discardable);
+	    {
+	      assert (desc->policy.discardable);
+	      ACTIVITY_STATS (desc->activity)->discarded ++;
+	    }
 
 	  oid_t oid = desc->oid;
 	  memory_object_destroy (activity, object);
