@@ -1,3 +1,10 @@
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
+	* profile.c (profile_end): Only deump profile statistics every
+	100000 samples if the debug output level is or exceeds 5.
+	(profile_stats_dump): When printing the per-call time, also print
+	the first digit after the period.
+
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
 	* activity.c: Include "profile.h".

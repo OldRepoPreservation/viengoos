@@ -57,12 +57,13 @@ profile_stats_dump (void)
   int i;
   for (i = 0; i < used; i ++)
     if (sites[i].calls)
-      printf ("%s: %d calls, %lld ms, %lld us per call, "
-	      "%d%% total time, %d%% profiled time\n",
+      printf ("%s:\t%d calls,\t%lld ms,\t%lld.%d us per call,\t"
+	      "%d%% total time,\t%d%% profiled time\n",
 	      sites[i].name,
 	      sites[i].calls,
 	      sites[i].time / 1000,
 	      sites[i].time / sites[i].calls,
+	      (int) ((10 * sites[i].time) / sites[i].calls) % 10,
 	      (int) ((100 * sites[i].time) / (now - epoch)),
 	      (int) ((100 * sites[i].time) / total_time));
 
@@ -136,8 +137,9 @@ profile_end (uintptr_t id)
       site->calls ++;
       calls ++;
 
-      if (calls % 100000 == 0)
-	profile_stats_dump ();
+      do_debug (5)
+	if (calls % 100000 == 0)
+	  profile_stats_dump ();
     }
 }
 
