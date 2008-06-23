@@ -1,5 +1,21 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (struct activity): Add field frames_pending_eviction.
+	Note that we now include frames that are in the laundry in the
+	FRAMES_TOTAL and FRAMES_LOCAL variables.
+	* object.c (object_desc_claim): If claiming a non-discardable
+	eviction candidate, update ACTIVITY's FRAMES_LOCAL, and it and its
+	ancestors' FRAMES_TOTAL and FRAMES_PENDING_EVICTION fields.
+	* pager.c (reclaim_from): Update VICTIM->FRAMES_LOCAL,
+	FRAMES_TOTAL and FRAMES_PENDING_EVICTION appropriately.
+	(process): If ACTIVITY_FRAMES is less than GOAL / 1000, don't
+	bother collecting the activity.
+	(pager_collect): Loop at most 8 times.  Increase the active factor
+	by two.  When calling process, don't include the frames pending
+	eviction.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (struct activity): Add field priorities_count.
 	* activity.c (activity_destroy): Update it.
 	* object.c (object_desc_claim): Likewise.

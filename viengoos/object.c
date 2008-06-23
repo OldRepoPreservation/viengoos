@@ -770,6 +770,21 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 	    {
 	      laundry_list_unlink (&laundry, desc);
 	      eviction_list_unlink (&desc->activity->eviction_dirty, desc);
+
+	      if (update_accounting)
+		{
+		  if (activity != desc->activity)
+		    desc->activity->frames_local --;
+
+		  struct activity *ancestor = desc->activity;
+		  activity_for_each_ancestor
+		    (ancestor,
+		     ({
+		       if (activity != desc->activity)
+			 ancestor->frames_total --;
+		       ancestor->frames_pending_eviction --;
+		     }));
+		}
 	    }
 	  else
 	    {

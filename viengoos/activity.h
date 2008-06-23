@@ -90,14 +90,21 @@ struct activity
   struct eviction_list eviction_dirty;
 
   /* Number of frames allocated to this activity not counting
-     children.  */
+     children.  This includes all frames allocated on the PRIORITY
+     tree and the ACTIVE, INACTIVE and EVICTION_DIRTY lists (but not
+     the EVICTION_CLEAN list, as it is elements on it are immediately
+     reclaimable).  */
   uint32_t frames_local;
   /* Number of frames allocated to this activity (including children).
-     This is the sum of the number of objects on ACTIVE and INACTIVE
-     plus the number of frames allocated to each child.  This does not
-     include the number of frames on the eviction_clean and
-     eviction_dirty lists.  */
+     This is the sum of the number of objects on the PRIORITY tree,
+     and the ACTIVE, INACTIVE and EVICTION_DIRTY lists plus the number
+     of frames allocated to each child.  This does not include the
+     number of frames on the eviction_clean and eviction_dirty
+     lists.  */
   uint32_t frames_total;
+
+  /* Dirty frames that are pending eviction.  */
+  uint32_t frames_pending_eviction;
 
   /* Whether the activity has been marked as dead (and thus will be
      shortly deallocated).  */

@@ -268,12 +268,17 @@ reclaim_from (struct activity *victim, int goal)
 	}
     }
 
-  ACTIVITY_STAT_UPDATE (victim, evicted, count);
-
-  victim->frames_local -= count;
+  victim->frames_local -= count - laundry_count;
   struct activity *ancestor = victim;
-  activity_for_each_ancestor (ancestor,
-			      ({ ancestor->frames_total -= count; }));
+  activity_for_each_ancestor
+    (ancestor,
+     ({
+       ancestor->frames_total -= count - laundry_count;
+       ancestor->frames_pending_eviction += laundry_count;
+
+       ACTIVITY_STATS (ancestor)->evicted += count;
+     }));
+
   debug (5, "Reclaimed from " OID_FMT ": goal: %d; %d frames; "
 	 DEBUG_BOLD ("%d in laundry, %d made available (%d discarded)") " "
 	 "(now: avail: %d, laundry: %d)",
@@ -341,19 +346,22 @@ pager_collect (int goal)
 		    struct activity_memory_policy activity_policy,
 		    int activity_frames)
       {
-	debug (0, "Considering " OID_FMT
-	       ": policy: %d/%d; frames: %d (total: %d/%d; active: %d/%d)",
+	debug (5, "Considering " OID_FMT
+	       ": policy: %d/%d; frames: %d (total: %d/%d; "
+	       "pending eviction: %d/%d, active: %d/%d)",
 	       OID_PRINTF (object_oid ((struct object *) activity)),
 	       activity_policy.priority, activity_policy.weight,
 	       activity_frames,
 	       activity->frames_total, activity->frames_local,
+	       eviction_list_count (&activity->eviction_dirty),
+	       activity->frames_pending_eviction,
 	       ACTIVITY_STATS_LAST (activity)->active,
 	       ACTIVITY_STATS_LAST (activity)->active_local);
 
-	if (activity_frames <= 0)
+	if (activity_frames <= goal / 1000)
 	  /* ACTIVITY has no frames to yield; don't consider it.  */
 	  {
-	    debug (0, "Not choosing activity " OID_FMT,
+	    debug (5, "Not choosing activity " OID_FMT,
 		   OID_PRINTF (object_oid ((struct object *) activity)));
 	    return false;
 	  }
@@ -425,7 +433,7 @@ pager_collect (int goal)
       victim = root_activity;
       do
 	{
-	  debug (0, "Current victim: " OID_FMT,
+	  debug (5, "Current victim: " OID_FMT,
 		 OID_PRINTF (object_to_object_desc ((struct object *) victim)
 			     ->oid));
 
@@ -435,7 +443,7 @@ pager_collect (int goal)
 	  /* Each time through, we let the number of active frames play a
 	     less significant role.  */
 	  unsigned int factor;
-	  for (factor = 0; ! victim; factor ++)
+	  for (factor = 0; ! victim && factor < 16; factor += 2)
 	    {
 	      bool have_self = false;
 
@@ -450,15 +458,21 @@ pager_collect (int goal)
 		    {
 		      have_self = true;
 		      int frames = parent->frames_local
-			- (ACTIVITY_STATS_LAST (parent)->active_local >> factor);
-		      done = process (parent, parent->policy.child_rel, frames);
+			- eviction_list_count (&parent->eviction_dirty)
+			- (ACTIVITY_STATS_LAST (parent)->active_local
+			   >> factor);
+		      if (frames > 0)
+			done = process (parent, parent->policy.child_rel,
+					frames);
 		      if (done)
 			break;
 		    }
 
 		  int frames = child->frames_total
+		    - child->frames_pending_eviction
 		    - (ACTIVITY_STATS_LAST (child)->active >> factor);
-		  done = process (child, child->policy.sibling_rel, frames);
+		  if (frames > 0)
+		    done = process (child, child->policy.sibling_rel, frames);
 		  if (done)
 		    break;
 		}
@@ -466,19 +480,26 @@ pager_collect (int goal)
 	      if (! done && ! have_self)
 		{
 		  int frames = parent->frames_local
+		    - eviction_list_count (&parent->eviction_dirty)
 		    - (ACTIVITY_STATS_LAST (parent)->active_local >> factor);
-		  process (parent, parent->policy.child_rel, frames);
+		  if (frames > 0)
+		    process (parent, parent->policy.child_rel, frames);
 		}
 
 	      if (victim)
 		break;
 
-	      debug (0, "nothing; raising factor to %d", 1 << (factor + 1));
+	      debug (5, "nothing; raising factor to %d", 1 << (factor + 1));
 	    }
 
+	  if (! victim)
+	    break;
 	  assert (victim);
 	}
       while (victim != parent);
+
+      if (! victim)
+	break;
 
       /* We steal from VICTIM.  */
 
@@ -498,11 +519,14 @@ pager_collect (int goal)
       assertx (victim_frames >= share,
 	       "%d < %d", victim_frames, share);
 
-      debug (0, "Revoking from activity " OID_FMT "%s, %d/%d frames, "
-	     "share: %d, goal: %d",
+      debug (0, DEBUG_BOLD ("Revoking from activity " OID_FMT "%s, ")
+	     "%d/%d frames (pending eviction: %d/%d), share: %d, goal: %d",
 	     OID_PRINTF (object_to_object_desc ((struct object *) victim)->oid),
 	     victim->parent ? "" : " (root activity)",
-	     victim->frames_total, victim->frames_local, share, goal);
+	     victim->frames_local, victim->frames_total,
+	     eviction_list_count (&victim->eviction_dirty),
+	     victim->frames_pending_eviction,
+	     share, goal);
 
       int reclaim = victim_frames - share;
       if (reclaim > goal)
