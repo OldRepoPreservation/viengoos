@@ -1,3 +1,7 @@
+2008-06-24  Neal H. Walfield  <neal@gnu.org>
+
+	* object.c (object_desc_claim): Declare and initialize EC.
+
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
 	* profile.c (extant): New variable.

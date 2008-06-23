@@ -693,6 +693,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   assert (desc->activity || activity);
 
   struct object_policy o = desc->policy;
+  bool ec = desc->eviction_candidate;
 
   if (desc->activity && update_accounting)
     assertx (desc->activity->priorities_count
