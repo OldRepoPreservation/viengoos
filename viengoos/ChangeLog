@@ -1,5 +1,14 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c (update_stats): New function.  Update statistics and
+	implement available algorithm.
+	(ager_loop): Don't update update statistics here, call
+	update_stats.
+
+	(ager_loop): Profile time spent unmapping pages.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* memory.c (memory_frame_allocate): If we discard a page, update
 	DESC->ACTIVITY's DISCARDED statistic.
 

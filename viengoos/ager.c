@@ -25,12 +25,17 @@
 #include <assert.h>
 
 #include "ager.h"
+#include "viengoos.h"
 #include "object.h"
 #include "activity.h"
 #include "zalloc.h"
 #include "thread.h"
 #include "pager.h"
 #include "profile.h"
+
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
+#define MAX(x,y) ((x) > (y) ? (x) : (y))
+
 
 /* A frames has a single claimant.  When a frame is shared among
    multiple activities, the first activity to access claims it (that
@@ -55,8 +60,362 @@
 /* The frequency with which we assemble statistics.  */
 #define FREQ (sizeof (((struct object_desc *)0)->age) * 8)
 
+static int period;
+
+static void
+update_stats (void)
+{
+  ss_mutex_lock (&kernel_lock);
+  profile_start ((uintptr_t) &update_stats, "update_stats");
+
+  /* XXX: Update the statistics.  We need to average some of the
+     fields including the number of active, inactive, clean and dirty
+     pages.  Also, we need to calculate each activity's allocation, a
+     damping factor and the pressure.  */
+  void stats (struct activity *activity, uint32_t frames)
+  {
+    ACTIVITY_STATS (activity)->period = period / FREQ;
+
+    ACTIVITY_STATS (activity)->clean /= FREQ;
+    ACTIVITY_STATS (activity)->dirty /= FREQ;
+    ACTIVITY_STATS (activity)->pending_eviction
+      = activity->frames_pending_eviction;
+    ACTIVITY_STATS (activity)->active /= FREQ;
+    ACTIVITY_STATS (activity)->active_local /= FREQ;
+
+    ACTIVITY_STATS (activity)->pressure +=
+      ACTIVITY_STATS_LAST (activity)->pressure >> 1;
+
+    if (activity->frames_total > frames
+	|| ACTIVITY_STATS (activity)->pressure)
+      /* The number of allocated frames exceeds the activity's
+	 entitlement.  Encourage it to deallocate.  */
+      {
+	/* The amount by which we decrease is proportional to
+	   pressure.  */
+	int dec = frames / 8;
+	dec /= 5 - MIN (ACTIVITY_STATS (activity)->pressure, 4);
+
+	debug (0, "Due to pressure (%d), decreasing frames available "
+	       "to " OID_FMT " from %d to %d",
+	       ACTIVITY_STATS (activity)->pressure,
+	       OID_PRINTF (object_to_object_desc ((struct object *)
+						  activity)->oid),
+	       frames, frames - dec);
+
+	frames -= dec;
+
+	ACTIVITY_STATS (activity)->damping_factor
+	  = -1024 * 1024 / PAGESIZE;
+      }
+    else if (activity->frames_total > 7 * (frames / 8))
+      /* The allocated amount is close to the available frames.
+	 Encourage it not to allocate.  */
+      ACTIVITY_STATS (activity)->damping_factor = 0;
+    else
+      /* It can allocate.  */
+      ACTIVITY_STATS (activity)->damping_factor
+	= 1024 * 1024 / PAGESIZE;
+
+    ACTIVITY_STATS (activity)->available = frames;
+
+    bool have_self = false;
+
+    /* The list is sort lowest priority towards the head.  */
+    struct activity *child
+      = activity_children_list_tail (&activity->children);
+
+    if (! child)
+      /* No children.  There is no need to execute the below loop.  */
+      ACTIVITY_STATS (activity)->available_local = frames;
+
+    struct activity *p;
+    for (;
+	 child;
+	 /* Only advance to the next child if we actually processed
+	    CHILD.  (This can happen when we process ACTIVITY and that
+	    has a lower priority than ACTIVITY).  Also do a round for
+	    ACTIVITY if it happens to have the highest priority.  */
+	 child = p ?: (have_self ? NULL : activity))
+      {
+	int priority
+	  = child ? child->policy.sibling_rel.priority : 0;
+	if (! have_self
+	    && (activity->policy.child_rel.priority >= priority
+		|| child == activity))
+	  {
+	    have_self = true;
+
+	    /* ACTIVITY could be lower than CHILD.  */
+	    priority = activity->policy.child_rel.priority;
+
+	    if (child == activity)
+	      child = NULL;
+	  }
+
+
+	/* Find the total allocated frames and weight for this
+	   priority level.  */
+	uint64_t weight = 0;
+	uintptr_t alloced = 0;
+	uintptr_t claimed = 0;
+	uintptr_t disowned = 0;
+
+	int activity_count = 0;
+
+	void add (int w, int a)
+	{
+	  weight += w;
+	  alloced += a;
+
+	  activity_count ++;
+	}
+
+	if (activity->policy.child_rel.priority == priority)
+	  add (activity->policy.child_rel.weight,
+	       activity->frames_local);
+
+	for (p = child;
+	     p && p->policy.sibling_rel.priority == priority;
+	     p = activity_children_list_prev (p))
+	  {
+	    claimed += ACTIVITY_STATS (p)->claimed;
+	    disowned += ACTIVITY_STATS (p)->disowned;
+
+	    add (p->policy.sibling_rel.weight,
+		 p->frames_total);
+	  }
+
+
+	/* The amount by which the activities exceed their share.  */
+	uintptr_t excess = 0;
+	/* The amount that they are entitled to use but don't.  */
+	uintptr_t unused = 0;
+
+	void params (int my_weight, int my_alloc)
+	{
+	  uintptr_t share;
+	  if (weight == 0)
+	    share = 0;
+	  else
+	    share = ((uint64_t) frames * my_weight) / weight;
+
+	  if (my_alloc > share)
+	    excess += my_alloc - share;
+	  else
+	    unused += share - my_alloc;
+	}
+
+	if (activity->policy.child_rel.priority == priority)
+	  params (activity->policy.child_rel.weight,
+		  activity->frames_local);
+
+	for (p = child;
+	     p && p->policy.sibling_rel.priority == priority;
+	     p = activity_children_list_prev (p))
+	  params (p->policy.sibling_rel.weight, p->frames_total);
+
+
+	/* Determine the amount of memory available to each
+	   activity.  */
+
+	uintptr_t comp_avail (struct activity *activity,
+			      int my_weight, int my_alloced,
+			      int my_claimed, int my_disowned)
+	{
+	  uintptr_t share;
+	  if (weight == 0)
+	    share = 0;
+	  else
+	    share = ((uint64_t) frames * my_weight) / weight;
+
+	  uintptr_t avail = share;
+
+	  /* The max of our share and our current allocation.  */
+	  if (my_alloced > avail)
+	    avail = my_alloced;
+
+
+	  /* The number of frames this activity can steal from other
+	     activities in this priority group (i.e., the frames other
+	     activities have allocated in excess of their share).  */
+	  uintptr_t could_steal = excess;
+	  if (weight == 0)
+	    could_steal = 0;
+	  else
+	    {
+	      /* We can't steal from ourselves.  */
+	      if (my_alloced > share)
+		could_steal -= my_alloced - share;
+	    }
+
+	  /* If we steal, we steal relative to our current allocation.
+	     Not relative to our current share.  Intuition: we are not
+	     using anything, other takes are using our share.  What we
+	     steal is our share.  If we added the amount to steal to
+	     our share, we'd come up with twice our share.  */
+	  if (my_alloced + could_steal > share)
+	    avail = my_alloced + could_steal;
+
+
+	  /* The number of frames that this activity can use, which
+	     other activities in its priority group have (so far)
+	     shown no interest in.  */
+	  uintptr_t could_use = unused;
+	  if (share >= my_alloced)
+	    /* What everone else does not want minus what this
+	       activity does not want, i.e., don't count its
+	       contribution to unused twice.  */
+	    could_use -= share - my_alloced;
+	  else
+	    {
+	      /* The activity contributes nothing to the unused pool.
+		 In fact, it is already using some of it.  Subtract
+		 that.  */
+	      if (unused > my_alloced - share)
+		could_use -= my_alloced - share;
+	      else
+		could_use = 0;
+	    }
+
+	  avail += could_use;
+
+
+	  /* Adjust for allocation trends.  */
+	  int delta = (claimed - my_claimed) - (disowned - my_disowned);
+	  if (my_alloced >= share && delta > 0)
+	    /* This activity's allocation exceeds its share and other
+	       activities have claimed more frames than they have
+	       disowned.  Assume the same difference in the next
+	       period and pay for it, proportionally.  */
+	    {
+	      if (weight > 0)
+		avail -= ((uint64_t) delta * my_weight) / weight;
+	      else if (avail > delta)
+		avail -= delta;
+	      else
+		avail = 0;
+	    }
+
+
+	  uintptr_t free;
+	  if (frames > alloced)
+	    free = frames - alloced;
+	  else
+	    free = 0;
+
+	  debug (5, OID_FMT ": alloced: %d of %d, "
+		 "priority: %d, weight: %d/%lld, prio group frames: %d, "
+		 "claimed: %d, disowned: %d, "
+		 "share: %d, excess: %d, unused: %d, "
+		 "could steal: %d, could use: %d, free: %d, avail: %d",
+		 OID_PRINTF (object_to_object_desc ((struct object *)
+						    activity)->oid),
+		 my_alloced, alloced, priority, my_weight, weight, frames,
+		 my_claimed, my_disowned, share, excess, unused,
+		 could_steal, could_use, free, avail);
+	  return avail;
+	}
+
+	if (activity->policy.child_rel.priority == priority)
+	  ACTIVITY_STATS (p)->available_local
+	    = comp_avail (activity,
+			  activity->policy.child_rel.weight,
+			  activity->frames_local,
+			  0, 0);
+
+	debug (5, "%d frames for %d activities with priority %d, "
+	       "total weight: %lld, alloced: %d, excess: %d",
+	       frames, activity_count, priority, weight,
+	       alloced, excess);
+
+	for (p = child;
+	     p && p->policy.sibling_rel.priority == priority;
+	     p = activity_children_list_prev (p))
+	  stats (p, comp_avail (p, p->policy.sibling_rel.weight,
+				p->frames_total,
+				ACTIVITY_STATS (p)->claimed,
+				ACTIVITY_STATS (p)->disowned));
+
+	if (frames > alloced)
+	  frames -= alloced;
+	else
+	  frames = 0;
+      }
+
+    debug (5, OID_FMT " (s: %d/%d; c: %d/%d): "
+	   "%d/%d frames, %d/%d avail (" OID_FMT ")",
+	   OID_PRINTF (object_to_object_desc ((struct object *)
+					      activity)->oid),
+	   activity->policy.sibling_rel.priority,
+	   activity->policy.sibling_rel.weight,
+	   activity->policy.child_rel.priority,
+	   activity->policy.child_rel.weight,
+	   activity->frames_local,
+	   activity->frames_total,
+	   ACTIVITY_STATS (activity)->available_local,
+	   ACTIVITY_STATS (activity)->available,
+	   OID_PRINTF (activity->parent
+		       ? object_to_object_desc ((struct object *)
+						activity->parent)->oid
+		       : 0));
+
+    activity->current_period ++;
+    if (activity->current_period == ACTIVITY_STATS_PERIODS + 1)
+      activity->current_period = 0;
+
+    memset (ACTIVITY_STATS (activity),
+	    0, sizeof (*ACTIVITY_STATS (activity)));
+
+    /* Wake anyone waiting for this statistic.  */
+    struct thread *thread;
+    object_wait_queue_for_each (activity, (struct object *) activity,
+				thread)
+      if (thread->wait_reason == THREAD_WAIT_STATS
+	  && thread->wait_reason_arg <= period / FREQ)
+	{
+	  object_wait_queue_dequeue (activity, thread);
+
+	  /* XXX: Only return valid stat buffers.  */
+	  struct activity_stats_buffer buffer;
+	  int i;
+	  for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
+	    {
+	      int period = activity->current_period - 1 - i;
+	      if (period < 0)
+		period = (ACTIVITY_STATS_PERIODS + 1) + period;
+
+	      buffer.stats[i] = activity->stats[period];
+	    }
+
+	  l4_msg_t msg;
+	  rm_activity_stats_reply_marshal (&msg,
+					   buffer,
+					   ACTIVITY_STATS_PERIODS);
+	  l4_msg_tag_t msg_tag = l4_msg_msg_tag (msg);
+	  l4_set_propagation (&msg_tag);
+	  l4_msg_set_msg_tag (msg, msg_tag);
+	  l4_set_virtual_sender (viengoos_tid);
+	  l4_msg_load (msg);
+	  msg_tag = l4_reply (thread->tid);
+
+	  if (l4_ipc_failed (msg_tag))
+	    debug (0, "%s %x failed: %u", 
+		   l4_error_code () & 1 ? "Receiving from" : "Sending to",
+		   l4_error_code () & 1 ? l4_myself () : thread->tid,
+		   (l4_error_code () >> 1) & 0x7);
+	}
+  }
+
+  stats (root_activity, memory_total - PAGER_LOW_WATER_MARK);
+
+  profile_end ((uintptr_t) &update_stats);
+  ss_mutex_unlock (&kernel_lock);
+}
+
+
 void
-ager_loop (l4_thread_id_t main_thread)
+ager_loop (void)
 {
   debug (3, "Ager loop running");
 
@@ -108,7 +467,7 @@ ager_loop (l4_thread_id_t main_thread)
 
 	    fpages[count] = l4_fpage ((l4_word_t) objects[count], PAGESIZE);
 
-	    if (iterations % FREQ == 0 && desc->shared)
+	    if (period % FREQ == 0 && desc->shared)
 	      /* We periodically unmap shared frames and mark them as
 		 floating.  See above for details.  */
 	      {
@@ -155,11 +514,10 @@ ager_loop (l4_thread_id_t main_thread)
 	     thread, it does not for subsequent threads.  Moreover, we
 	     would have to access the pages at fault time to ensure
 	     that they are mapped, which is just ugly.  */
+	  profile_start ((uintptr_t) &ager_loop + 1, "l4_unmap");
 	  l4_flush_fpages (count, fpages);
 	  if (also_unmap)
 	    {
-	      /* XXX: This is a bit more aggressive than required.
-		 Instead, we should only unmap the shared pages.  */
 	      int i;
 	      int j = 0;
 	      l4_fpage_t unmap[count];
@@ -179,6 +537,7 @@ ager_loop (l4_thread_id_t main_thread)
 		  fpages[i] = l4_fpage_add_rights (fpages[i],
 						   l4_rights (unmap[j ++]));
 	    }
+	  profile_end ((uintptr_t) &ager_loop + 1);
 
 	  int i;
 	  for (i = 0; i < count; i ++)
@@ -273,144 +632,25 @@ ager_loop (l4_thread_id_t main_thread)
 	}
 
       /* Update statistics every two seconds.  */
-      if (iterations % FREQ == 0)
+      if (period % FREQ == 0)
 	{
-	  ss_mutex_lock (&kernel_lock);
-	  profile_start ((uintptr_t) &ager_loop, "ager");
-
-	  /* XXX: Update the statistics.  We need to average some of
-	     the fields including the number of active, inactive,
-	     clean and dirty pages.  Also, we need to calculate each
-	     activity's allocation, a damping factor and the
-	     pressure.  */
-	  void stats (struct activity *activity, uint32_t frames)
-	  {
-	    ACTIVITY_STATS (activity)->period = iterations / FREQ;
-
-	    ACTIVITY_STATS (activity)->available = frames;
-
-	    bool have_self = false;
-
-	    bool have_one = false;
-	    int priority;
-	    uint32_t remaining_frames = frames;
-
-	    struct activity *child;
-	    for (child = activity_children_list_head (&activity->children);
-		 child;
-		 child = activity_children_list_next (child))
-	      {
-		if (! have_self
-		    && (activity->policy.child_rel.priority
-			<= child->policy.sibling_rel.priority))
-		  {
-		    have_self = true;
-
-		    if (! have_one
-			|| priority > activity->policy.child_rel.priority)
-		      {
-			priority = activity->policy.child_rel.priority;
-			frames = remaining_frames;
-		      }
-
-		    remaining_frames -= activity->frames_local;
-		  }
-
-		if (! have_one
-		    || priority > child->policy.sibling_rel.priority)
-		  {
-		    priority = child->policy.sibling_rel.priority;
-		    frames = remaining_frames;
-		  }
-
-		remaining_frames -= child->frames_total;
-
-		stats (child, frames);
-	      }
-
-	    ACTIVITY_STATS (activity)->clean /= FREQ;
-	    ACTIVITY_STATS (activity)->dirty /= FREQ;
-	    ACTIVITY_STATS (activity)->active /= FREQ;
-	    ACTIVITY_STATS (activity)->active_local /= FREQ;
-
-	    debug (0, OID_FMT ": %d clean, %d dirty, %d avail (" OID_FMT ")",
-		   OID_PRINTF (object_to_object_desc ((struct object *)
-						      activity)->oid), 
-		   ACTIVITY_STATS (activity)->clean,
-		   ACTIVITY_STATS (activity)->dirty,
-		   ACTIVITY_STATS (activity)->available,
-		   OID_PRINTF (activity->parent
-			       ? object_to_object_desc ((struct object *)
-							activity->parent)->oid
-			       : 0));
-
-	    activity->current_period ++;
-	    if (activity->current_period == ACTIVITY_STATS_PERIODS + 1)
-	      activity->current_period = 0;
-
-	    memset (ACTIVITY_STATS (activity),
-		    0, sizeof (*ACTIVITY_STATS (activity)));
-
-	    /* Wake anyone waiting for this statistic.  */
-	    struct thread *thread;
-	    object_wait_queue_for_each (activity, (struct object *) activity,
-					thread)
-	      if (thread->wait_reason == THREAD_WAIT_STATS
-		  && thread->wait_reason_arg <= iterations / FREQ)
-		{
-		  object_wait_queue_dequeue (activity, thread);
-
-		  /* XXX: Only return valid stat buffers.  */
-		  struct activity_stats_buffer buffer;
-		  int i;
-		  for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
-		    {
-		      int period = activity->current_period - 1 - i;
-		      if (period < 0)
-			period = (ACTIVITY_STATS_PERIODS + 1) + period;
-
-		      buffer.stats[i] = activity->stats[period];
-		    }
-
-		  l4_msg_t msg;
-		  rm_activity_stats_reply_marshal (&msg,
-						   buffer,
-						   ACTIVITY_STATS_PERIODS);
-		  l4_msg_tag_t msg_tag = l4_msg_msg_tag (msg);
-		  l4_set_propagation (&msg_tag);
-		  l4_msg_set_msg_tag (msg, msg_tag);
-		  l4_set_virtual_sender (main_thread);
-		  l4_msg_load (msg);
-		  msg_tag = l4_reply (thread->tid);
-
-		  if (l4_ipc_failed (msg_tag))
-		    debug (0, "%s %x failed: %u", 
-			   l4_error_code () & 1 ? "Receiving from" : "Sending to",
-			   l4_error_code () & 1 ? l4_myself () : thread->tid,
-			   (l4_error_code () >> 1) & 0x7);
-		}
-	  }
-
-	  stats (root_activity, memory_total - PAGER_LOW_WATER_MARK);
+	  update_stats ();
 
 	  do_debug (1)
 	    {
 	      int a = zalloc_memory + available_list_count (&available);
-	      debug (0, "%d: %d of %d (%d%%) free; "
-		     "since last interation: %d became inactive, %d active",
-		     iterations / FREQ,
+	      debug (0, "%d: %d of %d (%d%%) free; laundry: %d; "
+		     "%d became inactive, %d became active",
+		     period / FREQ,
 		     a, memory_total, (a * 100) / memory_total,
+		     laundry_list_count (&laundry),
 		     became_inactive, became_active);
 	    }
-
-	  profile_end ((uintptr_t) &ager_loop);
-	  ss_mutex_unlock (&kernel_lock);
 	}
-
-      iterations ++;
+      period ++;
 
       /* Wait TIMEOUT or until we are interrupted by the main
 	 thread.  */
-      l4_receive_timeout (main_thread, timeout);
+      l4_receive_timeout (viengoos_tid, timeout);
     }
 }
