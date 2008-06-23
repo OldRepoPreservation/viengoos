@@ -1,5 +1,10 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.c: Include "profile.h".
+	(pager_collect): Profile.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* pager.h (pager_min_alloc_before_next_collect): New declaration.
 	(pager_collect_needed): Only collect if AVAILABLE_PAGES >
 	PAGER_LOW_WATER_MARK and PAGER_MIN_ALLOC_BEFORE_NEXT_COLLECT > 0.

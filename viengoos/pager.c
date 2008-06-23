@@ -23,6 +23,7 @@
 #include "activity.h"
 #include "object.h"
 #include "pager.h"
+#include "profile.h"
 
 int pager_min_alloc_before_next_collect;
 
@@ -322,12 +323,14 @@ pager_collect (int goal)
 
   int available_memory = zalloc_memory + available_list_count (&available);
 
-  debug (0, "Frames: %d, available: %d (%d%%), paging out: %d, "
+  debug (5, "Frames: %d, available: %d (%d%%), pending page out: %d, "
 	 "low water: %d, goal: %d",
 	 memory_total,
 	 available_memory, (available_memory * 100) / memory_total,
 	 laundry_list_count (&laundry),
 	 PAGER_LOW_WATER_MARK, goal);
+
+  profile_start ((uintptr_t) &pager_collect, __FUNCTION__);
 
   /* Find a victim.  */
   struct activity *victim;
@@ -549,5 +552,8 @@ pager_collect (int goal)
        allocations as there are currently remaining pages.  */
     pager_min_alloc_before_next_collect
       = (zalloc_memory + available_list_count (&available)) / 3;
+
+  profile_end ((uintptr_t) &pager_collect);
+
   return total_freed;
 }
