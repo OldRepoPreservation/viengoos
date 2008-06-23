@@ -48,6 +48,11 @@ static int used;
 static uint64_t epoch;
 static uint64_t calls;
 static uint64_t total_time;
+/* Number of extant profiling calls.  We only update total_time if
+   EXTANT is 0.  The result is that the time spent profiling is
+   correct, and the percent of the time profile that a function has
+   been is more meaningful.  */
+static int extant;
 
 void
 profile_stats_dump (void)
@@ -110,6 +115,8 @@ profile_start (uintptr_t id, const char *name)
       site->name = name;
     }
 
+  extant ++;
+
   site->pending ++;
   if (site->pending == 1)
     site->start = l4_system_clock ();
@@ -126,13 +133,17 @@ profile_end (uintptr_t id)
   if (! site->pending)
     panic ("profile_end called but no extant profile_start!");
 
+  extant --;
+
   site->pending --;
   if (site->pending == 0)
     {
       uint64_t now = l4_system_clock ();
 
       site->time += now - site->start;
-      total_time += now - site->start;
+
+      if (extant == 0)
+	total_time += now - site->start;
 
       site->calls ++;
       calls ++;

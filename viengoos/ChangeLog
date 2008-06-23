@@ -1,5 +1,12 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* profile.c (extant): New variable.
+	(profile_start): Increment it.
+	(profile_end): Decrement it.  Only add the time to TOTAL_TIME if
+	EXTANT is 0.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* object.h (struct object_desc): Change AGE from a uint16_t to a
 	uint8_t.
 	* ager.c (ager_loop): Set TIMEOUT to a quarter of a second.
