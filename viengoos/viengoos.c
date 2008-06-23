@@ -71,6 +71,9 @@ extern char _start;
 extern char _end;
 
 static struct output_driver output_device;
+
+l4_thread_id_t viengoos_tid;
+l4_thread_id_t ager_tid;
 
 static void
 parse_args (int argc, char *argv[])
@@ -218,11 +221,9 @@ ager_start (void)
   /* XXX: We assume the stack grows down.  */
   void *sp = stack + stack_size;
 
-  /* Push the argument and return address onto the stack.  */
+  /* Push the return address onto the stack.  */
   /* XXX: We assume the stack grows down and we assume that the stack
      has the normal x86 layout.  */
-  sp -= sizeof (l4_word_t);
-  * (l4_word_t *) sp = l4_myself ();
   sp -= sizeof (l4_word_t);
   * (l4_word_t *) sp = 0;
 
@@ -240,6 +241,8 @@ ager_start (void)
 
   
   debug (1, "Created ager: %x", tid);
+
+  ager_tid = tid;
 
   l4_thread_id_t targ = tid;
   l4_word_t control = _L4_XCHG_REGS_CANCEL_IPC
@@ -259,6 +262,8 @@ ager_start (void)
 int
 main (int argc, char *argv[])
 {
+  viengoos_tid = l4_myself ();
+
   parse_args (argc, argv);
 
   debug (1, "If the following fails, you failed to patch L4 or libl4.  "

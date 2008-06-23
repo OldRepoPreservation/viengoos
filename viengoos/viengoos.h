@@ -1,5 +1,5 @@
-/* priv.h - Private declarations.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+/* viengoos.h - Viengoos declarations.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -36,5 +36,10 @@ extern int main (int, char *[]);
 /* Find the kernel, the initial servers and the other information
    required for booting.  */
 extern void find_components (void);
+
+/* Viengoos's tid.  */
+l4_thread_id_t viengoos_tid;
+/* Ager's tid.  */
+l4_thread_id_t ager_tid;
 
 #endif

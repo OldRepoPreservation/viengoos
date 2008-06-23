@@ -4,6 +4,6 @@
 #include <l4/thread.h>
 
 /* The ager thread.  */
-void ager_loop (l4_thread_id_t main_thread);
+void ager_loop (void);
 
 #endif
