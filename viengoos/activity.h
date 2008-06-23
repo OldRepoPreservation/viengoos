@@ -70,16 +70,17 @@ struct activity
   struct activity_children_list children;
   struct list_node sibling;
 
-  /* Objects owned by this activity whose priority is
+  /* Objects claimed by this activity whose priority is
      OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
      false.  */
   struct activity_lru_list active;
   struct activity_lru_list inactive;
 
-  /* Objects owned by this activity whose priority is not
+  /* Objects claimed by this activity whose priority is not
      OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
      false.  Keyed by priority.  */
   hurd_btree_priorities_t priorities;
+  int priorities_count;
 
   /* Objects that are owned by this activity and have been selected
      for eviction (DESC->EVICTION_CANDIDATE is true).  These objects

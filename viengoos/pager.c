@@ -62,17 +62,33 @@ reclaim_from (struct activity *victim, int goal)
 {
   int count = 0;
   int laundry_count = 0;
+  int discarded = 0;
 
   /* XXX: Implement group dealloc.  */
 
   /* First try objects with a priority lower than LRU.  */
 
-  debug (0, "Goal: %d (now: avail: %d, laundry: %d)",
-	 goal, available_list_count (&available),
-	 laundry_list_count (&laundry));
+  assertx (victim->priorities_count
+	   + activity_lru_list_count (&victim->active)
+	   + activity_lru_list_count (&victim->inactive)
+	   + eviction_list_count (&victim->eviction_dirty)
+	   == victim->frames_local,
+	   "%d + %d + %d + %d != %d!",
+	   victim->priorities_count,
+	   activity_lru_list_count (&victim->active),
+	   activity_lru_list_count (&victim->inactive),
+	   eviction_list_count (&victim->eviction_dirty),
+	   victim->frames_local);
+
+  debug (5, "Reclaiming %d from " OID_FMT ", %d frames "
+	 "(global: avail: %d, laundry: %d)",
+	 goal, OID_PRINTF (object_oid ((struct object *) victim)),
+	 victim->frames_local,
+	 available_list_count (&available), laundry_list_count (&laundry));
 
   struct object_desc *desc;
-  struct object_desc *next = hurd_btree_priorities_first (&victim->priorities);
+  struct object_desc *next
+    = hurd_btree_priorities_first (&victim->priorities);
   while (((desc = next)) && count < goal)
     {
       assert (! desc->eviction_candidate);
@@ -88,6 +104,7 @@ reclaim_from (struct activity *victim, int goal)
       object_desc_flush (desc, false);
 
       hurd_btree_priorities_detach (&victim->priorities, desc);
+      victim->priorities_count --;
 
       desc->eviction_candidate = true;
 
@@ -106,6 +123,9 @@ reclaim_from (struct activity *victim, int goal)
 
 	  available_list_queue (&available, desc);
 	  eviction_list_queue (&victim->eviction_clean, desc);
+
+	  if (desc->policy.discardable)
+	    discarded ++;
 	}
 
       count ++;
@@ -148,6 +168,9 @@ reclaim_from (struct activity *victim, int goal)
 	      eviction_list_push (&victim->eviction_clean, inactive);
 
 	      available_list_queue (&available, inactive);
+
+	      if (desc->policy.discardable)
+		discarded ++;
 	    }
 
 	  inactive->eviction_candidate = true;
@@ -191,6 +214,9 @@ reclaim_from (struct activity *victim, int goal)
 
 	      available_list_queue (&available, desc);
 	      eviction_list_queue (&victim->eviction_clean, desc);
+
+	      if (desc->policy.discardable)
+		discarded ++;
 	    }
 
 	  count ++;
@@ -214,6 +240,7 @@ reclaim_from (struct activity *victim, int goal)
 	  object_desc_flush (desc, false);
 
 	  hurd_btree_priorities_detach (&victim->priorities, desc);
+	  victim->priorities_count --;
 
 	  desc->eviction_candidate = true;
 
@@ -232,6 +259,9 @@ reclaim_from (struct activity *victim, int goal)
 
 	      available_list_queue (&available, desc);
 	      eviction_list_queue (&victim->eviction_clean, desc);
+
+	      if (desc->policy.discardable)
+		discarded ++;
 	    }
 
 	  count ++;
@@ -244,12 +274,26 @@ reclaim_from (struct activity *victim, int goal)
   struct activity *ancestor = victim;
   activity_for_each_ancestor (ancestor,
 			      ({ ancestor->frames_total -= count; }));
+  debug (5, "Reclaimed from " OID_FMT ": goal: %d; %d frames; "
+	 DEBUG_BOLD ("%d in laundry, %d made available (%d discarded)") " "
+	 "(now: avail: %d, laundry: %d)",
+	 OID_PRINTF (object_oid ((struct object *) victim)), goal,
+	 victim->frames_local,
+	 laundry_count, count - laundry_count, discarded,
+	 available_list_count (&available), laundry_list_count (&laundry));
 
-  debug (0, "Goal: %d: %d in laundry, %d made available "
-	 DEBUG_BOLD ("(now: avail: %d, laundry: %d)"),
-	 goal, laundry_count, count - laundry_count,
-	 available_list_count (&available),
-	 laundry_list_count (&laundry));
+  assertx (victim->priorities_count
+	   + activity_lru_list_count (&victim->active)
+	   + activity_lru_list_count (&victim->inactive)
+	   + eviction_list_count (&victim->eviction_dirty)
+	   == victim->frames_local,
+	   "%d + %d + %d + %d != %d!",
+	   victim->priorities_count,
+	   activity_lru_list_count (&victim->active),
+	   activity_lru_list_count (&victim->inactive),
+	   eviction_list_count (&victim->eviction_dirty),
+	   victim->frames_local);
+
   /* We should never have selected a task from which we can free
      nothing!  */
   assert (count > 0);

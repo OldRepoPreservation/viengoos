@@ -1,5 +1,12 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (struct activity): Add field priorities_count.
+	* activity.c (activity_destroy): Update it.
+	* object.c (object_desc_claim): Likewise.
+	* pager.c (reclaim_from): Likewise.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.h (viengoos_tid): New declaration.
 	(ager_tid): New declaration.
 	* viengoos.c (viengoos_tid): New variable.
@@ -10,12 +17,6 @@
 	* ager.c: Include "viengoos.h".
 	(ager_loop): Don't take any arguments.  Use VIENGOOS_TID, not
 	MAIN_THREAD.
-
-2008-06-23  Neal H. Walfield  <neal@gnu.org>
-
-	* activity.h (LIST_CLASS_TYPE): Add field priorities_count.
-	* activity.c (activity_destroy) [! NDEBUG]: Update
-	VICTIM->PARENT->PRIORITIES_COUNT.
 
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
