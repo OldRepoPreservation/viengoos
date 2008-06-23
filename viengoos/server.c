@@ -912,19 +912,28 @@ server_loop (void)
 	      /* The caller changed the policy.  Also change it on the
 		 object.  */
 	      {
-		struct object *object = cap_to_object_soft (principal, target);
+		struct object *object = cap_to_object_soft (principal,
+							    target);
 		if (object)
 		  {
-		    struct object_desc *desc = object_to_object_desc (object);
+		    struct object_desc *desc
+		      = object_to_object_desc (object);
+		    bool claim = false;
+
+		    struct object_policy p = desc->policy;
 
 		    /* XXX: This should only be allowed if TARGET
 		       grants writable access to the object.  */
 		    if ((flags & CAP_COPY_DISCARDABLE_SET))
-		      desc->policy.discardable = properties.policy.discardable;
+		      p.discardable = properties.policy.discardable;
 
+		    /* Only the current claimant can set the
+		       priority.  */
 		    if ((flags & CAP_COPY_PRIORITY_SET)
 			&& desc->activity == principal)
-		      desc->policy.priority = properties.policy.priority;
+		      p.priority = properties.policy.priority;
+
+		    object_desc_claim (desc->activity, desc, p, true);
 		  }
 	      }
 
@@ -1308,7 +1317,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    panic ("Collecting exception: %x.%x", from);
+	    panic ("Collecting exception: %x", from);
 #warning exception_collect not implemented
 
 	    /* XXX: Implement me.  */

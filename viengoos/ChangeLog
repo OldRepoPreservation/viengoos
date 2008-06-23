@@ -1,5 +1,11 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): In the cap_copy implementation, if the
+	caller updates the capability's policy, if the object is in
+	memory, also update it appropriately.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (struct activity): Add field frames_pending_eviction.
 	Note that we now include frames that are in the laundry in the
 	FRAMES_TOTAL and FRAMES_LOCAL variables.
