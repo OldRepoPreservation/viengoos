@@ -1,5 +1,19 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.h (pager_min_alloc_before_next_collect): New declaration.
+	(pager_collect_needed): Only collect if AVAILABLE_PAGES >
+	PAGER_LOW_WATER_MARK and PAGER_MIN_ALLOC_BEFORE_NEXT_COLLECT > 0.
+	(pager_collect_needed): Don't include the dirty, non-discardable
+	pages when consider if a collection is required.
+	* pager.c (pager_min_alloc_before_next_collect): New variable.
+	(pager_collect): If we don't collect enough pages to exceed the
+	high water mark, set PAGER_MIN_ALLOC_BEFORE_NEXT_COLLECT to
+	two-thirds the available pages.
+	* memory.c (memory_frame_allocate): On success, decrement
+	PAGER_MIN_ALLOC_BEFORE_NEXT_COLLECT.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): In the cap_copy implementation, if the
 	caller updates the capability's policy, if the object is in
 	memory, also update it appropriately.

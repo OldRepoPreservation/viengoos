@@ -31,8 +31,15 @@
 extern int pager_collect (int goal);
 
 /* We try to keep at least 1/8 (12.5%) of memory available for
-   immediate allocation.  */
+   immediate allocation...  */
 #define PAGER_LOW_WATER_MARK (memory_total / 8)
+
+/* ... although we try, we don't always succeed.  In such a case,
+   repeated collections won't help.  Instead, we need to hope that
+   user-tasks clean up a bit.  This requires giving them a bit of
+   time.  Thus, we only collect again after this many allocations.  */
+extern int pager_min_alloc_before_next_collect;
+
 /* When we start freeing, we try to get at least 3/16 (~19%) of memory
    available for immediate allocation.  */
 #define PAGER_HIGH_WATER_MARK				\
@@ -45,12 +52,16 @@ static inline int
 pager_collect_needed (void)
 {
   int available_pages = zalloc_memory
-    + available_list_count (&available)
+    + available_list_count (&available);
+#if 0
+  /* XXX: Until we have a disk pager...  */
     /* We only count the pages on the laundry half as they won't be
        available immediately.  */
     + laundry_list_count (&laundry) / 2;
+#endif
 
-  if (available_pages > PAGER_LOW_WATER_MARK)
+  if (available_pages > PAGER_LOW_WATER_MARK
+      || pager_min_alloc_before_next_collect > 0)
     return 0;
 
   return PAGER_HIGH_WATER_MARK - available_pages;

@@ -420,6 +420,8 @@ memory_frame_allocate (struct activity *activity)
   if (! f)
     panic ("Out of memory");
 
+  pager_min_alloc_before_next_collect --;
+
   return f;
 }
 

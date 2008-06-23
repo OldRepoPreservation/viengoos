@@ -24,11 +24,15 @@
 #include "object.h"
 #include "pager.h"
 
+int pager_min_alloc_before_next_collect;
+
 static void
 is_clean (struct object_desc *desc)
 {
+#ifndef NDEBUG
   struct object *object = object_desc_to_object (desc);
-  l4_fpage_t result = l4_unmap_fpage (l4_fpage ((l4_word_t) object, PAGESIZE));
+  l4_fpage_t result = l4_unmap_fpage (l4_fpage ((l4_word_t) object,
+						PAGESIZE));
   assertx (! l4_was_written (result) && ! l4_was_referenced (result),
 	   "The %s " OID_FMT "(at %p) has status bits set (%s %s)",
 	   cap_type_string (desc->type), OID_PRINTF (desc->oid), object,
@@ -52,6 +56,7 @@ is_clean (struct object_desc *desc)
 	       cap_type_string (desc->type), OID_PRINTF (desc->oid),
 	       object);
     }
+#endif
 }
 
 /* Reclaim GOAL pages from VICTIM.  (Reclaim means either schedule for
@@ -535,5 +540,14 @@ pager_collect (int goal)
       total_freed += reclaim_from (victim, reclaim);
     }
 
+  if (zalloc_memory + available_list_count (&available)
+      >= PAGER_HIGH_WATER_MARK)
+    /* We collected enough.  */
+    pager_min_alloc_before_next_collect = 0;
+  else
+    /* Don't collect again until there have been at least 1/3 as many
+       allocations as there are currently remaining pages.  */
+    pager_min_alloc_before_next_collect
+      = (zalloc_memory + available_list_count (&available)) / 3;
   return total_freed;
 }
