@@ -83,7 +83,7 @@ extern int output_debug;
 
 /* Print an error message and fail.  This function must be provided by
    the run-time.  */
-extern void __attribute__ ((__noreturn__))
+extern void __attribute__ ((__noreturn__, format (printf, 3, 4)))
   panic_ (const char *func, int line, const char *fmt, ...);
 
 #define panic(fmt, args...)			\

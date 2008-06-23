@@ -1,5 +1,9 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* stddef.h (panic_): Use gcc's format attribute.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* cap.h (OBJECT_PRIORITY_DEFAULT): Define.
 
 2008-06-22  Neal H. Walfield  <neal@gnu.org>

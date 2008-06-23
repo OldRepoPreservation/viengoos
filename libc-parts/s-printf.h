@@ -39,7 +39,8 @@ extern int s_puts (const char *str);
 extern int s_cputs (int (*putchar) (int), const char *str);
 
 
-extern int s_printf (const char *fmt, ...);
+extern int s_printf (const char *fmt, ...)
+  __attribute__ ((format (printf, 1, 2)));
 
 extern int s_cprintf (int (*putchar) (int), const char *fmt, ...);
 

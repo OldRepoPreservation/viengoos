@@ -1,5 +1,11 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* as-build.c (as_build): Use %p, not %x, for printing a pointer.
+	When printing addresses, be sure to wrap them in ADDR_PRINTF.
+	Remove a gratuitous ADDR_FMT.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* pager.c (pager_deinit): Drop PAGER->LOCK before calling
 	MAP_DESTROY.
 

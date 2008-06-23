@@ -205,14 +205,14 @@ ID (as_build) (activity_t activity,
     {
       addr_t pte_addr = addr_chop (addr, remaining);
 
-      DEBUG (5, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%x); "
+      DEBUG (5, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%p); "
 	     "remaining: %d",
 	     ADDR_PRINTF (pte_addr),
 	     CAP_PRINTF (pte),
 	     ADDR_PRINTF (addr_chop (addr,
 				     remaining - CAP_GUARD_BITS (pte))),
 #ifdef RM_INTERN
-	     0,
+	     NULL,
 #else
 	     cap_get_shadow (pte),
 #endif
@@ -471,13 +471,15 @@ ID (as_build) (activity_t activity,
 			 addr_extend (pte_addr, pte_guard, pte_gbits)))
 	    {
 	      PANIC ("old pte target: " ADDR_FMT " != pivot target: " ADDR_FMT,
-		     addr_extend (pte_addr, pte_guard, pte_gbits),
-		     addr_extend (pivot_addr, pivot_guard, pivot_gbits));
+		     ADDR_PRINTF (addr_extend (pte_addr,
+					       pte_guard, pte_gbits)),
+		     ADDR_PRINTF (addr_extend (pivot_addr,
+					       pivot_guard, pivot_gbits)));
 	    }
 
 	  DEBUG (5, ADDR_FMT ": indirecting pte at " ADDR_FMT
 		 " -> " ADDR_FMT " " CAP_FMT " with page table/%d at "
-		 ADDR_FMT "(%x) " "common guard: %d, remaining: %d;  "
+		 ADDR_FMT "(%p) " "common guard: %d, remaining: %d;  "
 		 "old target (need pivot: %d) now via pt[%d] "
 		 "(" ADDR_FMT "-> " DEBUG_BOLD (ADDR_FMT) ")",
 		 ADDR_PRINTF (addr),
@@ -487,7 +489,7 @@ ID (as_build) (activity_t activity,
 		 CAP_PRINTF (pte),
 		 pt_width, ADDR_PRINTF (pt_addr),
 #ifdef RM_INTERN
-		 0,
+		 NULL,
 #else
 		 cap_get_shadow (&pt_cap),
 #endif
@@ -592,7 +594,7 @@ ID (as_build) (activity_t activity,
 	default:
 	  AS_DUMP;
 	  PANIC ("Can't insert object at " ADDR_FMT ": "
-		 ADDR_FMT ": " CAP_FMT " does translate address bits",
+		 CAP_FMT " does translate address bits",
 		 ADDR_PRINTF (addr),
 		 CAP_PRINTF (pte));
 	}
