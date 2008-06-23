@@ -153,7 +153,7 @@ struct object_desc
   struct object_policy policy;
 
   /* The object's age.  */
-  uint16_t age;
+  uint8_t age;
 
   /* The activity to which the *memory* (not the storage) is
      attributed.  If none, then NULL.  (The owner of the storage can

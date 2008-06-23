@@ -1,5 +1,11 @@
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (struct object_desc): Change AGE from a uint16_t to a
+	uint8_t.
+	* ager.c (ager_loop): Set TIMEOUT to a quarter of a second.
+
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (update_stats): New function.  Update statistics and
 	implement available algorithm.
 	(ager_loop): Don't update update statistics here, call

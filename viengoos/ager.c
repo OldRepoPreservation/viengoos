@@ -419,10 +419,8 @@ ager_loop (void)
 {
   debug (3, "Ager loop running");
 
-  /* 125 ms (=> ~8Hz).  */
-  l4_time_t timeout = l4_time_period (1 << 17);
-
-  int iterations = 0;
+  /* 250 ms (=> ~4Hz).  */
+  l4_time_t timeout = l4_time_period (1 << 18);
 
   int frames = (last_frame - first_frame + PAGESIZE) / PAGESIZE;
 
