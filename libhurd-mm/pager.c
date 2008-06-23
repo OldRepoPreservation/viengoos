@@ -63,6 +63,7 @@ pager_deinit (struct pager *pager)
       if (! map->map_list_next)
 	/* The last reference.  */
 	{
+	  ss_mutex_unlock (&pager->lock);
 	  maps_lock_unlock ();
 
 	  map_destroy (map);
@@ -70,8 +71,12 @@ pager_deinit (struct pager *pager)
 	  return;
 	}
 
-      /* This drops PAGER->LOCK.  */
+      ss_mutex_unlock (&pager->lock);
+
+      /* It is safe to call with with MAPS_LOCK held as we know that
+	 this is not the last refence.  */
       map_destroy (map);
+
       ss_mutex_lock (&pager->lock);
     }
 }

@@ -1,3 +1,8 @@
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
+	* pager.c (pager_deinit): Drop PAGER->LOCK before calling
+	MAP_DESTROY.
+
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
 	* mprotect.c (mprotect): Tweak debugging output.
