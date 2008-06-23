@@ -1,0 +1,532 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+Patch to support the Viengoos specific scheduler.  To disable it, set
+GC_viengoos_scheduler to 0.
+
+diff -upr gc-7.0/allchblk.c gc/allchblk.c
+--- gc-7.0/allchblk.c	2007-06-07 02:40:07.000000000 +0200
++++ gc/allchblk.c	2008-06-22 13:13:44.000000000 +0200
+@@ -117,7 +117,9 @@ void GC_print_hblkfreelist()
+       while (h != 0) {
+         hhdr = HDR(h);
+         sz = hhdr -> hb_sz;
+-    	GC_printf("\t%p size %lu ", h, (unsigned long)sz);
++    	GC_printf("\t%p-%p size %lu %smapped, ",
++		  h, (word) h + sz - 1, (unsigned long)sz,
++		  IS_MAPPED(hhdr) ? "" : "un");
+     	total_free += sz;
+         if (GC_is_black_listed(h, HBLKSIZE) != 0) {
+              GC_printf("start black listed\n");
+@@ -381,31 +383,130 @@ void GC_add_to_fl(struct hblk *h, hdr *h
+ 
+ #ifdef USE_MUNMAP
+ 
++extern signed_word GC_bytes_found;
++extern int GC_viengoos_scheduler;
++
++#ifndef __gnu_hurd_viengoos__
++#define GC_available_bytes ((256 + 128) * 1024 * 1024)
++#endif
++
+ /* Unmap blocks that haven't been recently touched.  This is the only way */
+ /* way blocks are ever unmapped.					  */
+ void GC_unmap_old(void)
+ {
+     struct hblk * h;
+     hdr * hhdr;
+-    word sz;
+     unsigned short last_rec, threshold;
+     int i;
+ #   define UNMAP_THRESHOLD 6
+-    
+-    for (i = 0; i <= N_HBLK_FLS; ++i) {
++
++   start:
++    if (GC_viengoos_scheduler
++	&& (GC_get_heap_size() - GC_unmapped_bytes
++	    < 6 * (GC_available_bytes / 8))) {
++      /* The number of mapped bytes is at most 6/8s the available
++	 memory.  That's good enough for now.  (Recall: the high-water
++	 mark is 7/8s the available memory.)  */
++	return;
++    }
++
++    /* Start with the large blocks and work our way down.  */
++    for (i = N_HBLK_FLS; i >= 0 ; --i) {
+       for (h = GC_hblkfreelist[i]; 0 != h; h = hhdr -> hb_next) {
+         hhdr = HDR(h);
+ 	if (!IS_MAPPED(hhdr)) continue;
+ 	threshold = (unsigned short)(GC_gc_no - UNMAP_THRESHOLD);
+ 	last_rec = hhdr -> hb_last_reclaimed;
+-	if ((last_rec > GC_gc_no || last_rec < threshold)
+-	    && threshold < GC_gc_no /* not recently wrapped */) {
+-          sz = hhdr -> hb_sz;
+-	  GC_unmap((ptr_t)h, sz);
+-	  hhdr -> hb_flags |= WAS_UNMAPPED;
+-    	}
++
++	if (GC_viengoos_scheduler
++	    || ((last_rec > GC_gc_no || last_rec < threshold)
++		&& threshold < GC_gc_no /* not recently wrapped */)) {
++	    GC_unmap((ptr_t)h, hhdr -> hb_sz);
++	    hhdr -> hb_flags |= WAS_UNMAPPED;
++
++	    if (0)
++	      GC_printf ("Unmapped %p-%p(%x)\n",
++			 h, (struct hblk *)((word)h + hhdr -> hb_sz),
++			 hhdr -> hb_sz);
++
++	    if (GC_viengoos_scheduler) {
++	        GC_bool need_add = FALSE;
++
++	        /* Also unmap all adjacent blocks.  */
++		int dir;
++		for (dir = 0; dir < 2; dir ++)
++		  while (1) {
++		      struct hblk *next =
++			dir == 0 ? (struct hblk *)((word)h + hhdr -> hb_sz)
++			: GC_free_block_ending_at (h);
++
++		      if (! next)
++			  break;
++
++		      hdr * nexthdr;
++		      GET_HDR(next, nexthdr);
++
++		      if (0 == nexthdr || ! HBLK_IS_FREE(nexthdr))
++			  break;
++
++
++		      if (0)
++			GC_printf ("Merging %p-%p(%x) with %p-%p(%x)\n",
++				   h, (struct hblk *)((word)h
++						      + hhdr -> hb_sz),
++				   hhdr -> hb_sz,
++				   next,
++				   (struct hblk *)((word)next
++						   + nexthdr -> hb_sz),
++				   nexthdr -> hb_sz);
++
++
++		      /* Remove from free list.  */
++		      GC_remove_from_fl(nexthdr, FL_UNKNOWN);
++
++		      if (! need_add) {
++		          need_add = TRUE;
++			  GC_remove_from_fl(hhdr, i);
++		      }
++
++		      /* Unmap if not already unmapped.  */
++		      if (IS_MAPPED (nexthdr)) {
++			  GC_unmap((ptr_t)next, nexthdr -> hb_sz);
++			  nexthdr -> hb_flags |= WAS_UNMAPPED;
++		      }
++
++		      /* Lexically order.  */
++		      if (dir == 1) {
++		          void* t = hhdr;
++			  hhdr = nexthdr;
++			  nexthdr = t;
++
++			  t = h;
++			  h = next;
++			  next = t;
++		      }
++
++		      GC_remove_header(next);
++
++		      /* Unmap any gap in the middle */
++		      GC_unmap_gap((ptr_t)h, hhdr -> hb_sz,
++				   (ptr_t)next, nexthdr -> hb_sz);
++
++		      hhdr -> hb_sz += nexthdr -> hb_sz; 
++		  }
++
++		if (need_add)
++		  /* We removed H from the free lists because its size
++		     changed.  Add it back.  */
++		    GC_add_to_fl(h, hhdr);
++
++		/* We've munged with the lists.  Start from the
++		   beginning.  */
++		goto start;
++	    }
++	}
+       }
+-    }  
++    }
+ }
+ 
+ /* Merge all unmapped blocks that are adjacent to other free		*/
+@@ -413,6 +514,12 @@ void GC_unmap_old(void)
+ /* fully mapped or fully unmapped.					*/
+ void GC_merge_unmapped(void)
+ {
++    if (GC_viengoos_scheduler)
++        /* We did some merging in GC_unmap_old.  This is mostly extra
++	   work for us as it undoes the work we did and changes the
++	   number of unmapped pages!  */
++        return;
++
+     struct hblk * h, *next;
+     hdr * hhdr, *nexthdr;
+     word size, nextsize;
+@@ -600,12 +707,26 @@ GC_allochblk_nth(size_t sz, int kind, un
+ 
+     size_needed = HBLKSIZE * OBJ_SZ_TO_BLOCKS(sz);
+ 
++    int try;
++    GC_bool saw_unmapped = FALSE;
++    for (try = 0; try < 2; try ++) {
++        if (try == 1 && ! saw_unmapped) break;
++
+     /* search for a big enough block in free list */
+ 	hbp = GC_hblkfreelist[n];
+ 	for(; 0 != hbp; hbp = hhdr -> hb_next) {
+ 	    GET_HDR(hbp, hhdr);
++
+ 	    size_avail = hhdr->hb_sz;
+ 	    if (size_avail < size_needed) continue;
++
++	    /* First time through, ignore unmapped blocks (but note
++	       that we saw one that is large enough).  */
++	    if (try == 0 && ! IS_MAPPED(hhdr)) {
++	        saw_unmapped = TRUE;
++		continue;
++	    }
++
+ 	    if (size_avail != size_needed
+ 		&& !GC_use_entire_heap
+ 		&& !GC_dont_gc
+@@ -642,7 +763,7 @@ GC_allochblk_nth(size_t sz, int kind, un
+ 	        next_size = (signed_word)(thishdr -> hb_sz);
+ 	        if (next_size < size_avail
+ 	          && next_size >= size_needed
+-	          && !GC_is_black_listed(thishbp, (word)size_needed)) {
++		  && !GC_is_black_listed(thishbp, (word)size_needed)) {
+ 	          continue;
+ 	        }
+ 	      }
+@@ -748,10 +869,12 @@ GC_allochblk_nth(size_t sz, int kind, un
+ 		/* hbp may be on the wrong freelist; the parameter n	*/
+ 		/* is important.					*/
+ 		hbp = GC_get_first_part(hbp, hhdr, size_needed, n);
+-		break;
++		goto break_out;
+ 	    }
+ 	}
++    }
+ 
++   break_out:
+     if (0 == hbp) return 0;
+ 	
+     /* Add it to map of valid blocks */
+Only in gc: allchblk.c~
+diff -upr gc-7.0/alloc.c gc/alloc.c
+--- gc-7.0/alloc.c	2008-06-23 22:06:37.000000000 +0200
++++ gc/alloc.c	2008-06-22 01:45:38.000000000 +0200
+@@ -15,6 +15,13 @@
+  *
+  */
+ 
++#ifdef __gnu_hurd_viengoos__
++#include <hurd/activity.h>
++#include <hurd/as.h>
++#endif
++#include <stdint.h>
++#include <sys/time.h>
++#include <assert.h>
+ 
+ # include "private/gc_priv.h"
+ 
+@@ -286,9 +293,105 @@ void GC_clear_a_few_frames()
+ /* limits used by blacklisting.						*/
+ static word GC_collect_at_heapsize = (word)(-1);
+ 
++int GC_viengoos_scheduler = 1;
++int GC_available_bytes;
++int GC_could_unmap;
++
+ /* Have we allocated enough to amortize a collection? */
+ GC_bool GC_should_collect(void)
+ {
++#ifndef USE_MUNMAP
++# define GC_unmapped_bytes 0
++#endif
++
++  if (GC_viengoos_scheduler)
++    {
++      int alloced = GC_adj_bytes_allocd();
++      if (alloced < min_bytes_allocd())
++	/* If we have not allocated anything since the last
++	   collection, don't do a collection.  */
++	return FALSE;
++
++      static uint64_t last_check;
++
++#ifdef __gnu_hurd_viengoos__
++      static struct activity_stats_buffer stats;
++
++      struct timeval tp;
++      gettimeofday (&tp, NULL);
++      uint64_t t = tp.tv_sec * 1000000 + tp.tv_usec;
++      if (! last_check || t - last_check > 1000000)
++	/* Last check was more than a second ago.  */
++	{
++	  last_check = t;
++
++	  int count;
++	  error_t err = rm_activity_stats (ACTIVITY, 1, &stats, &count);
++	  assert_perror (err);
++
++	  GC_available_bytes = stats.stats[0].available * PAGESIZE;
++
++	  printf ("Period: %d alloced: %dkb, heap: %dkb, "
++		  "mapped:%dkb, unmapped: %dkb, available: %dkb, "
++		  "low-water: %dkb\n",
++		  (int) stats.stats[0].period,
++		  (int) alloced / 1024,
++		  (int) GC_get_heap_size () / 1024,
++		  (int) (GC_get_heap_size () - GC_unmapped_bytes) / 1024,
++		  (int) GC_unmapped_bytes / 1024,
++		  (int) GC_available_bytes / 1024,
++		  (int) 7 * (GC_available_bytes / 8 / 1024));
++	}
++
++      int period = stats.stats[0].period;
++#else
++#define GC_available_bytes ((256 + 128) * 1024 * 1024)
++      int period = 0;
++#endif
++
++      /* Do some clean up if the mapped memory is 7/8s the available
++	 memory.  We choose 7/8s as we need to consider meta-data
++	 overhead and as we really want to avoid the system pager
++	 kicking in.  */
++      GC_bool r;
++      r = ((GC_get_heap_size() - GC_unmapped_bytes)
++	   > 7 * (GC_available_bytes / 8));
++
++      if (r && (GC_get_heap_size () - GC_unmapped_bytes - alloced
++		> GC_available_bytes / 3)){
++	/* The number of unused mapped bytes is greater than a third
++	   of the total available memory.  Before doing a GC, try to
++	   unmap some free mapped pages.  */
++	  GC_unmap_old ();
++	  r = ((GC_get_heap_size() - GC_unmapped_bytes)
++	       > 7 * (GC_available_bytes / 8));
++      }
++
++      if (r) {
++	  static int warning;
++	  /* Only print this once per-gc.  GC_allochblk_nth calls this
++	     function repeatedly without immediately following up with
++	     a GC.  */
++	  if (warning != GC_gc_no) {
++	      warning = GC_gc_no;
++	      if (0)
++		printf ("(%d) Scheduling GC: (%d) alloced: %dkb, heap: %dkb, "
++			"mapped: %dkb, unmapped: %dkb, available: %dkb, "
++			"low-water: %dkb\n",
++			(int) period, GC_gc_no,
++			(int) alloced / 1024,
++			(int) GC_get_heap_size () / 1024,
++			(int) (GC_get_heap_size () - GC_unmapped_bytes)
++			/ 1024,
++			(int) GC_unmapped_bytes / 1024,
++			(int) GC_available_bytes / 1024,
++			(int) 7 * (GC_available_bytes / 8 / 1024));
++	  }
++      }
++
++      return r;
++    }
++  else
+     return(GC_adj_bytes_allocd() >= min_bytes_allocd()
+ 	   || GC_heapsize >= GC_collect_at_heapsize);
+ }
+@@ -396,9 +499,17 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+ 	GC_log_printf(
+ 	   "Initiating full world-stop collection %lu after %ld allocd bytes\n",
+ 	   (unsigned long)GC_gc_no+1, (long)GC_bytes_allocd);
++
++	extern int backtrace (void **array, int size);
++	void *a[10];
++	int c = backtrace (a, 10);
++	int i;
++	for (i = 0; i < c; i ++)
++	  GC_log_printf("%p ", a[i]);
++	GC_log_printf("\n");
+     }
+ 
+-    GC_bool ret = true;
++    GC_bool ret = TRUE;
+     start_timing ();
+ 
+     GC_promote_black_lists();
+--- gc-7.0/include/private/gcconfig.h	2008-06-23 22:06:37.000000000 +0200
++++ gc/include/private/gcconfig.h	2008-06-21 17:39:37.000000000 +0200
+@@ -1087,6 +1087,8 @@
+ #   ifdef LINUX
+ #	define OS_TYPE "LINUX"
+ #       define LINUX_STACKBOTTOM
++#     define USE_MMAP
++#     define USE_MUNMAP
+ #	if 0
+ #	  define HEURISTIC1
+ #         undef STACK_GRAN
+@@ -1278,6 +1280,12 @@
+ #     define DATAEND ((ptr_t) (_end))
+ /* #     define MPROTECT_VDB  Not quite working yet? */
+ #     undef DYNAMIC_LOADING
++
++#     include <hurd/addr.h>
++extern addr_t gc_activity __attribute__ ((weak));
++#     define ACTIVITY (&gc_activity ? gc_activity : ADDR_VOID)
++extern int GC_available_bytes;
++
+ #   endif
+ #   ifdef DARWIN
+ #     define OS_TYPE "DARWIN"
+diff -upr gc-7.0/malloc.c gc/malloc.c
+--- gc-7.0/malloc.c	2007-06-06 22:48:35.000000000 +0200
++++ gc/malloc.c	2008-06-19 12:27:35.000000000 +0200
+@@ -269,7 +269,9 @@ void * GC_generic_malloc(size_t lb, int 
+ 	LOCK();
+         if( EXPECT((op = *opp) == 0, 0) ) {
+             UNLOCK();
+-            return(GENERAL_MALLOC((word)lb, NORMAL));
++            void *p = GENERAL_MALLOC((word)lb, NORMAL);
++	    GC_ASSERT (p);
++	    return(p);
+         }
+         /* See above comment on signals.	*/
+ 	GC_ASSERT(0 == obj_link(op)
+@@ -281,9 +283,12 @@ void * GC_generic_malloc(size_t lb, int 
+         obj_link(op) = 0;
+         GC_bytes_allocd += GRANULES_TO_BYTES(lg);
+         UNLOCK();
++	GC_ASSERT (op);
+         return op;
+    } else {
+-       return(GENERAL_MALLOC(lb, NORMAL));
++      void *p = GENERAL_MALLOC(lb, NORMAL);
++      GC_ASSERT (p);
++       return(p);
+    }
+ }
+ 
+diff -upr gc-7.0/os_dep.c gc/os_dep.c
+--- gc-7.0/os_dep.c	2007-06-29 21:17:44.000000000 +0200
++++ gc/os_dep.c	2008-06-22 18:38:00.000000000 +0200
+@@ -2064,6 +2064,16 @@ ptr_t GC_unmap_end(ptr_t start, size_t b
+     return end_addr;
+ }
+ 
++#ifdef __gnu_hurd_viengoos__
++#include <hurd/cap.h>
++#include <hurd/addr.h>
++#include <hurd/as.h>
++
++extern addr_t gc_activity __attribute__ ((weak));
++#define ACTIVITY (&gc_activity ? gc_activity : ADDR_VOID)
++
++#endif
++
+ /* Under Win32/WinCE we commit (map) and decommit (unmap)	*/
+ /* memory using	VirtualAlloc and VirtualFree.  These functions	*/
+ /* work on individual allocations of virtual memory, made	*/
+@@ -2095,6 +2105,32 @@ void GC_unmap(ptr_t start, size_t bytes)
+ 	  start_addr += free_len;
+ 	  len -= free_len;
+       }
++#   elif defined(__gnu_hurd_viengoos__)
++      /* We mark the pages as discardable.  We don't need to tell the
++	 pager about this because before we touch them, we'll mark
++	 them as non-discardable!  */
++      {
++	addr_t addr;
++	for (addr = ADDR ((uintptr_t) start, ADDR_BITS - PAGESIZE_LOG2);
++	     addr_prefix (addr) < (uintptr_t) start + bytes;
++	     addr = addr_add (addr, 1))
++	  as_slot_lookup_use
++	    (addr,
++	     ({
++	       bool ret;
++	       ret = cap_copy_x (ACTIVITY,
++				 ADDR_VOID, slot, addr,
++				 ADDR_VOID, *slot, addr,
++				 CAP_COPY_DISCARDABLE_SET
++				 | CAP_COPY_PRIORITY_SET,
++				 CAP_PROPERTIES
++				 (OBJECT_POLICY (true,
++						 OBJECT_PRIORITY_MIN),
++						 CAP_ADDR_TRANS_VOID));
++	       assert (ret);
++	     }));
++      }
++      GC_unmapped_bytes += len;
+ #   else
+       /* We immediately remap it to prevent an intervening mmap from	*/
+       /* accidentally grabbing the same address space.			*/
+@@ -2137,6 +2173,36 @@ void GC_remap(ptr_t start, size_t bytes)
+ 	  start_addr += alloc_len;
+ 	  len -= alloc_len;
+       }
++#   elif defined(__gnu_hurd_viengoos__)
++      {
++	addr_t addr;
++	for (addr = ADDR ((uintptr_t) start, ADDR_BITS - PAGESIZE_LOG2);
++	     addr_prefix (addr) < (uintptr_t) start + bytes;
++	     addr = addr_add (addr, 1))
++	  as_slot_lookup_use
++	    (addr,
++	     ({
++	       bool ret;
++	       ret = cap_copy_x (ACTIVITY,
++				 ADDR_VOID, slot, addr,
++				 ADDR_VOID, *slot, addr,
++				 CAP_COPY_DISCARDABLE_SET
++				 | CAP_COPY_PRIORITY_SET,
++				 CAP_PROPERTIES
++				 (OBJECT_POLICY (false,
++						 OBJECT_PRIORITY_DEFAULT),
++				  CAP_ADDR_TRANS_VOID));
++	       assert (ret);
++	       /* We don't actually know if this has been discarded.
++		  But since the pager is not prepared to handle such
++		  faults, be sure.  Depending on the cost, we may want
++		  to revise this.  Moreover, this may fail if this
++		  page has not yet been used.  Ignore any failure.  */
++	       rm_object_discarded_clear (ACTIVITY, addr);
++	     }));
++
++	GC_unmapped_bytes -= len;
++      }
+ #   else
+       /* It was already remapped with PROT_NONE. */
+       int result; 
+diff -upr gc-7.0/tests/test.c gc/tests/test.c
+--- gc-7.0/tests/test.c	2007-06-19 00:18:01.000000000 +0200
++++ gc/tests/test.c	2008-06-19 13:00:20.000000000 +0200
+@@ -1334,6 +1334,18 @@ void SetMinimumStack(long minSize)
+ #       endif
+ #      endif
+ #   endif
++extern int GC_viengoos_scheduler;
++ GC_viengoos_scheduler = 1;
++#ifdef USE_MMAP
++    printf ("USE_MMAP ");
++#endif
++#ifdef USE_MUNMAP
++    printf ("USE_UNMMAP ");
++#endif
++#ifdef STACK_GROWS_DOWN
++    printf ("STACK_GROWS_DOWN ");
++#endif
++    printf ("\n");
+     run_one_test();
+     check_heap_stats();
+ #   ifndef MSWINCE

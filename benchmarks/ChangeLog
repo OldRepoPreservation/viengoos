@@ -1,3 +1,16 @@
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
+	* GCbench.c (struct stats) [__gnu_hurd_viengoos__]: New structure.
+	[__gnu_hurd_viengoos__] Include <hurd/storage.h>, <hurd/cap.h>,
+	<hurd/activity.h>, <pthread.h>, <hurd/anonymous.h> and <string.h>.
+	(done) [__gnu_hurd_viengoos__]: New variable.
+	(gc_activity) [__gnu_hurd_viengoos__]: Likewise.
+	(hog_activity) [__gnu_hurd_viengoos__]: Likewise.
+	(mem_hog) [__gnu_hurd_viengoos__]: New function.
+	(mem_hog_fork) [__gnu_hurd_viengoos__]: Likewise.
+	(main) [__gnu_hurd_viengoos__]: Call mem_hog_fork.  Dump the
+	statistics.
+
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (boot_PROGRAMS): Add gcbench.

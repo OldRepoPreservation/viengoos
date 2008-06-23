@@ -54,7 +54,176 @@
 
 #include <assert.h>
 
-#if 0
+#ifdef __gnu_hurd_viengoos__
+#define STATS 1000
+struct stats
+{
+  int alloced[2];
+  int available[2];
+  int period;
+} stats[1000];
+int stat_count;
+
+#include <hurd/storage.h>
+#include <hurd/cap.h>
+#include <hurd/activity.h>
+#include <pthread.h>
+#include <hurd/anonymous.h>
+#include <string.h>
+
+static int done;
+
+addr_t gc_activity;
+addr_t hog_activity;
+
+
+void *
+mem_hog (void *arg)
+{
+  pthread_setactivity_np (hog_activity);
+
+  struct activity_stats_buffer buffer;
+
+  void wait_read_stats (void)
+  {
+    int count;
+
+    /* First the main thread.  */
+    error_t err;
+    err = rm_activity_stats (gc_activity,
+			     stat_count == 0 ? 0 : buffer.stats[0].period + 1,
+			     &buffer, &count);
+    assert_perror (err);
+
+    stats[stat_count].alloced[0]
+      = buffer.stats[0].clean + buffer.stats[0].dirty
+      + buffer.stats[0].pending_eviction;
+    stats[stat_count].available[0] = buffer.stats[0].available;
+
+    stats[stat_count].period = buffer.stats[0].period;
+
+    /* Then, the hog.  */
+    err = rm_activity_stats (hog_activity,
+			     stat_count == 0 ? 0 : buffer.stats[0].period,
+			     &buffer, &count);
+    assert_perror (err);
+
+    stats[stat_count].alloced[1]
+      = buffer.stats[0].clean + buffer.stats[0].dirty
+      + buffer.stats[0].pending_eviction;
+    stats[stat_count].available[1] = buffer.stats[0].available;
+
+    stat_count ++;
+    if (stat_count % 10 == 0)
+      debug (0, DEBUG_BOLD ("Period %d"), stat_count);
+  }
+
+  /* Wait a minute before starting.  */
+  int i;
+  for (i = 0; i < 30; i ++)
+    wait_read_stats ();
+
+
+  /* Now, allocate a 10MB chunk of memory every 2 seconds until we've
+     allocate half the initially available memory.  */
+
+  int available = stats[1].available[0] * PAGESIZE;
+
+  printf (DEBUG_BOLD ("mem hog starting (avail: %d, period: %d)!") "\n",
+	  available, stats[stat_count - 1].period);
+
+  /* The chunk size.  */
+  int s = 5 * 1024 * 1024;
+  int total = available / 2 / s;
+  struct anonymous_pager *pagers[total];
+  void *buffers[total];
+
+  int c;
+  for (c = 0; c < total && ! done; c ++)
+    {
+      pagers[c]
+	= anonymous_pager_alloc (hog_activity, NULL, s, MAP_ACCESS_ALL,
+				 OBJECT_POLICY (false, OBJECT_PRIORITY_LRU), 0,
+				 NULL, &buffers[c]);
+      assert (pagers[c]);
+      assert (buffers[c]);
+
+      memset (buffers[c], 0, s);
+
+      wait_read_stats ();
+    }
+
+  /* Wait a minute before freeing.  */
+  for (i = 0; i < 30 && ! done; i ++)
+    wait_read_stats ();
+
+  printf (DEBUG_BOLD ("mem hog releasing memory!") "\n");
+
+  /* Release the memory.  */
+  for (i = 0; i < total && ! done; i ++)
+    {
+      wait_read_stats ();
+      
+      printf (DEBUG_BOLD ("release: %d!") "\n", i);
+      anonymous_pager_destroy (pagers[i]);
+    }
+
+  /* Finally, wait until the main thread is done.  */
+  while (! done)
+    wait_read_stats ();
+
+  return 0;
+}
+
+pthread_t tid;
+
+void
+mem_hog_fork (void)
+{
+  gc_activity = storage_alloc (ADDR_VOID,
+			       cap_activity_control, STORAGE_LONG_LIVED,
+			       OBJECT_POLICY_DEFAULT, ADDR_VOID).addr;
+  if (ADDR_IS_VOID (gc_activity))
+    panic ("Failed to allocate main activity");
+
+  hog_activity = storage_alloc (ADDR_VOID,
+				cap_activity_control, STORAGE_LONG_LIVED,
+				OBJECT_POLICY_DEFAULT, ADDR_VOID).addr;
+  if (ADDR_IS_VOID (hog_activity))
+    panic ("Failed to allocate hog activity");
+
+  /* We give the main thread and the hog the same priority and
+     weight.  */  
+  struct activity_policy in, out;
+  memset (&in, 0, sizeof (in));
+  in.sibling_rel.priority = 1;
+  in.sibling_rel.weight = 10;
+
+  in.child_rel.priority = 2;
+  in.child_rel.weight = 20;
+
+  error_t err;
+  err = rm_activity_policy (ADDR_VOID,
+			    ACTIVITY_POLICY_CHILD_REL_SET, in, &out);
+  assert (err == 0);
+
+  err = rm_activity_policy (hog_activity,
+			    ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
+  assert (err == 0);
+
+  err = rm_activity_policy (gc_activity,
+			    ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
+  assert (err == 0);
+
+
+  pthread_setactivity_np (gc_activity);
+
+  err = pthread_create (&tid, NULL, mem_hog, NULL);
+  assert_perror (err);
+}
+#endif
+
+#if 1
 #define DEBUG(fmt, ...)
 #else
 #define DEBUG(fmt, ...) printf (fmt, ##__VA_ARGS__)
@@ -230,6 +399,11 @@ static void TimeConstruction(int depth) {
 int main() {
   extern int GC_print_stats;
   // GC_print_stats = 1;
+  extern int GC_viengoos_scheduler;
+  // GC_viengoos_scheduler = 0;
+#ifdef __gnu_hurd_viengoos__
+  mem_hog_fork ();
+#endif
 
         Node    root;
         Node    longLivedTree;
@@ -294,7 +468,7 @@ int main() {
   int j;
   for (j = 0; j < ITERATIONS; j ++)
     {
-      DEBUG ("Iteration %d\n", j);
+      printf ("Iteration %d\n", j);
         for (d = kMinTreeDepth; d <= kMaxTreeDepth; d += 2) {
                 TimeConstruction(d);
         }
@@ -320,5 +494,23 @@ int main() {
 #	ifdef PROFIL
 	  dump_profile();
 #	endif
+
+#ifdef __gnu_hurd_viengoos__
+	  done = 1;
+	  void *status;
+	  pthread_join (tid, &status);
+
+	  {
+	    int i;
+	    printf ("period, main alloc'd + hog alloc'd, main avail, hog alloc'd, hog avail\n");
+	    for (i = 0; i < stat_count; i ++)
+	      {
+		printf ("%d %d %d %d %d\n",
+			stats[i].period,
+			stats[i].alloced[0], stats[i].available[0], 
+			stats[i].alloced[1], stats[i].available[1]);
+	      }
+	  }
+#endif
 }
 

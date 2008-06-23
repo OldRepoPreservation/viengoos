@@ -1,3 +1,8 @@
+2008-06-23  Neal H. Walfield  <neal@gnu.org>
+
+	* patches/05-viengoos-scheduler.patch: New file.
+	* Makefile.am (patch_files): Add 05-viengoos-scheduler.patch.
+
 2008-06-18  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (patch_files): Add 03-gc-configure-ac.patch and
