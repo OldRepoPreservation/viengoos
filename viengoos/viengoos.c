@@ -270,9 +270,6 @@ main (int argc, char *argv[])
 	 "Reread the README.");
   debug (1, "%s " PACKAGE_VERSION " (%x)", program_name, l4_my_global_id ());
 
-  /* Assert that the size of a cap is a power of 2.  */
-  assert ((sizeof (struct cap) & (sizeof (struct cap) - 1)) == 0);
-
   /* Reserve the rm binary.  */
   if (! memory_reserve ((l4_word_t) &_start, (l4_word_t) &_end,
 			memory_reservation_self))

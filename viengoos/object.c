@@ -60,11 +60,12 @@ static struct hurd_ihash objects;
 void
 object_init (void)
 {
-  assertx (sizeof (struct folio) <= PAGESIZE, "%d", sizeof (struct folio));
-  assertx (sizeof (struct activity) <= PAGESIZE,
-	   "%d", sizeof (struct activity));
-  assertx (sizeof (struct object) <= PAGESIZE, "%d", sizeof (struct object));
-  assertx (sizeof (struct thread) <= PAGESIZE, "%d", sizeof (struct thread));
+  build_assert (sizeof (struct folio) <= PAGESIZE);
+  build_assert (sizeof (struct activity) <= PAGESIZE);
+  build_assert (sizeof (struct object) <= PAGESIZE);
+  build_assert (sizeof (struct thread) <= PAGESIZE);
+  /* Assert that the size of a cap is a power of 2.  */
+  build_assert ((sizeof (struct cap) & (sizeof (struct cap) - 1)) == 0);
 
 
   /* Allocate object hash.  */
