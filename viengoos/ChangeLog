@@ -1,5 +1,10 @@
 2008-06-24  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): In object_discarded_clear
+	implementation, if the capability is weak, return EPERM.
+
+2008-06-24  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Implement cap_discard.
 	* rm.h (rm_method_id_string): Handle the RM_object_discard case.
 

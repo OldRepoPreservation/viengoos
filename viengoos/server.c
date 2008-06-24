@@ -1064,6 +1064,8 @@ server_loop (void)
 	    struct cap cap = CAP (&thread->aspace, object_addr, -1, true);
 	    if (cap.type == cap_void)
 	      REPLY (ENOENT);
+	    if (cap_type_weak_p (cap.type))
+	      REPLY (EPERM);
 
 	    int idx = (cap.oid % (1 + FOLIO_OBJECTS)) - 1;
 	    oid_t foid = cap.oid - idx - 1;
