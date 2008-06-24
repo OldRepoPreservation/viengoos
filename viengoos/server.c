@@ -1102,21 +1102,46 @@ server_loop (void)
 	    if (cap_type_weak_p (cap.type))
 	      REPLY (EPERM);
 
+	    struct folio *folio;
+	    int offset;
+
 	    struct object *object = cap_to_object_soft (principal, &cap);
-	    if (! object)
-	      REPLY (ENOENT);
+	    if (object)
+	      {
+		struct object_desc *desc = object_to_object_desc (object);
 
-	    struct object_desc *desc = object_to_object_desc (object);
+		folio = objects_folio (principal, object);
+		offset = objects_folio_offset (object);
 
-	    struct folio *folio = objects_folio (principal, object);
-	    int offset = objects_folio_offset (object);
+		ACTIVITY_STATS (desc->activity)->discarded ++;
 
-	    ACTIVITY_STATS (desc->activity)->discarded ++;
+		memory_object_destroy (principal, object);
+		memory_frame_free ((uintptr_t) object);
 
-	    memory_object_destroy (principal, object);
+		/* Consistent with the API, we do NOT set the discarded
+		   bit.  */
 
-	    /* Consistent with the API, we do NOT set the discarded
-	       bit.  */
+		folio_object_content_set (folio, offset, false);
+
+		assertx (! cap_to_object_soft (principal, &cap),
+			 ADDR_FMT ": " CAP_FMT,
+			 ADDR_PRINTF (object_addr), CAP_PRINTF (&cap));
+	      }
+	    else
+	      /* The object is not in memory, however, we can still
+		 clear it's content bit.  */
+	      {
+		offset = (cap.oid % (1 + FOLIO_OBJECTS)) - 1;
+		oid_t foid = cap.oid - offset - 1;
+
+		folio = (struct folio *)
+		  object_find (activity, foid, OBJECT_POLICY_VOID);
+
+		if (folio_object_version (folio, offset) != cap.version)
+		  /* Or not, seems the object is gone!  */
+		  REPLY (ENOENT);
+	      }
+
 	    folio_object_content_set (folio, offset, false);
 
 	    rm_object_discard_reply_marshal (&msg);

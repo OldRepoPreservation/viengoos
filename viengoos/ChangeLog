@@ -1,5 +1,12 @@
 2008-06-24  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): In the implementation of cap_discard, if
+	cap_to_object_soft fails, only return ENOENT if the version does
+	not match.  If the object is not in memory, still clear the
+	content bit.  Don't forget to free the memory.
+
+2008-06-24  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (main): Move assert from here...
 	* object.c (object_init): ... to here.  Use build_asserts, not
 	asserts to check object sizes.
