@@ -377,6 +377,7 @@ enum
     RM_object_slot_copy_in,
     RM_object_slot_read,
     RM_object_discarded_clear,
+    RM_object_discard,
     RM_object_status,
   };
 
@@ -470,6 +471,13 @@ RPC(object_slot_read, 4, 2, addr_t, principal, addr_t, address_space,
 
 /* Clear the discarded bit.  */
 RPC(object_discarded_clear, 2, 0,
+    addr_t, principal, addr_t, object)
+
+/* If the object designated by OBJECT is in memory, discard it.
+   OBJECT must have write authority.  This does not set the object's
+   discarded bit and thus does not result in a fault.  Instead, the
+   next access will see zero-filled memory.  */
+RPC(object_discard, 2, 0,
     addr_t, principal, addr_t, object)
 
 enum

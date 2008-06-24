@@ -48,6 +48,21 @@ typedef void (*pager_reclaim_t) (struct pager *pager,
    held.  This function should unlock PAGER->LOCK, if required.  */
 typedef void (*pager_no_refs_t) (struct pager *pager);
 
+enum
+  {
+    pager_advice_normal,
+    pager_advice_random,
+    pager_advice_sequential,
+    pager_advice_willneed,
+    pager_advice_dontneed,
+  };
+
+/* Called to suggest some action on a range of pages.  This function
+   is called with MAPS_LOCK held.  It should not be released.  */
+typedef void (*pager_advise_t) (struct pager *pager,
+				uintptr_t start, uintptr_t length,
+				uintptr_t advice);
+
 struct pager
 {
   /* List of maps that reference this pager.  This is protected by
@@ -62,6 +77,8 @@ struct pager
   pager_fault_t fault;
 
   pager_no_refs_t no_refs;
+
+  pager_advise_t advise;
 };
 
 /* Initialize the pager.  LENGTH and FAULT must be set

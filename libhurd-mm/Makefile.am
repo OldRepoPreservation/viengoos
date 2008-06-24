@@ -36,19 +36,20 @@ libhurd_mm_a_CCASFLAGS = $(USER_CPPFLAGS) -DASM
 libhurd_mm_a_CFLAGS = $(USER_CFLAGS) -mpreferred-stack-boundary=2
 libhurd_mm_a_SOURCES = mm.h			\
 	bits.h					\
-	capalloc.h capalloc.c			\
+	mm-init.c				\
 	storage.h storage.c			\
 	as.h as.c				\
 	as-build.c as-build-custom.c		\
 	as-lookup.c				\
 	as-dump.c				\
 	exceptions.c				\
+	capalloc.h capalloc.c			\
 	map.h map.c				\
 	pager.h pager.c				\
 	anonymous.h anonymous.c			\
 	mmap.c sbrk.c				\
 	mprotect.c				\
-	mm-init.c				\
+	madvise.c				\
 	$(ARCH_SOURCES)
 
 libas_kernel_a_CPPFLAGS = $(KERNEL_CPPFLAGS)

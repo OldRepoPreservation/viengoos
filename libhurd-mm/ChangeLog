@@ -1,3 +1,15 @@
+2008-06-24  Neal H. Walfield  <neal@gnu.org>
+
+	* madvise.c: New file.
+	* Makefile.am (libhurd_mm_a_SOURCES): Add madvise.c.
+	* pager.h (pager_advice_normal, pager_advice_random,
+	pager_advice_sequential, pager_advice_willneed,
+	pager_advice_dontneed): Define.
+	(pager_advise_t): New typedef.
+	(struct pager): Add field advise.
+	* anonymous.c (advise): New function.
+	(anonymous_pager_alloc): Set ANON->PAGER.ADVISE to it.
+
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
 	* as-build.c (as_build): Use %p, not %x, for printing a pointer.

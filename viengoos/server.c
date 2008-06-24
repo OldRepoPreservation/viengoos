@@ -918,7 +918,6 @@ server_loop (void)
 		  {
 		    struct object_desc *desc
 		      = object_to_object_desc (object);
-		    bool claim = false;
 
 		    struct object_policy p = desc->policy;
 
@@ -1078,6 +1077,47 @@ server_loop (void)
 	    folio_object_discarded_set (folio, idx, false);
 
 	    rm_object_discarded_clear_reply_marshal (&msg);
+	    break;
+	  }
+
+	case RM_object_discard:
+	  {
+	    addr_t object_addr;
+
+	    err = rm_object_discard_send_unmarshal
+	      (&msg, &principal_addr, &object_addr);
+	    if (err)
+	      REPLY (err);
+
+	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (object_addr));
+
+	    /* We can't look up the object here as object_lookup
+	       returns NULL if the object's discardable bit is
+	       set!  Instead, we lookup the capability.  */
+	    struct cap cap = CAP (&thread->aspace, object_addr, -1, true);
+	    if (cap.type == cap_void)
+	      REPLY (ENOENT);
+	    if (cap_type_weak_p (cap.type))
+	      REPLY (EPERM);
+
+	    struct object *object = cap_to_object_soft (principal, &cap);
+	    if (! object)
+	      REPLY (ENOENT);
+
+	    struct object_desc *desc = object_to_object_desc (object);
+
+	    struct folio *folio = objects_folio (principal, object);
+	    int offset = objects_folio_offset (object);
+
+	    ACTIVITY_STATS (desc->activity)->discarded ++;
+
+	    memory_object_destroy (principal, object);
+
+	    /* Consistent with the API, we do NOT set the discarded
+	       bit.  */
+	    folio_object_content_set (folio, offset, false);
+
+	    rm_object_discard_reply_marshal (&msg);
 	    break;
 	  }
 

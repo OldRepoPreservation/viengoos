@@ -432,6 +432,49 @@ destroy (struct pager *pager)
   hurd_slab_dealloc (&anonymous_pager_slab, anon);
 }
 
+static void
+advise (struct pager *pager,
+	uintptr_t start, uintptr_t length, uintptr_t advice)
+{
+  if (advice != pager_advice_dontneed)
+    /* This is the only advice we currently handle.  */
+    return;
+
+  struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+  
+  uintptr_t offset[2];
+  offset[0] = start | 1;
+  offset[1] = length;
+
+  hurd_btree_storage_desc_t *storage_descs;
+  storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
+
+  struct storage_desc *next
+    = hurd_btree_storage_desc_find (storage_descs, &offset[0]);
+  if (next)
+    {
+      struct storage_desc *prev = hurd_btree_storage_desc_prev (next);
+
+      int dir;
+      struct storage_desc *storage_desc;
+      for (dir = 0; dir < 2; dir ++, next = prev)
+	while ((storage_desc = next))
+	  {
+	    next = (dir == 0 ? hurd_btree_storage_desc_next (storage_desc)
+		    : hurd_btree_storage_desc_prev (storage_desc));
+
+	    if (storage_desc->offset < start
+		|| storage_desc->offset >= start + length)
+	      break;
+
+	    error_t err;
+	    err = rm_object_discard (anon->activity, storage_desc->storage);
+	    if (err)
+	      panic ("err: %d", err);
+	  }
+    }
+}
+
 struct anonymous_pager *
 anonymous_pager_alloc (addr_t activity,
 		       void *hint, uintptr_t length, enum map_access access,
@@ -459,6 +502,7 @@ anonymous_pager_alloc (addr_t activity,
   anon->pager.length = length;
   anon->pager.fault = fault;
   anon->pager.no_refs = destroy;
+  anon->pager.advise = advise;
 
   anon->activity = activity;
   anon->flags = flags;
