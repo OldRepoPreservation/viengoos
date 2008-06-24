@@ -1,3 +1,8 @@
+2008-06-24  Neal H. Walfield  <neal@gnu.org>
+
+	* patches/05-viengoos-scheduler.patch: Update to use madvise and
+	to fix overflow in profiling code.
+
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
 	* patches/05-viengoos-scheduler.patch: New file.
