@@ -1,3 +1,21 @@
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
+	* hieronymus.c: Include <stdlib.h>.
+	(module_count): Make a global static.
+	(activities): Likewise.
+	(all_done): New variable.
+	(now): New function.
+	(epoch): Likewise.
+	(struct stat): New structure.
+	(stats_count): New variable.
+	(stats): Likewise.
+	(do_gather_stats): New function.
+	(main): If --stats is specified, fork a thread to gather
+	statistics.  When all processes have exited, print out the
+	statistics.
+
+	(main): Name activities according to their first argument.
+
 2008-05-31  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefile.am ($(addsuffix .o, $(files))): Use $(CCAS) instead of

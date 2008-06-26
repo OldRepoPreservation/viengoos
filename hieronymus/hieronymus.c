@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define STRINGIFY_(id) #id
 #define STRINGIFY(id) STRINGIFY_(id)
@@ -45,6 +46,9 @@ struct module
 };
 
 #include "modules.h"
+
+static int module_count;
+static addr_t *activities;
 
 /* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
@@ -73,44 +77,152 @@ activity_alloc (struct activity_policy policy)
   return storage;
 }
 
+static bool all_done;
+
+static inline uint64_t
+now (void)
+{
+  struct timeval t;
+  struct timezone tz;
+
+  if (gettimeofday( &t, &tz ) == -1)
+    return 0;
+  return (t.tv_sec * 1000000ULL + t.tv_usec);
+}
+static uint64_t epoch;
+
+struct stat
+{
+  int available;
+  int alloced;
+  uint64_t time;
+};
+static int stats_count;
+static struct stat *stats;
+
+static void *
+do_gather_stats (void *arg)
+{
+  epoch = now ();
+
+  int size = 0;
+
+  int period = 0;
+
+  while (! all_done)
+    {
+      int count;
+      struct activity_stats_buffer buffer;
+
+      if (size == stats_count)
+	{
+	  if (stats_count == 0)
+	    size = 100;
+	  else
+	    size *= 2;
+
+	  stats = realloc (stats,
+			   sizeof (struct stat) * size * module_count);
+	}
+
+      struct stat *stat = &stats[stats_count * module_count];
+      stat->time = now ();
+
+      int n = 0;
+
+      int i;
+      for (i = 0; i < module_count; i ++, stat ++)
+	{
+	  error_t err;
+	  err = rm_activity_stats (activities[0],
+				   period, &buffer, &count);
+	  if (err)
+	    {
+	      stat->alloced = 0;
+	      stat->available = 0;
+	    }
+	  else
+	    {
+	      stat->alloced = buffer.stats[0].clean + buffer.stats[0].dirty
+		+ buffer.stats[0].pending_eviction;
+	      stat->available = buffer.stats[0].available;
+
+
+	      if (n == 0)
+		n = buffer.stats[0].period + 1;
+	    }
+	}
+
+      stats_count ++;
+      period = n;
+    }
+
+  return NULL;
+}
+
 int
 main (int argc, char *argv[])
 {
   extern int output_debug;
   output_debug = 3;
 
-  // extern int __pthread_lock_trace;
-  // __pthread_lock_trace = 0;
+  module_count = sizeof (modules) / sizeof (modules[0]);
 
-  int count = sizeof (modules) / sizeof (modules[0]);
+  addr_t a[module_count];
+  activities = &a[0];
 
-  struct storage activities[count];
-  addr_t thread[count];
-
-  /* Load modules.  */
+  /* Create the activities.  */
   int i;
-  for (i = 0; i < count; i ++)
+  for (i = 0; i < module_count; i ++)
     {
       struct activity_memory_policy sibling_policy
 	= ACTIVITY_MEMORY_POLICY (modules[i].priority, modules[i].weight);
       struct activity_policy policy
 	= ACTIVITY_POLICY (sibling_policy, ACTIVITY_MEMORY_POLICY_VOID, 0);
-      activities[i] = activity_alloc (policy);
+      activities[i] = activity_alloc (policy).addr;
+
+      struct object_name name;
+      strncpy (&name.name[0], modules[i].name, sizeof (name.name));
+      rm_object_name (ADDR_VOID, activities[i], name);
+    }
+
+  bool gather_stats = false;
+  pthread_t gather_stats_tid;
+
+  for (i = 1; i < argc; i ++)
+    {
+      if (strcmp (argv[i], "--stats") == 0)
+	{
+	  if (! gather_stats)
+	    {
+	      error_t err;
+	      err = pthread_create (&gather_stats_tid, NULL,
+				    do_gather_stats, NULL);
+	      assert_perror (err);
+	      gather_stats = true;
+	    }
+	}
+    }
+
+  /* Load modules.  */
+  addr_t thread[module_count];
+  for (i = 0; i < module_count; i ++)
+    {
+      int count;
+      struct activity_stats_buffer buffer;
 
       const char *argv[] = { modules[i].name, modules[i].commandline, NULL };
       const char *env[] = { NULL };
-      thread[i] = process_spawn (activities[i].addr,
+      thread[i] = process_spawn (activities[i],
 				 modules[i].start, modules[i].end,
 				 argv, env, false);
-
-      debug (0, "");
 
       /* Free the memory used by the module's binary.  */
       /* XXX: This doesn't free folios or note pages that may be
 	 partially freed.  The latter is important because a page may
 	 be used by two modules and after the second module is loaded,
 	 it could be freed.  */
-      int count = 0;
+      count = 0;
       int j;
       for (j = 0; j < __hurd_startup_data->desc_count; j ++)
 	{
@@ -136,14 +248,14 @@ main (int argc, char *argv[])
     }
 
   /* Wait for all activities to die.  */
-  for (i = 0; i < count; i ++)
+  for (i = 0; i < module_count; i ++)
     {
       uintptr_t rt = -1;
       rm_thread_wait_object_destroyed (root_activity,
 				       thread[i], &rt);
 
-      addr_t folio = addr_chop (activities[i].addr, FOLIO_OBJECTS_LOG2);
-      int index = addr_extract (activities[i].addr, FOLIO_OBJECTS_LOG2);
+      addr_t folio = addr_chop (activities[i], FOLIO_OBJECTS_LOG2);
+      int index = addr_extract (activities[i], FOLIO_OBJECTS_LOG2);
 
       error_t err;
       err = rm_folio_object_alloc (ADDR_VOID, folio, index,
@@ -154,6 +266,33 @@ main (int argc, char *argv[])
 	debug (0, "deallocating object: %d", err);
 
       debug (0, "%s exited with %d", modules[i].name, (int) rt);
+    }
+
+  if (gather_stats)
+    {
+      uint64_t n = now ();
+
+      all_done = true;
+      void *status;
+      pthread_join (gather_stats_tid, &status);
+
+      printf ("Total time: %lld.%lld\n",
+	      (n - epoch) / 1000000,
+	      ((n - epoch) / 100000) % 10);
+
+      for (i = 0; i < stats_count; i ++)
+	{
+	  int j;
+
+	  struct stat *stat = &stats[i * module_count];
+	  printf ("%lld.%lld",
+		  stat->time / 1000000,
+		  (stat->time / 100000) % 10);
+		  
+	  for (j = 0; j < module_count; j ++, stat ++)
+	    printf ("\t%d\t%d", stat->available, stat->alloced);
+	  printf ("\n");
+	}
     }
 
   return 0;
