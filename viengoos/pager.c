@@ -531,7 +531,7 @@ pager_collect (int goal)
       assertx (victim_frames >= share,
 	       "%d < %d", victim_frames, share);
 
-      DEBUG (5, DEBUG_BOLD ("Revoking from activity " OBJECT_NAME_FMT ", ")
+      debug (5, DEBUG_BOLD ("Revoking from activity " OBJECT_NAME_FMT ", ")
 	     "%d/%d frames (pending eviction: %d/%d), share: %d, goal: %d",
 	     OBJECT_NAME_PRINTF ((struct object *) victim),
 	     victim->frames_local, victim->frames_total,
