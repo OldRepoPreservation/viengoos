@@ -23,6 +23,7 @@
 #include "activity.h"
 #include "object.h"
 #include "pager.h"
+#include "thread.h"
 #include "profile.h"
 
 int pager_min_alloc_before_next_collect;
@@ -530,10 +531,9 @@ pager_collect (int goal)
       assertx (victim_frames >= share,
 	       "%d < %d", victim_frames, share);
 
-      debug (0, DEBUG_BOLD ("Revoking from activity " OID_FMT "%s, ")
+      DEBUG (5, DEBUG_BOLD ("Revoking from activity " OBJECT_NAME_FMT ", ")
 	     "%d/%d frames (pending eviction: %d/%d), share: %d, goal: %d",
-	     OID_PRINTF (object_to_object_desc ((struct object *) victim)->oid),
-	     victim->parent ? "" : " (root activity)",
+	     OBJECT_NAME_PRINTF ((struct object *) victim),
 	     victim->frames_local, victim->frames_total,
 	     eviction_list_count (&victim->eviction_dirty),
 	     victim->frames_pending_eviction,

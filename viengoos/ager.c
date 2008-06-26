@@ -97,10 +97,9 @@ update_stats (void)
 	dec /= 5 - MIN (ACTIVITY_STATS (activity)->pressure, 4);
 
 	debug (0, "Due to pressure (%d), decreasing frames available "
-	       "to " OID_FMT " from %d to %d",
+	       "to " OBJECT_NAME_FMT " from %d to %d",
 	       ACTIVITY_STATS (activity)->pressure,
-	       OID_PRINTF (object_to_object_desc ((struct object *)
-						  activity)->oid),
+	       OBJECT_NAME_PRINTF ((struct object *) activity),
 	       frames, frames - dec);
 
 	frames -= dec;
@@ -304,13 +303,13 @@ update_stats (void)
 	  else
 	    free = 0;
 
-	  debug (5, OID_FMT ": alloced: %d of %d, "
+	  debug (5, "Period %d: " OBJECT_NAME_FMT ": alloced: %d of %d, "
 		 "priority: %d, weight: %d/%lld, prio group frames: %d, "
 		 "claimed: %d, disowned: %d, "
 		 "share: %d, excess: %d, unused: %d, "
 		 "could steal: %d, could use: %d, free: %d, avail: %d",
-		 OID_PRINTF (object_to_object_desc ((struct object *)
-						    activity)->oid),
+		 period / FREQ,
+		 OBJECT_NAME_PRINTF ((struct object *) activity),
 		 my_alloced, alloced, priority, my_weight, weight, frames,
 		 my_claimed, my_disowned, share, excess, unused,
 		 could_steal, could_use, free, avail);
@@ -343,10 +342,9 @@ update_stats (void)
 	  frames = 0;
       }
 
-    debug (5, OID_FMT " (s: %d/%d; c: %d/%d): "
-	   "%d/%d frames, %d/%d avail (" OID_FMT ")",
-	   OID_PRINTF (object_to_object_desc ((struct object *)
-					      activity)->oid),
+    debug (5, OBJECT_NAME_FMT " (s: %d/%d; c: %d/%d): "
+	   "%d/%d frames, %d/%d avail (" OBJECT_NAME_FMT ")",
+	   OBJECT_NAME_PRINTF ((struct object *) activity),
 	   activity->policy.sibling_rel.priority,
 	   activity->policy.sibling_rel.weight,
 	   activity->policy.child_rel.priority,
@@ -355,10 +353,8 @@ update_stats (void)
 	   activity->frames_total,
 	   ACTIVITY_STATS (activity)->available_local,
 	   ACTIVITY_STATS (activity)->available,
-	   OID_PRINTF (activity->parent
-		       ? object_to_object_desc ((struct object *)
-						activity->parent)->oid
-		       : 0));
+	   OBJECT_NAME_PRINTF ((struct object *) 
+			       (activity->parent ?: root_activity)));
 
     activity->current_period ++;
     if (activity->current_period == ACTIVITY_STATS_PERIODS + 1)

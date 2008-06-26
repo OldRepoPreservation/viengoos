@@ -207,6 +207,44 @@ struct object_desc
    memory map.  */
 extern struct object_desc *object_descs;
 
+/* This does not really belong here but there isn't really a better
+   place.  The first reason is that it relies on the definition of
+   struct activity and struct thread and this header file includes
+   neither activity.h nor thread.h.  */
+#define OBJECT_NAME_FMT "%s%s" OID_FMT
+#define OBJECT_NAME_PRINTF(__onp)				\
+  ({								\
+    const char *name = "";					\
+    if (object_type ((__onp)) == cap_activity_control)		\
+      {								\
+	struct activity *a = (struct activity *) (__onp);	\
+	name = a->name.name;					\
+      }								\
+    else if (object_type ((__onp)) == cap_thread)		\
+      {								\
+	struct thread *t = (struct thread *) (__onp);		\
+	name = t->name.name;					\
+      }								\
+    name;							\
+  }),								\
+  ({								\
+    const char *name = "";					\
+    if (object_type ((__onp)) == cap_activity_control)		\
+      {								\
+	struct activity *a = (struct activity *) (__onp);	\
+	name = a->name.name;					\
+      }								\
+    else if (object_type ((__onp)) == cap_thread)		\
+      {								\
+	struct thread *t = (struct thread *) (__onp);		\
+	name = t->name.name;					\
+      }								\
+    const char *space = "";					\
+    if (*name)							\
+      space = " ";						\
+    space;							\
+  }), OID_PRINTF (object_to_object_desc ((__onp))->oid)		\
+
 LIST_CLASS(activity_lru, struct object_desc, activity_node, true)
 LIST_CLASS(eviction, struct object_desc, activity_node, true)
 

@@ -23,6 +23,7 @@
 #include <hurd/cap.h>
 
 #include "activity.h"
+#include "thread.h"
 #include "object.h"
 #include "profile.h"
 
@@ -395,10 +396,10 @@ do_activity_dump (struct activity *activity, int indent)
   int clean = eviction_list_count (&activity->eviction_clean);
   int dirty = eviction_list_count (&activity->eviction_dirty);
 
-  printf ("%s %llx: %d frames (active: %d, inactive: %d, "
+  printf ("%s " OBJECT_NAME_FMT ": %d frames (active: %d, inactive: %d, "
 	  "pending eviction: %d/%d); total: %d; s:%d/%d; c:%d/%d\n",
 	  indent_string,
-	  object_to_object_desc ((struct object *) activity)->oid,
+	  OBJECT_NAME_PRINTF ((struct object *) activity),
 	  activity->frames_local, active, inactive, clean, dirty,
 	  activity->frames_total,
 	  activity->policy.sibling_rel.priority,
@@ -414,5 +415,6 @@ do_activity_dump (struct activity *activity, int indent)
 void
 activity_dump (struct activity *activity)
 {
-  do_activity_dump (activity, 0);
+  do_debug (0)
+    do_activity_dump (activity, 0);
 }

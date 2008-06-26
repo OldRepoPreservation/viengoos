@@ -379,6 +379,7 @@ enum
     RM_object_discarded_clear,
     RM_object_discard,
     RM_object_status,
+    RM_object_name,
   };
 
 enum
@@ -493,6 +494,18 @@ enum
    dirty bit was cleared.)  */
 RPC (object_status, 3, 1, addr_t, principal, addr_t, object, bool, clear,
      uintptr_t, status)
+
+struct object_name
+{
+  char name[12];
+};
+
+/* Give object OBJECT a name.  This is only used for debugging
+   purposes and is only supported by some objects, in particular,
+   activities and threads.  */
+RPC (object_name, 3, 0, addr_t, principal,
+     addr_t, object, struct object_name, name);
+     
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

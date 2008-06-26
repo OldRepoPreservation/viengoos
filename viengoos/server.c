@@ -1178,6 +1178,36 @@ server_loop (void)
 	    break;
 	  }
 
+	case RM_object_name:
+	  {
+	    addr_t object_addr;
+	    struct object_name name;
+
+	    err = rm_object_name_send_unmarshal
+	      (&msg, &principal_addr, &object_addr, &name);
+
+	    struct object *object = OBJECT (&thread->aspace,
+					    object_addr, -1, false);
+
+	    if (object_type (object) == cap_activity_control)
+	      {
+		struct activity *a = (struct activity *) object;
+
+		memcpy (a->name.name, name.name, sizeof (name));
+		a->name.name[sizeof (a->name.name) - 1] = 0;
+	      }
+	    else if (object_type (object) == cap_thread)
+	      {
+		struct thread *t = (struct thread *) object;
+
+		memcpy (t->name.name, name.name, sizeof (name));
+		t->name.name[sizeof (t->name.name) - 1] = 0;
+	      }
+
+	    rm_object_name_reply_marshal (&msg);
+	    break;
+	  }
+
 	case RM_thread_exregs:
 	  {
 	    struct hurd_thread_exregs_in in;

@@ -1,3 +1,9 @@
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (RM_object_name): Define.
+	(struct object_name): New struct.
+	(object_name): New method.
+
 2008-06-24  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (RM_object_discard): New define.

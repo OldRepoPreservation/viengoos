@@ -113,6 +113,8 @@ struct thread
 #ifndef NDEBUG
   struct list_node futex_waiter_node;
 #endif
+
+  struct object_name name;
 };
 
 #ifndef NDEBUG

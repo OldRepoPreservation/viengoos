@@ -1,5 +1,24 @@
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
+	* rm.h (rm_method_id_string): Handle the RM_object_name case.
+	* server.c (server_loop): Implement the object_name method.
+
+	* activity.h (struct activity): New field name.
+	* thread.h (struct thread): Likewise.
+	* object.h (OBJECT_NAME_FMT): New macro.
+	(OBJECT_NAME_PRINTF): Likewise.
+	* activity.c: Include "thread.h".
+	(do_activity_dump): Use OBJECT_NAME_FMT and OBJECT_NAME_PRINTF
+	rather than OID_FMT and OID_PRINTF.
+	(activity_dump): Only call do_activity_dump if debugging output is
+	enabled.
+	* pager.c: Include "thread.h".
+	(pager_collect): Use OBJECT_NAME_FMT and OBJECT_NAME_PRINTF rather
+	than OID_FMT and OID_PRINTF.
+	* ager.c (update_stats): Likewise.
+
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.h (activity_charge): Also update ACTIVITY's claimed and
 	disowned statistics, as appropriate.
 

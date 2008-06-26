@@ -67,6 +67,8 @@ rm_method_id_string (int id)
       return "object_discard";
     case RM_object_status:
       return "object_status";
+    case RM_object_name:
+      return "object_name";
     case RM_exception_collect:
       return "exception_collect";
     case RM_thread_exregs:

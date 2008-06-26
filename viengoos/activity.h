@@ -114,6 +114,8 @@ struct activity
   /* The current period.  */
   unsigned char current_period;
   struct activity_stats stats[ACTIVITY_STATS_PERIODS + 1];
+
+  struct object_name name;
 };
 
 LIST_CLASS(activity_children, struct activity, sibling, false)
