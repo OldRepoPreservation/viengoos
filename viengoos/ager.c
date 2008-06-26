@@ -74,14 +74,15 @@ update_stats (void)
      damping factor and the pressure.  */
   void stats (struct activity *activity, uint32_t frames)
   {
-    ACTIVITY_STATS (activity)->period = period / FREQ;
+    struct activity_stats *s = ACTIVITY_STATS (activity);
 
-    ACTIVITY_STATS (activity)->clean /= FREQ;
-    ACTIVITY_STATS (activity)->dirty /= FREQ;
-    ACTIVITY_STATS (activity)->pending_eviction
-      = activity->frames_pending_eviction;
-    ACTIVITY_STATS (activity)->active /= FREQ;
-    ACTIVITY_STATS (activity)->active_local /= FREQ;
+    s->period = period / FREQ;
+
+    s->clean /= FREQ;
+    s->dirty /= FREQ;
+    s->pending_eviction = activity->frames_pending_eviction;
+    s->active_local /= FREQ;
+    s->active = s->active_local;
 
     ACTIVITY_STATS (activity)->pressure +=
       ACTIVITY_STATS_LAST (activity)->pressure >> 1;
@@ -331,10 +332,23 @@ update_stats (void)
 	for (p = child;
 	     p && p->policy.sibling_rel.priority == priority;
 	     p = activity_children_list_prev (p))
-	  stats (p, comp_avail (p, p->policy.sibling_rel.weight,
-				p->frames_total,
-				ACTIVITY_STATS (p)->claimed,
-				ACTIVITY_STATS (p)->disowned));
+	  {
+	    stats (p, comp_avail (p, p->policy.sibling_rel.weight,
+				  p->frames_total,
+				  ACTIVITY_STATS (p)->claimed,
+				  ACTIVITY_STATS (p)->disowned));
+
+	    struct activity_stats *stats = ACTIVITY_STATS (activity);
+	    struct activity_stats *cstats = ACTIVITY_STATS (activity);
+
+	    stats->clean += cstats->clean;
+	    stats->dirty += cstats->dirty;
+	    stats->pending_eviction += cstats->pending_eviction;
+	    stats->active += cstats->active;
+	    stats->became_active += cstats->became_active;
+	    stats->became_inactive += cstats->became_inactive;
+	    stats->evicted += cstats->evicted;
+	  }
 
 	if (frames > alloced)
 	  frames -= alloced;
@@ -570,8 +584,7 @@ ager_loop (void)
 		    /* The object has become inactive and needs to be
 		       moved.  */
 		    {
-		      ACTIVITY_STAT_UPDATE (desc->activity,
-					    became_inactive, 1);
+		      ACTIVITY_STATS (desc->activity)->became_inactive ++;
 
 		      became_inactive ++;
 
@@ -582,10 +595,7 @@ ager_loop (void)
 		      activity_lru_list_push (&desc->activity->inactive, desc);
 		    }
 		  else
-		    {
-		      ACTIVITY_STATS (desc->activity)->active_local ++;
-		      ACTIVITY_STAT_UPDATE (desc->activity, active, 1);
-		    }
+		    ACTIVITY_STATS (desc->activity)->active ++;
 		}
 	      else
 		/* The object was inactive.  */
@@ -595,8 +605,7 @@ ager_loop (void)
 		  if (referenced)
 		    /* The object has become active.  */
 		    {
-		      ACTIVITY_STAT_UPDATE (desc->activity,
-					    became_active, 1);
+		      ACTIVITY_STATS (desc->activity)->became_active ++;
 
 		      became_active ++;
 
@@ -616,9 +625,9 @@ ager_loop (void)
 		}
 
 	      if (desc->dirty && ! desc->policy.discardable)
-		ACTIVITY_STAT_UPDATE (desc->activity, dirty, 1);
+		ACTIVITY_STATS (desc->activity)->dirty ++;
 	      else
-		ACTIVITY_STAT_UPDATE (desc->activity, clean, 1);
+		ACTIVITY_STATS (desc->activity)->clean ++;
 	    }
 
 	  profile_end ((uintptr_t) &ager_loop);

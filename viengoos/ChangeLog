@@ -1,5 +1,10 @@
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c (update_stats): Add child stats to parent here.
+	(ager_loop): Not here.
+
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h (RM_putchar): Remove.
 	(RM_write): Replace with this.
 	(rm_method_id_string): Update.
