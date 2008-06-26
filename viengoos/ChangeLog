@@ -1,5 +1,10 @@
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.c (reclaim_from): Only update VICTIM's evicted statistic.
+	Don't update its ancestors'.
+
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (update_stats): Add child stats to parent here.
 	(ager_loop): Not here.
 

@@ -276,14 +276,14 @@ reclaim_from (struct activity *victim, int goal)
     }
 
   victim->frames_local -= count - laundry_count;
+  ACTIVITY_STATS (victim)->evicted += count;
+
   struct activity *ancestor = victim;
   activity_for_each_ancestor
     (ancestor,
      ({
        ancestor->frames_total -= count - laundry_count;
        ancestor->frames_pending_eviction += laundry_count;
-
-       ACTIVITY_STATS (ancestor)->evicted += count;
      }));
 
   debug (5, "Reclaimed from " OID_FMT ": goal: %d; %d frames; "
