@@ -20,8 +20,6 @@
 
 include $(top_srcdir)/Makefoo.am
 
-noinst_LIBRARIES = libgc.a
-
 # Patches to apply to the source tree.
 patch_files = 01-gc-include-private-gcconfig-h.patch \
 	02-gc-mach_dep-c.patch \
@@ -100,19 +98,14 @@ gc-build/configure-stamp: $(srcdir)/gc/patch.stamp Makefile.am
 	--build=$(build_alias) --host=$(host_alias))
 	touch $@
 
-gc-build/build-stamp: gc-build/configure-stamp
+all-local: gc-build/configure-stamp
 	cd gc-build && \
 	  make all && \
 	  make gctest
-	touch $@
-
-gc-install/install-stamp: gc-build/build-stamp
-	cd gc-build && \
-	  make install
-	touch $@
-
-libgc.a: gc-install/install-stamp
-	$(LN_S) -f gc-install/lib/libgc.a .
+	if test gc-build/libgc.la -nt gc-build/build-stamp; then \
+	  ( cd gc-build && make install ); \
+	  touch gc-build/build-stamp; \
+	fi
 
 clean-local:
 	rm -rf gc-build

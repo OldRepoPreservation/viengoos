@@ -1,3 +1,11 @@
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (noinst_LIBRARIES): Remove target.
+	(gc-build/build-stamp): Remove target.
+	(libgc.a): Remove target.
+	(all-local): Depend on gc-build/configure-stamp.  Build the Boehm
+	GC.  Only run make install if gc-build/libgc.la has changed.
+
 2008-06-24  Neal H. Walfield  <neal@gnu.org>
 
 	* patches/05-viengoos-scheduler.patch: Update to use madvise and
