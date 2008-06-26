@@ -1,5 +1,10 @@
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (main): Assign viengoos_tid after we test that that
+	libl4 was correctly configured.
+
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
 	* pager.c (reclaim_from): Only update VICTIM's evicted statistic.
 	Don't update its ancestors'.
 

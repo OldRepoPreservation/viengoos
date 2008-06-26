@@ -262,13 +262,13 @@ ager_start (void)
 int
 main (int argc, char *argv[])
 {
-  viengoos_tid = l4_myself ();
-
   parse_args (argc, argv);
 
   debug (1, "If the following fails, you failed to patch L4 or libl4.  "
 	 "Reread the README.");
   debug (1, "%s " PACKAGE_VERSION " (%x)", program_name, l4_my_global_id ());
+
+  viengoos_tid = l4_myself ();
 
   /* Reserve the rm binary.  */
   if (! memory_reserve ((l4_word_t) &_start, (l4_word_t) &_end,
