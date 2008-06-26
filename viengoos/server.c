@@ -511,12 +511,16 @@ server_loop (void)
 	root_;								\
       })
 
-      if (label == RM_putchar)
+      if (label == RM_write)
 	{
-	  int chr;
-	  err = rm_putchar_send_unmarshal (&msg, &chr);
+	  struct io_buffer buffer;
+	  err = rm_write_send_unmarshal (&msg, &buffer);
 	  if (! err)
-	    putchar (chr);
+	    {
+	      int i;
+	      for (i = 0; i < buffer.len; i ++)
+		putchar (buffer.data[i]);
+	    }
 
 	  /* No reply needed.  */
 	  do_reply = 0;

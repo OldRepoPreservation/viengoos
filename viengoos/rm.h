@@ -30,7 +30,7 @@
 
 enum rm_method_id
   {
-    RM_putchar = 100,
+    RM_write = 100,
     RM_as_dump,
   };
 
@@ -39,8 +39,8 @@ rm_method_id_string (int id)
 {
   switch (id)
     {
-    case RM_putchar:
-      return "putchar";
+    case RM_write:
+      return "write";
     case RM_as_dump:
       return "as_dump";
     case RM_folio_alloc:
@@ -97,8 +97,15 @@ rm_method_id_string (int id)
 
 #include <hurd/rpc.h>
 
+struct io_buffer
+{
+  /* The length.  */
+  unsigned char len;
+  char data[127];
+};
+
 /* Echo the character CHR on the manager console.  */
-RPC_SIMPLE(putchar, 1, 0, int, chr)
+RPC_SIMPLE(write, 1, 0, struct io_buffer, io)
 
 /* Dump the address space rooted at ROOT.  */
 RPC(as_dump, 2, 0, addr_t, principal, addr_t, root)

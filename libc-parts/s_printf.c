@@ -33,6 +33,27 @@
 
 #include "s-printf.h"
 
+#ifndef RM_INTERN
+static void
+io_buffer_flush (struct io_buffer *buffer)
+{
+  if (buffer->len == 0)
+    return;
+
+  rm_write (*buffer);
+  buffer->len = 0;
+}
+
+static void
+io_buffer_append (struct io_buffer *buffer, int chr)
+{
+  if (buffer->len == sizeof (buffer->data))
+    io_buffer_flush (buffer);
+
+  buffer->data[buffer->len ++] = chr;
+}
+#endif
+
 /* Print the single character CHR on the output device.  */
 int
 s_putchar (int chr)
@@ -44,7 +65,10 @@ s_putchar (int chr)
 
   return putchar (chr);
 #else
-  rm_putchar (chr);
+  struct io_buffer buffer;
+  buffer.len = 1;
+  buffer.data[0] = chr;
+  rm_write (buffer);
   return 0;
 #endif
 }
@@ -64,7 +88,24 @@ s_cputs (int (*putchar) (int), const char *str)
 int
 s_puts (const char *str)
 {
-  return s_cputs (s_putchar, str);
+#ifndef RM_INTERN
+  struct io_buffer buffer;
+  buffer.len = 0;
+
+  int putchar (int chr)
+  {
+    io_buffer_append (&buffer, chr);
+    return 0;
+  }
+#endif
+
+  int ret = s_cputs (putchar, str);
+
+#ifndef RM_INTERN
+  io_buffer_flush (&buffer);
+#endif
+
+  return ret;
 }
 
 
@@ -232,7 +273,24 @@ s_cvprintf (int (*putchar) (int), const char *fmt, va_list ap)
 int
 s_vprintf (const char *fmt, va_list ap)
 {
-  return s_cvprintf (s_putchar, fmt, ap);
+#ifndef RM_INTERN
+  struct io_buffer buffer;
+  buffer.len = 0;
+
+  int putchar (int chr)
+  {
+    io_buffer_append (&buffer, chr);
+    return 0;
+  }
+#endif
+
+  int ret = s_cvprintf (putchar, fmt, ap);
+
+#ifndef RM_INTERN
+  io_buffer_flush (&buffer);
+#endif
+
+  return ret;
 }
 
 int

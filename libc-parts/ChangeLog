@@ -1,3 +1,11 @@
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
+	* s_printf.c (io_buffer_flush) [! RM_INTERN]: New function.
+	(io_buffer_append) [! RM_INTERN]: Likewise.
+	(s_puts)[! RM_INTERN]: Use them.
+	(s_vprintf) [! RM_INTERN]: Likewise.
+	(s_putchar)[! RM_INTERN]: Use rm_write.
+
 2008-06-24  Neal H. Walfield  <neal@gnu.org>
 
 	* assert.h (build_assert): Define.
