@@ -254,7 +254,7 @@ case $ac_cv_runtime_checks in
        C_CHECKS="-Wno-unused-variable"
        ;;
      no | 0)
-       CPP_CHECKS="-DNCHECK -DNDEBUG -DELIDE_DEBUG"
+       CPP_CHECKS="-DNCHECK -DNDEBUG -DDEBUG_ELIDE"
        C_CHECKS="-Wno-unused-variable"
        ;;
      *)

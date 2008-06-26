@@ -1,3 +1,7 @@
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Spell DEBUG_ELIDE correctly.
+
 2008-06-22  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac (--enable-runtime-checks): Fix spelling.
