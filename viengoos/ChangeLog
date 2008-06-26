@@ -1,3 +1,8 @@
+2008-06-26  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h (activity_charge): Also update ACTIVITY's claimed and
+	disowned statistics, as appropriate.
+
 2008-06-24  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): In the implementation of cap_discard, if

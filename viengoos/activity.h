@@ -201,14 +201,20 @@ activity_charge (struct activity *activity, int objects)
 	     "%d <= %d", -objects, activity->frames_local);
 
   activity->frames_local += objects;
-  activity_for_each_ancestor (activity,
-			      ({
-				if (objects < 0)
-				  assertx (-objects <= activity->frames_total,
-					   "%d <= %d",
-					   -objects, activity->frames_total);
-				activity->frames_total += objects;
-			      }));
+  activity_for_each_ancestor
+    (activity,
+     ({
+       if (objects < 0)
+	 assertx (-objects <= activity->frames_total,
+		  "%d <= %d",
+		  -objects, activity->frames_total);
+       activity->frames_total += objects;
+
+       if (objects > 0)
+	 ACTIVITY_STATS (activity)->claimed += objects;
+       else
+	 ACTIVITY_STATS (activity)->disowned += -objects;
+     }));
 }
 
 #define ACTIVITY_STAT_UPDATE(__asu_activity, __asu_field, __asu_delta)	\
