@@ -152,10 +152,10 @@ debug_dump (void)
   multiboot_info_t *mbi = (multiboot_info_t *) boot_info;
 
   if (CHECK_FLAG (mbi->flags, 9))
-    debug ("Booted by %s\n", (char *) mbi->boot_loader_name);
+    debug (1, "Booted by %s\n", (char *) mbi->boot_loader_name);
 
   if (CHECK_FLAG (mbi->flags, 0))
-    debug ("Memory: Lower %u KB, Upper %u KB\n",
+    debug (1, "Memory: Lower %u KB, Upper %u KB\n",
 	   mbi->mem_lower, mbi->mem_upper);
 
   if (CHECK_FLAG (mbi->flags, 3))
@@ -164,7 +164,7 @@ debug_dump (void)
       int nr;
 
       for (nr = 0; nr < mbi->mods_count; nr++)
-	debug ("Module %i: Start 0x%x, End 0x%x, Cmd %s\n",
+	debug (1, "Module %i: Start 0x%x, End 0x%x, Cmd %s\n",
 	       nr + 1, mod[nr].mod_start, mod[nr].mod_end,
 	       (char *) mod[nr].string);
     }
@@ -178,7 +178,7 @@ debug_dump (void)
 	   (uint32_t) mmap < mbi->mmap_addr + mbi->mmap_length;
 	   mmap = (memory_map_t *) ((uint32_t) mmap
 				    + mmap->size + sizeof (mmap->size)))
-	debug ("Memory Map %i: Type %i, Base 0x%llx, Length 0x%llx\n",
+	debug (1, "Memory Map %i: Type %i, Base 0x%llx, Length 0x%llx\n",
 	       nr++, mmap->type, mmap->base_addr, mmap->length);
     }
 }
@@ -230,7 +230,7 @@ modules_relocate (const char *name,
   /* Number of modules.  */
   l4_word_t count = ((l4_word_t) cookie) & ((1 << 16) - 1);
   l4_word_t offset = new_start - start;
-  debug ("Moving modules %d-%d from 0x%x-0x%x to 0x%x (+0x%x)\n",
+  debug (1, "Moving modules %d-%d from 0x%x-0x%x to 0x%x (+0x%x)\n",
 	 i, i + count, start, end, new_start, offset);
   while (count)
     {

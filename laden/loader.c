@@ -80,7 +80,7 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
 	      && end >= l4_memory_desc_low (memdesc)
 	      && end <= l4_memory_desc_high (memdesc))
 	    {
-	      debug ("Memory 0x%x-0x%x fits in conventional memory map %d "
+	      debug (1, "Memory 0x%x-0x%x fits in conventional memory map %d "
 		     "(0x%x-0x%x)\n",
 		     start, end, nr,
 		     l4_memory_desc_low (memdesc),
@@ -99,7 +99,7 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
 	      || (start < l4_memory_desc_low (memdesc)
 		  && end > l4_memory_desc_high (memdesc)))
 	    {
-	      debug ("Memory 0x%x-0x%x conflicts with non-conventional "
+	      debug (1, "Memory 0x%x-0x%x conflicts with non-conventional "
 		     "memory map %d (0x%x-0x%x)\n",
 		     start, end, nr,
 		     l4_memory_desc_low (memdesc),
@@ -158,7 +158,7 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 		   relocate_region rr, void *cookie,
 		   int desc_type)
 {
-  debug ("Protected Region: %s (0x%x - 0x%x)\n", name, start, end);
+  debug (1, "Protected Region: %s (0x%x - 0x%x)\n", name, start, end);
 
   if (start >= end)
     panic ("Region %s has a start address following the end address", name);
@@ -211,7 +211,7 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 		 used_regions[region].name, start, end,
 		 used_regions[i].name, mstart, mend);
 
-	debug ("%s (0x%x - 0x%x) conflicts with %s (0x%x - 0x%x);"
+	debug (1, "%s (0x%x - 0x%x) conflicts with %s (0x%x - 0x%x);"
 	       " moving latter\n",
 	       used_regions[region].name, start, end,
 	       used_regions[i].name, mstart, mend);
@@ -223,7 +223,7 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 	    l4_word_t mem_low = l4_memory_desc_low (memdesc);
 	    l4_word_t mem_high = l4_memory_desc_high (memdesc);
 
-	    debug ("consider memory_map: %d, %d, 0x%x-0x%x\n",
+	    debug (1, "consider memory_map: %d, %d, 0x%x-0x%x\n",
 		   j, memory_map[j].type, mem_low, mem_high);
 
 	    if (memory_map[j].type == L4_MEMDESC_CONVENTIONAL
@@ -232,7 +232,7 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 		 there is a non-conflicting, contiguous space of SIZE
 		 bytes.  */
 	      {
-		debug ("Considering memory (0x%x-0x%x)\n",
+		debug (1, "Considering memory (0x%x-0x%x)\n",
 		       mem_low, mem_high);
 
 		/* Start with the lowest address.  */
@@ -255,20 +255,20 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 		    /* There is overlap, take the end of the conflicting
 		       region as our new start and restart.  */
 		    {
-		      debug ("Can't use 0x%x, %s(0x%x-0x%x) in way\n",
+		      debug (1, "Can't use 0x%x, %s(0x%x-0x%x) in way\n",
 			     ns, used_regions[k].name,
 			     used_regions[k].start, used_regions[k].end);
 		      /* Try the page aligned after the end of this
 			 region.  */
 		      ns = (used_regions[k].end + 1 + 0xfff) & ~0xfff;
-		      debug ("Trying address 0x%x\n", ns);
+		      debug (1, "Trying address 0x%x\n", ns);
 		      goto restart;
 		    }
 
 		if (k == nr_regions && ns + msize - 1 <= mem_high)
 		  /* NS is a good new start!  */
 		  {
-		    debug ("Moving %s(%d) from 0x%x-0x%x to 0x%x-0x%x\n",
+		    debug (1, "Moving %s(%d) from 0x%x-0x%x to 0x%x-0x%x\n",
 			   used_regions[i].name, i,
 			   used_regions[i].start, used_regions[i].end,
 			   ns, ns + msize - 1);
@@ -329,7 +329,7 @@ loader_regions_reserve (void)
 	/* Round up.  */
 	l4_word_t end = ((used_regions[i].end + 0x3ff - 1) & ~0x3ff) - 1;
 
-	debug ("Reserving memory 0x%x-0x%x (%s)\n",
+	debug (1, "Reserving memory 0x%x-0x%x (%s)\n",
 	       start, end, used_regions[i].name);
 
 	add_memory_map (start, end, used_regions[i].desc_type, 0);

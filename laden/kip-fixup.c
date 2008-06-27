@@ -35,7 +35,7 @@ kip_fixup (void)
 
   if ((l4_word_t) kip >= kernel.high)
     panic ("No KIP found in the kernel.\n");
-  debug ("KIP found at address %p.\n", kip);
+  debug (1, "KIP found at address %p.\n", kip);
 
   kip2 = kip + 0x1000;
   while ((l4_word_t) kip2 < kernel.high
@@ -53,14 +53,14 @@ kip_fixup (void)
     case L4_API_VERSION_2:
     case L4_API_VERSION_2PP:
       /* Booting a v2 kernel.  */
-      debug ("Booting a v2 kernel.\n");
+      debug (1, "Booting a v2 kernel.\n");
       break;
 #endif
 
 #ifdef _L4_X2
     case L4_API_VERSION_X2:
       /* Booting an x2 kernel.  */
-      debug ("Booting an x2 kernel.\n");
+      debug (1, "Booting an x2 kernel.\n");
       break;
 #endif
 
@@ -76,12 +76,12 @@ kip_fixup (void)
   /* FIXME: We should be able to specify the UTCB area for the
      rootserver here, but L4 lacks this feature.  */
 
-  debug ("Sigma0: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
+  debug (1, "Sigma0: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
 	 sigma0.low, sigma0.high, sigma0.ip, sigma0.sp);
   if (kip->sigma1.low)
-    debug ("Sigma1: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
+    debug (1, "Sigma1: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
 	   sigma1.low, sigma1.high, sigma1.ip, sigma1.sp);
-  debug ("Root: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
+  debug (1, "Root: Low 0x%x, High 0x%x, IP 0x%x, SP 0x%x\n",
 	 rootserver.low, rootserver.high, rootserver.ip, rootserver.sp);
 
   /* Load the memory map into the KIP.  */
@@ -99,7 +99,7 @@ kip_fixup (void)
 #endif
 
   for (nr = 0; nr < memory_map_size; nr++)
-    debug ("Memory Map %i: Type %i/%i, Low 0x%llx, High 0x%llx\n",
+    debug (1, "Memory Map %i: Type %i/%i, Low 0x%llx, High 0x%llx\n",
 	   nr + 1, memory_map[nr].type, memory_map[nr].subtype,
 	   (unsigned long long) (memory_map[nr].low << 10),
 	   (unsigned long long) (memory_map[nr].high << 10));

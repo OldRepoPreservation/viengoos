@@ -200,7 +200,7 @@ main (int argc, char *argv[])
 {
   parse_args (argc, argv);
 
-  debug ("%s " PACKAGE_VERSION "\n", program_name);
+  debug (1, "%s " PACKAGE_VERSION "\n", program_name);
 
   find_components ();
 
@@ -210,7 +210,7 @@ main (int argc, char *argv[])
 
   kip_fixup ();
 
-  debug ("Entering kernel at address 0x%x...\n", kernel.ip);
+  debug (1, "Entering kernel at address 0x%x...\n", kernel.ip);
 
   output_deinit ();
 

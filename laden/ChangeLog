@@ -1,3 +1,14 @@
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
+	* output.h (debug): Don't define.
+	* ia32-cmain.c (debug_dump): Update to use standard debug API.
+	(modules_relocate): Likewise.
+	* kip-fixup.c (kip_fixup): Likewise.
+	* laden.c (main): Likewise.
+	* loader.c (mem_check): Likewise.
+	(loader_add_region): Likewise.
+	(loader_regions_reserve): Likewise.
+
 2008-06-06  Neal H. Walfield  <neal@gnu.org>
 
 	* ia32-cmain.c (find_components): Reserve 20% of available memory
