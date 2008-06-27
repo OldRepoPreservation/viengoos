@@ -1,3 +1,10 @@
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
+	* hieronymus.c (do_gather_stats): Change to use activity_info
+	instead of activity_stats.
+
+	(main): Introduce code to delay process creation.
+
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
 	* hieronymus.c: Include <stdlib.h>.

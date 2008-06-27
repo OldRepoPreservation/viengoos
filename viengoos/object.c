@@ -818,6 +818,31 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 	  if (activity != desc->activity && update_accounting)
 	    activity_charge (desc->activity, -1);
 	}
+
+      if ((activity != desc->activity
+	   || (desc->eviction_candidate
+	       && ! (desc->dirty && ! desc->policy.discardable)))
+	  && update_accounting
+	  && desc->activity->free_goal)
+	{
+	  desc->activity->free_goal --;
+	  if (desc->activity->free_goal == 0)
+	    /* The activity met the free goal!  */
+	    {
+	      debug (0, DEBUG_BOLD (OBJECT_NAME_FMT " met goal."),
+		     OBJECT_NAME_PRINTF ((struct object *) desc->activity));
+
+	      struct activity *ancestor = desc->activity;
+	      activity_for_each_ancestor
+		(ancestor,
+		 ({
+		   ancestor->frames_excluded
+		     -= desc->activity->free_initial_allocation;
+		 }));
+
+	      desc->activity->free_allocations = 0;
+	    }
+	}
     }
 
   if (! activity)
@@ -844,7 +869,37 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
        || (desc->eviction_candidate
 	   && ! (desc->dirty && ! desc->policy.discardable)))
       && update_accounting)
-    activity_charge (activity, 1);
+    {
+      activity_charge (activity, 1);
+
+      if (activity->free_allocations)
+	{
+	  activity->free_allocations --;
+	  if (activity->free_allocations == 0)
+	    {
+	      if (activity->free_goal)
+		/* Bad boy!  */
+		{
+		  activity->free_bad_karma = 8;
+
+		  debug (0, DEBUG_BOLD (OBJECT_NAME_FMT
+					" failed to free %d pages."),
+			 OBJECT_NAME_PRINTF ((struct object *) activity),
+			 activity->free_goal);
+		}
+
+	      struct activity *ancestor = activity;
+	      activity_for_each_ancestor
+		(ancestor,
+		 ({
+		   ancestor->frames_excluded
+		     -= activity->free_initial_allocation;
+		 }));
+
+	      activity->free_goal = 0;
+	    }
+	}
+    }
 
   desc->eviction_candidate = false;
   desc->activity = activity;

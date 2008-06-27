@@ -286,13 +286,14 @@ reclaim_from (struct activity *victim, int goal)
        ancestor->frames_pending_eviction += laundry_count;
      }));
 
-  debug (5, "Reclaimed from " OID_FMT ": goal: %d; %d frames; "
+  debug (5, "Reclaimed from " OBJECT_NAME_FMT ": goal: %d; %d frames; "
 	 DEBUG_BOLD ("%d in laundry, %d made available (%d discarded)") " "
-	 "(now: avail: %d, laundry: %d)",
-	 OID_PRINTF (object_oid ((struct object *) victim)), goal,
+	 "(now: free: %d, avail: %d, laundry: %d)",
+	 OBJECT_NAME_PRINTF ((struct object *) victim), goal,
 	 victim->frames_local,
 	 laundry_count, count - laundry_count, discarded,
-	 available_list_count (&available), laundry_list_count (&laundry));
+	 zalloc_memory, available_list_count (&available),
+	 laundry_list_count (&laundry));
 
   assertx (victim->priorities_count
 	   + activity_lru_list_count (&victim->active)
@@ -324,7 +325,7 @@ pager_collect (int goal)
 
   int available_memory = zalloc_memory + available_list_count (&available);
 
-  debug (5, "Frames: %d, available: %d (%d%%), pending page out: %d, "
+  debug (0, "Frames: %d, available: %d (%d%%), pending page out: %d, "
 	 "low water: %d, goal: %d",
 	 memory_total,
 	 available_memory, (available_memory * 100) / memory_total,
@@ -466,18 +467,34 @@ pager_collect (int goal)
 				      child->policy.sibling_rel.priority))
 		    {
 		      have_self = true;
-		      int frames = parent->frames_local
-			- eviction_list_count (&parent->eviction_dirty)
-			- (ACTIVITY_STATS_LAST (parent)->active_local
-			   >> factor);
-		      if (frames > 0)
-			done = process (parent, parent->policy.child_rel,
-					frames);
-		      if (done)
-			break;
+
+		      /* If PARENT->FREE_ALLOCATIONS is non-zero, we
+			 have already selected this activity for
+			 eviction and have sent it a message asking it
+			 to free memory.  It may make
+			 PARENT->FREE_ALLOCATIONS before it is again
+			 eligible.  */
+		      if (! parent->free_allocations)
+			{
+			  int frames = parent->frames_local
+			    - eviction_list_count (&parent->eviction_dirty)
+			    - (ACTIVITY_STATS_LAST (parent)->active_local
+			       >> factor);
+			  if (frames > 0)
+			    done = process (parent, parent->policy.child_rel,
+					    frames);
+			  if (done)
+			    break;
+			}
+		      else
+			debug (0, "Excluding " OBJECT_NAME_FMT
+			       ": %d free frames, %d excluded",
+			       parent->free_allocations,
+			       parent->frames_excluded);
 		    }
 
 		  int frames = child->frames_total
+		    - child->frames_excluded
 		    - child->frames_pending_eviction
 		    - (ACTIVITY_STATS_LAST (child)->active >> factor);
 		  if (frames > 0)
@@ -489,6 +506,7 @@ pager_collect (int goal)
 	      if (! done && ! have_self)
 		{
 		  int frames = parent->frames_local
+		    - child->frames_excluded
 		    - eviction_list_count (&parent->eviction_dirty)
 		    - (ACTIVITY_STATS_LAST (parent)->active_local >> factor);
 		  if (frames > 0)
@@ -504,7 +522,7 @@ pager_collect (int goal)
 	  if (! victim)
 	    break;
 
-	  ACTIVITY_STATS (victim)->pressure += 4;
+	  ACTIVITY_STATS (victim)->pressure ++;
 
 	  assert (victim);
 	}
@@ -514,6 +532,8 @@ pager_collect (int goal)
 	break;
 
       /* We steal from VICTIM.  */
+
+      ACTIVITY_STATS (victim)->pressure_local += 4;
 
       /* Calculate VICTIM's share of the frames allocated to all the
 	 activity's at this priority level.  */
@@ -531,8 +551,10 @@ pager_collect (int goal)
       assertx (victim_frames >= share,
 	       "%d < %d", victim_frames, share);
 
-      debug (5, DEBUG_BOLD ("Revoking from activity " OBJECT_NAME_FMT ", ")
+      debug (5, "%d of %d pages available; "
+	     DEBUG_BOLD ("Revoking from activity " OBJECT_NAME_FMT ", ")
 	     "%d/%d frames (pending eviction: %d/%d), share: %d, goal: %d",
+	     zalloc_memory + available_list_count (&available), memory_total,
 	     OBJECT_NAME_PRINTF ((struct object *) victim),
 	     victim->frames_local, victim->frames_total,
 	     eviction_list_count (&victim->eviction_dirty),
@@ -543,7 +565,63 @@ pager_collect (int goal)
       if (reclaim > goal)
 	reclaim = goal;
 
-      total_freed += reclaim_from (victim, reclaim);
+      bool need_reclaim = true;
+
+      struct thread *thread;
+      object_wait_queue_for_each (victim, (struct object *) victim,
+				  thread)
+	if (thread->wait_reason == THREAD_WAIT_ACTIVITY_INFO
+	    && (thread->wait_reason_arg & activity_info_pressure))
+	  break;
+
+      if (thread)
+	{
+	  debug (0, DEBUG_BOLD ("Requesting that " OBJECT_NAME_FMT " free "
+				"%d pages.")  " Karma: %d",
+		 OBJECT_NAME_PRINTF ((struct object *) victim),
+		 goal, victim->free_bad_karma);
+
+	  if (! victim->free_goal
+	      && victim->free_bad_karma == 0)
+	    /* If the activity manages half the goal, we'll be
+	       happy.  */
+	    {
+	      need_reclaim = false;
+
+	      victim->free_goal = goal / 2;
+	      victim->free_allocations = 100;
+	      victim->free_initial_allocation = victim->frames_local;
+
+	      struct activity *ancestor = victim;
+	      activity_for_each_ancestor
+		(ancestor,
+		 ({
+		   ancestor->frames_excluded += victim->frames_local;
+		 }));
+
+	      total_freed += goal;
+	    }
+
+	  struct activity_info info;
+	  info.event = activity_info_pressure;
+	  info.pressure.amount = - goal;
+
+	  object_wait_queue_for_each (victim,
+				      (struct object *) victim,
+				      thread)
+	    if (thread->wait_reason == THREAD_WAIT_ACTIVITY_INFO
+		&& (thread->wait_reason_arg & activity_info_pressure))
+	      {
+		object_wait_queue_dequeue (victim, thread);
+		rm_activity_info_reply (thread->tid, info);
+	      }
+	}
+
+      if (victim->free_bad_karma)
+	victim->free_bad_karma --;
+
+      if (need_reclaim)
+	total_freed += reclaim_from (victim, reclaim);
     }
 
   if (zalloc_memory + available_list_count (&available)

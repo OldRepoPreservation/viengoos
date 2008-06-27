@@ -1362,25 +1362,60 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_activity_stats:
+	case RM_activity_info:
 	  {
+	    uintptr_t flags;
 	    uintptr_t until_period;
-	    err = rm_activity_stats_send_unmarshal (&msg, &principal_addr,
-						    &until_period);
+
+	    err = rm_activity_info_send_unmarshal (&msg, &principal_addr,
+						   &flags,
+						   &until_period);
 	    if (err)
 	      REPLY (err);
-
-	    DEBUG (4, "%d", until_period);
 
 	    int period = principal->current_period - 1;
 	    if (period < 0)
 	      period = (ACTIVITY_STATS_PERIODS + 1) + period;
 
-	    if (principal->stats[period].period < until_period)
+	    DEBUG (4, OBJECT_NAME_FMT ": %s%s%s(%d), "
+		   "period: %d (current: %d)\n",
+		   OBJECT_NAME_PRINTF ((struct object *) principal),
+		   flags & activity_info_stats ? "stats" : "",
+		   (flags == (activity_info_free|activity_info_stats))
+		   ? ", " : "",
+		   flags & activity_info_free ? "free" : "",
+		   flags,
+		   until_period, principal->stats[period].period);
+	    
+	    if ((flags & activity_info_stats)
+		&& principal->stats[period].period > 0
+		&& principal->stats[period].period >= until_period)
+	      /* Return the available statistics.  */
+	      {
+		/* XXX: Only return valid stat buffers.  */
+		struct activity_info info;
+		info.event = activity_info_stats;
+
+		int i;
+		for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
+		  {
+		    period = principal->current_period - 1 - i;
+		    if (period < 0)
+		      period = (ACTIVITY_STATS_PERIODS + 1) + period;
+
+		    info.stats.stats[i] = principal->stats[period];
+		  }
+
+		info.stats.count = ACTIVITY_STATS_PERIODS;
+
+		rm_activity_info_reply_marshal (&msg, info);
+	      }
+	    else if (flags)
 	      /* Queue thread on the activity.  */
 	      {
-		thread->wait_reason = THREAD_WAIT_STATS;
-		thread->wait_reason_arg = until_period;
+		thread->wait_reason = THREAD_WAIT_ACTIVITY_INFO;
+		thread->wait_reason_arg = flags;
+		thread->wait_reason_arg2 = until_period;
 
 		object_wait_queue_enqueue (principal,
 					   (struct object *) principal,
@@ -1389,24 +1424,7 @@ server_loop (void)
 		do_reply = 0;
 	      }
 	    else
-	      /* Return the available statistics.  */
-	      {
-		/* XXX: Only return valid stat buffers.  */
-		struct activity_stats_buffer buffer;
-		int i;
-		for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
-		  {
-		    period = principal->current_period - 1 - i;
-		    if (period < 0)
-		      period = (ACTIVITY_STATS_PERIODS + 1) + period;
-
-		    buffer.stats[i] = principal->stats[period];
-		  }
-
-		rm_activity_stats_reply_marshal (&msg,
-						 buffer,
-						 ACTIVITY_STATS_PERIODS);
-	      }
+	      REPLY (EINVAL);
 
 	    break;
 	  }

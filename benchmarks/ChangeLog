@@ -1,3 +1,22 @@
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
+	* shared-memory-distribution.c (main): Update to use activity_info
+	instead of activity_status.
+	* activity-distribution.c (main): Likewise.
+
+	* GCbench.c: Include <stdint.h> and <stdbool.h>.
+	(now): New function.
+	(struct stats): Add fields time, gcs and iter.
+	(have_a_hog): New variable.
+	(mem_hog) [__gnu_hurd_viengoos__]: Rename from this...
+	(helper) [__gnu_hurd_viengoos__]: ... to this.  Use activity_info,
+	not activity_stats.  Gather more data.
+	(helper) [! __gnu_hurd_viengoos__]: New function.
+	(tid): Rename from this...
+	(helper_tid): ... to this.
+	(helper_fork) [__gnu_hurd_viengoos__]: Name activities.
+	(main): Improve output.
+
 2008-06-23  Neal H. Walfield  <neal@gnu.org>
 
 	* GCbench.c (struct stats) [__gnu_hurd_viengoos__]: New structure.

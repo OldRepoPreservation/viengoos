@@ -1,3 +1,9 @@
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
+	* patches/05-viengoos-scheduler.patch: Update to use activity_info
+	in place of activity_stats.  Listen for pressure messages and act
+	appropriately.  Tighten adaptive code.  Improve profiling code.
+
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (noinst_LIBRARIES): Remove target.

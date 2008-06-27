@@ -5,9 +5,11 @@ exit $?
 Patch to support the Viengoos specific scheduler.  To disable it, set
 GC_viengoos_scheduler to 0.
 
-diff -upr gc-7.0/allchblk.c gc/allchblk.c
---- gc-7.0/allchblk.c	2007-06-07 02:40:07.000000000 +0200
-+++ gc/allchblk.c	2008-06-22 13:13:44.000000000 +0200
+
+Only in gc: 05-viengoos-scheduler.patch.applied
+diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/allchblk.c gc/allchblk.c
+--- gc-old/allchblk.c	2007-06-07 02:40:07.000000000 +0200
++++ gc/allchblk.c	2008-06-27 17:01:49.000000000 +0200
 @@ -117,7 +117,9 @@ void GC_print_hblkfreelist()
        while (h != 0) {
          hhdr = HDR(h);
@@ -19,7 +21,7 @@ diff -upr gc-7.0/allchblk.c gc/allchblk.c
      	total_free += sz;
          if (GC_is_black_listed(h, HBLKSIZE) != 0) {
               GC_printf("start black listed\n");
-@@ -381,31 +383,130 @@ void GC_add_to_fl(struct hblk *h, hdr *h
+@@ -381,31 +383,135 @@ void GC_add_to_fl(struct hblk *h, hdr *h
  
  #ifdef USE_MUNMAP
  
@@ -46,10 +48,15 @@ diff -upr gc-7.0/allchblk.c gc/allchblk.c
 +   start:
 +    if (GC_viengoos_scheduler
 +	&& (GC_get_heap_size() - GC_unmapped_bytes
-+	    < 6 * (GC_available_bytes / 8))) {
-+      /* The number of mapped bytes is at most 6/8s the available
++	    < 7 * (GC_available_bytes / 8))) {
++      /* The number of mapped bytes is at most 7/8s the available
 +	 memory.  That's good enough for now.  (Recall: the high-water
-+	 mark is 7/8s the available memory.)  */
++	 mark is 15/16s the available memory.)  */
++      if (0)
++	printf ("%x: After unmapping %d used (%d available)\n",
++		l4_myself (),
++		(GC_get_heap_size() - GC_unmapped_bytes) / PAGESIZE,
++		GC_available_bytes / PAGESIZE);
 +	return;
 +    }
 +
@@ -160,7 +167,7 @@ diff -upr gc-7.0/allchblk.c gc/allchblk.c
  }
  
  /* Merge all unmapped blocks that are adjacent to other free		*/
-@@ -413,6 +514,12 @@ void GC_unmap_old(void)
+@@ -413,6 +519,12 @@ void GC_unmap_old(void)
  /* fully mapped or fully unmapped.					*/
  void GC_merge_unmapped(void)
  {
@@ -173,7 +180,7 @@ diff -upr gc-7.0/allchblk.c gc/allchblk.c
      struct hblk * h, *next;
      hdr * hhdr, *nexthdr;
      word size, nextsize;
-@@ -600,12 +707,26 @@ GC_allochblk_nth(size_t sz, int kind, un
+@@ -600,12 +712,26 @@ GC_allochblk_nth(size_t sz, int kind, un
  
      size_needed = HBLKSIZE * OBJ_SZ_TO_BLOCKS(sz);
  
@@ -200,7 +207,7 @@ diff -upr gc-7.0/allchblk.c gc/allchblk.c
  	    if (size_avail != size_needed
  		&& !GC_use_entire_heap
  		&& !GC_dont_gc
-@@ -642,7 +763,7 @@ GC_allochblk_nth(size_t sz, int kind, un
+@@ -642,7 +768,7 @@ GC_allochblk_nth(size_t sz, int kind, un
  	        next_size = (signed_word)(thishdr -> hb_sz);
  	        if (next_size < size_avail
  	          && next_size >= size_needed
@@ -209,7 +216,7 @@ diff -upr gc-7.0/allchblk.c gc/allchblk.c
  	          continue;
  	        }
  	      }
-@@ -748,10 +869,12 @@ GC_allochblk_nth(size_t sz, int kind, un
+@@ -748,10 +874,12 @@ GC_allochblk_nth(size_t sz, int kind, un
  		/* hbp may be on the wrong freelist; the parameter n	*/
  		/* is important.					*/
  		hbp = GC_get_first_part(hbp, hhdr, size_needed, n);
@@ -223,9 +230,10 @@ diff -upr gc-7.0/allchblk.c gc/allchblk.c
      if (0 == hbp) return 0;
  	
      /* Add it to map of valid blocks */
-diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/alloc.c gc/alloc.c
---- gc-7.0/alloc.c	2008-06-24 18:14:01.000000000 +0200
-+++ gc/alloc.c	2008-06-24 17:35:59.000000000 +0200
+Only in gc: allchblk.c~
+diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/alloc.c gc/alloc.c
+--- gc-old/alloc.c	2008-06-27 17:02:33.000000000 +0200
++++ gc/alloc.c	2008-06-27 17:01:08.000000000 +0200
 @@ -15,6 +15,13 @@
   *
   */
@@ -240,23 +248,139 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/alloc.
  
  # include "private/gc_priv.h"
  
-@@ -34,8 +41,7 @@ now (void)
+@@ -24,68 +31,7 @@
+ #   include <sys/types.h>
+ # endif
  
-   if (gettimeofday( &t, &tz ) == -1)
-     return 0;
+-uint64_t gc_time;
+-
+-static inline uint64_t
+-now (void)
+-{
+-  struct timeval t;
+-  struct timezone tz;
+-
+-  if (gettimeofday( &t, &tz ) == -1)
+-    return 0;
 -  return (t.tv_sec * 1000000 + t.tv_usec);
 -
-+  return (t.tv_sec * 1000000ULL + t.tv_usec);
- }
+-}
+-
+-static int timing;
+-
+-static uint64_t
+-start_timing (const char *func, int lineno)
+-{
+-  static const char *timing_func;
+-  static int timing_lineno;
+-
+-  if (timing)
+-    {
+-      printf ("Timing for %s:%d but start_timing called from %s:%d\n",
+-	      timing_func, timing_lineno, func, lineno);
+-      assert (! timing);
+-    }
+-
+-  timing_func = func;
+-  timing_lineno = lineno;
+-
+-  timing = 1;
+-
+-  return now ();
+-}
+-
+-static void
+-end_timing (const char *func, int lineno, uint64_t start)
+-{
+-  uint64_t end = now ();
+-
+-  if (! timing)
+-    {
+-      printf ("Timing not started by end_timing called from %s:%d!\n",
+-	      func, lineno);
+-      assert (! timing);
+-    }
+-  timing = 0;
+-
+-  assert (start <= end);
+-  gc_time += end - start;
+-}
+-
+-#define start_timing()						\
+-  do {								\
+-    uint64_t start = start_timing (__FUNCTION__, __LINE__)
+-
+-#define end_timing()				\
+-    end_timing (__FUNCTION__, __LINE__, start);	\
+-  } while (0)
+-
++#include "profile.h"
  
- static int timing;
-@@ -286,9 +292,106 @@ void GC_clear_a_few_frames()
+ /*
+  * Separate free lists are maintained for different sized objects
+@@ -286,9 +232,134 @@ void GC_clear_a_few_frames()
  /* limits used by blacklisting.						*/
  static word GC_collect_at_heapsize = (word)(-1);
  
 +int GC_viengoos_scheduler = 1;
-+int GC_available_bytes;
++int GC_available_bytes = (256 + 128) * 1024 * 1024;
 +int GC_could_unmap;
++
++#define THRESHOLD (15 * (GC_available_bytes / 16))
++
++#ifdef __gnu_hurd_viengoos__
++static void *
++gather_stats (void *arg)
++{
++  pthread_detach (pthread_self ());
++
++  int period = 0;
++  for (;;)
++    {
++      struct activity_info info;
++      error_t err = rm_activity_info (ACTIVITY,
++				      activity_info_stats
++				      | activity_info_pressure,
++				      period, &info);
++      assert_perror (err);
++
++      switch (info.event)
++	{
++	case activity_info_stats:
++	  GC_available_bytes = info.stats.stats[0].available_local * PAGESIZE;
++	  period = info.stats.stats[0].period + 1;
++	  break;
++
++	case activity_info_pressure:
++	  if (-info.pressure.amount * PAGESIZE < GC_available_bytes)
++	    GC_available_bytes -= -info.pressure.amount * PAGESIZE;
++	  else
++	    /* Huh? */
++	    GC_available_bytes = 0;
++	  break;
++
++	default:
++	  panic ("Unknown event and unrequested event: %d", info.event);
++	}
++
++      if (0)
++	printf ("%x: %s: %d alloced: %d, heap: %d, "
++		"mapped:%d, unmapped: %d, available: %d, "
++		"low-water: %d\n",
++		l4_myself (),
++		info.event == activity_info_stats
++		? "Period" : DEBUG_BOLD ("PRESSURE"),
++		(int) (info.event == activity_info_stats
++		       ? period : info.pressure.amount),
++		(int) GC_adj_bytes_allocd() / PAGESIZE,
++		(int) GC_get_heap_size () / PAGESIZE,
++		(int) (GC_get_heap_size () - GC_unmapped_bytes) / PAGESIZE,
++		(int) GC_unmapped_bytes / PAGESIZE,
++		(int) GC_available_bytes / PAGESIZE,
++		(int) THRESHOLD / PAGESIZE);
++    }
++}
++#endif
 +
  /* Have we allocated enough to amortize a collection? */
  GC_bool GC_should_collect(void)
@@ -273,51 +397,23 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/alloc.
 +	   collection, don't do a collection.  */
 +	return FALSE;
 +
-+      static uint64_t last_check;
-+
 +#ifdef __gnu_hurd_viengoos__
-+      static struct activity_stats_buffer stats;
-+
-+      struct timeval tp;
-+      gettimeofday (&tp, NULL);
-+      uint64_t t = tp.tv_sec * 1000000ULL + tp.tv_usec;
-+      if (! last_check || t - last_check > 1000000)
-+	/* Last check was more than a second ago.  */
++      static int init;
++      if (! init)
 +	{
-+	  last_check = t;
-+
-+	  int count;
-+	  error_t err = rm_activity_stats (ACTIVITY, 1, &stats, &count);
++	  pthread_t tid;
++	  error_t err = pthread_create (&tid, NULL, gather_stats, NULL);
 +	  assert_perror (err);
 +
-+	  GC_available_bytes = stats.stats[0].available * PAGESIZE;
-+
-+	  if (0)
-+	    printf ("Period: %d alloced: %dkb, heap: %dkb, "
-+		    "mapped:%dkb, unmapped: %dkb, available: %dkb, "
-+		    "low-water: %dkb\n",
-+		    (int) stats.stats[0].period,
-+		    (int) alloced / 1024,
-+		    (int) GC_get_heap_size () / 1024,
-+		    (int) (GC_get_heap_size () - GC_unmapped_bytes) / 1024,
-+		    (int) GC_unmapped_bytes / 1024,
-+		    (int) GC_available_bytes / 1024,
-+		    (int) 7 * (GC_available_bytes / 8 / 1024));
++	  init = 1;
 +	}
-+
-+      int period = stats.stats[0].period;
-+#else
-+#define GC_available_bytes ((256 + 128) * 1024 * 1024)
-+      int period = 0;
 +#endif
 +
-+      /* Do some clean up if the mapped memory is 7/8s the available
-+	 memory.  We choose 7/8s as we need to consider meta-data
-+	 overhead and as we really want to avoid the system pager
-+	 kicking in.  */
-+      GC_bool r;
-+      r = ((GC_get_heap_size() - GC_unmapped_bytes)
-+	   > 7 * (GC_available_bytes / 8));
++      /* Do some clean up if the mapped memory is more than 15/16s the
++	 available memory.  We choose 15/16s as we need to consider
++	 meta-data overhead and as we really want to avoid the system
++	 pager kicking in.  */
++      GC_bool r = GC_get_heap_size() - GC_unmapped_bytes > THRESHOLD;
 +
 +      if (r && (GC_get_heap_size () - GC_unmapped_bytes - alloced
 +		> GC_available_bytes / 3)){
@@ -325,8 +421,8 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/alloc.
 +	   of the total available memory.  Before doing a GC, try to
 +	   unmap some free mapped pages.  */
 +	  GC_unmap_old ();
-+	  r = ((GC_get_heap_size() - GC_unmapped_bytes)
-+	       > 7 * (GC_available_bytes / 8));
++
++	  r = GC_get_heap_size() - GC_unmapped_bytes > THRESHOLD;
 +      }
 +
 +      if (r) {
@@ -337,17 +433,17 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/alloc.
 +	  if (warning != GC_gc_no) {
 +	      warning = GC_gc_no;
 +	      if (0)
-+		printf ("(%d) Scheduling GC: (%d) alloced: %dkb, heap: %dkb, "
++		printf ("Scheduling GC: (%u) alloced: %dkb, heap: %dkb, "
 +			"mapped: %dkb, unmapped: %dkb, available: %dkb, "
 +			"low-water: %dkb\n",
-+			(int) period, GC_gc_no,
++			GC_gc_no,
 +			(int) alloced / 1024,
 +			(int) GC_get_heap_size () / 1024,
 +			(int) (GC_get_heap_size () - GC_unmapped_bytes)
 +			/ 1024,
 +			(int) GC_unmapped_bytes / 1024,
 +			(int) GC_available_bytes / 1024,
-+			(int) 7 * (GC_available_bytes / 8 / 1024));
++			(int) THRESHOLD);
 +	  }
 +      }
 +
@@ -357,7 +453,38 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/alloc.
      return(GC_adj_bytes_allocd() >= min_bytes_allocd()
  	   || GC_heapsize >= GC_collect_at_heapsize);
  }
-@@ -396,9 +499,17 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+@@ -319,7 +390,7 @@ void GC_maybe_gc(void)
+             n_partial_gcs = 0;
+             return;
+         } else {
+-	  start_timing ();
++	  profile_start (GC_TIMER);
+ 
+ #   	  ifdef PARALLEL_MARK
+ 	    GC_wait_for_reclaim();
+@@ -342,10 +413,10 @@ void GC_maybe_gc(void)
+             n_partial_gcs++;
+           }
+ 
+-	  end_timing ();
++	  profile_end (GC_TIMER);
+ 	}
+ 
+-	start_timing ();
++	profile_start (GC_TIMER);
+         /* We try to mark with the world stopped.	*/
+         /* If we run out of time, this turns into	*/
+         /* incremental marking.			*/
+@@ -365,7 +436,7 @@ void GC_maybe_gc(void)
+ 	    }
+ 	}
+ 
+-	end_timing ();
++	profile_end (GC_TIMER);
+     }
+ }
+ 
+@@ -396,10 +467,18 @@ GC_bool GC_try_to_collect_inner(GC_stop_
  	GC_log_printf(
  	   "Initiating full world-stop collection %lu after %ld allocd bytes\n",
  	   (unsigned long)GC_gc_no+1, (long)GC_bytes_allocd);
@@ -372,11 +499,59 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/alloc.
      }
  
 -    GC_bool ret = true;
+-    start_timing ();
 +    GC_bool ret = TRUE;
-     start_timing ();
++    profile_start (GC_TIMER);
  
      GC_promote_black_lists();
-@@ -1110,6 +1221,8 @@ ptr_t GC_allocobj(size_t gran, int kind)
+     /* Make sure all blocks have been reclaimed, so sweep routines	*/
+@@ -414,7 +493,7 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+ 	    && !GC_reclaim_all(stop_func, FALSE)) {
+ 	    /* Aborted.  So far everything is still consistent.	*/
+ 	    ret = FALSE;
+-	    break;
++	    goto out;
+ 	}
+     GC_invalidate_mark_state();  /* Flush mark stack.	*/
+     GC_clear_marks();
+@@ -432,7 +511,7 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+       } /* else we claim the world is already still consistent.  We'll 	*/
+         /* finish incrementally.					*/
+       ret = FALSE;
+-      break;
++      goto out;
+     }
+     GC_finish_collection();
+     if (GC_print_stats) {
+@@ -441,7 +520,8 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+                   MS_TIME_DIFF(current_time,start_time));
+     }
+ 
+-    end_timing ();
++ out:
++    profile_end (GC_TIMER);
+     return ret;
+ }
+ 
+@@ -470,7 +550,7 @@ void GC_collect_a_little_inner(int n)
+     
+     if (GC_dont_gc) return;
+     if (GC_incremental && GC_collection_in_progress()) {
+-	start_timing ();
++	profile_start (GC_TIMER);
+ 
+     	for (i = GC_deficit; i < GC_RATE*n; i++) {
+     	    if (GC_mark_some((ptr_t)0)) {
+@@ -498,7 +578,7 @@ void GC_collect_a_little_inner(int n)
+     	if (GC_deficit > 0) GC_deficit -= GC_RATE*n;
+ 	if (GC_deficit < 0) GC_deficit = 0;
+ 
+-	end_timing ();
++	profile_end (GC_TIMER);
+     } else {
+         GC_maybe_gc();
+     }
+@@ -1110,6 +1190,8 @@ ptr_t GC_allocobj(size_t gran, int kind)
  void
  GC_dump_stats (void)
  {
@@ -385,39 +560,139 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/alloc.
    printf ("GC: "
  #ifdef THREADS
  	  "multi-threaded"
-@@ -1125,8 +1238,9 @@ GC_dump_stats (void)
+@@ -1125,10 +1207,123 @@ GC_dump_stats (void)
  	  GC_incremental ? "generational" : "stop the world",
  	  GC_dirty_maintained ? "" : "not ");
    printf("%d collections\n", (int) GC_gc_no);
 -  printf ("%lld.%03lld seconds spent collecting\n",
 -	  gc_time / 1000000, (gc_time % 1000000) / 1000);
-+  printf ("%lld.%03lld seconds spent collecting, %lld.%03lld mapping\n",
-+	  gc_time / 1000000, (gc_time % 1000000) / 1000,
-+	  gc_map_time / 1000000, (gc_map_time % 1000000) / 1000);
    printf("Heap size: %d (%d kb)\n",
  	 GC_get_heap_size(), GC_get_heap_size() / 1024);
    printf("Total bytes allocated: %d (%d kb)\n",
-diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/configure gc/configure
---- gc-7.0/configure	2007-06-30 17:40:25.000000000 +0200
-+++ gc/configure	2008-06-23 22:12:43.000000000 +0200
-@@ -21558,14 +21558,6 @@ fi
- 
- if test -n "${with_cross_host}"; then
-    cat >>confdefs.h <<\_ACEOF
--#define NO_CLOCK 1
--_ACEOF
--
--   cat >>confdefs.h <<\_ACEOF
--#define SMALL_CONFIG 1
--_ACEOF
--
--   cat >>confdefs.h <<\_ACEOF
- #define NO_DEBUGGING 1
- _ACEOF
- 
-diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/include/private/gcconfig.h gc/include/private/gcconfig.h
---- gc-7.0/include/private/gcconfig.h	2008-06-24 18:14:01.000000000 +0200
-+++ gc/include/private/gcconfig.h	2008-06-23 22:12:34.000000000 +0200
+ 	 GC_get_total_bytes (), GC_get_total_bytes () / 1024);
++
++  profile_stats_dump ();
++}
++
++/* profile.c - Profiling support implementation.
++   Copyright (C) 2008 Free Software Foundation, Inc.
++   Written by Neal H. Walfield <neal@gnu.org>.
++
++   This file is part of the GNU Hurd.
++
++   The GNU Hurd is free software; you can redistribute it and/or
++   modify it under the terms of the GNU General Public License as
++   published by the Free Software Foundation; either version 3 of the
++   License, or (at your option) any later version.
++
++   The GNU Hurd is distributed in the hope that it will be useful, but
++   WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#define SIZE 10
++struct site
++{
++  const char *name;
++  uint64_t time;
++  uint64_t start;
++  int calls;
++  int pending;
++} sites[SIZE];
++
++static uint64_t epoch;
++static uint64_t calls;
++static uint64_t total_time;
++/* Number of extant profiling calls.  We only update total_time if
++   EXTANT is 0.  The result is that the time spent profiling is
++   correct, and the percent of the time profile that a function has
++   been is more meaningful.  */
++static int extant;
++
++static inline uint64_t
++now (void)
++{
++  struct timeval t;
++  struct timezone tz;
++
++  if (gettimeofday( &t, &tz ) == -1)
++    return 0;
++  return (t.tv_sec * 1000000ULL + t.tv_usec);
++}
++
++void
++profile_stats_dump (void)
++{
++  uint64_t n = now ();
++
++  int i;
++  for (i = 0; i < SIZE; i ++)
++    if (sites[i].calls)
++      printf ("%s:\t%d calls,\t%lld ms,\t%lld.%d us per call,\t"
++	      "%d%% total time,\t%d%% profiled time\n",
++	      sites[i].name,
++	      sites[i].calls,
++	      sites[i].time / 1000,
++	      sites[i].time / sites[i].calls,
++	      (int) ((10 * sites[i].time) / sites[i].calls) % 10,
++	      (int) ((100 * sites[i].time) / (n - epoch)),
++	      (int) ((100 * sites[i].time) / total_time));
++
++  printf ("profiled time: %lld ms, calls: %lld\n",
++	  total_time / 1000, calls);
++  printf ("uptime: %lld ms\n", (n - epoch) / 1000);
++}
++
++void
++profile_start (uintptr_t id, const char *name)
++{
++  if (! epoch)
++    epoch = now ();
++
++  struct site *site = &sites[id];
++  site->name = name;
++
++  extant ++;
++
++  site->pending ++;
++  if (site->pending == 1)
++    site->start = now ();
+ }
++
++void
++profile_end (uintptr_t id, const char *name)
++{
++  struct site *site = &sites[id];
++  assert (site->pending);
++
++  extant --;
++
++  site->pending --;
++  if (site->pending == 0)
++    {
++      uint64_t n = now ();
++
++      site->time += n - site->start;
++
++      if (extant == 0)
++	total_time += n - site->start;
++
++      site->calls ++;
++      calls ++;
++    }
++}
++
+Only in gc: alloc.c~
+Only in gc: atomic_ops.c
+Only in gc: atomic_ops_sysdeps.S
+Only in gc: autom4te.cache
+diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/include/private/gcconfig.h gc/include/private/gcconfig.h
+--- gc-old/include/private/gcconfig.h	2008-06-27 17:02:33.000000000 +0200
++++ gc/include/private/gcconfig.h	2008-06-26 10:41:11.000000000 +0200
 @@ -1087,6 +1087,8 @@
  #   ifdef LINUX
  #	define OS_TYPE "LINUX"
@@ -440,9 +715,16 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/includ
  #   endif
  #   ifdef DARWIN
  #     define OS_TYPE "DARWIN"
-diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/malloc.c gc/malloc.c
---- gc-7.0/malloc.c	2007-06-06 22:48:35.000000000 +0200
-+++ gc/malloc.c	2008-06-23 22:12:34.000000000 +0200
+Only in gc: libatomic_ops
+Only in gc/libatomic_ops-1.2: .cvsignore
+Only in gc/libatomic_ops-1.2/doc: .cvsignore
+Only in gc/libatomic_ops-1.2/src/atomic_ops: .cvsignore
+Only in gc/libatomic_ops-1.2/src/atomic_ops/sysdeps: .cvsignore
+Only in gc/libatomic_ops-1.2/src: .cvsignore
+Only in gc/libatomic_ops-1.2/tests: .cvsignore
+diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/malloc.c gc/malloc.c
+--- gc-old/malloc.c	2007-06-06 22:48:35.000000000 +0200
++++ gc/malloc.c	2008-06-26 10:41:13.000000000 +0200
 @@ -269,7 +269,9 @@ void * GC_generic_malloc(size_t lb, int 
  	LOCK();
          if( EXPECT((op = *opp) == 0, 0) ) {
@@ -468,10 +750,10 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/malloc
     }
  }
  
-diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/os_dep.c gc/os_dep.c
---- gc-7.0/os_dep.c	2007-06-29 21:17:44.000000000 +0200
-+++ gc/os_dep.c	2008-06-24 17:35:30.000000000 +0200
-@@ -2064,6 +2064,75 @@ ptr_t GC_unmap_end(ptr_t start, size_t b
+diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/os_dep.c gc/os_dep.c
+--- gc-old/os_dep.c	2007-06-29 21:17:44.000000000 +0200
++++ gc/os_dep.c	2008-06-26 10:41:13.000000000 +0200
+@@ -2064,6 +2064,18 @@ ptr_t GC_unmap_end(ptr_t start, size_t b
      return end_addr;
  }
  
@@ -485,73 +767,16 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/os_dep
 +
 +#endif
 +
-+uint64_t gc_map_time;
-+
-+static inline uint64_t
-+now (void)
-+{
-+  struct timeval t;
-+  struct timezone tz;
-+
-+  if (gettimeofday( &t, &tz ) == -1)
-+    return 0;
-+  return (t.tv_sec * 1000000ULL + t.tv_usec);
-+
-+}
-+
-+static int timing;
-+
-+static uint64_t
-+start_timing (const char *func, int lineno)
-+{
-+  static const char *timing_func;
-+  static int timing_lineno;
-+
-+  if (timing)
-+    panic ("Timing for %s:%d but start_timing called from %s:%d\n",
-+	   timing_func, timing_lineno, func, lineno);
-+
-+  timing_func = func;
-+  timing_lineno = lineno;
-+
-+  timing = 1;
-+
-+  return now ();
-+}
-+
-+static void
-+end_timing (const char *func, int lineno, uint64_t start)
-+{
-+  uint64_t end = now ();
-+
-+  if (! timing)
-+    panic ("Timing not started by end_timing called from %s:%d!\n",
-+	   func, lineno);
-+
-+  timing = 0;
-+
-+  if (start > end)
-+    panic ("%lld > %lld!", start, end);
-+  gc_map_time += end - start;
-+}
-+
-+#define start_timing()						\
-+  do {								\
-+    uint64_t __start = start_timing (__FUNCTION__, __LINE__)
-+
-+#define end_timing()				\
-+    end_timing (__FUNCTION__, __LINE__, __start);	\
-+  } while (0)
-+
++#include "profile.h"
 +
  /* Under Win32/WinCE we commit (map) and decommit (unmap)	*/
  /* memory using	VirtualAlloc and VirtualFree.  These functions	*/
  /* work on individual allocations of virtual memory, made	*/
-@@ -2077,10 +2146,12 @@ ptr_t GC_unmap_end(ptr_t start, size_t b
+@@ -2077,10 +2089,12 @@ ptr_t GC_unmap_end(ptr_t start, size_t b
  /* round the endpoints in both places.				*/
  void GC_unmap(ptr_t start, size_t bytes)
  {
-+  start_timing ();
++  profile_start (MAP_TIMER);
 +
      ptr_t start_addr = GC_unmap_start(start, bytes);
      ptr_t end_addr = GC_unmap_end(start, bytes);
@@ -561,7 +786,7 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/os_dep
  #   if defined(MSWIN32) || defined(MSWINCE)
        while (len != 0) {
            MEMORY_BASIC_INFORMATION mem_info;
-@@ -2095,6 +2166,9 @@ void GC_unmap(ptr_t start, size_t bytes)
+@@ -2095,6 +2109,9 @@ void GC_unmap(ptr_t start, size_t bytes)
  	  start_addr += free_len;
  	  len -= free_len;
        }
@@ -571,19 +796,19 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/os_dep
  #   else
        /* We immediately remap it to prevent an intervening mmap from	*/
        /* accidentally grabbing the same address space.			*/
-@@ -2107,19 +2181,25 @@ void GC_unmap(ptr_t start, size_t bytes)
+@@ -2107,19 +2124,25 @@ void GC_unmap(ptr_t start, size_t bytes)
        }
        GC_unmapped_bytes += len;
  #   endif
 +
 + out:
-+  end_timing ();
++      profile_end (MAP_TIMER);
  }
  
  
  void GC_remap(ptr_t start, size_t bytes)
  {
-+    start_timing ();
++  profile_start (MAP_TIMER);
 +
      ptr_t start_addr = GC_unmap_start(start, bytes);
      ptr_t end_addr = GC_unmap_end(start, bytes);
@@ -598,7 +823,7 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/os_dep
        while (len != 0) {
            MEMORY_BASIC_INFORMATION mem_info;
  	  GC_word alloc_len;
-@@ -2137,11 +2217,14 @@ void GC_remap(ptr_t start, size_t bytes)
+@@ -2137,11 +2160,14 @@ void GC_remap(ptr_t start, size_t bytes)
  	  start_addr += alloc_len;
  	  len -= alloc_len;
        }
@@ -614,26 +839,26 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/os_dep
        result = mprotect(start_addr, len,
  		        PROT_READ | PROT_WRITE | OPT_PROT_EXEC);
        if (result != 0) {
-@@ -2152,6 +2235,9 @@ void GC_remap(ptr_t start, size_t bytes)
+@@ -2152,6 +2178,9 @@ void GC_remap(ptr_t start, size_t bytes)
        }
        GC_unmapped_bytes -= len;
  #   endif
 +
 + out:
-+    end_timing ();
++      profile_end (MAP_TIMER);
  }
  
  /* Two adjacent blocks have already been unmapped and are about to	*/
-@@ -2160,6 +2246,8 @@ void GC_remap(ptr_t start, size_t bytes)
+@@ -2160,6 +2189,8 @@ void GC_remap(ptr_t start, size_t bytes)
  /* unmapped due to alignment constraints.				*/
  void GC_unmap_gap(ptr_t start1, size_t bytes1, ptr_t start2, size_t bytes2)
  {
-+    start_timing ();
++  profile_start (MAP_TIMER);
 +
      ptr_t start1_addr = GC_unmap_start(start1, bytes1);
      ptr_t end1_addr = GC_unmap_end(start1, bytes1);
      ptr_t start2_addr = GC_unmap_start(start2, bytes2);
-@@ -2170,7 +2258,7 @@ void GC_unmap_gap(ptr_t start1, size_t b
+@@ -2170,7 +2201,7 @@ void GC_unmap_gap(ptr_t start1, size_t b
      GC_ASSERT(start1 + bytes1 == start2);
      if (0 == start1_addr) start_addr = GC_unmap_start(start1, bytes1 + bytes2);
      if (0 == start2_addr) end_addr = GC_unmap_end(start1, bytes1 + bytes2);
@@ -642,19 +867,22 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/os_dep
      len = end_addr - start_addr;
  #   if defined(MSWIN32) || defined(MSWINCE)
        while (len != 0) {
-@@ -2190,6 +2278,9 @@ void GC_unmap_gap(ptr_t start1, size_t b
+@@ -2190,6 +2221,9 @@ void GC_unmap_gap(ptr_t start1, size_t b
        if (len != 0 && munmap(start_addr, len) != 0) ABORT("munmap failed");
        GC_unmapped_bytes += len;
  #   endif
 +
 + out:
-+  end_timing ();
++      profile_end (MAP_TIMER);
  }
  
  #endif /* USE_MUNMAP */
-diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/tests/test.c gc/tests/test.c
---- gc-7.0/tests/test.c	2007-06-19 00:18:01.000000000 +0200
-+++ gc/tests/test.c	2008-06-23 22:12:34.000000000 +0200
+Only in gc: os_dep.c~
+Only in gc: patch.stamp
+Only in gc: profile.h
+diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/tests/test.c gc/tests/test.c
+--- gc-old/tests/test.c	2007-06-19 00:18:01.000000000 +0200
++++ gc/tests/test.c	2008-06-26 10:41:14.000000000 +0200
 @@ -1334,6 +1334,18 @@ void SetMinimumStack(long minSize)
  #       endif
  #      endif
@@ -674,4 +902,4 @@ diff -upr -x config.guess -x config.sub -x Makefile -x Makefile.in gc-7.0/tests/
      run_one_test();
      check_heap_stats();
  #   ifndef MSWINCE
-
+Only in gc: unpack.stamp

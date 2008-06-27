@@ -46,10 +46,10 @@ enum
     /* THREAD is blocked on an object waiting for the object to be
        destroyed.  */
     THREAD_WAIT_DESTROY,
-    /* THREAD is blocked on an activity waiting for the stats for a
-       particular period, which is stored in
-       thread->wait_reason_arg.  */
-    THREAD_WAIT_STATS,
+    /* THREAD is blocked on an activity waiting for information.  The
+       type of information is stored in wait_reason_arg.  The period
+       in wait_reason_arg2.  */
+    THREAD_WAIT_ACTIVITY_INFO,
   };
 
 struct thread
@@ -99,6 +99,7 @@ struct thread
   uint32_t wait_reason : 28;
   /* More information about the reason.  */
   uint32_t wait_reason_arg;
+  uint32_t wait_reason_arg2;
 
   /* The object the thread is waiting on.  Only meaningful if
      WAIT_QUEUE_P is true.  */

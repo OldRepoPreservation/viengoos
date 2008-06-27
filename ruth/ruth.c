@@ -961,16 +961,16 @@ main (int argc, char *argv[])
       return true;
     }
 
-    struct activity_stats_buffer stats;
     uint32_t frames;
     do
       {
-	int c;
-	error_t err = rm_activity_stats (ADDR_VOID, 0, &stats, &c);
+	struct activity_info info;
+	error_t err = rm_activity_info (ADDR_VOID, activity_info_stats, 1,
+					&info);
 	assert_perror (err);
-	assert (c >= 1);
+	assert (info.stats.count >= 1);
 
-	frames = stats.stats[0].available;
+	frames = info.stats.stats[0].available;
       }
     while (frames == 0);
 

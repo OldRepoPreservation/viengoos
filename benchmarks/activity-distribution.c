@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include <hurd/activity.h>
 #include <hurd/storage.h>
@@ -43,10 +44,11 @@ main (int argc, char *argv[])
 				     ADDR_VOID).addr;
 
       struct activity_policy in;
+      in.sibling_rel.priority = i == 0 ? 2 : 1;
       in.sibling_rel.weight = i + 1;
       struct activity_policy out;
       err = rm_activity_policy (activities[i],
-				ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET, in,
+				ACTIVITY_POLICY_SIBLING_REL_SET, in,
 				&out);
       assert (err == 0);
     }
@@ -58,14 +60,14 @@ main (int argc, char *argv[])
 
   int available;
   {
-    int count;
-    struct activity_stats_buffer buffer;
+    struct activity_info info;
 
-    err = rm_activity_stats (activity, 1, &buffer, &count);
+    err = rm_activity_info (activity, activity_info_stats, 1, &info);
     assert (err == 0);
-    assert (count > 0);
+    assert (info.event == activity_info_stats);
+    assert (info.stats.count >= 1);
 
-    available = buffer.stats[0].available * PAGESIZE;
+    available = info.stats.stats[0].available * PAGESIZE;
   }
   printf ("%d kb memory available\n", available / 1024);
 
@@ -153,26 +155,29 @@ main (int argc, char *argv[])
   uintptr_t next_period = 0;
   for (i = 0; i < ITERATIONS; i ++)
     {
-      debug (0, DEBUG_BOLD ("starting iteration %d (%x)"), i, l4_myself ());
+      printf ("Iteration: %d\n", i);
 
-      int count;
-      struct activity_stats_buffer buffer;
+      struct activity_info info;
 
-      rm_activity_stats (activity, next_period, &buffer, &count);
-      assert (count > 0);
+      rm_activity_info (activity, activity_info_stats,
+			next_period, &info);
+      assert (info.event == activity_info_stats);
+      assert (info.stats.count > 0);
       if (i != 0)
-	assertx (buffer.stats[0].period != stats[i - 1][0].period,
+	assertx (info.stats.stats[0].period != stats[i - 1][0].period,
 		 "%d == %d",
-		 buffer.stats[0].period, stats[i - 1][0].period);
+		 info.stats.stats[0].period, stats[i - 1][0].period);
 
-      stats[i][0] = buffer.stats[0];
+      stats[i][0] = info.stats.stats[0];
 
       int j;
       for (j = 0; j < THREADS; j ++)
 	{
-	  rm_activity_stats (activities[j], next_period, &buffer, &count);
-	  assert (count > 0);
-	  stats[i][1 + j] = buffer.stats[0];
+	  rm_activity_info (activity, activity_info_stats,
+			    next_period, &info);
+	  assert (info.event == activity_info_stats);
+	  assert (info.stats.count > 0);
+	  stats[i][1 + j] = info.stats.stats[0];
 	}
 
       next_period = stats[i][0].period + 1;
@@ -194,10 +199,13 @@ main (int argc, char *argv[])
     {
       int j;
 
-      printf ("%d ", (int) stats[i][0].period);
+      printf ("%d", (int) stats[i][0].period);
 
       for (j = 0; j < 1 + THREADS; j ++)
-	printf ("%d ", (int) stats[i][j].clean + (int) stats[i][j].dirty);
+	printf ("\t%d\t%d\t%d\t%d", (int) stats[i][j].clean,
+		(int) stats[i][j].dirty,
+		(int) stats[i][j].pending_eviction,
+		(int) stats[i][j].discarded);
       printf ("\n");
     }
 

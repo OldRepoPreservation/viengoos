@@ -111,8 +111,7 @@ do_gather_stats (void *arg)
 
   while (! all_done)
     {
-      int count;
-      struct activity_stats_buffer buffer;
+      struct activity_info info;
 
       if (size == stats_count)
 	{
@@ -134,8 +133,11 @@ do_gather_stats (void *arg)
       for (i = 0; i < module_count; i ++, stat ++)
 	{
 	  error_t err;
-	  err = rm_activity_stats (activities[0],
-				   period, &buffer, &count);
+	  err = rm_activity_info (activities[i], activity_info_stats,
+				   period, &info);
+	  assert_perror (err);
+	  assert (info.event == activity_info_stats);
+	  assert (info.stats.count > 0);
 	  if (err)
 	    {
 	      stat->alloced = 0;
@@ -143,13 +145,14 @@ do_gather_stats (void *arg)
 	    }
 	  else
 	    {
-	      stat->alloced = buffer.stats[0].clean + buffer.stats[0].dirty
-		+ buffer.stats[0].pending_eviction;
-	      stat->available = buffer.stats[0].available;
+	      stat->alloced = info.stats.stats[0].clean
+		+ info.stats.stats[0].dirty
+		+ info.stats.stats[0].pending_eviction;
+	      stat->available = info.stats.stats[0].available;
 
 
 	      if (n == 0)
-		n = buffer.stats[0].period + 1;
+		n = info.stats.stats[0].period + 1;
 	    }
 	}
 
@@ -208,21 +211,30 @@ main (int argc, char *argv[])
   addr_t thread[module_count];
   for (i = 0; i < module_count; i ++)
     {
-      int count;
-      struct activity_stats_buffer buffer;
+      /* Delay starting each process.  */
+#if 0
+      error_t err;
+      struct activity_info info;
+      err = rm_activity_info (activities[i], activity_info_stats,
+			       i * 50, &info);
+      assert_perror (err);
+      assert (info.event == activity_info_stats);
+      assert (info.stats.count > 0);
+
 
       const char *argv[] = { modules[i].name, modules[i].commandline, NULL };
       const char *env[] = { NULL };
       thread[i] = process_spawn (activities[i],
 				 modules[i].start, modules[i].end,
 				 argv, env, false);
+#endif
 
       /* Free the memory used by the module's binary.  */
       /* XXX: This doesn't free folios or note pages that may be
 	 partially freed.  The latter is important because a page may
 	 be used by two modules and after the second module is loaded,
 	 it could be freed.  */
-      count = 0;
+      int count = 0;
       int j;
       for (j = 0; j < __hurd_startup_data->desc_count; j ++)
 	{

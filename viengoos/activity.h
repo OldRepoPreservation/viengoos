@@ -115,6 +115,21 @@ struct activity
   unsigned char current_period;
   struct activity_stats stats[ACTIVITY_STATS_PERIODS + 1];
 
+  /* When an activity is choosen to yield pages, we first send it a
+     signal asking it to free memory.  We exclude it from eviction for
+     the next FREE_ALLOCATIONS allocations.  If, after that many
+     allocations, the activity has not dropped below free_goal, we
+     simply start evicting.  We also set its free bad karma.  Each
+     time it is choosen for deallocation, we decrement it.  Only when
+     FREE_BAD_KARMA is again zero do we give it this chance again.  */
+  uintptr_t free_bad_karma;
+  uintptr_t free_goal;
+  uintptr_t free_allocations;
+  uintptr_t free_initial_allocation;
+  /* The number of pages that are to be excluded from FRAMES_TOTAL
+     when looking for a process to page.  */
+  uintptr_t frames_excluded;
+
   struct object_name name;
 };
 

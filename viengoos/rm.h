@@ -77,8 +77,8 @@ rm_method_id_string (int id)
       return "thread_wait_object_destroyed";
     case RM_activity_policy:
       return "activity_policy";
-    case RM_activity_stats:
-      return "activity_stats";
+    case RM_activity_info:
+      return "activity_info";
     case RM_futex:
       return "futex";
     default:

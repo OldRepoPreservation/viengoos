@@ -1,5 +1,18 @@
 2008-06-27  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.h (RM_activity_stats): Don't define.
+	(RM_activity_info): Replace with this.
+	(struct activity_stats): Add field pressure_local.  Make field
+	pressure an 8 bit integer.
+	(struct activity_stats_buffer): Remove structure.
+	(struct activity_info): Replace with this structure.
+	(activity_info_stats): Define.
+	(activity_info_pressure): Likewise.
+	(activity_stats): Remove method.
+	(activity_info): Replace with this.
+
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
 	* stddef.h (do_debug): If DEBUG_ELIDE is defined to an integer,
 	statically exclude those debug statements that have a level
 	greater than or equal to it.

@@ -1,3 +1,29 @@
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h (struct activity): Add fields free_bad_karma,
+	free_goal, free_allocations and free_initial_allocation.
+	* rm.h (rm_method_id_string): Replace RM_activity_stats handling
+	with RM_activity_info handling.
+	* thread.h (THREAD_WAIT_STATS): Remove.
+	(THREAD_WAIT_ACTIVITY_INFO): Replace with this.
+	(struct thread): Add field wait_reason_arg2.
+	* ager.c (update_stats): Account for local pressure when
+	calculating availability.  Don't use activity_stats to inform
+	threads of new statistics but activity_info.
+	* object.c (object_desc_claim): Adjust the activity's FREE_GOAL,
+	FREE_ALLOCATIONS, and FRAMES_EXCLUDED fields as appropriate.
+	* pager.c (pager_collect): When selecting a victim, don't include
+	an activity's excluded frames in its allocation.  Don't even
+	consider activities for which FREE_ALLOCATIONS is non-zero.
+	Having selected a victim, don't increase the pressure do
+	drastically.  Update the local pressure.  Having selected a victim
+	from which to revoke pages, send any waiting threads a message to
+	free memory.  If VICTIM->FREE_BAD_KARMA is 0, assume that the
+	memory will be freed and give the activity 100 claims to do it.
+	If the activity has bad karma, decrease it by one.
+	* server.c (server_loop): Replace activity_stats implementation
+	with implementation appropriate for activity_info.
+
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
 	* viengoos.c (main): Assign viengoos_tid after we test that that

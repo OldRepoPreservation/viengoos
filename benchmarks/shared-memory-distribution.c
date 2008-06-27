@@ -62,14 +62,24 @@ main (int argc, char *argv[])
     int count = 0;
     while (! terminate)
       {
-	uintptr_t *p = buffer + (rand () % PAGES) * PAGESIZE;
-	t = *p;
+	int i;
+	for (i = 0; i < 1; i ++)
+	  {
+	    uintptr_t *p = buffer + (rand () % PAGES) * PAGESIZE;
+	    t += *p;
 
-	count ++;
-	if (count % 100000 == 0)
-	  debug (0, DEBUG_BOLD ("Read %d pages so far"), count);
+	    count ++;
 
+	    if (count % 100000 == 0)
+	      debug (0, DEBUG_BOLD ("Read %d pages so far"), count);
+	  }
+
+#if 0
+	/* ~128Hz.  */
+	l4_sleep (l4_time_period (1 << 13));
+#elif 1
 	l4_thread_switch (tids[rand () % THREADS]);
+#endif
       }
 
     printf ("Thread %d: %d operations\n", w, count);
@@ -98,24 +108,26 @@ main (int argc, char *argv[])
     {
       debug (0, DEBUG_BOLD ("starting iteration %d (%x)"), i, l4_myself ());
 
-      int count;
-      struct activity_stats_buffer buffer;
+      struct activity_info info;
 
-      rm_activity_stats (activity, next_period, &buffer, &count);
-      assert (count > 0);
+      rm_activity_info (activity, activity_info_stats, next_period, &info);
+      assert (info.event == activity_info_stats);
+      assert (info.stats.count > 0);
       if (i != 0)
-	assertx (buffer.stats[0].period != stats[i - 1][0].period,
+	assertx (info.stats.stats[0].period != stats[i - 1][0].period,
 		 "%x != %x",
-		 buffer.stats[0].period, stats[i - 1][0].period);
+		 info.stats.stats[0].period, stats[i - 1][0].period);
 
-      stats[i][0] = buffer.stats[0];
+      stats[i][0] = info.stats.stats[0];
 
       int j;
       for (j = 0; j < THREADS; j ++)
 	{
-	  rm_activity_stats (activities[j], next_period, &buffer, &count);
-	  assert (count > 0);
-	  stats[i][1 + j] = buffer.stats[0];
+	  rm_activity_info (activity, activity_info_stats, next_period,
+			    &info);
+	  assert (info.event == activity_info_stats);
+	  assert (info.stats.count > 0);
+	  stats[i][1 + j] = info.stats.stats[0];
 	}
 
       next_period = stats[i][0].period + 1;
@@ -137,10 +149,15 @@ main (int argc, char *argv[])
     {
       int j;
 
-      printf ("%d ", (int) stats[i][0].period);
+      printf ("%d", (int) stats[i][0].period);
 
       for (j = 0; j < 1 + THREADS; j ++)
-	printf ("%d ", (int) stats[i][j].clean + (int) stats[i][j].dirty);
+	printf ("\t%d\t%d\t%d\t%d\t%d\t%d", (int) stats[i][j].clean,
+		(int) stats[i][j].dirty,
+		(int) stats[i][j].pending_eviction,
+		(int) stats[i][j].discarded,
+		(int) stats[i][j].freeloading,
+		(int) stats[i][j].freeloaded);
       printf ("\n");
     }
 

@@ -28,7 +28,7 @@
 enum
   {
     RM_activity_policy = 700,
-    RM_activity_stats,
+    RM_activity_info,
   };
 
 struct activity_memory_policy
@@ -79,10 +79,11 @@ struct activity_stats
   uint32_t available;
   uint32_t available_local;
   
-  /* The maximum amount of memory that the user of this activity ought
-     to allocate in the next few seconds.  If negative, the amount of
-     memory the activity ought to consider freeing.  */
-  int32_t damping_factor;
+  /* Log2 the maximum amount of memory (in pages) that the user of
+     this activity ought to allocate in the next few seconds.  If
+     negative, the amount of memory the activity ought to consider
+     freeing.  */
+  int8_t damping_factor;
 
   /* If pressure is non-zero, then this activity is causing PRESSURE.
 
@@ -99,7 +100,8 @@ struct activity_stats
      system if it does not yield memory.  However, if the activity has
      memory which is yielding a low return, it would be friendly of it
      to return it.  */
-  uint32_t pressure;
+  uint8_t pressure;
+  uint8_t pressure_local;
 
   /* The number of clean and dirty frames that are accounted to this
      activity.  (Does not include frames scheduled for eviction.)  The
@@ -157,10 +159,6 @@ struct activity_stats
      evicted, then the process is trashing.)  */
   uint32_t saved;
 };
-struct activity_stats_buffer
-{
-  struct activity_stats stats[ACTIVITY_STATS_PERIODS];
-};
 
 #define ACTIVITY_POLICY(__ap_sibling_rel, __ap_child_rel, __ap_storage) \
   (struct activity_policy) { __ap_sibling_rel, __ap_child_rel, __ap_storage }
@@ -201,17 +199,59 @@ RPC (activity_policy, 3, 1, addr_t, activity,
      /* Out: */
      struct activity_policy, out);
 
-/* Return statistics about activity ACTIVITY.  Waits until the current
-   period is older than UNTIL_PERIOD.  (This can be used to register a
-   callback that is sent when the statistics are next available.  For
-   example, call with until_period is 0 to get the current statistics
-   and then examine the period field.  Use this as the base for the
-   next call.)  COUNT is the number of returned samples.  Samples are
-   ordered by recency with the youngest towards the start of the
-   buffer.  */
-RPC (activity_stats, 2, 2, addr_t, activity, uintptr_t, until_period,
+enum
+  {
+    /* Return statistics.  */
+    activity_info_stats = 1 << 0,
+    /* Asynchronous change in availability.  */
+    activity_info_pressure = 1 << 1,
+  };
+
+struct activity_info
+{
+  /* The returned event.  */
+  uintptr_t event;
+  union
+  {
+    /* If EVENT is activity_info_stats.  */
+    struct
+    {
+      /* The number of samples.  */
+      int count;
+      /* Samples are ordered by recency with the youngest towards the
+	 start of the buffer.  */
+      struct activity_stats stats[ACTIVITY_STATS_PERIODS];
+    } stats;
+
+    /* If EVENT is activity_info_free.  */
+    struct
+    {
+      /* The number of pages the caller should try to free (negative)
+	 or may allocate (positive).  */
+      int amount;
+    } pressure;
+  };
+};
+
+/* Return some information about the activity ACTIVITY.  FLAGS is a
+   bit-wise or of events the caller is interested.  Only one event
+   will be returned.
+
+   If FLAGS contains activity_info_stats, may return the next
+   statistic that comes at or after UNTIL_PERIOD.  (This can be used
+   to register a callback that is sent when the statistics are next
+   available.  For example, call with UNTIL_PERIOD equal to 0 to get
+   the current statistics and then examine the period field.  Use this
+   as the base for the next call.)
+
+   If FLAGS contains activity_info_free, may return an upcall
+   indicating that the activity must free some memory or will be such
+   subject to paging.  In this case, the activity should try to free
+   at least the indicated number of pages as quickly as possible.  */
+RPC (activity_info, 3, 1, addr_t, activity,
+     uintptr_t, flags, uintptr_t, until_period,
      /* Out: */
-     struct activity_stats_buffer, stats, int, count)
+     struct activity_info, info)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

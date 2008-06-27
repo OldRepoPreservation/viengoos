@@ -86,6 +86,8 @@ update_stats (void)
 
     ACTIVITY_STATS (activity)->pressure +=
       ACTIVITY_STATS_LAST (activity)->pressure >> 1;
+    ACTIVITY_STATS (activity)->pressure_local +=
+      ACTIVITY_STATS_LAST (activity)->pressure_local >> 1;
 
     if (activity->frames_total > frames
 	|| ACTIVITY_STATS (activity)->pressure)
@@ -104,18 +106,7 @@ update_stats (void)
 	       frames, frames - dec);
 
 	frames -= dec;
-
-	ACTIVITY_STATS (activity)->damping_factor
-	  = -1024 * 1024 / PAGESIZE;
       }
-    else if (activity->frames_total > 7 * (frames / 8))
-      /* The allocated amount is close to the available frames.
-	 Encourage it not to allocate.  */
-      ACTIVITY_STATS (activity)->damping_factor = 0;
-    else
-      /* It can allocate.  */
-      ACTIVITY_STATS (activity)->damping_factor
-	= 1024 * 1024 / PAGESIZE;
 
     ACTIVITY_STATS (activity)->available = frames;
 
@@ -318,11 +309,42 @@ update_stats (void)
 	}
 
 	if (activity->policy.child_rel.priority == priority)
-	  ACTIVITY_STATS (activity)->available_local
-	    = comp_avail (activity,
-			  activity->policy.child_rel.weight,
-			  activity->frames_local,
-			  0, 0);
+	  {
+	    int avail = comp_avail (activity,
+				    activity->policy.child_rel.weight,
+				    activity->frames_local,
+				    0, 0);
+
+	    if (activity->frames_local > avail
+		|| ACTIVITY_STATS (activity)->pressure_local)
+	      {
+		/* The amount by which we decrease is proportional to
+		   pressure.  */
+		int dec = avail / 8;
+		dec /= 5 - MIN (ACTIVITY_STATS (activity)->pressure_local, 4);
+
+		debug (1, "Due to pressure (%d), decreasing frames locally "
+		       "available to " OBJECT_NAME_FMT " from %d to %d",
+		       ACTIVITY_STATS (activity)->pressure_local,
+		       OBJECT_NAME_PRINTF ((struct object *) activity),
+		       avail, avail - dec);
+
+		avail -= dec;
+
+		ACTIVITY_STATS (activity)->damping_factor
+		  = -l4_msb (1024 * 1024 / PAGESIZE);
+	      }
+	    else if (activity->frames_total > 7 * (frames / 8))
+	      /* The allocated amount is close to the available frames.
+		 Encourage it not to allocate.  */
+	      ACTIVITY_STATS (activity)->damping_factor = 0;
+	    else
+	      /* It can allocate.  */
+	      ACTIVITY_STATS (activity)->damping_factor
+		= l4_msb (1024 * 1024 / PAGESIZE);
+
+	    ACTIVITY_STATS (activity)->available_local = avail;
+	  }
 
 	debug (5, "%d frames for %d activities with priority %d, "
 	       "total weight: %lld, alloced: %d, excess: %d",
@@ -357,7 +379,8 @@ update_stats (void)
       }
 
     debug (5, OBJECT_NAME_FMT " (s: %d/%d; c: %d/%d): "
-	   "%d/%d frames, %d/%d avail (" OBJECT_NAME_FMT ")",
+	   "%d/%d frames, %d/%d avail, %d free goal, %d bad_karma "
+	   "(" OBJECT_NAME_FMT ")",
 	   OBJECT_NAME_PRINTF ((struct object *) activity),
 	   activity->policy.sibling_rel.priority,
 	   activity->policy.sibling_rel.weight,
@@ -367,6 +390,7 @@ update_stats (void)
 	   activity->frames_total,
 	   ACTIVITY_STATS (activity)->available_local,
 	   ACTIVITY_STATS (activity)->available,
+	   activity->free_goal, activity->free_bad_karma,
 	   OBJECT_NAME_PRINTF ((struct object *) 
 			       (activity->parent ?: root_activity)));
 
@@ -381,13 +405,16 @@ update_stats (void)
     struct thread *thread;
     object_wait_queue_for_each (activity, (struct object *) activity,
 				thread)
-      if (thread->wait_reason == THREAD_WAIT_STATS
-	  && thread->wait_reason_arg <= period / FREQ)
+      if (thread->wait_reason == THREAD_WAIT_ACTIVITY_INFO
+	  && (thread->wait_reason_arg & activity_info_stats)
+	  && thread->wait_reason_arg2 <= period / FREQ)
 	{
 	  object_wait_queue_dequeue (activity, thread);
 
 	  /* XXX: Only return valid stat buffers.  */
-	  struct activity_stats_buffer buffer;
+	  struct activity_info info;
+	  info.event = activity_info_stats;
+
 	  int i;
 	  for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
 	    {
@@ -395,13 +422,13 @@ update_stats (void)
 	      if (period < 0)
 		period = (ACTIVITY_STATS_PERIODS + 1) + period;
 
-	      buffer.stats[i] = activity->stats[period];
+	      info.stats.stats[i] = activity->stats[period];
 	    }
 
+	  info.stats.count = ACTIVITY_STATS_PERIODS;
+
 	  l4_msg_t msg;
-	  rm_activity_stats_reply_marshal (&msg,
-					   buffer,
-					   ACTIVITY_STATS_PERIODS);
+	  rm_activity_info_reply_marshal (&msg, info);
 	  l4_msg_tag_t msg_tag = l4_msg_msg_tag (msg);
 	  l4_set_propagation (&msg_tag);
 	  l4_msg_set_msg_tag (msg, msg_tag);
