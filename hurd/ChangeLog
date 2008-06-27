@@ -1,3 +1,9 @@
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
+	* stddef.h (do_debug): If DEBUG_ELIDE is defined to an integer,
+	statically exclude those debug statements that have a level
+	greater than or equal to it.
+
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (RM_object_name): Define.

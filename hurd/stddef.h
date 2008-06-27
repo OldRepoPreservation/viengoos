@@ -50,21 +50,28 @@ extern int S_PUTCHAR (int chr);
 /* Convenient debugging macros.  */
 #define DEBUG_BOLD(text) "\033[01;31m" text "\033[00m"
 
-#ifdef DEBUG_ELIDE
-
-# define do_debug(level) if (0)
-
-#else
-
-# ifndef DEBUG_COND
-/* The default DEBUG_COND is LEVEL <= output_debug.  */
-extern int output_debug;
-#  define DEBUG_COND(level) ((level) <= output_debug)
+#if defined(DEBUG_ELIDE)
+# if DEBUG_ELIDE + 0 == 0
+#  define do_debug(level) if (0)
 # endif
+#endif
+
+#ifndef do_debug
+# ifndef DEBUG_COND
+extern int output_debug;
+#  ifdef DEBUG_ELIDE
+/* We elide some code at compile time.  */
+#   define DEBUG_COND(level) \
+  ((level) <= output_debug && (level) < DEBUG_ELIDE)
+#  else
+/* The default DEBUG_COND is LEVEL <= output_debug.  */
+#   define DEBUG_COND(level) ((level) <= output_debug)
+#  endif /* DEBUG_ELIDE.  */
+# endif /* DEBUG_COND.  */
 
 # define do_debug(level) if (DEBUG_COND(level))
 
-#endif /* DEBUG_ELIDE */
+#endif /* do_debug.  */
 
 #include <l4/thread.h>
 
