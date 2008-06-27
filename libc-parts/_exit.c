@@ -75,6 +75,9 @@ _exit (int ret)
   for (;;)
     {
       j --;
+#ifndef RM_INTERN
+      /* XXX: This doesn't work for laden.  */
       l4_yield ();
+#endif
     }
 }

@@ -1,3 +1,7 @@
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
+	* _exit.c (_exit) [RM_INTERN]: Don't l4_yield.
+
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
 	* s_printf.c (io_buffer_flush) [! RM_INTERN]: New function.
