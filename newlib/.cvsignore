@@ -1,3 +1,4 @@
 *.tar.gz
 newlib
 newlib-*stamp
+Makefile.am
