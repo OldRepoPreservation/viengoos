@@ -1,1 +1,5 @@
 Makefile.in
+gc
+gc*.tar.gz
+patch.stamp
+unpack.stamp
