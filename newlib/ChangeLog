@@ -1,3 +1,12 @@
+2008-06-27  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (noinst_LIBRARIES): Remove variable.
+	(all-local): New target.
+	(.PHONY): Depend on newlib-build/build.stamp.
+	(newlib-build/build.stamp): Run make install here if
+	newlib-build/libc.a is newer than newlib-build/build.stamp.  Only
+	touch newlib-build/build.stamp in this case.
+
 2008-06-26  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/writer.c (io_buffer_flush): New

@@ -20,8 +20,6 @@
 
 include $(top_srcdir)/Makefoo.am
 
-noinst_LIBRARIES = libc.a libm.a libc-routines.a
-
 # Remark: given that the newlib build system doesn't do any form of dependency
 # tracking, it is correct to completely rebuild everything as soon as one of
 # the $patch_files or $addon files changes.  Also it may be necessary to force
@@ -146,26 +144,26 @@ newlib-build/configure.stamp: $(srcdir)/newlib/patch.stamp
 	)
 	touch $@
 
+.PHONY: newlib-build/build.stamp
 newlib-build/build.stamp: newlib-build/configure.stamp
 	cd newlib-build && \
 	  make \
 	    TARGET_CFLAGS='$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
 	    all
-	touch $@
-
-newlib-build/install.stamp: newlib-build/build.stamp
-	cd newlib-build && \
-	  make \
-	    TARGET_CFLAGS='$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
-	    install
-	touch $@
-
-newlib-build/libc.a newlib-build/libm.a: newlib-build/install.stamp
+	if test newlib-build/libc.a -nt newlib-build/build.stamp; then \
+	  ( cd newlib-build \
+	    && make \
+	      TARGET_CFLAGS='$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
+	      install ); \
+	  touch $@; \
+	fi
 
 libc.a: newlib-build/libc.a
 	ln -sf newlib-build/libc.a libc.a
 libm.a: newlib-build/libm.a
 	ln -sf newlib-build/libm.a libm.a
+
+all-local: newlib-build/build.stamp libc.a libm.a libc-routines.a
 
 # The following routines (should be) fine to be used in non-libc-linked code as
 # well, so there's no need in duplicating their code somewhere else.
