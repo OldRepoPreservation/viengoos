@@ -1,3 +1,7 @@
+2008-06-28  Neal H. Walfield  <neal@gnu.org>
+
+	* patches/05-viengoos-scheduler.patch: Include profile.h in patch.
+
 2008-06-27  Neal H. Walfield  <neal@gnu.org>
 
 	* patches/05-viengoos-scheduler.patch: Update to use activity_info
