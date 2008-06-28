@@ -1,3 +1,7 @@
+2008-06-28  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): Fix debug statement.
+
 2008-06-27  Neal H. Walfield  <neal@gnu.org>
 
 	* activity.h (struct activity): Add fields free_bad_karma,

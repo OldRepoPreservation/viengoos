@@ -1381,9 +1381,9 @@ server_loop (void)
 		   "period: %d (current: %d)\n",
 		   OBJECT_NAME_PRINTF ((struct object *) principal),
 		   flags & activity_info_stats ? "stats" : "",
-		   (flags == (activity_info_free|activity_info_stats))
+		   (flags == (activity_info_pressure|activity_info_stats))
 		   ? ", " : "",
-		   flags & activity_info_free ? "free" : "",
+		   flags & activity_info_pressure ? "pressure" : "",
 		   flags,
 		   until_period, principal->stats[period].period);
 	    
