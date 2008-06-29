@@ -1,5 +1,15 @@
 2008-06-29  Neal H. Walfield  <neal@gnu.org>
 
+	* hieronymus.c: Include <md5.h>.
+	(struct module): Add field md5sum.
+	(main): Calculate the md5 digest for the binary.  Compare it to
+	the hash calculated at compile time.  If they don't match, panic.
+	* Makefile.am (md5sum): New function.
+	(tovar): New function.
+	(modules.h): Use it.  Generate an md5 digest for the binary.
+
+2008-06-29  Neal H. Walfield  <neal@gnu.org>
+
 	* hieronymus.c (struct module): Add field delay.
 	(do_gather_stats): Don't initialize EPOCH here...
 	(main): ... but here.  After loading all the modules, free the

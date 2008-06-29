@@ -33,8 +33,10 @@ hieronymus_SOURCES = hieronymus.c modules.h
 # delay (in seconds) at which to start the module.  Each component is
 # separated by a !
 modules = ruth!1!100
-#modules = activity-distribution!1!100
 ruth_commandline = "-D 3"
+
+#modules = activity-distribution!1!100
+#modules = gcbench!1!100!5 gcbench2!1!100!20 gcbench3!1!200!0 gcbench4!1!200!10
 
 # List of directories relative to the top of the build tree to search
 # for binaries.
@@ -42,21 +44,34 @@ module_paths = ruth benchmarks
 
 files = $(foreach module,$(modules),$(firstword $(subst !, ,$(module))))
 
+find_binary = \
+	$(firstword \
+	  $(wildcard \
+	    $(addsuffix /$(1),$(addprefix $(top_builddir)/,$(module_paths)))) \
+	      $(1):not_found)
+
+md5sum = \
+	$(shell md5sum $(call find_binary,$(1)) | awk '{ printf $$1 }' \
+		| sed 's/\([0-9a-f]\{2\}\)/0x\1, /g')
+
+tovar = $(subst -,_,$(firstword $(subst !, ,$(1))))
+
 modules.h: $(addsuffix .S, $(files)) Makefile
 	echo '								\
 	  $(foreach module,$(subst -,_,$(modules)),			\
-	     extern char $(firstword $(subst !, ,$(module)))_start;	\
-	     extern char $(firstword $(subst !, ,$(module)))_end;)	\
+	     extern char $(call tovar,$(module))_start;	\
+	     extern char $(call tovar,$(module))_end;)	\
 	  struct module modules[] = {					\
-	    $(foreach module,$(subst -,_,$(modules)),			\
+	    $(foreach module,$(modules),				\
 		{							\
-	          STRINGIFY ( $(firstword $(subst !, ,$(module))) ),	\
+	          "$(firstword $(subst !, ,$(module)))",		\
 		  $(wordlist 2, 2, $(subst !, ,$(module))),		\
 		  $(wordlist 3, 3, $(subst !, ,$(module))),		\
 		  $(wordlist 4, 4, $(subst !, ,$(module))) + 0,		\
-		  $($(firstword $(subst !, ,$(module)))_commandline) "",\
-	          &$(firstword $(subst !, ,$(module)))_start,		\
-	          &$(firstword $(subst !, ,$(module)))_end		\
+		  $($(call tovar,$(module))_commandline) "",		\
+	          &$(call tovar,$(module))_start,			\
+	          &$(call tovar,$(module))_end,				\
+		  { $(call md5sum,$(firstword $(subst !, ,$(module)))) }\
 		},							\
 	    )								\
 	    };' > $@
@@ -64,12 +79,6 @@ modules.h: $(addsuffix .S, $(files)) Makefile
 
 
 hieronymus.c: modules.h
-
-find_binary = \
-	$(firstword \
-	  $(wildcard \
-	    $(addsuffix /$(1),$(addprefix $(top_builddir)/,$(module_paths)))) \
-	      $(1):not_found)
 
 binaries = $(foreach file,$(files),$(call find_binary,$(file)))
 

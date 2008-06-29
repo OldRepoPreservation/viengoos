@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <md5.h>
 
 #define STRINGIFY_(id) #id
 #define STRINGIFY(id) STRINGIFY_(id)
@@ -45,6 +46,8 @@ struct module
   const char *commandline;
   char *start;
   char *end;
+
+  unsigned char md5sum[16];
 };
 
 #include "modules.h"
@@ -214,6 +217,31 @@ main (int argc, char *argv[])
   addr_t thread[module_count];
   for (i = 0; i < module_count; i ++)
     {
+      struct md5_ctx ctx;
+      unsigned char result[16];
+
+      md5_init_ctx (&ctx);
+      md5_process_bytes (modules[i].start,
+			 modules[i].end - modules[i].start,
+			 &ctx);
+      md5_finish_ctx (&ctx, result);
+
+      if (memcmp (result, modules[i].md5sum, 16) != 0)
+	{
+	  int j;
+	  printf ("Expected md5 hash: ");
+	  for (j = 0; j < 16; j ++)
+	    printf ("%x%x", modules[i].md5sum[j] & 0x15,
+		    modules[i].md5sum[j] >> 4);
+
+	  printf ("\nGot: ");
+	  for (j = 0; j < 16; j ++)
+	    printf ("%x%x", result[j] & 0x15, result[j] >> 4);
+	  printf ("\n");
+
+	  panic ("Binary %s corrupted!", modules[i].name);
+	}
+
       const char *argv[] = { modules[i].name, modules[i].commandline, NULL };
       const char *env[] = { NULL };
       thread[i] = process_spawn (activities[i],

@@ -33,7 +33,8 @@ common_sources = assert.h 					\
 	setjmp.h backtrace.c s-printf.h s_printf.c startup.c	\
 	panic.c _exit.c						\
 	elf.h loader.h loader.c					\
-	process-spawn.h process-spawn.c
+	process-spawn.h process-spawn.c				\
+	md5.h md5.c
 
 libc_parts_a_CPPFLAGS = $(USER_CPPFLAGS)
 libc_parts_a_CFLAGS = $(USER_CFLAGS)
