@@ -32,6 +32,7 @@
 #include "thread.h"
 #include "activity.h"
 #include "zalloc.h"
+#include <hurd/trace.h>
 
 #define THREAD_VERSION 2
 
@@ -317,9 +318,8 @@ thread_exregs (struct activity *principal,
 	{
 	  char string[33];
 	  control_to_string (control, string);
-	  debug (0, "Calling exregs on %x.%x with control: %s (%x)",
-		 l4_thread_no (tid), l4_version (tid),
-		 string, control);
+	  debug (0, "Calling exregs on %x with control: %s (%x)",
+		 tid, string, control);
 	}
 
       l4_word_t dummy = 0;
@@ -332,9 +332,8 @@ thread_exregs (struct activity *principal,
 	   We could change it back.  */
 	{
 	  int err = l4_error_code ();
-	  debug (1, "Failed to exregs %x.%x: %s (%d)",
-		 l4_thread_no (tid), l4_version (tid),
-		 l4_strerror (err), err);
+	  debug (0, "Failed to exregs %x: %s (%d)",
+		 tid, l4_strerror (err), err);
 	  return EINVAL;
 	}
 
@@ -342,9 +341,8 @@ thread_exregs (struct activity *principal,
 	{
 	  char string[33];
 	  control_to_string (control, string);
-	  debug (0, "exregs on %x.%x returned control: %s (%x)",
-		 l4_thread_no (tid), l4_version (tid),
-		 string, control);
+	  debug (0, "exregs on %x returned control: %s (%x)",
+		 tid, string, control);
 	}
     }
   else
@@ -378,21 +376,21 @@ thread_exregs (struct activity *principal,
 	  struct object *a = cap_to_object (principal, &thread->activity);
 	  if (! a)
 	    {
-	      debug (1, "Thread not schedulable: no activity");
+	      debug (0, "Thread not schedulable: no activity");
 	      return 0;
 	    }
 
 	  struct object_desc *desc = object_to_object_desc (a);
 	  if (! cap_types_compatible (desc->type, cap_activity))
 	    {
-	      debug (1, "Thread not schedulable: activity slot contains a %s",
+	      debug (0, "Thread not schedulable: activity slot contains a %s",
 		     cap_type_string (desc->type));
 	      return 0;
 	    }
 
 	  thread_commission (thread);
-	  debug (4, "Starting thread %x.%x",
-		 l4_thread_no (thread->tid), l4_version (thread->tid));
+	  debug (4, "Starting thread %x",
+		 thread->tid);
 
 	  l4_thread_id_t tid = thread->tid;
 
@@ -419,9 +417,8 @@ thread_exregs (struct activity *principal,
 	    {
 	      char string[33];
 	      control_to_string (c, string);
-	      debug (0, "Calling exregs on %x.%x with control: %s (%x)",
-		     l4_thread_no (tid), l4_version (tid),
-		     string, c);
+	      debug (0, "Calling exregs on %x with control: %s (%x)",
+		     tid, string, c);
 	    }
 	  _L4_exchange_registers (&targ, &c,
 				  &sp, &ip, &eflags, &user_handle,
@@ -431,18 +428,16 @@ thread_exregs (struct activity *principal,
 	       pager.  We could change it back.  */
 	    {
 	      int err = l4_error_code ();
-	      debug (1, "Failed to exregs %x.%x: %s (%d)",
-		     l4_thread_no (tid), l4_version (tid),
-		     l4_strerror (err), err);
+	      debug (0, "Failed to exregs %x: %s (%d)",
+		     tid, l4_strerror (err), err);
 	      return EINVAL;
 	    }
 	  do_debug (4)
 	    {
 	      char string[33];
 	      control_to_string (c, string);
-	      debug (0, "exregs on %x.%x returned control: %s (%x)",
-		     l4_thread_no (tid), l4_version (tid),
-		     string, control);
+	      debug (0, "exregs on %x returned control: %s (%x)",
+		     tid, string, control);
 	    }
 	}
     }
@@ -468,16 +463,21 @@ thread_raise_exception (struct activity *activity,
   struct object *page = cap_to_object (activity, &thread->exception_page);
   if (! page)
     {
-      do_debug (3)
+#ifndef NDEBUG
+      extern struct trace_buffer rpc_trace;
+      trace_buffer_dump (&rpc_trace, 0);
+#endif
+
+      do_debug (4)
 	as_dump_from (activity, &thread->aspace, "");
-      debug (1, "Malformed thread (%x): no exception page (ip: %x, sp: %x)",
+      debug (0, "Malformed thread (%x): no exception page (ip: %x, sp: %x)",
 	     thread->tid, ip, sp);
       return;
     }
 
   if (object_type (page) != cap_page)
     {
-      debug (1, "Malformed thread: exception page slot contains a %s, "
+      debug (0, "Malformed thread: exception page slot contains a %s, "
 	     "not a cap_page",
 	     cap_type_string (object_type (page)));
       return;
@@ -487,7 +487,7 @@ thread_raise_exception (struct activity *activity,
 
   if (exception_page->activated_mode)
     {
-      debug (1, "Deferring exception delivery: thread in activated mode!"
+      debug (0, "Deferring exception delivery: thread in activated mode!"
 	     "(sp: %x, ip: %x)", sp, ip);
 
       /* XXX: Sure, we could note that an exception is pending but we
@@ -507,9 +507,8 @@ thread_raise_exception (struct activity *activity,
     {
       char string[33];
       control_to_string (c, string);
-      debug (0, "Calling exregs on %x.%x with control: %s (%x)",
-	     l4_thread_no (thread->tid), l4_version (thread->tid),
-	     string, c);
+      debug (0, "Calling exregs on %x with control: %s (%x)",
+	     thread->tid, string, c);
     }
   l4_thread_id_t targ = thread->tid;
   sp = 0;
@@ -522,18 +521,16 @@ thread_raise_exception (struct activity *activity,
        pager.  We could change it back.  */
     {
       int err = l4_error_code ();
-      debug (1, "Failed to exregs %x.%x: %s (%d)",
-	     l4_thread_no (thread->tid), l4_version (thread->tid),
-	     l4_strerror (err), err);
+      debug (0, "Failed to exregs %x: %s (%d)",
+	     thread->tid, l4_strerror (err), err);
       return;
     }
   do_debug (4)
     {
       char string[33];
       control_to_string (c, string);
-      debug (0, "exregs on %x.%x returned control: %s (%x)",
-	     l4_thread_no (thread->tid), l4_version (thread->tid),
-	     string, c);
+      debug (0, "exregs on %x returned control: %s (%x)",
+	     thread->tid, string, c);
     }
 
   exception_page->saved_thread_state = c;
@@ -544,7 +541,7 @@ thread_raise_exception (struct activity *activity,
       && ip < exception_page->exception_handler_end)
     /* Thread is transitioning.  Don't save sp and ip.  */
     {
-      debug (1, "Fault while interrupt in transition (ip: %x)!",
+      debug (4, "Fault while interrupt in transition (ip: %x)!",
 	     ip);
       exception_page->interrupt_in_transition = 1;
     }
@@ -563,9 +560,8 @@ thread_raise_exception (struct activity *activity,
     {
       char string[33];
       control_to_string (c, string);
-      debug (0, "Calling exregs on %x.%x with control: %s (%x)",
-	     l4_thread_no (thread->tid), l4_version (thread->tid),
-	     string, c);
+      debug (0, "Calling exregs on %x with control: %s (%x)",
+	     thread->tid, string, c);
     }
   _L4_exchange_registers (&targ, &c,
 			  &sp, &ip,
@@ -575,17 +571,15 @@ thread_raise_exception (struct activity *activity,
        pager.  We could change it back.  */
     {
       int err = l4_error_code ();
-      debug (1, "Failed to exregs %x.%x: %s (%d)",
-	     l4_thread_no (thread->tid), l4_version (thread->tid),
-	     l4_strerror (err), err);
+      debug (0, "Failed to exregs %x: %s (%d)",
+	     thread->tid, l4_strerror (err), err);
       return;
     }
   do_debug (4)
     {
       char string[33];
       control_to_string (c, string);
-      debug (0, "exregs on %x.%x returned control: %s (%x)",
-	     l4_thread_no (thread->tid), l4_version (thread->tid),
-	     string, c);
+      debug (0, "exregs on %x returned control: %s (%x)",
+	     thread->tid, string, c);
     }
 }

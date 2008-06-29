@@ -1,5 +1,11 @@
 2008-06-29  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.c: Include <hurd/trace.h>.
+	(thread_exregs): Improve debugging output.
+	(thread_raise_exception): Likewise.
+
+2008-06-29  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.c (activity_destroy): After printing the profile data,
 	print the enabled debugging options.
 	
