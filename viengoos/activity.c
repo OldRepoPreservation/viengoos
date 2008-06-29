@@ -81,6 +81,18 @@ activity_destroy (struct activity *activity, struct activity *victim)
     {
       assert (victim == root_activity);
       profile_stats_dump ();
+      debug (0, ""
+#ifdef NCHECK
+	     "NCHECK "
+#endif
+#ifdef NDEBUG
+	     "NDEBUG "
+#endif
+#ifdef DEBUG_ELIDE
+	     "DEBUG_ELIDE=%d", DEBUG_ELIDE + 0
+#endif
+	     );
+	     
       panic ("Request to destroy root activity");
     }
 
@@ -397,11 +409,15 @@ do_activity_dump (struct activity *activity, int indent)
   int dirty = eviction_list_count (&activity->eviction_dirty);
 
   printf ("%s " OBJECT_NAME_FMT ": %d frames (active: %d, inactive: %d, "
-	  "pending eviction: %d/%d); total: %d; s:%d/%d; c:%d/%d\n",
+	  "pending eviction: %d/%d); total: %d; "
+	  "%d free allocs, %d karma, %d excluded, s:%d/%d; c:%d/%d\n",
 	  indent_string,
 	  OBJECT_NAME_PRINTF ((struct object *) activity),
 	  activity->frames_local, active, inactive, clean, dirty,
 	  activity->frames_total,
+	  activity->free_allocations,
+	  activity->free_bad_karma,
+	  activity->frames_excluded,
 	  activity->policy.sibling_rel.priority,
 	  activity->policy.sibling_rel.weight,
 	  activity->policy.child_rel.priority,

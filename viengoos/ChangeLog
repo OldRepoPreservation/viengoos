@@ -1,3 +1,11 @@
+2008-06-29  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.c (activity_destroy): After printing the profile data,
+	print the enabled debugging options.
+	
+	(do_activity_dump): Also print how many free allocations the
+	activity has, its karma and the number of excluded frames.
+
 2008-06-28  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): Fix debug statement.
