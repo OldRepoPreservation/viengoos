@@ -1,5 +1,13 @@
 2008-06-29  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (all-local): New target.
+	(hieronymus.striped): Likewise.
+	($(addsuffix .S, $(files))): Set BINARY to the binary's name.
+	($(files)): New target.
+	($(addsuffix .o, $(files))): Likewise.
+
+2008-06-29  Neal H. Walfield  <neal@gnu.org>
+
 	* hieronymus.c: Include <md5.h>.
 	(struct module): Add field md5sum.
 	(main): Calculate the md5 digest for the binary.  Compare it to

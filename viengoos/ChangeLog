@@ -1,5 +1,10 @@
 2008-06-29  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (all-local): New target.
+	(viengoos.striped): Likewise.
+
+2008-06-29  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.c: Include <hurd/trace.h>.
 	(thread_exregs): Improve debugging output.
 	(thread_raise_exception): Likewise.

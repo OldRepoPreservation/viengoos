@@ -27,6 +27,10 @@ if ! ENABLE_TESTS
 boot_PROGRAMS = viengoos
 endif
 
+all-local: viengoos.striped
+viengoos.striped: viengoos
+	strip -o $@ $<
+
 # We need the libc headers for errno.h -I$(LIBC)/include 
 viengoos_CPPFLAGS = $(KERNEL_CPPFLAGS)
 viengoos_CFLAGS = $(KERNEL_CFLAGS)

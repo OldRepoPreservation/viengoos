@@ -29,14 +29,18 @@ hieronymus_LDADD = $(USER_LDADD) $(addsuffix .o, $(files))
 
 hieronymus_SOURCES = hieronymus.c modules.h
 
+all-local: hieronymus.striped
+hieronymus.striped: hieronymus
+	strip -o $@ $<
+
+
 # List of modules to load followed by their priority, weight, and a
 # delay (in seconds) at which to start the module.  Each component is
 # separated by a !
 modules = ruth!1!100
 ruth_commandline = "-D 3"
-
 #modules = activity-distribution!1!100
-#modules = gcbench!1!100!5 gcbench2!1!100!20 gcbench3!1!200!0 gcbench4!1!200!10
+modules = gcbench!1!100!5 gcbench2!1!100!20 gcbench3!1!200!0 gcbench4!1!200!10
 
 # List of directories relative to the top of the build tree to search
 # for binaries.
@@ -83,7 +87,11 @@ hieronymus.c: modules.h
 binaries = $(foreach file,$(files),$(call find_binary,$(file)))
 
 $(addsuffix .S, $(files)): %.S: module.S $(binaries) Makefile
-	$(CPP) -DMODULE=$(subst -,_,$*) -DBINARY=$(call find_binary,$(@:.S=)) $< -o $@
+	$(CPP) -DMODULE=$(subst -,_,$*) -DBINARY=$(@:.S=) $< -o $@
 
+$(files): %: module.S $(binaries) Makefile
+	strip -o $@ $(call find_binary,$@)
+
+$(addsuffix .o, $(files)): %.o: %
 $(addsuffix .o, $(files)): %.o: %.S
 	$(CCAS) $(CCASFLAGS) -c -o $@ $<
