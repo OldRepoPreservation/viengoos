@@ -40,6 +40,8 @@ struct module
   const char *name;
   int priority;
   int weight;
+  /* Delay in seconds.  */
+  unsigned int delay;
   const char *commandline;
   char *start;
   char *end;
@@ -103,8 +105,6 @@ static struct stat *stats;
 static void *
 do_gather_stats (void *arg)
 {
-  epoch = now ();
-
   int size = 0;
 
   int period = 0;
@@ -169,6 +169,8 @@ main (int argc, char *argv[])
   extern int output_debug;
   output_debug = 3;
 
+  epoch = now ();
+
   module_count = sizeof (modules) / sizeof (modules[0]);
 
   addr_t a[module_count];
@@ -192,6 +194,7 @@ main (int argc, char *argv[])
   bool gather_stats = false;
   pthread_t gather_stats_tid;
 
+  /* Parse the arguments.  */
   for (i = 1; i < argc; i ++)
     {
       if (strcmp (argv[i], "--stats") == 0)
@@ -207,57 +210,87 @@ main (int argc, char *argv[])
 	}
     }
 
-  /* Load modules.  */
+  /* Load each program (but don't yet start it).  */
   addr_t thread[module_count];
   for (i = 0; i < module_count; i ++)
     {
-      /* Delay starting each process.  */
-#if 0
-      error_t err;
-      struct activity_info info;
-      err = rm_activity_info (activities[i], activity_info_stats,
-			       i * 50, &info);
-      assert_perror (err);
-      assert (info.event == activity_info_stats);
-      assert (info.stats.count > 0);
-
-
       const char *argv[] = { modules[i].name, modules[i].commandline, NULL };
       const char *env[] = { NULL };
       thread[i] = process_spawn (activities[i],
 				 modules[i].start, modules[i].end,
 				 argv, env, false);
-#endif
+    }
 
-      /* Free the memory used by the module's binary.  */
-      /* XXX: This doesn't free folios or note pages that may be
-	 partially freed.  The latter is important because a page may
-	 be used by two modules and after the second module is loaded,
-	 it could be freed.  */
-      int count = 0;
-      int j;
-      for (j = 0; j < __hurd_startup_data->desc_count; j ++)
+  /* Free the memory used by the binaries.  XXX: Also free the folios
+     that are completely unused.  */
+  int j;
+  for (j = 0; j < __hurd_startup_data->desc_count; j ++)
+    {
+      struct hurd_object_desc *desc = &__hurd_startup_data->descs[j];
+
+      if ((desc->type == cap_page || desc->type == cap_rpage)
+	  && ! ADDR_IS_VOID (desc->storage)
+	  && addr_depth (desc->object) == ADDR_BITS - PAGESIZE_LOG2)
 	{
-	  struct hurd_object_desc *desc = &__hurd_startup_data->descs[j];
+	  int i;
+	  for (i = 0; i < module_count; i ++)
+	    if ((uintptr_t) modules[i].start <= addr_prefix (desc->object)
+		&& (addr_prefix (desc->object) + PAGESIZE - 1
+		    <= (uintptr_t) modules[i].end))
+	      break;
 
-	  if ((desc->type == cap_page || desc->type == cap_rpage)
-	      && ! ADDR_IS_VOID (desc->storage)
-	      && addr_depth (desc->object) == ADDR_BITS - PAGESIZE_LOG2
-	      && (uintptr_t) modules[i].start <= addr_prefix (desc->object)
-	      && (addr_prefix (desc->object) + PAGESIZE - 1
-		  <= (uintptr_t) modules[i].end))
+	  if (i != module_count)
 	    {
 	      debug (5, "Freeing " ADDR_FMT "(" ADDR_FMT "), a %s",
 		     ADDR_PRINTF (desc->object), ADDR_PRINTF (desc->storage),
 		     cap_type_string (desc->type));
-	      count ++;
 	      storage_free (desc->storage, true);
 	    }
 	}
-      debug (0, "Freed %d pages", count);
-
-      thread_start (thread[i]);
     }
+
+  /* Start the modules.  */
+  int started = 0;
+  while (started < module_count)
+    {
+      l4_uint64_t start = now ();
+
+      uint64_t deadline = -1ULL;
+      const char *next = NULL;
+
+      for (i = 0; i < module_count; i ++)
+	{
+	  if (modules[i].delay != -1U)
+	    {
+	      debug (0, "%s: %ds delayed start, starting in %d s",
+		     modules[i].name, modules[i].delay,
+		     modules[i].delay - (int) ((start - epoch) / 1000000ULL));
+
+	      if (modules[i].delay * 1000000ULL < start - epoch)
+		{
+		  started ++;
+		  modules[i].delay = -1U;
+
+		  debug (0, DEBUG_BOLD ("Starting %s"), modules[i].name);
+		  thread_start (thread[i]);
+		}
+	      else if (deadline > modules[i].delay * 1000000ULL)
+		{
+		  deadline = modules[i].delay * 1000000ULL;
+		  next = modules[i].name;
+		}
+	    }
+	}
+
+      if (started < module_count)
+	{
+	  debug (0, "Waiting %llu seconds before starting %s",
+		 (deadline - (start - epoch)) / 1000000,
+		 next);
+	  l4_sleep (l4_time_period (deadline - (start - epoch)));
+	}
+    }
+
 
   /* Wait for all activities to die.  */
   for (i = 0; i < module_count; i ++)

@@ -1,3 +1,14 @@
+2008-06-29  Neal H. Walfield  <neal@gnu.org>
+
+	* hieronymus.c (struct module): Add field delay.
+	(do_gather_stats): Don't initialize EPOCH here...
+	(main): ... but here.  After loading all the modules, free the
+	memory.  Start the modules according to their respective delay
+	parameters.
+	* Makefile.am (modules.h): Generate the delay parameter.
+	
+	(module_paths): Add benchmarks.
+
 2008-06-27  Neal H. Walfield  <neal@gnu.org>
 
 	* hieronymus.c (do_gather_stats): Change to use activity_info

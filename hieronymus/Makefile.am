@@ -29,14 +29,16 @@ hieronymus_LDADD = $(USER_LDADD) $(addsuffix .o, $(files))
 
 hieronymus_SOURCES = hieronymus.c modules.h
 
-# List of modules to load followed by their priority, share, and then
-# command line.  Each component is separated by a !
+# List of modules to load followed by their priority, weight, and a
+# delay (in seconds) at which to start the module.  Each component is
+# separated by a !
 modules = ruth!1!100
+#modules = activity-distribution!1!100
 ruth_commandline = "-D 3"
 
 # List of directories relative to the top of the build tree to search
 # for binaries.
-module_paths = ruth
+module_paths = ruth benchmarks
 
 files = $(foreach module,$(modules),$(firstword $(subst !, ,$(module))))
 
@@ -51,6 +53,7 @@ modules.h: $(addsuffix .S, $(files)) Makefile
 	          STRINGIFY ( $(firstword $(subst !, ,$(module))) ),	\
 		  $(wordlist 2, 2, $(subst !, ,$(module))),		\
 		  $(wordlist 3, 3, $(subst !, ,$(module))),		\
+		  $(wordlist 4, 4, $(subst !, ,$(module))) + 0,		\
 		  $($(firstword $(subst !, ,$(module)))_commandline) "",\
 	          &$(firstword $(subst !, ,$(module)))_start,		\
 	          &$(firstword $(subst !, ,$(module)))_end		\
