@@ -140,7 +140,7 @@ cap_shootdown (struct activity *activity, struct cap *root)
 
 	  remaining -= CAP_SUBPAGE_SIZE_LOG2 (cap);
 
-	  for (i = 0; i < CAP_SUBPAGE_SIZE_LOG2 (cap); i ++)
+	  for (i = 0; i < CAP_SUBPAGE_SIZE (cap); i ++)
 	    if (root->oid != object->caps[i].oid)
 	      doit (&object->caps[i], remaining);
 
@@ -160,7 +160,7 @@ cap_shootdown (struct activity *activity, struct cap *root)
 
 	  remaining -= FOLIO_OBJECTS_LOG2;
 
-	  for (i = 0; i < FOLIO_OBJECTS_LOG2; i ++)
+	  for (i = 0; i < FOLIO_OBJECTS; i ++)
 	    if (folio_object_type (folio, i) == cap_page
 		|| folio_object_type (folio, i) == cap_rpage
 		|| folio_object_type (folio, i) == cap_cappage

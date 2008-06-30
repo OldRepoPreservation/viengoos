@@ -1,3 +1,9 @@
+2008-06-30  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.c (cap_shootdown): Iterate over all capabilities in a
+	cappage and all elements in a folio, not just the first log2 of
+	them.
+
 2008-06-29  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (all-local): New target.
