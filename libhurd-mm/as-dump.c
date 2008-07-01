@@ -24,6 +24,13 @@
 #include <hurd/stddef.h>
 #include <assert.h>
 
+#ifdef RM_INTERN
+#include <md5.h>
+
+#include "../viengoos/cap.h"
+#include "../viengoos/activity.h"
+#endif
+
 static void
 print_nr (int width, l4_int64_t nr, bool hex)
 {
@@ -102,6 +109,33 @@ do_walk (activity_t activity, int index,
 #endif
   S_PRINTF ("%s", cap_type_string (cap.type));
 
+#ifdef RM_INTERN
+  if (cap.type == cap_page || cap.type == cap_rpage)
+    {
+      struct object *object = cap_to_object_soft (root_activity, &cap);
+      if (object)
+	{
+	  struct md5_ctx ctx;
+	  unsigned char result[16];
+
+	  md5_init_ctx (&ctx);
+	  md5_process_bytes (object, PAGESIZE, &ctx);
+	  md5_finish_ctx (&ctx, result);
+
+	  S_PRINTF (" ");
+	  int i;
+	  for (i = 0; i < 16; i ++)
+	    printf ("%x%x", result[i] & 0xf, result[i] >> 4);
+
+	  for (i = 0; i < PAGESIZE / sizeof (int); i ++)
+	    if (((int *) (object))[i] != 0)
+	      break;
+	  if (i == PAGESIZE / sizeof (int))
+	    S_PRINTF (" zero page");
+	}
+    }
+#endif
+
   if (! descend)
     S_PRINTF ("...");
 
@@ -149,5 +183,5 @@ do_walk (activity_t activity, int index,
 void
 as_dump_from (activity_t activity, struct cap *root, const char *prefix)
 {
-  // do_walk (activity, -1, root, ADDR (0, 0), 0, true, prefix);
+  do_walk (activity, -1, root, ADDR (0, 0), 0, true, prefix);
 }

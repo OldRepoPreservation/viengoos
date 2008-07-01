@@ -1,3 +1,9 @@
+2008-07-01  Neal H. Walfield  <neal@gnu.org>
+
+	* as-dump.c [RM_INTERN]: Include <md5.h>, "../viengoos/cap.h" and
+	"../viengoos/activity.h".
+	(do_walk) [RM_INTERN]: Print data pages' md5 sums as well.
+
 2008-06-24  Neal H. Walfield  <neal@gnu.org>
 
 	* madvise.c: New file.
