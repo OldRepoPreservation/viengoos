@@ -146,7 +146,7 @@ server_loop (void)
 	    }
 #endif
 
-	  debug (0, "%s %x failed: %u", 
+	  debug (4, "%s %x failed: %u", 
 		 l4_error_code () & 1 ? "Receiving from" : "Sending to",
 		 l4_error_code () & 1 ? from : to,
 		 (l4_error_code () >> 1) & 0x7);
@@ -233,8 +233,8 @@ server_loop (void)
 	  bool w = !! (access & L4_FPAGE_WRITABLE);
 	  enum cap_type type = w ? cap_page : cap_rpage;
 
-	  DEBUG (5, "page fault at %x.%s (ip = %x)",
-		 fault, w ? "w" : "r", ip);
+	  DEBUG (4, "%s fault at %x (ip = %x)",
+		 w ? "Write" : "Read", fault, ip);
 	  l4_word_t page_addr = fault & ~(PAGESIZE - 1);
 
 	  bool writable;
@@ -356,6 +356,7 @@ server_loop (void)
 	{							\
 	  if (err_)						\
 	    {							\
+	      DEBUG (1, DEBUG_BOLD ("Returning error %d"), err_);	\
 	      l4_msg_clear (msg);				\
 	      l4_msg_put_word (msg, 0, (err_));			\
 	      l4_msg_set_untyped_words (msg, 1);		\
@@ -977,7 +978,9 @@ server_loop (void)
 	       respect any subpag specification for cappages.  */
 	    struct cap *target = SLOT (root, target_addr);
 
-	    target->type = cap_void;
+	    cap_shootdown (principal, target);
+
+	    memset (target, 0, sizeof (*target));
 
 	    rm_cap_rubout_reply_marshal (&msg);
 	    break;
@@ -1378,7 +1381,7 @@ server_loop (void)
 	      period = (ACTIVITY_STATS_PERIODS + 1) + period;
 
 	    DEBUG (4, OBJECT_NAME_FMT ": %s%s%s(%d), "
-		   "period: %d (current: %d)\n",
+		   "period: %d (current: %d)",
 		   OBJECT_NAME_PRINTF ((struct object *) principal),
 		   flags & activity_info_stats ? "stats" : "",
 		   (flags == (activity_info_pressure|activity_info_stats))

@@ -1,5 +1,10 @@
 2008-07-01  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): In the cap_rubout implementation,
+	shootdown TARGET.
+
+2008-07-01  Neal H. Walfield  <neal@gnu.org>
+
 	* object.h (object_desc_to_cap): Correctly set the subpage
 	specification.
 
