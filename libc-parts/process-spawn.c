@@ -84,7 +84,7 @@ process_spawn (addr_t activity,
 	       const char *const argv[], const char *const env[],
 	       bool make_runnable)
 {
-  debug (0, "Starting %s", argv[0]);
+  debug (1, "Loading %s", argv[0]);
 
 #ifdef RM_INTERN
   /* We don't need shadow objects.  */
@@ -224,11 +224,9 @@ process_spawn (addr_t activity,
     char *p = (void *) startup_data + offset;
     for (i = 0; argv[i]; i ++)
       {
-	int len = strlen (argv[i]);
+	int len = strlen (argv[i]) + 1;
 	memcpy (p, argv[i], len);
 	p += len;
-	*p = ' ';
-	p ++;
       }
     *p = '\0';
 
@@ -239,7 +237,7 @@ process_spawn (addr_t activity,
       for (i = 0; env[i]; i ++)
 	n += strlen (env[i]) + 1;
 
-    startup_data->envz_len = n + 1;
+    startup_data->envz_len = n;
     startup_data->envz = (void *) STARTUP_DATA_ADDR + offset;
 
     space = STARTUP_DATA_MAX_SIZE - offset;
@@ -250,11 +248,9 @@ process_spawn (addr_t activity,
     if (env)
       for (i = 0; env[i]; i ++)
 	{
-	  int len = strlen (env[i]);
+	  int len = strlen (env[i]) + 1;
 	  memcpy (p, env[i], len);
 	  p += len;
-	  *p = ' ';
-	  p ++;
 	}
     *p = '\0';
   }
@@ -311,6 +307,15 @@ process_spawn (addr_t activity,
   /* Next unallocated object in folio.  */
   int folio_index;
 
+#ifndef RM_INTERN
+  struct as_region
+  {
+    struct as_region *next;
+    addr_t addr;
+  };
+  struct as_region *as_regions = NULL;
+#endif
+
   struct as_allocate_pt_ret allocate_object (enum cap_type type, addr_t addr)
     {
       debug (5, "(%s, 0x%llx/%d)",
@@ -345,6 +350,14 @@ process_spawn (addr_t activity,
 	  if (ADDR_IS_VOID (folio_local_addr))
 	    panic ("Failed to allocate address space for folio");
 
+	  struct as_region *as_region = malloc (sizeof (*as_region));
+	  if (! as_region)
+	    panic ("Out of memory.");
+
+	  as_region->addr = folio_local_addr;
+	  as_region->next = as_regions;
+	  as_regions = as_region;
+
 	  as_ensure (folio_local_addr);
 
 	  error_t err = rm_folio_alloc (activity, folio_local_addr,
@@ -355,6 +368,7 @@ process_spawn (addr_t activity,
 	  as_slot_lookup_use (folio_local_addr,
 			      ({
 				slot->type = cap_folio;
+				CAP_SET_SUBPAGE (slot, 0, 1);
 			      }));
 #endif
 
@@ -398,6 +412,21 @@ process_spawn (addr_t activity,
 			     OBJECT_POLICY_VOID, 0, ADDR_VOID, ADDR_VOID);
       rt.cap.type = cap_type_strengthen (type);
       CAP_PROPERTIES_SET (&rt.cap, CAP_PROPERTIES_VOID);
+
+#ifndef NDEBUG
+      if (rt.cap.type == cap_page)
+	{
+	  unsigned int *p
+	    = ADDR_TO_PTR (addr_extend (addr_extend (folio_local_addr,
+						     index, FOLIO_OBJECTS_LOG2),
+					0, PAGESIZE_LOG2));
+	  int i;
+	  for (i = 0; i < PAGESIZE / sizeof (int); i ++)
+	    if (p[i])
+	      panic ("%p not clean! (p[%d] = %u)",
+		     p, i, *p);
+	}
+#endif
 #endif
 
 
@@ -427,6 +456,7 @@ process_spawn (addr_t activity,
 
   struct as_allocate_pt_ret allocate_page_table (addr_t addr)
   {
+    debug (5, ADDR_FMT, ADDR_PRINTF (addr));
     return allocate_object (cap_cappage, addr);	
   }
 
@@ -498,10 +528,14 @@ process_spawn (addr_t activity,
 #else
   addr_t thread = capalloc ();
   cap.type = cap_thread;
-  r = cap_copy (root_activity,
-		ADDR_VOID, &cap, thread,
-		ADDR_VOID, rt.cap, rt.storage);
-  assert (r);
+  as_slot_lookup_use
+    (thread,
+     ({
+       r = cap_copy (root_activity,
+		     ADDR_VOID, slot, thread,
+		     ADDR_VOID, rt.cap, rt.storage);
+       assert (r);
+     }));
 #endif
 
   /* Load the binary.  */
@@ -526,6 +560,7 @@ process_spawn (addr_t activity,
 			as_root, as_root_cap, addr,
 			ADDR_VOID, rt.cap, rt.storage,
 			allocate_page_table, do_index);
+      
       if (ro)
 	as_slot_lookup_rel_use (root_activity, as_root_cap, addr,
 				({
@@ -549,7 +584,7 @@ process_spawn (addr_t activity,
       assert (! had_value);
 #endif
 
-      debug (5, "%x -> %p", ptr, local);
+      debug (5, "0x%x -> %p", ptr, local);
 
       return local;
     }
@@ -652,12 +687,15 @@ process_spawn (addr_t activity,
   /* Free the address space that we allocated to access the folios.
      The only object we still need is the thread, which we have cached
      in a cap slot and will free at the end.  */
-  for (d = 0; d < startup_data->desc_count; d ++)
-    {
-      struct hurd_object_desc *desc = &descs[d];
+  struct as_region *as_region;
+  struct as_region *next = as_regions;
 
-      if (desc->type == cap_folio)
-	as_free (desc->storage, 1);
+  while ((as_region = next))
+    {
+      next = as_region->next;
+
+      as_free (as_region->addr, 1);
+      free (as_region);
     }
 #endif
 
@@ -677,7 +715,7 @@ process_spawn (addr_t activity,
 
   do_debug (5)
     AS_DUMP;
-  debug (3, "Starting at %x", ip);
+  debug (3, "Initial IP: %x", ip);
 
 #ifdef RM_INTERN
   thread->aspace = *as_root_cap;
@@ -722,6 +760,11 @@ process_spawn (addr_t activity,
   /* Free the remaining locally allocated resources.  */
 
 #ifndef RM_INTERN
+  as_slot_lookup_use (as_root,
+		      ({
+			rm_cap_rubout (ADDR_VOID, ADDR_VOID, as_root);
+			memset (slot, 0, sizeof (*slot));
+		      }));
   capfree (as_root);
 #endif
 
@@ -734,6 +777,8 @@ process_spawn (addr_t activity,
       free (s);
       s = next;
     }
+
+  hurd_ihash_destroy (&as);
 #endif
 
   return thread;

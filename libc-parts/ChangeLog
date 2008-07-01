@@ -1,3 +1,13 @@
+2008-07-01  Neal H. Walfield  <neal@gnu.org>
+
+	* process-spawn.c (process_spawn): Separate arguments with a NUL,
+	not a space.  Likewise of environment variables.  Correctly off by
+	one error when calculating the size required by the environment.
+	Remember the regions of address space that we allocated and free
+	them after we are done.  Correctly set the folio's subpage.  Add a
+	check that ensures that allocated pages are really zeroed.  When
+	freeing AS_ROOT, overwrite the used capability slot. Destroy AS.
+
 2008-06-29  Neal H. Walfield  <neal@gnu.org>
 
 	* md5.h: New file from glibc 2.7.
