@@ -1,5 +1,10 @@
 2008-07-01  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (object_desc_to_cap): Correctly set the subpage
+	specification.
+
+2008-07-01  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (viengoos_LDADD): Also add
 	../libhurd-mm/libas-kernel.a before libc-kernel.a.
 

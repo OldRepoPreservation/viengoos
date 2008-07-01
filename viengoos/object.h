@@ -338,6 +338,11 @@ object_desc_to_cap (struct object_desc *desc)
   cap.discardable = desc->policy.discardable;
   cap.priority = desc->policy.priority;
 
+  if (cap.type == cap_cappage)
+    CAP_SET_SUBPAGE (&cap, 0, 1);
+  else if (cap.type == cap_folio)
+    CAP_SET_SUBPAGE (&cap, 0, 1);
+
   return cap;
 }
 
