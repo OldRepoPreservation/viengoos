@@ -27,7 +27,7 @@ if ! ENABLE_TESTS
 boot_PROGRAMS = viengoos
 
 all-local: viengoos.stripped
-viengoos.striped: viengoos
+viengoos.stripped: viengoos
 	strip -o $@ $<
 endif
 

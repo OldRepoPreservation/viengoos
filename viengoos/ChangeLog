@@ -1,5 +1,10 @@
 2008-07-04  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (viengoos.striped): Rename from this...
+	(viengoos.stripped): ... to this.
+
+2008-07-04  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos.c (system_task_load): Free the memory associated with
 	the main executable.
 	(bootstrap): New function.
