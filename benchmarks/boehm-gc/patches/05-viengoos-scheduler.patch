@@ -902,45 +902,41 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
      run_one_test();
      check_heap_stats();
  #   ifndef MSWINCE
-Only in gc: unpack.stamp
-diff -c /dev/null /home/huenig/src/hurd-l4/benchmarks/boehm-gc/gc/profile.h
-*** /dev/null	2008-05-21 08:25:35.000000000 +0200
---- /home/huenig/src/hurd-l4/benchmarks/boehm-gc/gc/profile.h	2008-06-28 13:48:10.000000000 +0200
-***************
-*** 0 ****
---- 1,34 ----
-+ /* profile.h - Profiling support interface.
-+    Copyright (C) 2008 Free Software Foundation, Inc.
-+    Written by Neal H. Walfield <neal@gnu.org>.
-+ 
-+    This file is part of the GNU Hurd.
-+ 
-+    The GNU Hurd is free software; you can redistribute it and/or
-+    modify it under the terms of the GNU General Public License as
-+    published by the Free Software Foundation; either version 3 of the
-+    License, or (at your option) any later version.
-+ 
-+    The GNU Hurd is distributed in the hope that it will be useful, but
-+    WITHOUT ANY WARRANTY; without even the implied warranty of
-+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+    General Public License for more details.
-+ 
-+    You should have received a copy of the GNU General Public License
-+    along with this program.  If not, see
-+    <http://www.gnu.org/licenses/>.  */
-+ 
-+ #include <stdint.h>
-+ 
-+ #define GC_TIMER 0, "gc"
-+ #define MAP_TIMER 1, "map"
-+ 
-+ /* Start a timer for the profile site ID (this must be unique per
-+    site, can be the function's address).  NAME is the symbolic
-+    name.  */
-+ extern void profile_start (uintptr_t id, const char *name);
-+ 
-+ /* End the timer for the profile site ID.  */
-+ extern void profile_end (uintptr_t id, const char *name);
-+ 
-+ extern void profile_stats_dump (void);
-
+--- gc-old/profile.h	2008-06-30 10:00:59.312047969 +0200
++++ gc/profile.h	2008-07-02 16:16:09.000000000 +0200
+@@ -0,0 +1,35 @@
++/* profile.h - Profiling support interface.
++   Copyright (C) 2008 Free Software Foundation, Inc.
++   Written by Neal H. Walfield <neal@gnu.org>.
++
++   This file is part of the GNU Hurd.
++
++   The GNU Hurd is free software; you can redistribute it and/or
++   modify it under the terms of the GNU General Public License as
++   published by the Free Software Foundation; either version 3 of the
++   License, or (at your option) any later version.
++
++   The GNU Hurd is distributed in the hope that it will be useful, but
++   WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <stdint.h>
++
++#define GC_TIMER 0, "gc"
++#define MAP_TIMER 1, "map"
++
++/* Start a timer for the profile site ID (this must be unique per
++   site, can be the function's address).  NAME is the symbolic
++   name.  */
++extern void profile_start (uintptr_t id, const char *name);
++
++/* End the timer for the profile site ID.  */
++extern void profile_end (uintptr_t id, const char *name);
++
++extern void profile_stats_dump (void);
++
