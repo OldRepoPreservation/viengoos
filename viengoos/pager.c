@@ -87,9 +87,9 @@ reclaim_from (struct activity *victim, int goal)
 	   eviction_list_count (&victim->eviction_dirty),
 	   victim->frames_local);
 
-  debug (5, "Reclaiming %d from " OID_FMT ", %d frames "
+  debug (5, "Reclaiming %d from " OBJECT_NAME_FMT ", %d frames "
 	 "(global: avail: %d, laundry: %d)",
-	 goal, OID_PRINTF (object_oid ((struct object *) victim)),
+	 goal, OBJECT_NAME_PRINTF ((struct object *) victim),
 	 victim->frames_local,
 	 available_list_count (&available), laundry_list_count (&laundry));
 
@@ -325,9 +325,9 @@ pager_collect (int goal)
 
   int available_memory = zalloc_memory + available_list_count (&available);
 
-  debug (0, "Frames: %d, available: %d (%d%%), pending page out: %d, "
+  debug (5, "Used: %d of %d, available: %d (%d%%), pending page out: %d, "
 	 "low water: %d, goal: %d",
-	 memory_total,
+	 memory_total - available_memory, memory_total,
 	 available_memory, (available_memory * 100) / memory_total,
 	 laundry_list_count (&laundry),
 	 PAGER_LOW_WATER_MARK, goal);
@@ -356,23 +356,25 @@ pager_collect (int goal)
 		    struct activity_memory_policy activity_policy,
 		    int activity_frames)
       {
-	debug (5, "Considering " OID_FMT
-	       ": policy: %d/%d; frames: %d (total: %d/%d; "
-	       "pending eviction: %d/%d, active: %d/%d)",
-	       OID_PRINTF (object_oid ((struct object *) activity)),
+	debug (5, "Considering " OBJECT_NAME_FMT
+	       ": policy: %d/%d; effective frames: %d (total: %d/%d; "
+	       "pending eviction: %d/%d, active: %d/%d, available: %d/%d)",
+	       OBJECT_NAME_PRINTF ((struct object *) activity),
 	       activity_policy.priority, activity_policy.weight,
 	       activity_frames,
 	       activity->frames_total, activity->frames_local,
 	       eviction_list_count (&activity->eviction_dirty),
 	       activity->frames_pending_eviction,
 	       ACTIVITY_STATS_LAST (activity)->active,
-	       ACTIVITY_STATS_LAST (activity)->active_local);
+	       ACTIVITY_STATS_LAST (activity)->active_local,
+	       ACTIVITY_STATS_LAST (activity)->available,
+	       ACTIVITY_STATS_LAST (activity)->available_local);
 
 	if (activity_frames <= goal / 1000)
 	  /* ACTIVITY has no frames to yield; don't consider it.  */
 	  {
-	    debug (5, "Not choosing activity " OID_FMT,
-		   OID_PRINTF (object_oid ((struct object *) activity)));
+	    debug (5, "Not choosing " OBJECT_NAME_FMT,
+		   OBJECT_NAME_PRINTF ((struct object *) activity));
 	    return false;
 	  }
 
@@ -443,9 +445,8 @@ pager_collect (int goal)
       victim = root_activity;
       do
 	{
-	  debug (5, "Current victim: " OID_FMT,
-		 OID_PRINTF (object_to_object_desc ((struct object *) victim)
-			     ->oid));
+	  debug (5, "Current victim: " OBJECT_NAME_FMT,
+		 OBJECT_NAME_PRINTF ((struct object *) victim));
 
 	  parent = victim;
 	  victim = NULL;
@@ -453,7 +454,7 @@ pager_collect (int goal)
 	  /* Each time through, we let the number of active frames play a
 	     less significant role.  */
 	  unsigned int factor;
-	  for (factor = 0; ! victim && factor < 16; factor += 2)
+	  for (factor = 1; ! victim && factor < 16; factor += 2)
 	    {
 	      bool have_self = false;
 
@@ -476,9 +477,9 @@ pager_collect (int goal)
 			 eligible.  */
 		      if (! parent->free_allocations)
 			{
-			  int frames = parent->frames_local
+			  int frames = (int) parent->frames_local
 			    - eviction_list_count (&parent->eviction_dirty)
-			    - (ACTIVITY_STATS_LAST (parent)->active_local
+			    - ((int) ACTIVITY_STATS_LAST (parent)->active_local
 			       >> factor);
 			  if (frames > 0)
 			    done = process (parent, parent->policy.child_rel,
@@ -487,16 +488,17 @@ pager_collect (int goal)
 			    break;
 			}
 		      else
-			debug (0, "Excluding " OBJECT_NAME_FMT
+			debug (5, "Excluding " OBJECT_NAME_FMT
 			       ": %d free frames, %d excluded",
+			       OBJECT_NAME_PRINTF ((struct object *) parent),
 			       parent->free_allocations,
 			       parent->frames_excluded);
 		    }
 
-		  int frames = child->frames_total
+		  int frames = (int) child->frames_total
 		    - child->frames_excluded
 		    - child->frames_pending_eviction
-		    - (ACTIVITY_STATS_LAST (child)->active >> factor);
+		    - ((int) ACTIVITY_STATS_LAST (child)->active >> factor);
 		  if (frames > 0)
 		    done = process (child, child->policy.sibling_rel, frames);
 		  if (done)
@@ -505,10 +507,11 @@ pager_collect (int goal)
 
 	      if (! done && ! have_self)
 		{
-		  int frames = parent->frames_local
-		    - child->frames_excluded
+		  int frames = (int) parent->frames_local
+		    - parent->frames_excluded
 		    - eviction_list_count (&parent->eviction_dirty)
-		    - (ACTIVITY_STATS_LAST (parent)->active_local >> factor);
+		    - ((int) ACTIVITY_STATS_LAST (parent)->active_local
+		       >> factor);
 		  if (frames > 0)
 		    process (parent, parent->policy.child_rel, frames);
 		}
@@ -523,8 +526,6 @@ pager_collect (int goal)
 	    break;
 
 	  ACTIVITY_STATS (victim)->pressure ++;
-
-	  assert (victim);
 	}
       while (victim != parent);
 
@@ -576,10 +577,13 @@ pager_collect (int goal)
 
       if (thread)
 	{
-	  debug (0, DEBUG_BOLD ("Requesting that " OBJECT_NAME_FMT " free "
-				"%d pages.")  " Karma: %d",
+	  debug (5, DEBUG_BOLD ("Requesting that " OBJECT_NAME_FMT " free "
+				"%d pages.")
+		 " Karma: %d, available: %d, frames: %d",
 		 OBJECT_NAME_PRINTF ((struct object *) victim),
-		 goal, victim->free_bad_karma);
+		 goal, victim->free_bad_karma,
+		 ACTIVITY_STATS_LAST (victim)->available_local,
+		 victim->frames_local);
 
 	  if (! victim->free_goal
 	      && victim->free_bad_karma == 0)
@@ -589,7 +593,7 @@ pager_collect (int goal)
 	      need_reclaim = false;
 
 	      victim->free_goal = goal / 2;
-	      victim->free_allocations = 100;
+	      victim->free_allocations = 1000;
 	      victim->free_initial_allocation = victim->frames_local;
 
 	      struct activity *ancestor = victim;
@@ -598,9 +602,9 @@ pager_collect (int goal)
 		 ({
 		   ancestor->frames_excluded += victim->frames_local;
 		 }));
-
-	      total_freed += goal;
 	    }
+
+	  total_freed += goal;
 
 	  struct activity_info info;
 	  info.event = activity_info_pressure;

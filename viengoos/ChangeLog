@@ -1,5 +1,14 @@
 2008-07-04  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.c (pager_collect): Start with a factor of 1, not 0, when
+	calculating the impact of active pages.  When calculating the
+	number of frames available to an activity, cast the unsigned
+	variables to ints.  Correct the calculation of FRAMES.  Bump
+	VICTIM->FREE_ALLOCATIONS to a 1000.  Always add GOAL to
+	TOTAL_FREED when we send a memory pressure message.
+
+2008-07-04  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (update_stats): When calculating statistics, remove a
 	little bit from the total memory available to the root activity.
 
