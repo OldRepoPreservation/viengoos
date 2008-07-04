@@ -25,11 +25,11 @@ endif
 bootdir = $(prefix)/boot
 if ! ENABLE_TESTS
 boot_PROGRAMS = viengoos
-endif
 
-all-local: viengoos.striped
+all-local: viengoos.stripped
 viengoos.striped: viengoos
 	strip -o $@ $<
+endif
 
 # We need the libc headers for errno.h -I$(LIBC)/include 
 viengoos_CPPFLAGS = $(KERNEL_CPPFLAGS)
