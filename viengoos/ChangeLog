@@ -1,5 +1,12 @@
 2008-07-04  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (system_task_load): Free the memory associated with
+	the main executable.
+	(bootstrap): New function.
+	(main): Move most functionality to it.  Call it.
+
+2008-07-04  Neal H. Walfield  <neal@gnu.org>
+
 	* pager.c (pager_collect): Start with a factor of 1, not 0, when
 	calculating the impact of active pages.  When calculating the
 	number of frames available to an activity, cast the unsigned

@@ -201,7 +201,7 @@ memory_configure (void)
   printf ("memory: %x-%x\n", first_frame, last_frame);
 }
 
-void
+struct thread *
 system_task_load (void)
 {
   const char *const argv[] = { boot_modules[0].command_line, NULL };
@@ -211,6 +211,11 @@ system_task_load (void)
 			  (void *) boot_modules[0].end,
 			  argv, NULL,
 			  true);
+
+  /* Free the associated memory.  */
+  memory_reservation_clear (memory_reservation_system_executable);
+
+  return thread;
 }
 
 void
@@ -258,16 +263,11 @@ ager_start (void)
 	   l4_strerror (l4_error_code ()));
 }
 
+static void bootstrap (void) __attribute__ ((noinline));
 
-int
-main (int argc, char *argv[])
+static void
+bootstrap (void)
 {
-  parse_args (argc, argv);
-
-  debug (1, "If the following fails, you failed to patch L4 or libl4.  "
-	 "Reread the README.");
-  debug (1, "%s " PACKAGE_VERSION " (%x)", program_name, l4_my_global_id ());
-
   viengoos_tid = l4_myself ();
 
   /* Reserve the rm binary.  */
@@ -280,6 +280,8 @@ main (int argc, char *argv[])
 
   memory_configure ();
 
+  object_init ();
+
   /* We need to ensure that the whole binary is faulted in.  sigma0 is
      only willing to page the first thread.  Since memory_configure
      only grabs otherwise unreserved memory and the binary is
@@ -290,12 +292,30 @@ main (int argc, char *argv[])
   for (p = (l4_word_t) &_start; p < (l4_word_t) &_end; p += PAGESIZE)
     * (volatile l4_word_t *) p = *(l4_word_t *)p;
 
-  object_init ();
+  ager_start ();
 
   /* Load the system task.  */
-  system_task_load ();
+  struct thread *thread = system_task_load ();
 
-  ager_start ();
+  /* MEMORY_TOTAL is the total number of frames in the system.  We
+     need to know the number of frames that are available to user
+     tasks.  This is the sum of the free memory plus that which is
+     already allocated to activities.  So far, there is only the root
+     activity.  */
+  memory_total = zalloc_memory + root_activity->frames_total;
+}
+
+int
+main (int argc, char *argv[])
+{
+  parse_args (argc, argv);
+
+  debug (1, "If the following fails, you failed to patch L4 or libl4.  "
+	 "Reread the README.");
+  debug (1, "%s " PACKAGE_VERSION " (%x)", program_name, l4_my_global_id ());
+
+  /* Bootstrap the system.  */
+  bootstrap ();
 
   /* And, start serving requests.  */
   server_loop ();
