@@ -1,5 +1,16 @@
 2008-07-04  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (all-local) [ENABLE_TESTS]: Don't define target in
+	this case.  Fix spelling.
+	(md5sum): Generate the md5 hash of the binary we include, not the
+	original binary.
+	(modules.h): Depend on $(files).  Provide a default priority and
+	weight.
+	($(files)): Don't depend on modules.S.
+	(CLEANFILES): New variable.
+
+2008-07-04  Neal H. Walfield  <neal@gnu.org>
+
 	* hieronymus.c (main): Fix mask when extracting hexadecimal
 	digits.
 

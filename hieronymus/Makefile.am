@@ -20,6 +20,10 @@
 bootdir = $(prefix)/boot
 if ! ENABLE_TESTS
 boot_PROGRAMS = hieronymus
+
+all-local: hieronymus.stripped
+hieronymus.stripped: hieronymus
+	strip -o $@ $<
 endif
 
 hieronymus_CPPFLAGS = $(USER_CPPFLAGS)
@@ -29,18 +33,14 @@ hieronymus_LDADD = $(USER_LDADD) $(addsuffix .o, $(files))
 
 hieronymus_SOURCES = hieronymus.c modules.h
 
-all-local: hieronymus.striped
-hieronymus.striped: hieronymus
-	strip -o $@ $<
-
-
 # List of modules to load followed by their priority, weight, and a
 # delay (in seconds) at which to start the module.  Each component is
 # separated by a !
 modules = ruth!1!100
 ruth_commandline = "-D 3"
 #modules = activity-distribution!1!100
-modules = gcbench!1!100!5 gcbench2!1!100!20 gcbench3!1!200!0 gcbench4!1!200!10
+#modules = shared-memory-distribution
+#modules = gcbench!1!200!0 gcbench2!1!400!120
 
 # List of directories relative to the top of the build tree to search
 # for binaries.
@@ -55,11 +55,19 @@ find_binary = \
 	      $(1):not_found)
 
 md5sum = \
-	$(shell md5sum $(call find_binary,$(1)) | awk '{ printf $$1 }' \
+	$(shell md5sum $(1) | awk '{ printf $$1 }' \
 		| sed 's/\([0-9a-f]\{2\}\)/0x\1, /g')
 
 tovar = $(subst -,_,$(firstword $(subst !, ,$(1))))
 
+hieronymus.c: modules.h
+
+binaries = $(foreach file,$(files),$(call find_binary,$(file)))
+
+$(files): %: $(binaries) Makefile
+	strip -o $@ $<
+
+modules.h: $(files)
 modules.h: $(addsuffix .S, $(files)) Makefile
 	echo '								\
 	  $(foreach module,$(subst -,_,$(modules)),			\
@@ -69,8 +77,8 @@ modules.h: $(addsuffix .S, $(files)) Makefile
 	    $(foreach module,$(modules),				\
 		{							\
 	          "$(firstword $(subst !, ,$(module)))",		\
-		  $(wordlist 2, 2, $(subst !, ,$(module))),		\
-		  $(wordlist 3, 3, $(subst !, ,$(module))),		\
+		  $(wordlist 2, 2, $(subst !, ,$(module))) + 0,		\
+		  $(wordlist 3, 3, $(subst !, ,$(module))) + 0,		\
 		  $(wordlist 4, 4, $(subst !, ,$(module))) + 0,		\
 		  $($(call tovar,$(module))_commandline) "",		\
 	          &$(call tovar,$(module))_start,			\
@@ -81,17 +89,11 @@ modules.h: $(addsuffix .S, $(files)) Makefile
 	    };' > $@
 
 
-
-hieronymus.c: modules.h
-
-binaries = $(foreach file,$(files),$(call find_binary,$(file)))
-
 $(addsuffix .S, $(files)): %.S: module.S $(binaries) Makefile
 	$(CPP) -DMODULE=$(subst -,_,$*) -DBINARY=$(@:.S=) $< -o $@
-
-$(files): %: module.S $(binaries) Makefile
-	strip -o $@ $(call find_binary,$@)
 
 $(addsuffix .o, $(files)): %.o: %
 $(addsuffix .o, $(files)): %.o: %.S
 	$(CCAS) $(CCASFLAGS) -c -o $@ $<
+
+CLEANFILES = modules.h hieronymus.striped $(files) $(addsuffix .S, $(files))
