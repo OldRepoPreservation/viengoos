@@ -36,7 +36,6 @@
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
-
 /* A frames has a single claimant.  When a frame is shared among
    multiple activities, the first activity to access claims it (that
    is, that activity is accounted the frame).  To distribute the cost
@@ -99,7 +98,7 @@ update_stats (void)
 	int dec = frames / 8;
 	dec /= 5 - MIN (ACTIVITY_STATS (activity)->pressure, 4);
 
-	debug (0, "Due to pressure (%d), decreasing frames available "
+	debug (5, "Due to pressure (%d), decreasing frames available "
 	       "to " OBJECT_NAME_FMT " from %d to %d",
 	       ACTIVITY_STATS (activity)->pressure,
 	       OBJECT_NAME_PRINTF ((struct object *) activity),
@@ -323,7 +322,7 @@ update_stats (void)
 		int dec = avail / 8;
 		dec /= 5 - MIN (ACTIVITY_STATS (activity)->pressure_local, 4);
 
-		debug (1, "Due to pressure (%d), decreasing frames locally "
+		debug (5, "Due to local pressure (%d), decreasing frames "
 		       "available to " OBJECT_NAME_FMT " from %d to %d",
 		       ACTIVITY_STATS (activity)->pressure_local,
 		       OBJECT_NAME_PRINTF ((struct object *) activity),
@@ -444,7 +443,7 @@ update_stats (void)
 	}
   }
 
-  stats (root_activity, memory_total - PAGER_LOW_WATER_MARK);
+  stats (root_activity, memory_total - PAGER_LOW_WATER_MARK - 200);
 
   profile_end ((uintptr_t) &update_stats);
   ss_mutex_unlock (&kernel_lock);
@@ -668,6 +667,8 @@ ager_loop (void)
 
 	  do_debug (1)
 	    {
+	      /* Make the print atomic.  */
+	      ss_mutex_lock (&kernel_lock);
 	      int a = zalloc_memory + available_list_count (&available);
 	      debug (0, "%d: %d of %d (%d%%) free; laundry: %d; "
 		     "%d became inactive, %d became active",
@@ -675,6 +676,7 @@ ager_loop (void)
 		     a, memory_total, (a * 100) / memory_total,
 		     laundry_list_count (&laundry),
 		     became_inactive, became_active);
+	      ss_mutex_unlock (&kernel_lock);
 	    }
 	}
       period ++;
