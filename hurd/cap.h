@@ -640,12 +640,17 @@ cap_copy_x (activity_t activity,
 
 #ifdef RM_INTERN
   /* Changing a capability can change how addresses are translated.
-     In this case, we need to shoot down all cache translation.  */
+     In this case, we need to shoot down all cached translations.  */
   bool changes_translation = false;
 
   if (target->oid != source.oid)
     {
       debug (5, "OID mismatch, changes translation");
+      changes_translation = true;
+    }
+  else if (target->version != source.version)
+    {
+      debug (5, "Version mismatch, changes translation");
       changes_translation = true;
     }
 
@@ -676,6 +681,9 @@ cap_copy_x (activity_t activity,
   if (changes_translation)
     {
       extern void cap_shootdown (struct activity *activity, struct cap *cap);
+
+      debug (5, "Translation changed: " CAP_FMT " -> " CAP_FMT,
+	     CAP_PRINTF (target), CAP_PRINTF (&source));
 
       cap_shootdown (activity, target);
     }
