@@ -33,6 +33,17 @@ _exit (int ret)
   asm ("int $3");
 # endif
 #else
+  extern int backtrace (void **array, int size);
+
+  void *a[10];
+  int count = backtrace (a, sizeof (a) / sizeof (a[0]));
+  int i;
+  s_printf ("_exit called from: ");
+  for (i = 0; i < count; i ++)
+    s_printf ("%p ", a[i]);
+  s_printf ("\n");
+
+
   extern struct hurd_startup_data *__hurd_startup_data;
 
   /* We try to kill the activity and, if that fails, the main
