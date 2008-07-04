@@ -1,3 +1,22 @@
+2008-07-04  Neal H. Walfield  <neal@gnu.org>
+
+	* as-lookup.c: Don't include <pthread.h>.
+	(as_rwlock): Don't define here.
+	* as.c: Include <pthread.h>.
+	(as_rwlock): Define.
+	(as_rwlock_owner): Likewise.
+	* as.h: Include <l4/types.h>.
+	(as_lock): Check and set as_rwlock_owner appropriately.
+	(as_lock_readonly): Likewise.
+	(as_unlock): Likewise.
+	* storage.c (do_serialize): New local variable.
+	(storage_check_reserve_internal): If AS_RWLOCK_OWNER is non-zero,
+	check if the caller has the AS_RWLOCK.  If so, return.  If
+	DO_SERIALIZE is set or FREE_COUNT is less than
+	FREE_PAGES_SERIALIZE, take the STORAGE_LOW_MUTEX.  If DO_SERIALIZE
+	was not set, set it and remember that we set it and clear it after
+	allocating a folio.
+
 2008-07-01  Neal H. Walfield  <neal@gnu.org>
 
 	* as-dump.c [RM_INTERN]: Include <md5.h>, "../viengoos/cap.h" and

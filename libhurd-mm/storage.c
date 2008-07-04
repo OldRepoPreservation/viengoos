@@ -5,19 +5,18 @@
    This file is part of the GNU Hurd.
 
    The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   The GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+   General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #include "storage.h"
 
@@ -343,6 +342,8 @@ storage_have_reserve (void)
   return likely (free_count > FREE_PAGES_LOW_WATER);
 }
 
+static bool do_serialize;
+
 static void
 storage_check_reserve_internal (bool force_allocate,
 				addr_t activity,
@@ -368,15 +369,32 @@ storage_check_reserve_internal (bool force_allocate,
        pages and if not to call some as-yet unwritten function
        which forces the reserve to grow.  */
     {
-      extern pthread_rwlock_t as_rwlock;
-      if (pthread_rwlock_trywrlock (&as_rwlock) == EBUSY)
-	return;
+      extern l4_thread_id_t as_rwlock_owner;
+      if (as_rwlock_owner)
+	{
+	  if (as_rwlock_owner == l4_myself ())
+	    /* This thread has the lock.  */
+	    return;
+	}
+      else
+	/* AS_RWLOCK_OWNER is 0.  Either the lock is not held or its
+	   held read-only.  See if we can get a write lock.  If so,
+	   its the former.  */
+	{
+	  extern pthread_rwlock_t as_rwlock;
+	  if (pthread_rwlock_trywrlock (&as_rwlock) == EBUSY)
+	    /* Conservatively assume that we have the lock.  */
+	    return;
 
-      pthread_rwlock_unlock (&as_rwlock);
+	  pthread_rwlock_unlock (&as_rwlock);
+	}
+
+      i_may_have_lock = false;
     }
 
   bool have_lock = false;
-  if (free_count < FREE_PAGES_SERIALIZE)
+  bool did_serialize = false;
+  if (do_serialize || free_count < FREE_PAGES_SERIALIZE)
     {
       if (pthread_mutex_trylock (&storage_low_mutex) == EBUSY)
 	/* Someone else is in.  */
@@ -388,34 +406,17 @@ storage_check_reserve_internal (bool force_allocate,
 	  goto top;
 	}
 
+      if (! do_serialize)
+	{
+	  do_serialize = true;
+	  did_serialize = true;
+	}
+
       have_lock = true;
     }
 
   if (free_count == 0)
-    {
-      extern pthread_rwlock_t as_rwlock;
-
-      int tries;
-      for (tries = 0; ; tries ++)
-	if (pthread_rwlock_trywrlock (&as_rwlock) == EBUSY)
-	  {
-	    int i;
-	    for (i = 0; i < 10000; i ++)
-	      l4_yield ();
-
-	    if (tries == 10)
-	      {
-		debug (0, DEBUG_BOLD ("Free count is zero and it seems "
-				      "that I have the as_rwlock!"));
-		break;
-	      }
-	  }
-	else
-	  {
-	    pthread_rwlock_unlock (&as_rwlock);
-	    break;
-	  }
-    }
+    debug (0, "free_count is zero.");
 
   debug (3, "Allocating additional folio, free count: %d",
 	 free_count);
@@ -495,7 +496,14 @@ storage_check_reserve_internal (bool force_allocate,
   check_slab_space_reserve ();
 
   if (have_lock)
-    pthread_mutex_unlock (&storage_low_mutex);
+    {
+      if (did_serialize)
+	{
+	  assert (do_serialize);
+	  do_serialize = false;
+	}
+      pthread_mutex_unlock (&storage_low_mutex);
+    }
 }
 
 void

@@ -26,6 +26,7 @@
 #include <hurd/cap.h>
 #include <hurd/exceptions.h>
 #include <stdbool.h>
+#include <l4/types.h>
 
 /* The address space allocator keeps track of which addresses are
    allocated and which are available.  The allocator supports the
@@ -101,6 +102,7 @@ static inline void
 as_lock (void)
 {
   extern pthread_rwlock_t as_rwlock;
+  extern l4_thread_id_t as_rwlock_owner;
 
   as_lock_ensure_stack (EXCEPTION_STACK_SIZE - PAGESIZE);
 
@@ -108,10 +110,14 @@ as_lock (void)
 
   for (;;)
     {
+      assert (as_rwlock_owner != l4_myself ());
       pthread_rwlock_wrlock (&as_rwlock);
+      assert (as_rwlock_owner == 0);
+      as_rwlock_owner = l4_myself ();
 
       if (! storage_have_reserve ())
 	{
+	  as_rwlock_owner = 0;
 	  pthread_rwlock_unlock (&as_rwlock);
 
 	  storage_check_reserve (false);
@@ -125,6 +131,7 @@ static inline void
 as_lock_readonly (void)
 {
   extern pthread_rwlock_t as_rwlock;
+  extern l4_thread_id_t as_rwlock_owner;
 
   as_lock_ensure_stack (EXCEPTION_STACK_SIZE - PAGESIZE);
 
@@ -132,7 +139,9 @@ as_lock_readonly (void)
 
   for (;;)
     {
+      assert (as_rwlock_owner != l4_myself ());
       pthread_rwlock_rdlock (&as_rwlock);
+      assert (as_rwlock_owner == 0);
 
       if (! storage_have_reserve ())
 	{
@@ -149,6 +158,14 @@ static inline void
 as_unlock (void)
 {
   extern pthread_rwlock_t as_rwlock;
+  extern l4_thread_id_t as_rwlock_owner;
+
+  if (as_rwlock_owner)
+    /* Only set for a write lock.  */
+    {
+      assert (as_rwlock_owner == l4_myself ());
+      as_rwlock_owner = 0;
+    }
 
   pthread_rwlock_unlock (&as_rwlock);
 }
@@ -189,22 +206,19 @@ extern struct cap shadow_root;
 			       &__acs_type, &__acs_p);			\
 									\
       bool die = false;							\
-      if (! (! __acs_err						\
-	     && ((__acs_type == (__acs_cap)->type			\
-		  && __acs_p.addr_trans.raw == (__acs_cap)->addr_trans.raw \
-		  && __acs_p.policy.priority == (__acs_cap)->priority	\
+      if (__acs_err)							\
+	die = true;							\
+      else if (__acs_type == cap_void)					\
+	/* The kernel's type is void.  Either the shadow has not yet	\
+	   been updated or the object is dead.  */			\
+	;								\
+      else if (__acs_type != (__acs_cap)->type)				\
+	die = true;							\
+      else if (! (__acs_p.policy.priority == (__acs_cap)->priority	\
 		  && (!!__acs_p.policy.discardable			\
-		      == !!(__acs_cap)->discardable))			\
-		 /* It's okay if the cap's type is void and the kernel's \
-		    type somethine else as long as the guard matches.   \
-		    This means that the object has been inserted but the \
-		    shadow not yet updated, which is not required to be	\
-		    atomic.  */						\
-		 || (((__acs_cap)->type == cap_void			\
-		      && (CAP_ADDR_TRANS_GUARD (__acs_p.addr_trans)	\
-			  == CAP_GUARD (__acs_cap))			\
-		      && (CAP_ADDR_TRANS_GUARD_BITS (__acs_p.addr_trans) \
-			  == CAP_GUARD_BITS (__acs_cap)))))))		\
+		      == !!(__acs_cap)->discardable)))			\
+	die = true;							\
+      else if (__acs_p.addr_trans.raw != (__acs_cap)->addr_trans.raw)	\
 	die = true;							\
 									\
       if (die)								\

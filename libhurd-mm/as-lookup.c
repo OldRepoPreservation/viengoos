@@ -30,11 +30,6 @@
 #include "../viengoos/profile.h"
 #endif
 
-#ifndef RM_INTERN
-# include <pthread.h>
-pthread_rwlock_t as_rwlock;
-#endif
-
 #ifdef RM_INTERN
 #include "../viengoos/object.h"
 #endif
