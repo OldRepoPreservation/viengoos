@@ -1,3 +1,9 @@
+2008-07-04  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.c: Include "zalloc.h" and "memory.h".
+	(activity_dump): Also print the total amount of memory, the
+	available memory, and the memory on the laundry list.
+
 2008-07-01  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): In the cap_rubout implementation,

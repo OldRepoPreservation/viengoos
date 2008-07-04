@@ -26,6 +26,8 @@
 #include "thread.h"
 #include "object.h"
 #include "profile.h"
+#include "zalloc.h"
+#include "memory.h"
 
 struct activity *root_activity;
 
@@ -73,6 +75,9 @@ activity_create (struct activity *parent,
 void
 activity_destroy (struct activity *activity, struct activity *victim)
 {
+  debug (0, "Destroying activity " OBJECT_NAME_FMT,
+	 OBJECT_NAME_PRINTF ((struct object *) victim));
+
   assert (object_type ((struct object *) activity) == cap_activity_control);
   assert (object_type ((struct object *) victim) == cap_activity_control);
 
@@ -115,7 +120,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
       folio_free (activity, (struct folio *) o);
     }
 
-  /* Activity's that are sub-activity's of ACTIVITY are not
+  /* Activities that are sub-activities of ACTIVITY are not
      necessarily allocated out of storage allocated to ACTIVITY.  */
   while ((o = cap_to_object (activity, &victim->children_cap)))
     {
@@ -408,7 +413,7 @@ do_activity_dump (struct activity *activity, int indent)
   int clean = eviction_list_count (&activity->eviction_clean);
   int dirty = eviction_list_count (&activity->eviction_dirty);
 
-  printf ("%s " OBJECT_NAME_FMT ": %d frames (active: %d, inactive: %d, "
+  printf ("%s" OBJECT_NAME_FMT ": %d frames (active: %d, inactive: %d, "
 	  "pending eviction: %d/%d); total: %d; "
 	  "%d free allocs, %d karma, %d excluded, s:%d/%d; c:%d/%d\n",
 	  indent_string,
@@ -431,6 +436,13 @@ do_activity_dump (struct activity *activity, int indent)
 void
 activity_dump (struct activity *activity)
 {
-  do_debug (0)
-    do_activity_dump (activity, 0);
+  do_debug (5)
+    {
+      printf ("Available memory: %d (%d%%); laundry: %d\n",
+	      zalloc_memory + available_list_count (&available),
+	      (100 * (zalloc_memory + available_list_count (&available))) /
+	      memory_total,
+	      eviction_list_count (&laundry));
+      do_activity_dump (activity, 0);
+    }
 }
