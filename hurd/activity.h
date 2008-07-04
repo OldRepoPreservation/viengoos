@@ -33,12 +33,12 @@ enum
 
 struct activity_memory_policy
 {
-  uint16_t weight;
   uint16_t priority;
+  uint16_t weight;
 };
 
-#define ACTIVITY_MEMORY_POLICY(__amp_weight, __amp_priority) \
-  (struct activity_memory_policy) { __amp_weight, __amp_priority }
+#define ACTIVITY_MEMORY_POLICY(__amp_priority, __amp_weight)		\
+  (struct activity_memory_policy) { __amp_priority, __amp_weight }
 #define ACTIVITY_MEMORY_POLICY_VOID ACTIVITY_MEMORY_POLICY(0, 0)
 
 struct activity_policy
