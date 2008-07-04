@@ -68,7 +68,7 @@ ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lockp)
       /* Try to sleep but only if LOCKP is _MUTEX_WAITERS.  */
       while (c != _MUTEX_UNLOCKED)
 	{
-	  if (futex_wait (lockp, _MUTEX_WAITERS) == -1)
+	  if (futex_wait (lockp, _MUTEX_WAITERS) == -1 && errno == EDEADLK)
 	    {
 	      debug (0, "Possible deadlock: %p!", lockp);
 	      extern int backtrace (void **array, int size);
