@@ -231,12 +231,12 @@ main (int argc, char *argv[])
 	  int j;
 	  printf ("Expected md5 hash: ");
 	  for (j = 0; j < 16; j ++)
-	    printf ("%x%x", modules[i].md5sum[j] & 0x15,
+	    printf ("%x%x", modules[i].md5sum[j] & 0xf,
 		    modules[i].md5sum[j] >> 4);
 
 	  printf ("\nGot: ");
 	  for (j = 0; j < 16; j ++)
-	    printf ("%x%x", result[j] & 0x15, result[j] >> 4);
+	    printf ("%x%x", result[j] & 0xf, result[j] >> 4);
 	  printf ("\n");
 
 	  panic ("Binary %s corrupted!", modules[i].name);
