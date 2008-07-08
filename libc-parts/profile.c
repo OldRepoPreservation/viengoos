@@ -18,16 +18,22 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
+#ifdef RM_INTERN
+# include "../viengoos/zalloc.h"
+#else
+# include <stdlib.h>
+#endif
+
 #include "profile.h"
-#include "zalloc.h"
-#include "output.h"
 #include <hurd/ihash.h>
 #include <stddef.h>
 #include <string.h>
 #include <l4.h>
+#include <hurd/rm.h>
 
 static struct hurd_ihash sites_hash;
-static bool init;
+static char sites_hash_buffer[PAGESIZE];
+static int init;
 
 /* XXX: This implementation assumes that we are single threaded!  In
    the case of Viengoos, this is essentially true: all relevant
@@ -47,13 +53,15 @@ static int used;
 
 static uint64_t epoch;
 static uint64_t calls;
-static uint64_t total_time;
+/* It's nothing but it prevents a divide by zero.  */
+static uint64_t total_time = 1;
 /* Number of extant profiling calls.  We only update total_time if
    EXTANT is 0.  The result is that the time spent profiling is
    correct, and the percent of the time profile that a function has
    been is more meaningful.  */
 static int extant;
 
+#undef profile_stats_dump
 void
 profile_stats_dump (void)
 {
@@ -62,31 +70,41 @@ profile_stats_dump (void)
   int i;
   for (i = 0; i < used; i ++)
     if (sites[i].calls)
-      printf ("%s:\t%d calls,\t%lld ms,\t%lld.%d us per call,\t"
-	      "%d%% total time,\t%d%% profiled time\n",
-	      sites[i].name,
-	      sites[i].calls,
-	      sites[i].time / 1000,
-	      sites[i].time / sites[i].calls,
-	      (int) ((10 * sites[i].time) / sites[i].calls) % 10,
-	      (int) ((100 * sites[i].time) / (now - epoch)),
-	      (int) ((100 * sites[i].time) / total_time));
+      s_printf ("%s:\t%d calls,\t%lld ms,\t%lld.%d us per call,\t"
+		"%d%% total time,\t%d%% profiled time\n",
+		sites[i].name,
+		sites[i].calls,
+		sites[i].time / 1000,
+		sites[i].time / sites[i].calls,
+		(int) ((10 * sites[i].time) / sites[i].calls) % 10,
+		(int) ((100 * sites[i].time) / (now - epoch)),
+		(int) ((100 * sites[i].time) / total_time));
 
-  printf ("profiled time: %lld ms, calls: %lld\n",
-	  total_time / 1000, calls);
-  printf ("uptime: %lld ms\n", (now - epoch) / 1000);
+  s_printf ("profiled time: %lld ms, calls: %lld\n",
+	    total_time / 1000, calls);
+  s_printf ("uptime: %lld ms\n", (now - epoch) / 1000);
 }
 
+#undef profile_start
 void
 profile_start (uintptr_t id, const char *name)
 {
   if (! init)
     {
-      size_t size = hurd_ihash_buffer_size (SIZE, false, 0);
+      init = 1;
+
+      size_t size;
+      void *buffer;
+#ifdef RM_INTERN
+      size = hurd_ihash_buffer_size (SIZE, false, 0);
       /* Round up to a multiple of the page size.  */
       size = (size + PAGESIZE - 1) & ~(PAGESIZE - 1);
 
-      void *buffer = (void *) zalloc (size);
+      buffer = (void *) zalloc (size);
+#else
+      size = sizeof (sites_hash_buffer);
+      buffer = sites_hash_buffer;
+#endif
       if (! buffer)
 	panic ("Failed to allocate memory for object hash!\n");
 
@@ -98,8 +116,10 @@ profile_start (uintptr_t id, const char *name)
 
       epoch = l4_system_clock ();
 
-      init = true;
+      init = 2;
     }
+  else if (init == 1)
+    return;
 
   struct site *site = hurd_ihash_find (&sites_hash, id);
   if (! site)
@@ -112,7 +132,10 @@ profile_start (uintptr_t id, const char *name)
       if (err)
 	panic ("Failed to add to hash: %d.", err);
 
-      site->name = name;
+      if (name)
+	site->name = name;
+      else
+	site->name = rm_method_id_string (id);
     }
 
   extant ++;
@@ -122,9 +145,13 @@ profile_start (uintptr_t id, const char *name)
     site->start = l4_system_clock ();
 }
 
+#undef profile_end
 void
 profile_end (uintptr_t id)
 {
+  if (init == 1)
+    return;
+
   struct site *site = hurd_ihash_find (&sites_hash, id);
   if (! site)
     panic ("profile_end called without corresponding profile_begin (%p)!",

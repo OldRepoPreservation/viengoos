@@ -24,7 +24,6 @@ include $(top_srcdir)/Makefoo.am
 patch_files = 01-gc-include-private-gcconfig-h.patch \
 	02-gc-mach_dep-c.patch \
 	03-gc-configure-ac.patch \
-	04-gc-alloc-c.patch \
 	05-viengoos-scheduler.patch
 
 # Files to link into newlib's source tree (relative to $(srcdir)/addon)

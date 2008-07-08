@@ -1,3 +1,10 @@
+2008-07-08  Neal H. Walfield  <neal@gnu.org>
+
+	* patches/04-gc-alloc-c.patch: Remove file.
+	* patches/05-viengoos-scheduler.patch: Merge changes into this
+	one.  Remove cruft.  Update profile code.  Tweak scheduler.
+	* Makefile.am (patch_files): Remove 04-gc-alloc-c.patch.
+
 2008-07-04  Neal H. Walfield  <neal@gnu.org>
 
 	* patches/05-viengoos-scheduler.patch: Fix profile.h chunk.

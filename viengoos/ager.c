@@ -23,6 +23,7 @@
 #include "mutex.h"
 
 #include <assert.h>
+#include <profile.h>
 
 #include "ager.h"
 #include "viengoos.h"
@@ -31,7 +32,6 @@
 #include "zalloc.h"
 #include "thread.h"
 #include "pager.h"
-#include "profile.h"
 
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
@@ -65,7 +65,7 @@ static void
 update_stats (void)
 {
   ss_mutex_lock (&kernel_lock);
-  profile_start ((uintptr_t) &update_stats, "update_stats");
+  profile_region ("update_stats");
 
   /* XXX: Update the statistics.  We need to average some of the
      fields including the number of active, inactive, clean and dirty
@@ -445,7 +445,7 @@ update_stats (void)
 
   stats (root_activity, memory_total - PAGER_LOW_WATER_MARK - 200);
 
-  profile_end ((uintptr_t) &update_stats);
+  profile_region_end ();
   ss_mutex_unlock (&kernel_lock);
 }
 

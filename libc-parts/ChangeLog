@@ -1,5 +1,18 @@
 2008-07-08  Neal H. Walfield  <neal@gnu.org>
 
+	* profile.h: Moved here from ../viengoos/profile.h.
+	(profile_region): New macro.
+	(profile_region_end): Likewise.
+	(profile_start) [NPROFILE]: Do nothing in this case.
+	(profile_end) [NPROFILE]: Likewise.
+	(profile_stats_dump) [NPROFILE]: Likewise.
+	* profile.c: Moved here from ../viengoos/profile.c.
+	(profile_start) [! RM_INTERN]: Use a static buffer.
+	* Makefile.am (common_sources): Add fields profile.c and
+	profile.h.
+
+2008-07-08  Neal H. Walfield  <neal@gnu.org>
+
 	* process-spawn.c (process_spawn): Don't add an extra trailing NUL
 	to the argment vector or the environment vector.
 

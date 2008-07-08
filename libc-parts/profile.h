@@ -20,6 +20,16 @@
 
 #include <stdint.h>
 
+/* XXX: Note that the implementation is currently not multi-thread
+   safe.  */
+
+/* Currently, only enable by default for Viengoos.  */
+#ifndef RM_INTERN
+#define NPROFILE
+#endif
+
+#ifndef NPROFILE
+
 /* Start a timer for the profile site ID (this must be unique per
    site, can be the function's address).  NAME is the symbolic
    name.  */
@@ -29,3 +39,20 @@ extern void profile_start (uintptr_t id, const char *name);
 extern void profile_end (uintptr_t id);
 
 extern void profile_stats_dump (void);
+
+#else
+
+#define profile_start(id, name) do { } while (0)
+#define profile_end(id) do { } while (0)
+#define profile_stats_dump() do { } while (0)
+
+#endif
+
+#define profile_region(__pr_id)				\
+  {							\
+    const char *__pr_id_ = (__pr_id);			\
+    profile_start((uintptr_t) __pr_id_, __pr_id_)
+
+#define profile_region_end()			\
+    profile_end ((uintptr_t) __pr_id_);		\
+  }

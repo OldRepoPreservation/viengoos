@@ -1,3 +1,11 @@
+2008-07-08  Neal H. Walfield  <neal@gnu.org>
+
+	* profile.h: Move to ../libc-parts.
+	* profile.c: Likewise.
+	* ager.c: Don't include "profile.h" but <profile.h>.
+	(update_stats): Replace use of profile_start and profile_end with
+	profile_region and profile_region_end.
+
 2008-07-04  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (viengoos.striped): Rename from this...

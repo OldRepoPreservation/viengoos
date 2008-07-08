@@ -6,10 +6,9 @@ Patch to support the Viengoos specific scheduler.  To disable it, set
 GC_viengoos_scheduler to 0.
 
 
-Only in gc: 05-viengoos-scheduler.patch.applied
-diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/allchblk.c gc/allchblk.c
---- gc-old/allchblk.c	2007-06-07 02:40:07.000000000 +0200
-+++ gc/allchblk.c	2008-06-27 17:01:49.000000000 +0200
+diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.sub -x configure gc.orig/allchblk.c gc/allchblk.c
+--- gc.orig/allchblk.c	2007-06-07 02:40:07.000000000 +0200
++++ gc/allchblk.c	2008-07-05 16:08:59.000000000 +0200
 @@ -117,7 +117,9 @@ void GC_print_hblkfreelist()
        while (h != 0) {
          hhdr = HDR(h);
@@ -55,8 +54,8 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
 +      if (0)
 +	printf ("%x: After unmapping %d used (%d available)\n",
 +		l4_myself (),
-+		(GC_get_heap_size() - GC_unmapped_bytes) / PAGESIZE,
-+		GC_available_bytes / PAGESIZE);
++		(GC_get_heap_size() - GC_unmapped_bytes) / 4096,
++		GC_available_bytes / 4096);
 +	return;
 +    }
 +
@@ -230,10 +229,9 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
      if (0 == hbp) return 0;
  	
      /* Add it to map of valid blocks */
-Only in gc: allchblk.c~
-diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/alloc.c gc/alloc.c
---- gc-old/alloc.c	2008-06-27 17:02:33.000000000 +0200
-+++ gc/alloc.c	2008-06-27 17:01:08.000000000 +0200
+diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.sub -x configure gc.orig/alloc.c gc/alloc.c
+--- gc.orig/alloc.c	2007-06-22 04:40:30.000000000 +0200
++++ gc/alloc.c	2008-07-08 16:52:55.000000000 +0200
 @@ -15,6 +15,13 @@
   *
   */
@@ -248,77 +246,16 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
  
  # include "private/gc_priv.h"
  
-@@ -24,68 +31,7 @@
+@@ -24,6 +31,8 @@
  #   include <sys/types.h>
  # endif
  
--uint64_t gc_time;
--
--static inline uint64_t
--now (void)
--{
--  struct timeval t;
--  struct timezone tz;
--
--  if (gettimeofday( &t, &tz ) == -1)
--    return 0;
--  return (t.tv_sec * 1000000 + t.tv_usec);
--
--}
--
--static int timing;
--
--static uint64_t
--start_timing (const char *func, int lineno)
--{
--  static const char *timing_func;
--  static int timing_lineno;
--
--  if (timing)
--    {
--      printf ("Timing for %s:%d but start_timing called from %s:%d\n",
--	      timing_func, timing_lineno, func, lineno);
--      assert (! timing);
--    }
--
--  timing_func = func;
--  timing_lineno = lineno;
--
--  timing = 1;
--
--  return now ();
--}
--
--static void
--end_timing (const char *func, int lineno, uint64_t start)
--{
--  uint64_t end = now ();
--
--  if (! timing)
--    {
--      printf ("Timing not started by end_timing called from %s:%d!\n",
--	      func, lineno);
--      assert (! timing);
--    }
--  timing = 0;
--
--  assert (start <= end);
--  gc_time += end - start;
--}
--
--#define start_timing()						\
--  do {								\
--    uint64_t start = start_timing (__FUNCTION__, __LINE__)
--
--#define end_timing()				\
--    end_timing (__FUNCTION__, __LINE__, start);	\
--  } while (0)
--
 +#include "profile.h"
- 
++
  /*
   * Separate free lists are maintained for different sized objects
-@@ -286,9 +232,134 @@ void GC_clear_a_few_frames()
+  * up to MAXOBJBYTES.
+@@ -223,9 +232,134 @@ void GC_clear_a_few_frames()
  /* limits used by blacklisting.						*/
  static word GC_collect_at_heapsize = (word)(-1);
  
@@ -392,11 +329,6 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
 +  if (GC_viengoos_scheduler)
 +    {
 +      int alloced = GC_adj_bytes_allocd();
-+      if (alloced < min_bytes_allocd())
-+	/* If we have not allocated anything since the last
-+	   collection, don't do a collection.  */
-+	return FALSE;
-+
 +#ifdef __gnu_hurd_viengoos__
 +      static int init;
 +      if (! init)
@@ -426,6 +358,11 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
 +      }
 +
 +      if (r) {
++	  if (alloced < GC_available_bytes / 100)
++	      /* If we have not allocated anything since the last
++		 collection, don't do a collection.  */
++	      return FALSE;
++
 +	  static int warning;
 +	  /* Only print this once per-gc.  GC_allochblk_nth calls this
 +	     function repeatedly without immediately following up with
@@ -453,127 +390,149 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
      return(GC_adj_bytes_allocd() >= min_bytes_allocd()
  	   || GC_heapsize >= GC_collect_at_heapsize);
  }
-@@ -319,7 +390,7 @@ void GC_maybe_gc(void)
+@@ -256,6 +390,8 @@ void GC_maybe_gc(void)
              n_partial_gcs = 0;
              return;
          } else {
--	  start_timing ();
-+	  profile_start (GC_TIMER);
- 
++	  profile_region (GC_TIMER);
++
  #   	  ifdef PARALLEL_MARK
  	    GC_wait_for_reclaim();
-@@ -342,10 +413,10 @@ void GC_maybe_gc(void)
+ #   	  endif
+@@ -266,6 +402,7 @@ void GC_maybe_gc(void)
+      		  (unsigned long)GC_gc_no+1,
+ 		  (long)GC_bytes_allocd);
+ 	    }
++
+ 	    GC_promote_black_lists();
+ 	    (void)GC_reclaim_all((GC_stop_func)0, TRUE);
+ 	    GC_clear_marks();
+@@ -275,7 +412,11 @@ void GC_maybe_gc(void)
+           } else {
              n_partial_gcs++;
            }
- 
--	  end_timing ();
-+	  profile_end (GC_TIMER);
++
++	  profile_region_end ();
  	}
- 
--	start_timing ();
-+	profile_start (GC_TIMER);
++
++	profile_region (GC_TIMER);
          /* We try to mark with the world stopped.	*/
          /* If we run out of time, this turns into	*/
          /* incremental marking.			*/
-@@ -365,7 +436,7 @@ void GC_maybe_gc(void)
+@@ -294,6 +435,8 @@ void GC_maybe_gc(void)
+ 	        GC_n_attempts++;
  	    }
  	}
- 
--	end_timing ();
-+	profile_end (GC_TIMER);
++
++	profile_region_end ();
      }
  }
  
-@@ -396,10 +467,18 @@ GC_bool GC_try_to_collect_inner(GC_stop_
- 	GC_log_printf(
+@@ -325,6 +468,10 @@ GC_bool GC_try_to_collect_inner(GC_stop_
  	   "Initiating full world-stop collection %lu after %ld allocd bytes\n",
  	   (unsigned long)GC_gc_no+1, (long)GC_bytes_allocd);
-+
-+	extern int backtrace (void **array, int size);
-+	void *a[10];
-+	int c = backtrace (a, 10);
-+	int i;
-+	for (i = 0; i < c; i ++)
-+	  GC_log_printf("%p ", a[i]);
-+	GC_log_printf("\n");
      }
- 
--    GC_bool ret = true;
--    start_timing ();
++
 +    GC_bool ret = TRUE;
-+    profile_start (GC_TIMER);
- 
++    profile_region (GC_TIMER);
++
      GC_promote_black_lists();
      /* Make sure all blocks have been reclaimed, so sweep routines	*/
-@@ -414,7 +493,7 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+     /* don't see cleared mark bits.					*/
+@@ -337,7 +484,8 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+  	if ((GC_find_leak || stop_func != GC_never_stop_func)
  	    && !GC_reclaim_all(stop_func, FALSE)) {
  	    /* Aborted.  So far everything is still consistent.	*/
- 	    ret = FALSE;
--	    break;
+-	    return(FALSE);
++	    ret = FALSE;
 +	    goto out;
  	}
      GC_invalidate_mark_state();  /* Flush mark stack.	*/
      GC_clear_marks();
-@@ -432,7 +511,7 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+@@ -354,7 +502,8 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+ 	GC_unpromote_black_lists();
        } /* else we claim the world is already still consistent.  We'll 	*/
          /* finish incrementally.					*/
-       ret = FALSE;
--      break;
+-      return(FALSE);
++      ret = FALSE;
 +      goto out;
      }
      GC_finish_collection();
      if (GC_print_stats) {
-@@ -441,7 +520,8 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+@@ -362,7 +511,10 @@ GC_bool GC_try_to_collect_inner(GC_stop_
+         GC_log_printf("Complete collection took %lu msecs\n",
                    MS_TIME_DIFF(current_time,start_time));
      }
- 
--    end_timing ();
+-    return(TRUE);
++
 + out:
-+    profile_end (GC_TIMER);
-     return ret;
++    profile_region_end ();
++    return ret;
  }
  
-@@ -470,7 +550,7 @@ void GC_collect_a_little_inner(int n)
+ 
+@@ -390,6 +542,8 @@ void GC_collect_a_little_inner(int n)
      
      if (GC_dont_gc) return;
      if (GC_incremental && GC_collection_in_progress()) {
--	start_timing ();
-+	profile_start (GC_TIMER);
- 
++	profile_region (GC_TIMER);
++
      	for (i = GC_deficit; i < GC_RATE*n; i++) {
      	    if (GC_mark_some((ptr_t)0)) {
-@@ -498,7 +578,7 @@ void GC_collect_a_little_inner(int n)
+     	        /* Need to finish a collection */
+@@ -415,6 +569,8 @@ void GC_collect_a_little_inner(int n)
+     	}
      	if (GC_deficit > 0) GC_deficit -= GC_RATE*n;
  	if (GC_deficit < 0) GC_deficit = 0;
- 
--	end_timing ();
-+	profile_end (GC_TIMER);
++
++	profile_region_end ();
      } else {
          GC_maybe_gc();
      }
-@@ -1110,6 +1190,8 @@ ptr_t GC_allocobj(size_t gran, int kind)
- void
- GC_dump_stats (void)
- {
+@@ -904,6 +1060,8 @@ GC_bool GC_expand_hp_inner(word n)
+     /* Force GC before we are likely to allocate past expansion_slop */
+       GC_collect_at_heapsize =
+          GC_heapsize + expansion_slop - 2*MAXHINCR*HBLKSIZE;
++      GC_collect_at_heapsize =
++         GC_heapsize + expansion_slop - 2*MAXHINCR*HBLKSIZE;
+ #     if defined(LARGE_CONFIG)
+         if (GC_collect_at_heapsize < GC_heapsize /* wrapped */)
+          GC_collect_at_heapsize = (word)(-1);
+@@ -1021,3 +1179,146 @@ ptr_t GC_allocobj(size_t gran, int kind)
+     
+     return(*flh);
+ }
++
++
++void
++GC_dump_stats (void)
++{
 +  extern uint64_t gc_map_time;
 +
-   printf ("GC: "
- #ifdef THREADS
- 	  "multi-threaded"
-@@ -1125,10 +1207,123 @@ GC_dump_stats (void)
- 	  GC_incremental ? "generational" : "stop the world",
- 	  GC_dirty_maintained ? "" : "not ");
-   printf("%d collections\n", (int) GC_gc_no);
--  printf ("%lld.%03lld seconds spent collecting\n",
--	  gc_time / 1000000, (gc_time % 1000000) / 1000);
-   printf("Heap size: %d (%d kb)\n",
- 	 GC_get_heap_size(), GC_get_heap_size() / 1024);
-   printf("Total bytes allocated: %d (%d kb)\n",
- 	 GC_get_total_bytes (), GC_get_total_bytes () / 1024);
++  printf ("GC: "
++#ifdef THREADS
++	  "multi-threaded"
++#else
++	  "single threaded"
++#endif
++	  ", %s, "
++#ifndef PARALLEL_MARK
++	  "non-"
++#endif
++	  "parallel mark, dirty bits %smaintained\n",
++	  TRUE_INCREMENTAL ? "true incremental" :
++	  GC_incremental ? "generational" : "stop the world",
++	  GC_dirty_maintained ? "" : "not ");
++  printf("%d collections\n", (int) GC_gc_no);
++  printf("Heap size: %d (%d kb)\n",
++	 GC_get_heap_size(), GC_get_heap_size() / 1024);
++  printf("Total bytes allocated: %d (%d kb)\n",
++	 GC_get_total_bytes (), GC_get_total_bytes () / 1024);
 +
 +  profile_stats_dump ();
 +}
 +
++#ifndef __gnu_hurd_viengoos__
 +/* profile.c - Profiling support implementation.
 +   Copyright (C) 2008 Free Software Foundation, Inc.
 +   Written by Neal H. Walfield <neal@gnu.org>.
@@ -661,10 +620,10 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
 +  site->pending ++;
 +  if (site->pending == 1)
 +    site->start = now ();
- }
++}
 +
 +void
-+profile_end (uintptr_t id, const char *name)
++profile_end (uintptr_t id)
 +{
 +  struct site *site = &sites[id];
 +  assert (site->pending);
@@ -685,14 +644,10 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
 +      calls ++;
 +    }
 +}
-+
-Only in gc: alloc.c~
-Only in gc: atomic_ops.c
-Only in gc: atomic_ops_sysdeps.S
-Only in gc: autom4te.cache
-diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/include/private/gcconfig.h gc/include/private/gcconfig.h
---- gc-old/include/private/gcconfig.h	2008-06-27 17:02:33.000000000 +0200
-+++ gc/include/private/gcconfig.h	2008-06-26 10:41:11.000000000 +0200
++#endif
+diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.sub -x configure gc.orig/include/private/gcconfig.h gc/include/private/gcconfig.h
+--- gc.orig/include/private/gcconfig.h	2008-07-08 16:47:51.000000000 +0200
++++ gc/include/private/gcconfig.h	2008-07-02 16:17:26.000000000 +0200
 @@ -1087,6 +1087,8 @@
  #   ifdef LINUX
  #	define OS_TYPE "LINUX"
@@ -715,44 +670,9 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
  #   endif
  #   ifdef DARWIN
  #     define OS_TYPE "DARWIN"
-Only in gc: libatomic_ops
-Only in gc/libatomic_ops-1.2: .cvsignore
-Only in gc/libatomic_ops-1.2/doc: .cvsignore
-Only in gc/libatomic_ops-1.2/src/atomic_ops: .cvsignore
-Only in gc/libatomic_ops-1.2/src/atomic_ops/sysdeps: .cvsignore
-Only in gc/libatomic_ops-1.2/src: .cvsignore
-Only in gc/libatomic_ops-1.2/tests: .cvsignore
-diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/malloc.c gc/malloc.c
---- gc-old/malloc.c	2007-06-06 22:48:35.000000000 +0200
-+++ gc/malloc.c	2008-06-26 10:41:13.000000000 +0200
-@@ -269,7 +269,9 @@ void * GC_generic_malloc(size_t lb, int 
- 	LOCK();
-         if( EXPECT((op = *opp) == 0, 0) ) {
-             UNLOCK();
--            return(GENERAL_MALLOC((word)lb, NORMAL));
-+            void *p = GENERAL_MALLOC((word)lb, NORMAL);
-+	    GC_ASSERT (p);
-+	    return(p);
-         }
-         /* See above comment on signals.	*/
- 	GC_ASSERT(0 == obj_link(op)
-@@ -281,9 +283,12 @@ void * GC_generic_malloc(size_t lb, int 
-         obj_link(op) = 0;
-         GC_bytes_allocd += GRANULES_TO_BYTES(lg);
-         UNLOCK();
-+	GC_ASSERT (op);
-         return op;
-    } else {
--       return(GENERAL_MALLOC(lb, NORMAL));
-+      void *p = GENERAL_MALLOC(lb, NORMAL);
-+      GC_ASSERT (p);
-+       return(p);
-    }
- }
- 
-diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/os_dep.c gc/os_dep.c
---- gc-old/os_dep.c	2007-06-29 21:17:44.000000000 +0200
-+++ gc/os_dep.c	2008-06-26 10:41:13.000000000 +0200
+diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.sub -x configure gc.orig/os_dep.c gc/os_dep.c
+--- gc.orig/os_dep.c	2007-06-29 21:17:44.000000000 +0200
++++ gc/os_dep.c	2008-07-08 16:39:31.000000000 +0200
 @@ -2064,6 +2064,18 @@ ptr_t GC_unmap_end(ptr_t start, size_t b
      return end_addr;
  }
@@ -776,7 +696,7 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
  /* round the endpoints in both places.				*/
  void GC_unmap(ptr_t start, size_t bytes)
  {
-+  profile_start (MAP_TIMER);
++  profile_region (MAP_TIMER);
 +
      ptr_t start_addr = GC_unmap_start(start, bytes);
      ptr_t end_addr = GC_unmap_end(start, bytes);
@@ -802,13 +722,13 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
  #   endif
 +
 + out:
-+      profile_end (MAP_TIMER);
++      profile_region_end ();
  }
  
  
  void GC_remap(ptr_t start, size_t bytes)
  {
-+  profile_start (MAP_TIMER);
++  profile_region (MAP_TIMER);
 +
      ptr_t start_addr = GC_unmap_start(start, bytes);
      ptr_t end_addr = GC_unmap_end(start, bytes);
@@ -845,7 +765,7 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
  #   endif
 +
 + out:
-+      profile_end (MAP_TIMER);
++      profile_region_end ();
  }
  
  /* Two adjacent blocks have already been unmapped and are about to	*/
@@ -853,7 +773,7 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
  /* unmapped due to alignment constraints.				*/
  void GC_unmap_gap(ptr_t start1, size_t bytes1, ptr_t start2, size_t bytes2)
  {
-+  profile_start (MAP_TIMER);
++  profile_region (MAP_TIMER);
 +
      ptr_t start1_addr = GC_unmap_start(start1, bytes1);
      ptr_t end1_addr = GC_unmap_end(start1, bytes1);
@@ -873,38 +793,14 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
  #   endif
 +
 + out:
-+      profile_end (MAP_TIMER);
++      profile_region_end ();
  }
  
  #endif /* USE_MUNMAP */
-Only in gc: os_dep.c~
-Only in gc: patch.stamp
-Only in gc: profile.h
-diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m4 gc-old/tests/test.c gc/tests/test.c
---- gc-old/tests/test.c	2007-06-19 00:18:01.000000000 +0200
-+++ gc/tests/test.c	2008-06-26 10:41:14.000000000 +0200
-@@ -1334,6 +1334,18 @@ void SetMinimumStack(long minSize)
- #       endif
- #      endif
- #   endif
-+extern int GC_viengoos_scheduler;
-+ GC_viengoos_scheduler = 1;
-+#ifdef USE_MMAP
-+    printf ("USE_MMAP ");
-+#endif
-+#ifdef USE_MUNMAP
-+    printf ("USE_UNMMAP ");
-+#endif
-+#ifdef STACK_GROWS_DOWN
-+    printf ("STACK_GROWS_DOWN ");
-+#endif
-+    printf ("\n");
-     run_one_test();
-     check_heap_stats();
- #   ifndef MSWINCE
---- gc-old/profile.h	2008-06-30 10:00:59.312047969 +0200
-+++ gc/profile.h	2008-07-02 16:16:09.000000000 +0200
-@@ -0,0 +1,35 @@
+diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.sub -x configure gc.orig/profile.h gc/profile.h
+--- gc.orig/profile.h	1970-01-01 01:00:00.000000000 +0100
++++ gc/profile.h	2008-07-08 16:29:27.000000000 +0200
+@@ -0,0 +1,53 @@
 +/* profile.h - Profiling support interface.
 +   Copyright (C) 2008 Free Software Foundation, Inc.
 +   Written by Neal H. Walfield <neal@gnu.org>.
@@ -927,8 +823,10 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
 +
 +#include <stdint.h>
 +
-+#define GC_TIMER 0, "gc"
-+#define MAP_TIMER 1, "map"
++#define GC_TIMER "gc"
++#define MAP_TIMER "map"
++
++#ifndef NPROFILE
 +
 +/* Start a timer for the profile site ID (this must be unique per
 +   site, can be the function's address).  NAME is the symbolic
@@ -936,7 +834,23 @@ diff -upr -x Makefile.in -x configure -x config.guess -x config.sub -x aclocal.m
 +extern void profile_start (uintptr_t id, const char *name);
 +
 +/* End the timer for the profile site ID.  */
-+extern void profile_end (uintptr_t id, const char *name);
++extern void profile_end (uintptr_t id);
 +
 +extern void profile_stats_dump (void);
 +
++#else
++
++#define profile_start(id, name) do { } while (0)
++#define profile_end(id) do { } while (0)
++#define profile_stats_dump() do { } while (0)
++
++#endif
++
++#define profile_region(__pr_id)				\
++  {							\
++    const char *__pr_id_ = (__pr_id);			\
++    profile_start((uintptr_t) __pr_id_, __pr_id_)
++
++#define profile_region_end()			\
++    profile_end ((uintptr_t) __pr_id_);		\
++  }
