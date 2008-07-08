@@ -37,7 +37,7 @@ hieronymus_SOURCES = hieronymus.c modules.h
 # delay (in seconds) at which to start the module.  Each component is
 # separated by a !
 modules = ruth!1!100
-ruth_commandline = "-D 3"
+ruth_commandline = -D 3
 #modules = activity-distribution!1!100
 #modules = shared-memory-distribution
 #modules = gcbench!1!200!0 gcbench2!1!400!120
@@ -80,7 +80,8 @@ modules.h: $(addsuffix .S, $(files)) Makefile
 		  $(wordlist 2, 2, $(subst !, ,$(module))) + 0,		\
 		  $(wordlist 3, 3, $(subst !, ,$(module))) + 0,		\
 		  $(wordlist 4, 4, $(subst !, ,$(module))) + 0,		\
-		  $($(call tovar,$(module))_commandline) "",		\
+		  { $(foreach arg,$($(call tovar,$(module))_commandline), \
+			"$(arg)", ) },					\
 	          &$(call tovar,$(module))_start,			\
 	          &$(call tovar,$(module))_end,				\
 		  { $(call md5sum,$(firstword $(subst !, ,$(module)))) }\

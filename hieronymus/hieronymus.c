@@ -43,7 +43,8 @@ struct module
   int weight;
   /* Delay in seconds.  */
   unsigned int delay;
-  const char *commandline;
+  /* Maximum of 8 arguments.  */
+  const char *args[8];
   char *start;
   char *end;
 
@@ -242,7 +243,18 @@ main (int argc, char *argv[])
 	  panic ("Binary %s corrupted!", modules[i].name);
 	}
 
-      const char *argv[] = { modules[i].name, modules[i].commandline, NULL };
+      const char *argv[1 + (sizeof (modules[i].args)
+			    / sizeof (modules[i].args[0]))
+		       + 1];
+      argv[0] = modules[i].name;
+      int j;
+      for (j = 0;
+	   j < (sizeof (modules[i].args) / sizeof (modules[i].args[0]))
+	     && modules[i].args[j];
+	   j ++)
+	argv[1 + j] = modules[i].args[j];
+      argv[1 + j] = NULL;
+
       const char *env[] = { NULL };
       thread[i] = process_spawn (activities[i],
 				 modules[i].start, modules[i].end,

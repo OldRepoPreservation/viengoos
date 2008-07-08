@@ -207,7 +207,7 @@ process_spawn (addr_t activity,
     /* Add the argument vector.  If it would overflow the space, we
        truncate it (which is useless but we'll error out soon).  */
 
-    int n = 1;
+    int n = 0;
     int i;
     for (i = 0; argv[i]; i ++)
       n += strlen (argv[i]) + 1;
@@ -228,11 +228,10 @@ process_spawn (addr_t activity,
 	memcpy (p, argv[i], len);
 	p += len;
       }
-    *p = '\0';
 
     offset += n;
 
-    n = 1;
+    n = 0;
     if (env)
       for (i = 0; env[i]; i ++)
 	n += strlen (env[i]) + 1;
@@ -252,7 +251,6 @@ process_spawn (addr_t activity,
 	  memcpy (p, env[i], len);
 	  p += len;
 	}
-    *p = '\0';
   }
 
   /* Point the descriptors after the argument string at the next

@@ -51,48 +51,31 @@ finish (void)
   int argc = 0;
   char **argv = 0;
 
-  char *str = __hurd_startup_data->argz;
-  if (str)
-    /* A command line was passed.  */
+  if (__hurd_startup_data->argz_len)
+    /* A command line was passed.  We assume that it is in argz
+       format.  */
     {
-      int nr = 0;
+      char *str = __hurd_startup_data->argz;
 
       /* First time around we count the number of arguments.  */
-      argc = 1;
-      while (*str && *str == ' ')
-	str++;
+      int offset;
 
-      while (*str)
-	if (*(str++) == ' ')
-	  {
-	    while (*str && *str == ' ')
-	      str++;
-	    if (*str)
-	      argc++;
-	  }
+      argc = 0;
+      for (offset = 0;
+	   offset < __hurd_startup_data->argz_len;
+	   offset += strlen (str + offset) + 1)
+	argc ++;
+      
+      /* Now we fill in the argv.  */
       argv = alloca (sizeof (char *) * (argc + 1));
 
-      /* Second time around we fill in the argv.  */
-      str = (char *) __hurd_startup_data->argz;
-
-      while (*str && *str == ' ')
-	str++;
-      argv[nr++] = str;
-
-      while (*str)
-	{
-	  if (*str == ' ')
-	    {
-	      *(str++) = '\0';
-	      while (*str && *str == ' ')
-		str++;
-	      if (*str)
-		argv[nr++] = str;
-	    }
-	  else
-	    str++;
-	}
-      argv[nr] = 0;
+      str = __hurd_startup_data->argz;
+      argc = 0;
+      for (offset = 0;
+	   offset < __hurd_startup_data->argz_len;
+	   offset += strlen (str + offset) + 1)
+	argv[argc ++] = str + offset;
+      argv[argc] = 0;
     }
   else
     {
