@@ -2,6 +2,7 @@
 
 	* profile.h: Move to ../libc-parts.
 	* profile.c: Likewise.
+	* Makefile.am (viengoos_SOURCES): Remove profile.h and profile.c.
 	* ager.c: Don't include "profile.h" but <profile.h>.
 	(update_stats): Replace use of profile_start and profile_end with
 	profile_region and profile_region_end.
