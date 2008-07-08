@@ -27,7 +27,7 @@
 #include "bits.h"
 
 #ifdef RM_INTERN
-#include "../viengoos/profile.h"
+#include <profile.h>
 #endif
 
 #ifdef RM_INTERN
