@@ -334,7 +334,7 @@ static bool storage_init_done;
 #define FREE_PAGES_SERIALIZE 16
 
 static pthread_mutex_t storage_low_mutex
-  = PTHREAD_MUTEX_RECURSIVE_INITIALIZER_NP;
+  = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 bool
 storage_have_reserve (void)
