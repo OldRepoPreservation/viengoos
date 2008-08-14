@@ -1,5 +1,5 @@
 /* l4/gnu/kip.h - Public GNU interface to the L4 kernel interface page.
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -495,6 +495,29 @@ l4_memory_desc_type (l4_memory_desc_t *mem)
   return _L4_memory_desc_type (mem);
 }
 
+static inline const char *
+l4_memory_desc_type_to_string (l4_word_t type)
+{
+  switch (type)
+    {
+    case L4_MEMDESC_UNDEFINED:
+      return "undefined";
+    case L4_MEMDESC_CONVENTIONAL:
+      return "conventional";
+    case L4_MEMDESC_RESERVED:
+      return "reserved";
+    case L4_MEMDESC_DEDICATED:
+      return "dedicated";
+    case L4_MEMDESC_SHARED:
+      return "shared";
+    case L4_MEMDESC_BOOTLOADER:
+      return "bootloader";
+    case L4_MEMDESC_ARCH:
+      return "arch";
+    default:
+      return "unknown";
+    }
+}
 
 static inline l4_word_t
 _L4_attribute_always_inline

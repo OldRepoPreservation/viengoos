@@ -1,3 +1,7 @@
+2008-08-14  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/gnu/kip.h (l4_memory_desc_type_to_string): New function.
+
 2008-06-18  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* ia32/l4/bits/syscall.h (_L4_kernel_interface): Cast return value.
