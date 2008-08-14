@@ -1,5 +1,5 @@
 /* loader.c - Load ELF files.
-   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -65,9 +65,6 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
   if (!loader_get_num_memory_desc ())
     return;
 
-  /* FIXME: This implementation does not account for conventional
-     memory overriding non-conventional memory in the descriptor
-     list.  */
   for (nr = 0; nr < loader_get_num_memory_desc (); nr++)
     {
       memdesc = loader_get_memory_desc (nr);
@@ -80,8 +77,8 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
 	      && end >= l4_memory_desc_low (memdesc)
 	      && end <= l4_memory_desc_high (memdesc))
 	    {
-	      debug (1, "Memory 0x%x-0x%x fits in conventional memory map %d "
-		     "(0x%x-0x%x)",
+	      debug (1, "Memory 0x%x-0x%x fits in conventional memory "
+		     "(map %d: 0x%x-0x%x)",
 		     start, end, nr,
 		     l4_memory_desc_low (memdesc),
 		     l4_memory_desc_high (memdesc));
@@ -99,11 +96,12 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
 	      || (start < l4_memory_desc_low (memdesc)
 		  && end > l4_memory_desc_high (memdesc)))
 	    {
-	      debug (1, "Memory 0x%x-0x%x conflicts with non-conventional "
-		     "memory map %d (0x%x-0x%x)",
-		     start, end, nr,
-		     l4_memory_desc_low (memdesc),
-		     l4_memory_desc_high (memdesc));
+	      if (fits)
+		debug (1, "Memory 0x%x-0x%x conflicts with non-conventional "
+		       "memory map %d: 0x%x-0x%x",
+		       start, end, nr,
+		       l4_memory_desc_low (memdesc),
+		       l4_memory_desc_high (memdesc));
 	      fits = 0;
 	      conflicts = 1 + nr;
 	    }
@@ -116,8 +114,9 @@ mem_check (const char *name, l4_word_t start, l4_word_t end)
 	{
 	  memdesc = loader_get_memory_desc (conflicts - 1);
 	  panic ("%s (0x%" L4_PRIxWORD " - 0x%" L4_PRIxWORD ") conflicts "
-		 "with memory of type %i/%i (0x%" L4_PRIxWORD " - 0x%"
+		 "with memory of type %s(%i)/%i (0x%" L4_PRIxWORD " - 0x%"
 		 L4_PRIxWORD ")", name, start, end + 1,
+		 l4_memory_desc_type_to_string (memdesc->type),
 		 memdesc->type, memdesc->subtype,
 		 l4_memory_desc_low (memdesc), l4_memory_desc_high (memdesc));
 	}
@@ -158,7 +157,7 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 		   relocate_region rr, void *cookie,
 		   int desc_type)
 {
-  debug (1, "Protected Region: %s (0x%x - 0x%x)", name, start, end);
+  debug (1, "Reserving region for %s: 0x%x - 0x%x", name, start, end);
 
   if (start >= end)
     panic ("Region %s has a start address following the end address", name);
@@ -176,7 +175,7 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 	  break;
 
       if (region == MAX_REGIONS)
-	panic ("Out of memory region descriptors, region %s doesn't fit",
+	panic ("Out of memory region descriptors, can't add region %s",
 	       name);
     }
   else
@@ -198,7 +197,7 @@ loader_add_region (const char *name, l4_word_t start, l4_word_t end,
 	&& ((start >= used_regions[i].start && start < used_regions[i].end)
 	    || (end >= used_regions[i].start && end <= used_regions[i].end)
 	    || (start < used_regions[i].start && end > used_regions[i].start)))
-      /* Region REGION conflict with region I.  Try to relocate region
+      /* Region conflicts with region I.  Try to relocate region
 	 I.  */
       {
 	l4_word_t mstart = used_regions[i].start;
@@ -319,22 +318,129 @@ loader_remove_region (const char *name)
 void
 loader_regions_reserve (void)
 {
-#ifdef _L4_V2
+  debug (1, "Reserving memory");
+
   int i;
   for (i = 0; i < nr_regions; i++)
-    if (used_regions[i].used && used_regions[i].desc_type != -1)
+    {
+      /* Round down.  */
+      used_regions[i].start &= ~0x3ff;
+      /* Round up.  */
+      used_regions[i].end = ((used_regions[i].end + 0x3ff - 1) & ~0x3ff) - 1;
+
+      debug (1, "%s: %x-%x", used_regions[i].name,
+	     used_regions[i].start, used_regions[i].end);
+
+      if (used_regions[i].used && used_regions[i].desc_type != -1)
+	{
+	  debug (1, "Reserving memory 0x%x-0x%x (%s)",
+		 used_regions[i].start, used_regions[i].end,
+		 used_regions[i].name);
+
+	  add_memory_map (used_regions[i].start, used_regions[i].end,
+			  used_regions[i].desc_type, 0);
+	}
+    }
+
+
+  /* Reserve memory for the kernel.  */
+#define KMEM_MIN_CHUNK 0x400000
+#define KMEM_MAX (240 * 0x100000 - 1)
+
+  /* Reserve 20% of the conventional memory for the kernel.  */
+  uint32_t kmem_needed = ((total_memory / 5) + KMEM_MIN_CHUNK)
+    & ~(KMEM_MIN_CHUNK - 1);
+
+  debug (1, "Reserving %d KB for the kernel", kmem_needed / 1024);
+
+  uint32_t start = 0;
+  uint32_t reserved = 0;
+  while (reserved < kmem_needed && start < KMEM_MAX)
+    {
+      int fits = 0;
+      uint32_t end = KMEM_MAX;
+
+#define RUP(x) (((x) + KMEM_MIN_CHUNK - 1) & ~(KMEM_MIN_CHUNK - 1))
+#define RDOWN(x) ((x) & ~(KMEM_MIN_CHUNK - 1))
+
+      bool check (uint32_t rstart, uint32_t rend, int reserved)
       {
-	/* Round down.  */
-	l4_word_t start = used_regions[i].start & ~0x3ff;
-	/* Round up.  */
-	l4_word_t end = ((used_regions[i].end + 0x3ff - 1) & ~0x3ff) - 1;
+	if (! reserved)
+	  {
+	    if (start >= rstart && start <= rend)
+	      {
+		if (end > rend)
+		  /* Round down to a multiple of KMEM_MIN_CHUNK.  */
+		  end = RDOWN (rend + 1) - 1;
 
-	debug (1, "Reserving memory 0x%x-0x%x (%s)",
-	       start, end, used_regions[i].name);
+		if (end - start + 1 >= KMEM_MIN_CHUNK)
+		  fits = 1;
+		else
+		  return false;
+	      }
+	  }
+	else if (fits)
+	  {
+	    if (start >= rstart && start <= rend)
+	      /* Start falls within the region.  Move past it.  */
+	      start = RUP (rend + 1);
 
-	add_memory_map (start, end, used_regions[i].desc_type, 0);
+	    if (start < rstart && end > rstart)
+	      /* Start comes before the region.  Bound END by
+		 it.  */
+	      end = RDOWN (rstart - 1);
+
+	    if (! (end > start && end - start + 1 > KMEM_MIN_CHUNK))
+	      {
+		fits = 0;
+		return false;
+	      }
+	  }
+
+	return true;
       }
-#endif
+
+      int nr;
+      for (nr = 0; nr < loader_get_num_memory_desc (); nr++)
+	{
+	  l4_memory_desc_t *memdesc = loader_get_memory_desc (nr);
+
+	  if (! check (l4_memory_desc_low (memdesc),
+		       l4_memory_desc_high (memdesc),
+		       memdesc->type != L4_MEMDESC_CONVENTIONAL))
+	    break;
+	}
+
+      if (nr == loader_get_num_memory_desc ())
+	{
+	  int i;
+	  for (i = 0; i < nr_regions; i++)
+	    if (! check (used_regions[i].start,
+			 used_regions[i].end, 1))
+	      break;
+	}
+
+      if (fits)
+	/* Reserve the memory.  */
+	{
+	  if (end - start + 1 > kmem_needed - reserved)
+	    /* Reserve at most KMEM_NEEDED - RESERVED bytes.  */
+	    end = start + (kmem_needed - reserved) - 1;
+
+	  debug (1, "Reserving memory 0x%x-0x%x (%d KB) for kernel",
+		 start, end + 1, (end - start + 1) / 1024);
+
+	  add_memory_map (start, end, L4_MEMDESC_RESERVED, 0);
+
+	  reserved += end - start + 1;
+	}
+
+      start += KMEM_MIN_CHUNK;
+    }
+
+  if (reserved < kmem_needed)
+    debug (1, "Reserved %d kb for the kernel but wanted to reserve %d kb",
+	   reserved / 1024, kmem_needed / 1024);
 }
 
 /* Get the memory range to which the ELF image from START to END

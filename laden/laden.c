@@ -1,5 +1,5 @@
 /* laden.c - Main function for laden.
-   Copyright (C) 2003, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -36,6 +36,8 @@ l4_rootserver_t rootserver;
 /* The boot info to be inserted into the L4 KIP.  */
 l4_word_t boot_info;
 
+/* Total memory (in bytes).  */
+uint64_t total_memory;
 
 static void
 rootserver_relocate (const char *name,
@@ -55,7 +57,7 @@ static void
 load_components (void)
 {
   /* Make sure that the required components are available and mark the
-     memory their packed images occupy as used.  */
+     memory their packed images as used.  */
   if (!kernel.low)
     panic ("No L4 kernel found");
   loader_add_region ("kernel-mod", kernel.low, kernel.high,
@@ -84,11 +86,6 @@ load_components (void)
   loader_elf_load ("sigma0", sigma0.low, sigma0.high,
 		   &sigma0.low, &sigma0.high, &sigma0.ip, -1);
   loader_remove_region ("sigma0-mod");
-#ifdef _L4_V2
-  /* Use the page following the extracted image as the stack.  */
-  /* XXX: Should reserve this?  */
-  sigma0.sp = ((sigma0.high + 0xfff) & ~0xfff) + 0x1000;
-#endif
 
   if (sigma1.low)
     {
@@ -100,11 +97,6 @@ load_components (void)
   loader_elf_load ("rootserver", rootserver.low, rootserver.high,
 		   &rootserver.low, &rootserver.high, &rootserver.ip, -1);
   loader_remove_region ("rootserver-mod");
-#ifdef _L4_V2
-  /* Use the page following the extracted image as the stack.  */
-  /* XXX: Should reserve this?  */
-  rootserver.sp = ((rootserver.high + 0xfff) & ~0xfff) + 0x1000;
-#endif
 }
 
 

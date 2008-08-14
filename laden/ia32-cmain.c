@@ -309,8 +309,7 @@ find_components (void)
 	      loader_add_region ("modules", start, end,
 				 modules_relocate,
 				 (void *) (l4_word_t) ((start_module << 16)
-						       | count),
-				 L4_MEMDESC_BOOTLOADER);
+						       | count), -1);
 	      start = mod[i].mod_start;
 	      start_module = i;
 	      count = 1;
@@ -322,8 +321,7 @@ find_components (void)
 	loader_add_region ("modules", start, end,
 			   modules_relocate,
 			   (void *) (l4_word_t) ((start_module << 16)
-						 | count),
-			   L4_MEMDESC_BOOTLOADER);
+						 | count), -1);
     }
 
   /* Now create the memory map.  */
@@ -331,8 +329,6 @@ find_components (void)
   /* XXX: First (for now), add the whole address space as shared
      memory by default to allow arbitrary device access.  */
   add_memory_map (0, -1, L4_MEMDESC_SHARED, 0);
-
-  uint64_t total_memory = 0;
 
   /* Now add what GRUB tells us.  */
   if (CHECK_FLAG (mbi->flags, 6))
@@ -377,81 +373,16 @@ find_components (void)
 		      L4_MEMDESC_CONVENTIONAL, 0);
       add_memory_map (0x100000, (0x100000 + (mbi->mem_upper << 10)) - 1,
 		      L4_MEMDESC_CONVENTIONAL, 0);
+
+      total_memory = (mbi->mem_lower << 10) + (mbi->mem_upper << 10);
     }
+
+  debug (1, "total memory reported by GRUB: %lld KB",
+	 total_memory / 1024);
 
   /* The VGA memory, and ROM extension, is usually not included in the
      BIOS map.  We add it here.  */
   add_memory_map (0xa0000, 0xf0000 - 1, L4_MEMDESC_SHARED, 0);
-
-#ifdef _L4_X2
-#define KMEM_MIN_CHUNK 0x400000
-
-  /* Reserve 20% of the conventional memory for the kernel.  */
-  uint64_t kmem_needed = ((total_memory / 5) + KMEM_MIN_CHUNK)
-    & ~(KMEM_MIN_CHUNK - 1);
-
-  /* The upper limit for the end of the kernel memory.  */
-#define KMEM_MAX	(240 * 0x100000 - 1)
-
-  if (CHECK_FLAG (mbi->flags, 6))
-    {
-      memory_map_t *mmap;
-
-      for (mmap = (memory_map_t *) mbi->mmap_addr;
-	   (uint32_t) mmap < mbi->mmap_addr + mbi->mmap_length;
-	   mmap = (memory_map_t *) ((uint32_t) mmap
-				    + mmap->size + sizeof (mmap->size)))
-	{
-	  if (mmap->type != 1)
-	    continue;
-
-	  if (((uint32_t) mmap->length) >= KMEM_MIN_CHUNK
-	      && ((uint32_t) mmap->base_addr) <= KMEM_MAX - KMEM_MIN_CHUNK)
-	    {
-	      uint32_t low = (uint32_t) mmap->base_addr;
-	      uint32_t high = low + (uint32_t) mmap->length - 1;
-
-	      if (high > KMEM_MAX)
-		high = KMEM_MAX;
-
-	      /* Round up.  */
-	      low = (low + KMEM_MIN_CHUNK - 1) & ~(KMEM_MIN_CHUNK - 1);
-	      /* Round down (high is last valid byte!).  */
-	      high = ((high + 1) & ~(KMEM_MIN_CHUNK - 1)) - 1;
-
-	      if (high - low + 1 > kmem_needed)
-		low = high + 1 - kmem_needed;
-	      if (high - low + 1 < KMEM_MIN_CHUNK)
-		continue;
-
-	      add_memory_map (low, high, L4_MEMDESC_RESERVED, 0);
-
-	      kmem_needed -= high - low + 1;
-	    }
-	}
-
-      if (kmem_needed)
-	panic ("Failed to reserve %d kb memory for the kernel!",
-	       kmem_needed);
-    }
-  else if (CHECK_FLAG (mbi->flags, 0))
-    {
-      if ((mbi->mem_upper << 10) >= kmem_needed)
-	{
-	  uint32_t high = (mbi->mem_upper << 10) + 0x100000;
-	  uint32_t low;
-
-	  if (high > KMEM_MAX)
-	    high = KMEM_MAX;
-
-	  low = high - kmem_needed;
-	  /* Round up to the next super page (4 MB).  */
-	  low = (low + KMEM_MIN_CHUNK - 1) & ~(KMEM_MIN_CHUNK - 1);
-
-	  add_memory_map (low, high, L4_MEMDESC_RESERVED, 0);
-	}
-    }
-#endif
 
   /* Now protect ourselves and the mulitboot info.  */
   loader_add_region (program_name, (l4_word_t) &_start, (l4_word_t) &_end,
@@ -459,8 +390,7 @@ find_components (void)
 
   start = (l4_word_t) mbi;
   end = start + sizeof (*mbi);
-  loader_add_region ("grub-mbi", start, end, mbi_relocate, NULL,
-		     L4_MEMDESC_BOOTLOADER);
+  loader_add_region ("grub-mbi", start, end, mbi_relocate, NULL, -1);
   
   if (CHECK_FLAG (mbi->flags, 3) && mbi->mods_count)
     {
@@ -469,8 +399,7 @@ find_components (void)
       start = (l4_word_t) mod;
       end = ((l4_word_t) mod) + mbi->mods_count * sizeof (*mod);
       loader_add_region ("grub-mods-metadata", start, end,
-			 mods_relocate, NULL,
-			 L4_MEMDESC_BOOTLOADER);
+			 mods_relocate, NULL, -1);
 
       l4_word_t nr;
       for (nr = 0; nr < mbi->mods_count; nr++)
@@ -478,8 +407,7 @@ find_components (void)
 	  loader_add_region ("grub-mods-cmdlines",
 			     mod[nr].string,
 			     mod[nr].string + strlen ((char *) mod[nr].string),
-			     cmdline_relocate, (void *) nr,
-			     L4_MEMDESC_BOOTLOADER);
+			     cmdline_relocate, (void *) nr, -1);
     }
 
   /* Protect the first page.  */

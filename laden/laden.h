@@ -1,5 +1,5 @@
 /* laden.h - Generic definitions.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -23,6 +23,7 @@
 #endif
 
 #include <string.h>
+#include <stdint.h>
 #include <assert.h>
 
 #include <l4.h>
@@ -57,6 +58,11 @@ extern l4_rootserver_t rootserver;
 /* The boot info to be inserted into the L4 KIP.  find_components()
    must provide this information.  */
 extern l4_word_t boot_info;
+
+/* Total memory in bytes.  To be filled in by the architecture
+   specific code (find_components).  */
+extern uint64_t total_memory;
+
 
 /* The memory map to be provided to the kernel.  */
 #define MEMORY_MAP_MAX 200

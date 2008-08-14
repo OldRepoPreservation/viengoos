@@ -1,5 +1,5 @@
 /* kip-fixup.c - Fixup the L4 KIP.
-   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann.
 
    This file is part of the GNU Hurd.
@@ -49,20 +49,10 @@ kip_fixup (void)
   l4_api_version_t api_version = l4_api_version_from (kip);
   switch (api_version.version)
     {
-#ifdef _L4_V2
-    case L4_API_VERSION_2:
-    case L4_API_VERSION_2PP:
-      /* Booting a v2 kernel.  */
-      debug (1, "Booting a v2 kernel.");
-      break;
-#endif
-
-#ifdef _L4_X2
     case L4_API_VERSION_X2:
       /* Booting an x2 kernel.  */
       debug (1, "Booting an x2 kernel.");
       break;
-#endif
 
     default:
       panic ("Don't know how to boot kernel with API version %x.%x\n",
@@ -94,13 +84,11 @@ kip_fixup (void)
 	  (char *) memory_map,
 	  sizeof (l4_memory_desc_t) * memory_map_size);
 
-#ifdef _L4_X2
   kip->memory_info.nr = memory_map_size;
-#endif
-
   for (nr = 0; nr < memory_map_size; nr++)
-    debug (1, "Memory Map %i: Type %i/%i, Low 0x%llx, High 0x%llx",
-	   nr + 1, memory_map[nr].type, memory_map[nr].subtype,
+    debug (1, "Memory Map %i: Type %s(%i)/%i, Low 0x%llx, High 0x%llx",
+	   nr + 1, l4_memory_desc_type_to_string (memory_map[nr].type),
+	   memory_map[nr].type, memory_map[nr].subtype,
 	   (unsigned long long) (memory_map[nr].low << 10),
 	   (unsigned long long) (memory_map[nr].high << 10));
 

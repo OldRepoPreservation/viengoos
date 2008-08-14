@@ -1,3 +1,19 @@
+2008-08-14  Neal H. Walfield  <neal@gnu.org>
+
+	* laden.h: Include <stdint.h>.
+	(total_memory): New declaration.
+	* laden.c (total_memory): New definition.
+	(load_components): Remove V2 specific code.
+	* kip-fixup.c (kip_fixup): Remove V2 specific code.
+	* ia32-cmain.c (find_components): Add module regions as type -1,
+	not L4_MEMDESC_BOOTLOADER.  Don't make total_memory a local
+	variable.  Also calculate the total memory in the case where only
+	MBI->MEM_LOWER and MBI->MEM_UPPER are available.  Move kernel
+	memory reservation from here...
+	* loader.c (loader_regions_reserve): ... to here.  Implement more
+	robustly.  Always add descriptors for
+	all memory regions with a type other than -1.
+
 2008-06-29  Neal H. Walfield  <neal@gnu.org>
 
 	* ia32-cmain.c (debug_dump): Don't include redundant \n's in
