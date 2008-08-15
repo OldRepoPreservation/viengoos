@@ -1,3 +1,9 @@
+2008-08-15  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): In the implementation of cap_read, if
+	the capability's type is not void, make sure that the capability
+	is valid.  Otherwise, set the type to cap_void.
+
 2008-07-08  Neal H. Walfield  <neal@gnu.org>
 
 	* profile.h: Move to ../libc-parts.

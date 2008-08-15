@@ -1034,23 +1034,28 @@ server_loop (void)
 	case RM_cap_read:
 	  {
 	    addr_t root_addr;
-	    addr_t source_addr;
+	    addr_t cap_addr;
 
 	    err = rm_cap_read_send_unmarshal (&msg, &principal_addr,
 					      &root_addr,
-					      &source_addr);
+					      &cap_addr);
 	    if (err)
 	      REPLY (err);
 
 	    DEBUG (4, ADDR_FMT "@" ADDR_FMT,
-		   ADDR_PRINTF (root_addr), ADDR_PRINTF (source_addr));
+		   ADDR_PRINTF (root_addr), ADDR_PRINTF (cap_addr));
 
 	    struct cap *root = ROOT (root_addr);
 
-	    struct cap source = CAP (root, source_addr, -1, false);
+	    struct cap cap = CAP (root, cap_addr, -1, false);
+	    /* Even if CAP.TYPE is not void, the cap may not designate
+	       an object.  Looking up the object will set CAP.TYPE to
+	       cap_void if this is the case.  */
+	    if (cap.type != cap_void)
+	      cap_to_object (principal, &cap);
 
-	    rm_cap_read_reply_marshal (&msg, source.type,
-				       CAP_PROPERTIES_GET (source));
+	    rm_cap_read_reply_marshal (&msg, cap.type,
+				       CAP_PROPERTIES_GET (cap));
 	    break;
 	  }
 
