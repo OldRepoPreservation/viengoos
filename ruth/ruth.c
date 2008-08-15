@@ -163,24 +163,21 @@ main (int argc, char *argv[])
     int i;
     for (i = 0; i < (1 << bits); i ++)
       {
-	addr_t f = addr_extend (root, i, bits);
-
-	error_t err = rm_folio_alloc (activity, f, FOLIO_POLICY_DEFAULT);
-	assert (! err);
-
 	struct storage shadow_storage
 	  = storage_alloc (activity, cap_page, STORAGE_EPHEMERAL,
 			   OBJECT_POLICY_DEFAULT, ADDR_VOID);
 	struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
 							  0, PAGESIZE_LOG2));
 
+	addr_t f = addr_extend (root, i, bits);
 	as_ensure_use (f,
 		       ({
 			 slot->type = cap_folio;
 			 cap_set_shadow (slot, shadow);
 		       }));
 
-	memset (shadow, 0, PAGESIZE);
+	error_t err = rm_folio_alloc (activity, f, FOLIO_POLICY_DEFAULT);
+	assert (! err);
 
 	int j;
 	for (j = 0; j <= i; j ++)
@@ -976,6 +973,10 @@ main (int argc, char *argv[])
 
     debug (0, "%d frames available", frames);
     uint32_t goal = frames * 2;
+    /* Limit to at most 1GB of memory.  */
+    if (goal > ((uint32_t) -1) / PAGESIZE / 4)
+      goal = ((uint32_t) -1) / PAGESIZE / 4;
+    debug (0, "Allocating %d frames", goal);
 
     void *addr;
     struct anonymous_pager *pager

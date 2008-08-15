@@ -1,3 +1,9 @@
+2008-08-15  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c (main): Allocate objects after setting up their
+	respective shadow capabilities.  When allocating all available
+	memory, limit the amount to at most 1 GB.
+
 2008-06-27  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): Update to use activity_info instead of
