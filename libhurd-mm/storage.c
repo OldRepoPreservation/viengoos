@@ -727,6 +727,9 @@ storage_free_ (addr_t object, bool unmap_now)
 	  ss_mutex_unlock (&storage_descs_lock);
 
 
+	  error_t err = rm_folio_free (meta_data_activity, folio);
+	  assert (err == 0);
+
 	  as_slot_lookup_use (folio,
 			      ({
 				cap_set_shadow (slot, NULL);
@@ -734,9 +737,6 @@ storage_free_ (addr_t object, bool unmap_now)
 			      }));
 
 	  storage_desc_free (storage);
-
-	  error_t err = rm_folio_free (meta_data_activity, folio);
-	  assert (err == 0);
 
 	  if (shadow)
 	    {
