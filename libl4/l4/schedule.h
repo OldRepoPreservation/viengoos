@@ -233,7 +233,7 @@ _L4_time_period (_L4_uint64_t usec)
   /* The values 0 and infinity have special encodings.  Handle them
      separately.  */
   if (usec == 0)
-    return _L4_zero;
+    return _L4_zero_time;
 
   /* FIXME: If usec is a built-in constant, optimize.  Optimize the
      loop for the run-time case.  Probably just use optimized version
