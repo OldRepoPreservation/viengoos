@@ -1,3 +1,10 @@
+2008-08-16  Neal H. Walfield  <neal@gnu.org>
+
+	* l4/ipc.h (_L4_reply_wait_timeout): Use _L4_zero_time, not
+	_L4_time_period (0).
+	* l4/schedule.h (_L4_time_period): Correctly handle the case where
+	USEC is zero.
+
 2008-08-14  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/gnu/kip.h (l4_memory_desc_type_to_string): New function.

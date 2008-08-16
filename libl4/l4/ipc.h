@@ -1,5 +1,5 @@
 /* l4/ipc.h - Public interface to the L4 IPC primitive.
-   Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2007, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -1310,7 +1310,7 @@ _L4_reply_wait_timeout (_L4_thread_id_t dest, _L4_time_t receive_timeout,
 			_L4_thread_id_t *from)
 {
   return _L4_ipc (dest, _L4_anythread,
-		  _L4_timeouts (_L4_time_period (0), receive_timeout), from);
+		  _L4_timeouts (_L4_zero_time, receive_timeout), from);
 }
 
 

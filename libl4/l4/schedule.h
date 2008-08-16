@@ -1,5 +1,5 @@
 /* l4/schedule.h - Public interface to the L4 scheduler.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2008 Free Software Foundation, Inc.
    Written by Marcus Brinkmann <marcus@gnu.org>.
 
    This file is part of the GNU L4 library.
@@ -230,6 +230,11 @@ static inline _L4_time_t
 _L4_attribute_always_inline
 _L4_time_period (_L4_uint64_t usec)
 {
+  /* The values 0 and infinity have special encodings.  Handle them
+     separately.  */
+  if (usec == 0)
+    return _L4_zero;
+
   /* FIXME: If usec is a built-in constant, optimize.  Optimize the
      loop for the run-time case.  Probably just use optimized version
      from Karlsruhe.  */
