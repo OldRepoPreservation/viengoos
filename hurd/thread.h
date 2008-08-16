@@ -212,6 +212,21 @@ thread_start (addr_t thread)
 }
 
 static inline error_t
+thread_start_sp_ip (addr_t thread, uintptr_t sp, uintptr_t ip)
+{
+  struct hurd_thread_exregs_in in;
+  struct hurd_thread_exregs_out out;
+
+  in.sp = sp;
+  in.ip = ip;
+
+  return rm_thread_exregs (ADDR_VOID, thread,
+			   HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC
+			   | HURD_EXREGS_SET_SP_IP,
+			   in, &out);
+}
+
+static inline error_t
 thread_stop (addr_t thread)
 {
   struct hurd_thread_exregs_in in;
