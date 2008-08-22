@@ -1,6 +1,10 @@
 2008-08-22  Neal H. Walfield  <neal@gnu.org>
 
-	* wortel: Remove.
+	* libhurd-cap: Remove.
+	* libhurd-cap-server: Likewise.
+	* physmem: Likewise.
+	* task: Likewise.
+	* wortel: Likewise.
 
 2008-06-27  Neal H. Walfield  <neal@gnu.org>
 
