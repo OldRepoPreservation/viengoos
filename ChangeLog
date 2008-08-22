@@ -1,3 +1,7 @@
+2008-08-22  Neal H. Walfield  <neal@gnu.org>
+
+	* wortel: Remove.
+
 2008-06-27  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac (--enable-runtime-checks): If zero, don't just
