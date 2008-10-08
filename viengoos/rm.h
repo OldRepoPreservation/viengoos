@@ -31,6 +31,7 @@
 enum rm_method_id
   {
     RM_write = 100,
+    RM_read,
     RM_as_dump,
   };
 
@@ -41,6 +42,8 @@ rm_method_id_string (int id)
     {
     case RM_write:
       return "write";
+    case RM_read:
+      return "read";
     case RM_as_dump:
       return "as_dump";
     case RM_folio_alloc:
@@ -106,6 +109,9 @@ struct io_buffer
 
 /* Echo the character CHR on the manager console.  */
 RPC_SIMPLE(write, 1, 0, struct io_buffer, io)
+
+/* Read up to MAX characters from the console's input device.  */
+RPC(read, 1, 1, int, max, struct io_buffer, io)
 
 /* Dump the address space rooted at ROOT.  */
 RPC(as_dump, 2, 0, addr_t, principal, addr_t, root)

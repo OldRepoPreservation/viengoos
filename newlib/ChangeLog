@@ -1,3 +1,8 @@
+2008-10-08  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/readr.c: Include <hurd/rm.h>.
+	(read): Implement.
+
 2008-06-27  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (noinst_LIBRARIES): Remove variable.

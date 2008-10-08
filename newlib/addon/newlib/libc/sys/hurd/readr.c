@@ -4,11 +4,25 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <hurd/rm.h>
+
 _ssize_t
 read (int fd, void *buf, size_t cnt)
 {
-  errno = EOPNOTSUPP;
-  return -1;
+  if (fd != 0)
+    {
+      errno = EBADF;
+      return -1;
+    }
+
+  if (cnt == 0)
+    return 0;
+
+  struct io_buffer buffer;
+  rm_read (cnt, &buffer);
+
+  memcpy (buf, buffer.data, buffer.len);
+  return buffer.len;
 }
 
 _ssize_t

@@ -307,7 +307,7 @@ server_loop (void)
 
 	  if (raise_fault)
 	    {
-	      DEBUG (4, "fault (ip: %x; fault: %x.%c%s)!",
+	      DEBUG (4, "Reflecting fault (ip: %x; fault: %x.%c%s)!",
 		     ip, fault, w ? 'w' : 'r', discarded ? " discarded" : "");
 
 	      l4_word_t c = _L4_XCHG_REGS_DELIVER;
@@ -525,6 +525,28 @@ server_loop (void)
 
 	  /* No reply needed.  */
 	  do_reply = 0;
+	  continue;
+	}
+      else if (label == RM_read)
+	{
+	  int max;
+	  err = rm_read_send_unmarshal (&msg, &max);
+	  if (err)
+	    {
+	      debug (0, "Read error!");
+	      REPLY (EINVAL);
+	    }
+
+	  struct io_buffer buffer;
+	  buffer.len = 0;
+
+	  if (max > 0)
+	    {
+	      buffer.len = 1;
+	      buffer.data[0] = getchar ();
+	    }
+
+	  rm_read_reply_marshal (&msg, buffer);
 	  continue;
 	}
 
