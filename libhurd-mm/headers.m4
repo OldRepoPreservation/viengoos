@@ -23,5 +23,5 @@ AC_CONFIG_LINKS([
 AC_CONFIG_COMMANDS_POST([
   mkdir -p sysroot/lib libhurd-mm &&
   ln -sf ../../libhurd-mm/libhurd-mm.a sysroot/lib/ &&
-  touch libhurd-mm/libhurd-mm.a
+  echo '/* This file intentionally left blank.  */' >libhurd-mm/libhurd-mm.a
 ])

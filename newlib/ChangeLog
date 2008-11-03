@@ -1,3 +1,8 @@
+2008-11-03  Neal H. Walfield  <neal@gnu.org>
+
+	* headers.m4: Don't create an empty newlib/libc.a or an empty
+	newlib/libm.a.
+
 2008-10-08  Neal H. Walfield  <neal@gnu.org>
 
 	* addon/newlib/libc/sys/hurd/readr.c: Include <hurd/rm.h>.

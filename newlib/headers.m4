@@ -18,7 +18,7 @@
 AC_CONFIG_COMMANDS_POST([
   mkdir -p sysroot/lib newlib &&
   ln -sf ../../newlib/libc.a sysroot/lib/libcrt.a &&
-  touch newlib/libc.a &&
+  echo '/* This file intentionally left blank.  */' >newlib/libc.a &&
   ln -sf ../../newlib/libm.a sysroot/lib/ &&
-  touch newlib/libm.a
+  echo '/* This file intentionally left blank.  */' >newlib/libm.a
 ])

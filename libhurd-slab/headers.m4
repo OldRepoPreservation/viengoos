@@ -15,5 +15,5 @@ AC_CONFIG_LINKS([sysroot/include/hurd/slab.h:libhurd-slab/slab.h])
 AC_CONFIG_COMMANDS_POST([
   mkdir -p sysroot/lib libhurd-slab &&
   ln -sf ../../libhurd-slab/libhurd-slab.a sysroot/lib/ &&
-  touch libhurd-slab/libhurd-slab.a
+  echo '/* This file intentionally left blank.  */' >libhurd-slab/libhurd-slab.a
 ])

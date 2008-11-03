@@ -15,5 +15,5 @@ AC_CONFIG_LINKS([sysroot/include/hurd/btree.h:libhurd-btree/btree.h])
 AC_CONFIG_COMMANDS_POST([
   mkdir -p sysroot/lib libhurd-btree &&
   ln -sf ../../libhurd-btree/libhurd-btree.a sysroot/lib/ &&
-  touch libhurd-btree/libhurd-btree.a
+  echo '/* This file intentionally left blank.  */' >libhurd-btree/libhurd-btree.a
 ])

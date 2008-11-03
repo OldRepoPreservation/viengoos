@@ -15,5 +15,5 @@ AC_CONFIG_LINKS([sysroot/include/hurd/rm.h:viengoos/rm.h])
 AC_CONFIG_COMMANDS_POST([
   mkdir -p sysroot/lib viengoos &&
   ln -sf ../../viengoos/libhurd-cap.a sysroot/lib/ &&
-  touch viengoos/libhurd-cap.a
+  echo '/* This file intentionally left blank.  */' >viengoos/libhurd-cap.a
 ])

@@ -1,3 +1,7 @@
+2008-11-03  Neal H. Walfield  <neal@gnu.org>
+
+	* headers.m4: Don't create an empty libhurd-ihash/libhurd-ihash.a.
+
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* headers.m4: Link files into `sysroot/include/' instead of `include/'.

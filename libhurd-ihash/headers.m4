@@ -15,5 +15,5 @@ AC_CONFIG_LINKS([sysroot/include/hurd/ihash.h:libhurd-ihash/ihash.h])
 AC_CONFIG_COMMANDS_POST([
   mkdir -p sysroot/lib libhurd-ihash &&
   ln -sf ../../libhurd-ihash/libhurd-ihash.a sysroot/lib/ &&
-  touch libhurd-ihash/libhurd-ihash.a
+  echo '/* This file intentionally left blank.  */' >libhurd-ihash/libhurd-ihash.a
 ])
