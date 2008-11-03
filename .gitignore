@@ -1,0 +1,11 @@
+Makefile.in
+Makefile
+configure
+aclocal.m4
+autom4te.cache
+*.tar.bz2
+*.tar.gz
+*.stamp
+*-stamp
+build-aux
+*~
