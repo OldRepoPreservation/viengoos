@@ -176,7 +176,7 @@ helper (void *arg)
 	{
 	  pagers[c]
 	    = anonymous_pager_alloc (hog_activity, NULL, s, MAP_ACCESS_ALL,
-				     OBJECT_POLICY (false, OBJECT_PRIORITY_LRU), 0,
+				     OBJECT_POLICY (false, OBJECT_PRIORITY_DEFAULT), 0,
 				     NULL, &buffers[c]);
 	  assert (pagers[c]);
 	  assert (buffers[c]);

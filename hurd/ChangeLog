@@ -1,3 +1,11 @@
+2008-11-04  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (OBJECT_PRIORITY_BITS): Change to 7.
+	(OBJECT_PRIORITY_LEVELS): Define.
+	(OBJECT_PRIORITY_LRU): Don't define.  Update users.
+	(struct object_policy): Remove field pad0.  Change to a uint8_t.
+	(OBJECT_POLICY): Update.
+
 2008-08-16  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (thread_start_sp_ip): New function.

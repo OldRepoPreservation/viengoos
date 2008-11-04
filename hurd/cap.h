@@ -170,11 +170,11 @@ cap_type_strengthen (enum cap_type type)
 
 /* Object policy.  */
 
-/* The object priority is a signed 10-bit number.  A lower numeric
-   value corresponds to a lower priority.  */
-#define OBJECT_PRIORITY_BITS 10
+/* The object priority is a signed 7-bit number (-64 -> 63).  A lower
+   numeric value corresponds to a lower priority.  */
+#define OBJECT_PRIORITY_BITS 7
+#define OBJECT_PRIORITY_LEVELS (1 << OBJECT_PRIORITY_BITS)
 #define OBJECT_PRIORITY_MIN (-(1 << (OBJECT_PRIORITY_BITS - 1)))
-#define OBJECT_PRIORITY_LRU (0)
 #define OBJECT_PRIORITY_DEFAULT (0)
 #define OBJECT_PRIORITY_MAX ((1 << (OBJECT_PRIORITY_BITS - 1)) - 1)
 
@@ -184,29 +184,27 @@ struct object_policy
   {
     struct
     {
-      int16_t pad0 : 5;
-
       /* Whether a page is discardable (if so and the page is not
 	 zero, trying to read the page from disk generates a first
 	 fault fault).  */
-      int16_t discardable : 1;
+      int8_t discardable : 1;
 
       /* An object's priority.  If can be used to override LRU
 	 eviction.  When a memory object is to be evicted, we select
 	 the object with the lowest priority (higher value = lower
 	 priority).  */
-      int16_t priority : OBJECT_PRIORITY_BITS;
+      int8_t priority : OBJECT_PRIORITY_BITS;
     };
-    uint16_t raw;
+    uint8_t raw;
   };
 };
 
 #define OBJECT_POLICY_INIT { { raw: 0 } }
 #define OBJECT_POLICY(__op_discardable, __op_priority) \
-  (struct object_policy) { { { 0, (__op_discardable), (__op_priority) } } }
+  (struct object_policy) { { { (__op_discardable), (__op_priority) } } }
 /* The default object policy: not discardable, managed by LRU.  */
 #define OBJECT_POLICY_VOID \
-  OBJECT_POLICY (false,  OBJECT_PRIORITY_LRU)
+  OBJECT_POLICY (false,  OBJECT_PRIORITY_DEFAULT)
 /* Synonym for OBJECT_POLICY_VOID.  */
 #define OBJECT_POLICY_DEFAULT OBJECT_POLICY_VOID
 

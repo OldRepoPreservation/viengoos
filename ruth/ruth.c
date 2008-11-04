@@ -981,7 +981,7 @@ main (int argc, char *argv[])
     void *addr;
     struct anonymous_pager *pager
       = anonymous_pager_alloc (ADDR_VOID, NULL, goal * PAGESIZE, MAP_ACCESS_ALL,
-			       OBJECT_POLICY (true, OBJECT_PRIORITY_LRU), 0,
+			       OBJECT_POLICY (true, OBJECT_PRIORITY_DEFAULT), 0,
 			       fill, &addr);
     assert (pager);
 

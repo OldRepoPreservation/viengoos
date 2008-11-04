@@ -113,7 +113,7 @@ main (int argc, char *argv[])
 	    pagers[i]
 	      = anonymous_pager_alloc (ADDR_VOID, NULL, SIZE, MAP_ACCESS_ALL,
 				       OBJECT_POLICY (true,
-						      OBJECT_PRIORITY_LRU),
+						      OBJECT_PRIORITY_DEFAULT),
 				       0, my_fill, &buffers[i]);
 	    assert (pagers[i]);
 	    assert (buffers[i]);
