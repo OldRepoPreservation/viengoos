@@ -73,19 +73,23 @@ reclaim_from (struct activity *victim, int goal)
 
   /* XXX: Implement group dealloc.  */
 
-  /* First try objects with a priority lower than LRU.  */
+  int i;
+#ifndef NDEBUG
+  int active = 0;
+  int inactive = 0;
 
-  assertx (victim->priorities_count
-	   + activity_lru_list_count (&victim->active)
-	   + activity_lru_list_count (&victim->inactive)
-	   + eviction_list_count (&victim->eviction_dirty)
+  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+    {
+      active += activity_list_count (&victim->frames[i].active);
+      inactive += activity_list_count (&victim->frames[i].inactive);
+    }
+
+  assertx (active + inactive + eviction_list_count (&victim->eviction_dirty)
 	   == victim->frames_local,
-	   "%d + %d + %d + %d != %d!",
-	   victim->priorities_count,
-	   activity_lru_list_count (&victim->active),
-	   activity_lru_list_count (&victim->inactive),
-	   eviction_list_count (&victim->eviction_dirty),
+	   "%d + %d + %d != %d!",
+	   active, inactive, eviction_list_count (&victim->eviction_dirty),
 	   victim->frames_local);
+#endif
 
   debug (5, "Reclaiming %d from " OBJECT_NAME_FMT ", %d frames "
 	 "(global: avail: %d, laundry: %d)",
@@ -93,163 +97,60 @@ reclaim_from (struct activity *victim, int goal)
 	 victim->frames_local,
 	 available_list_count (&available), laundry_list_count (&laundry));
 
-  struct object_desc *desc;
-  struct object_desc *next
-    = hurd_btree_priorities_first (&victim->priorities);
-  while (((desc = next)) && count < goal)
-    {
-      assert (! desc->eviction_candidate);
-
-      assert (desc->policy.priority != OBJECT_PRIORITY_LRU);
-      if (desc->policy.priority > OBJECT_PRIORITY_LRU)
-	/* DESC's priority is higher than OBJECT_PRIORITY_LRU, prefer
-	   LRU ordered pages.  */
-	break;
-
-      next = hurd_btree_priorities_next (desc);
-
-      object_desc_flush (desc, false);
-
-      hurd_btree_priorities_detach (&victim->priorities, desc);
-      victim->priorities_count --;
-
-      desc->eviction_candidate = true;
-
-      if (desc->dirty && ! desc->policy.discardable)
-	{
-	  if (! list_node_attached (&desc->laundry_node))
-	    laundry_list_queue (&laundry, desc);
-
-	  eviction_list_queue (&victim->eviction_dirty, desc);
-	  laundry_count ++;
-	}
-      else
-	{
-	  assert (! list_node_attached (&desc->available_node));
-	  is_clean (desc);
-
-	  available_list_queue (&available, desc);
-	  eviction_list_queue (&victim->eviction_clean, desc);
-
-	  if (desc->policy.discardable)
-	    discarded ++;
-	}
-
-      count ++;
-    }
-
-  if (count < goal)
-    /* VICTIM still has to yield pages.  Start stealing from the
-       inactive LRU lists.  */
-    {
-      struct object_desc *inactive;
-
-      /* For every clean page we steal, we queue a dirty page for
-	 writeout.  */
-
-      inactive = activity_lru_list_head (&victim->inactive);
-
-      struct object_desc *next;
-
-      while (inactive && count < goal)
-	{
-	  assert (! inactive->eviction_candidate);
-	  assert (! list_node_attached (&inactive->available_node));
-
-	  next = activity_lru_list_next (inactive);
-
-	  activity_lru_list_unlink (&victim->inactive, inactive);
-
-	  object_desc_flush (inactive, false);
-	  if (inactive->dirty && ! inactive->policy.discardable)
-	    {
-	      eviction_list_push (&victim->eviction_dirty, inactive);
-
-	      laundry_list_queue (&laundry, inactive);
-	      laundry_count ++;
-	    }
-	  else
-	    {
-	      is_clean (inactive);
-
-	      eviction_list_push (&victim->eviction_clean, inactive);
-
-	      available_list_queue (&available, inactive);
-
-	      if (desc->policy.discardable)
-		discarded ++;
-	    }
-
-	  inactive->eviction_candidate = true;
-
-	  count ++;
-
-	  inactive = next;
-	}
-    }
-
-  if (count < goal)
-    /* Still hasn't yielded enough.  Steal from the active list.  */
+  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
     {
       struct object_desc *desc;
-      struct object_desc *next = activity_lru_list_head (&victim->active);
-
-      while ((desc = next) && count < goal)
+      while (count < goal
+	     && (desc = activity_list_head (&victim->frames[i].inactive)))
 	{
 	  assert (! desc->eviction_candidate);
+	  assert (! list_node_attached (&desc->available_node));
+	  assertx (i == desc->policy.priority,
+		   "%d != %d",
+		   i, desc->policy.priority);
 
-	  next = activity_lru_list_next (desc);
+	  activity_list_unlink (&victim->frames[i].inactive, desc);
 
 	  object_desc_flush (desc, false);
-
-	  desc->eviction_candidate = true;
-
-	  activity_lru_list_unlink (&victim->active, desc);
-
 	  if (desc->dirty && ! desc->policy.discardable)
 	    {
-	      if (! list_node_attached (&desc->laundry_node))
-		laundry_list_queue (&laundry, desc);
+	      eviction_list_push (&victim->eviction_dirty, desc);
 
-	      eviction_list_queue (&victim->eviction_dirty, desc);
+	      laundry_list_queue (&laundry, desc);
 	      laundry_count ++;
 	    }
 	  else
 	    {
-	      assert (! list_node_attached (&desc->available_node));
 	      is_clean (desc);
 
+	      eviction_list_push (&victim->eviction_clean, desc);
+
 	      available_list_queue (&available, desc);
-	      eviction_list_queue (&victim->eviction_clean, desc);
 
 	      if (desc->policy.discardable)
 		discarded ++;
 	    }
 
+	  desc->eviction_candidate = true;
+
 	  count ++;
 	}
-    }
 
-  if (count < goal)
-    /* We've cleared the low priority nodes, the inactive LRU lists
-       and the active LRU list.  Steal from the high priority
-       lists.  */
-    {
-      /* NEXT points to the first high priority object descriptor.  */
-
-      while (count < goal && (desc = next))
+      /* Currently we evict in LIFO order.  We should do a semi-sort and
+	 then evict accordingly.  */
+      while (count < goal
+	     && (desc = activity_list_head (&victim->frames[i].active)))
 	{
 	  assert (! desc->eviction_candidate);
-	  assert (desc->policy.priority > OBJECT_PRIORITY_LRU);
-
-	  next = hurd_btree_priorities_next (desc);
+	  assertx (i == desc->policy.priority,
+		   "%d != %d",
+		   i, desc->policy.priority);
 
 	  object_desc_flush (desc, false);
 
-	  hurd_btree_priorities_detach (&victim->priorities, desc);
-	  victim->priorities_count --;
-
 	  desc->eviction_candidate = true;
+
+	  activity_list_unlink (&victim->frames[i].active, desc);
 
 	  if (desc->dirty && ! desc->policy.discardable)
 	    {
@@ -295,17 +196,22 @@ reclaim_from (struct activity *victim, int goal)
 	 zalloc_memory, available_list_count (&available),
 	 laundry_list_count (&laundry));
 
-  assertx (victim->priorities_count
-	   + activity_lru_list_count (&victim->active)
-	   + activity_lru_list_count (&victim->inactive)
-	   + eviction_list_count (&victim->eviction_dirty)
+#ifndef NDEBUG
+  active = 0;
+  inactive = 0;
+
+  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+    {
+      active += activity_list_count (&victim->frames[i].active);
+      inactive += activity_list_count (&victim->frames[i].inactive);
+    }
+
+  assertx (active + inactive + eviction_list_count (&victim->eviction_dirty)
 	   == victim->frames_local,
-	   "%d + %d + %d + %d != %d!",
-	   victim->priorities_count,
-	   activity_lru_list_count (&victim->active),
-	   activity_lru_list_count (&victim->inactive),
-	   eviction_list_count (&victim->eviction_dirty),
+	   "%d + %d + %d != %d!",
+	   active, inactive, eviction_list_count (&victim->eviction_dirty),
 	   victim->frames_local);
+#endif
 
   /* We should never have selected a task from which we can free
      nothing!  */

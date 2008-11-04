@@ -696,46 +696,60 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   struct object_policy o = desc->policy;
   bool ec = desc->eviction_candidate;
 
+#ifndef NDEBUG
   if (desc->activity && update_accounting)
-    assertx (desc->activity->priorities_count
-	     + activity_lru_list_count (&desc->activity->active)
-	     + activity_lru_list_count (&desc->activity->inactive)
-	     + eviction_list_count (&desc->activity->eviction_dirty)
-	     == desc->activity->frames_local,
-	     "%d+%d+%d+%d = %d != %d! (%p=>%p,%d,%d,%d=>%d,%d=>%d)",
-	     desc->activity->priorities_count,
-	     activity_lru_list_count (&desc->activity->active),
-	     activity_lru_list_count (&desc->activity->inactive),
-	     eviction_list_count (&desc->activity->eviction_dirty),
-	     desc->activity->priorities_count
-	     + activity_lru_list_count (&desc->activity->active)
-	     + activity_lru_list_count (&desc->activity->inactive)
-	     + eviction_list_count (&desc->activity->eviction_dirty),
-	     desc->activity->frames_local,
-	     desc->activity, activity,
-	     desc->eviction_candidate, desc->dirty,
-	     o.discardable, policy.discardable, 
-	     o.priority, policy.priority);
+    {
+      int active = 0;
+      int inactive = 0;
+
+      int i;
+      for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+	{
+	  active += activity_list_count (&desc->activity->frames[i].active);
+	  inactive += activity_list_count (&desc->activity->frames[i].inactive);
+	}
+
+      assertx (active + inactive
+	       + eviction_list_count (&desc->activity->eviction_dirty)
+	       == desc->activity->frames_local,
+	       "%d+%d+%d = %d != %d! (%p=>%p,%d,%d,%d=>%d,%d=>%d)",
+	       active, inactive,
+	       eviction_list_count (&desc->activity->eviction_dirty),
+	       active + inactive
+	       + eviction_list_count (&desc->activity->eviction_dirty),
+	       desc->activity->frames_local,
+	       desc->activity, activity,
+	       desc->eviction_candidate, desc->dirty,
+	       o.discardable, policy.discardable, 
+	       o.priority, policy.priority);
+    }
   if (activity)
-    assertx (activity->priorities_count
-	     + activity_lru_list_count (&activity->active)
-	     + activity_lru_list_count (&activity->inactive)
-	     + eviction_list_count (&activity->eviction_dirty)
-	     == activity->frames_local,
-	     "%d+%d+%d+%d = %d != %d! (%p=>%p,%d,%d,%d=>%d,%d=>%d)",
-	     activity->priorities_count,
-	     activity_lru_list_count (&activity->active),
-	     activity_lru_list_count (&activity->inactive),
-	     eviction_list_count (&activity->eviction_dirty),
-	     activity->priorities_count
-	     + activity_lru_list_count (&activity->active)
-	     + activity_lru_list_count (&activity->inactive)
-	     + eviction_list_count (&activity->eviction_dirty),
-	     activity->frames_local,
-	     desc->activity, activity,
-	     desc->eviction_candidate, desc->dirty,
-	     o.discardable, policy.discardable, 
-	     o.priority, policy.priority);
+    {
+      int active = 0;
+      int inactive = 0;
+
+      int i;
+      for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+	{
+	  active += activity_list_count (&activity->frames[i].active);
+	  inactive += activity_list_count (&activity->frames[i].inactive);
+	}
+
+      assertx (active + inactive
+	       + eviction_list_count (&activity->eviction_dirty)
+	       == activity->frames_local,
+	       "%d+%d+%d = %d != %d! (%p=>%p,%d,%d,%d=>%d,%d=>%d)",
+	       active, inactive,
+	       eviction_list_count (&activity->eviction_dirty),
+	       active + inactive
+	       + eviction_list_count (&activity->eviction_dirty),
+	       activity->frames_local,
+	       desc->activity, activity,
+	       desc->eviction_candidate, desc->dirty,
+	       o.discardable, policy.discardable, 
+	       o.priority, policy.priority);
+    }
+#endif
 
   if (desc->activity == activity
       && ! desc->eviction_candidate
@@ -796,24 +810,11 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 	}
       else
 	{
-	  if (desc->policy.priority != OBJECT_PRIORITY_LRU)
-	    {
-	      hurd_btree_priorities_detach (&desc->activity->priorities,
-					    desc);
-	      desc->activity->priorities_count --;
-	    }
-	  else
-	    {
-	      struct activity_lru_list *list;
-	      if (object_active (desc))
-		/* DESC is active.  */
-		list = &desc->activity->active;
-	      else
-		/* DESC is inactive.  */
-		list = &desc->activity->inactive;
-
-	      activity_lru_list_unlink (list, desc);
-	    }
+	  activity_list_unlink
+	    (object_active (desc)
+	     ? &desc->activity->frames[desc->policy.priority].active
+	     : &desc->activity->frames[desc->policy.priority].inactive,
+	     desc);
 
 	  if (activity != desc->activity && update_accounting)
 	    activity_charge (desc->activity, -1);
@@ -855,15 +856,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   /* We make the object active.  The invariants require that DESC->AGE
      be non-zero.  */
   object_age (desc, true);
-  if (desc->policy.priority != OBJECT_PRIORITY_LRU)
-    {
-      void *ret = hurd_btree_priorities_insert (&activity->priorities,
-						desc);
-      assert (! ret);
-      activity->priorities_count ++;
-    }
-  else
-    activity_lru_list_push (&activity->active, desc);
+  activity_list_push (&activity->frames[desc->policy.priority].active, desc);
 
   if ((activity != desc->activity
        || (desc->eviction_candidate
@@ -912,44 +905,58 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 	 desc->policy.discardable ? "discardable" : "precious");
 
  out:
+#ifndef NDEBUG
   if (desc->activity && update_accounting)
-    assertx (desc->activity->priorities_count
-	     + activity_lru_list_count (&desc->activity->active)
-	     + activity_lru_list_count (&desc->activity->inactive)
-	     + eviction_list_count (&desc->activity->eviction_dirty)
-	     == desc->activity->frames_local,
-	     "%d+%d+%d+%d = %d != %d (%p=>%p,%d,%d,%d=>%d,%d=>%d)",
-	     desc->activity->priorities_count,
-	     activity_lru_list_count (&desc->activity->active),
-	     activity_lru_list_count (&desc->activity->inactive),
-	     eviction_list_count (&desc->activity->eviction_dirty),
-	     desc->activity->priorities_count
-	     + activity_lru_list_count (&desc->activity->active)
-	     + activity_lru_list_count (&desc->activity->inactive)
-	     + eviction_list_count (&desc->activity->eviction_dirty),
-	     desc->activity->frames_local,
-	     desc->activity, activity, ec, desc->dirty,
-	     o.discardable, policy.discardable, 
-	     o.priority, policy.priority);
+    {
+      int active = 0;
+      int inactive = 0;
+
+      int i;
+      for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+	{
+	  active += activity_list_count (&desc->activity->frames[i].active);
+	  inactive += activity_list_count (&desc->activity->frames[i].inactive);
+	}
+
+      assertx (active + inactive
+	       + eviction_list_count (&desc->activity->eviction_dirty)
+	       == desc->activity->frames_local,
+	       "%d+%d+%d = %d != %d (%p=>%p,%d,%d,%d=>%d,%d=>%d)",
+	       active, inactive,
+	       eviction_list_count (&desc->activity->eviction_dirty),
+	       active + inactive
+	       + eviction_list_count (&desc->activity->eviction_dirty),
+	       desc->activity->frames_local,
+	       desc->activity, activity, ec, desc->dirty,
+	       o.discardable, policy.discardable, 
+	       o.priority, policy.priority);
+    }
   if (activity && update_accounting)
-    assertx (activity->priorities_count
-	     + activity_lru_list_count (&activity->active)
-	     + activity_lru_list_count (&activity->inactive)
-	     + eviction_list_count (&activity->eviction_dirty)
-	     == activity->frames_local,
-	     "%d+%d+%d+%d = %d != %d! (%p=>%p,%d,%d,%d=>%d,%d=>%d)",
-	     activity->priorities_count,
-	     activity_lru_list_count (&activity->active),
-	     activity_lru_list_count (&activity->inactive),
-	     eviction_list_count (&activity->eviction_dirty),
-	     activity->priorities_count
-	     + activity_lru_list_count (&activity->active)
-	     + activity_lru_list_count (&activity->inactive)
-	     + eviction_list_count (&activity->eviction_dirty),
-	     activity->frames_local,
-	     desc->activity, activity, ec, desc->dirty,
-	     o.discardable, policy.discardable, 
-	     o.priority, policy.priority);
+    {
+      int active = 0;
+      int inactive = 0;
+
+      int i;
+      for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+	{
+	  active += activity_list_count (&activity->frames[i].active);
+	  inactive += activity_list_count (&activity->frames[i].inactive);
+	}
+
+      assertx (active + inactive
+	       + eviction_list_count (&activity->eviction_dirty)
+	       == activity->frames_local,
+	       "%d+%d+%d = %d != %d! (%p=>%p,%d,%d,%d=>%d,%d=>%d)",
+	       active, inactive,
+	       eviction_list_count (&activity->eviction_dirty),
+	       active + inactive
+	       + eviction_list_count (&activity->eviction_dirty),
+	       activity->frames_local,
+	       desc->activity, activity, ec, desc->dirty,
+	       o.discardable, policy.discardable, 
+	       o.priority, policy.priority);
+    }
+#endif
 }
 
 /* Return the first waiter queued on object OBJECT.  */

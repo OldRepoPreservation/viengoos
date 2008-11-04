@@ -140,68 +140,50 @@ activity_destroy (struct activity *activity, struct activity *victim)
     int count = 0;
 
     /* Make ACTIVE objects inactive.  */
-    for (desc = activity_lru_list_head (&victim->active);
-	 desc; desc = activity_lru_list_next (desc))
+    int i;
+    for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
       {
-	assert (! desc->eviction_candidate);
-	assert (desc->activity == victim);
-	assert (! list_node_attached (&desc->laundry_node));
-	assert (desc->age);
+	for (desc = activity_list_head (&victim->frames[i].active);
+	     desc; desc = activity_list_next (desc))
+	  {
+	    assert (! desc->eviction_candidate);
+	    assert (desc->activity == victim);
+	    assert (! list_node_attached (&desc->laundry_node));
+	    assert (desc->age);
+	    assert (desc->policy.priority == i);
 
-	desc->age = 0;
-	desc->activity = victim->parent;
-	count ++;
+	    desc->age = 0;
+	    desc->policy.priority = OBJECT_PRIORITY_MIN;
+	    desc->activity = victim->parent;
+	    count ++;
+	  }
+	activity_list_join
+	  (&victim->parent->frames[OBJECT_PRIORITY_MIN].inactive,
+	   &victim->frames[i].active);
       }
-    activity_lru_list_join (&victim->parent->inactive,
-			    &victim->active);
-
-    struct object_desc *next
-      = hurd_btree_priorities_first (&victim->priorities);
-    while ((desc = next))
-      {
-	assert (! desc->eviction_candidate);
-	assert (desc->activity == victim);
-	assert (desc->policy.priority != OBJECT_PRIORITY_LRU);
-
-	next = hurd_btree_priorities_next (desc);
-
-	desc->age = 0;
-	desc->activity = victim->parent;
-
-#ifndef NDEBUG
-	/* We don't detach it from the tree as we destroy the tree in
-	   its entirety.  But, the insert code expects the fields to
-	   be zero'd.  */
-	memset (&desc->priority_node, 0, sizeof (desc->priority_node));
-#endif
-
-	void *ret = hurd_btree_priorities_insert (&victim->parent->priorities,
-						  desc);
-	assert (! ret);
-	victim->parent->priorities_count ++;
-
-	count ++;
-      }
-#ifndef NDEBUG
-    hurd_btree_priorities_tree_init (&victim->priorities);
-#endif
 
     /* Move inactive objects to the head of VICTIM->PARENT's appropriate
        inactive list (thereby making them the first eviction
        candidates).  */
-    for (desc = activity_lru_list_head (&victim->inactive);
-	 desc; desc = activity_lru_list_next (desc))
+    for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
       {
-	assert (! desc->eviction_candidate);
-	assert (desc->activity == victim);
-	assert (! list_node_attached (&desc->laundry_node));
-	assert (! desc->age);
+	for (desc = activity_list_head (&victim->frames[i].inactive);
+	     desc; desc = activity_list_next (desc))
+	  {
+	    assert (! desc->eviction_candidate);
+	    assert (desc->activity == victim);
+	    assert (! list_node_attached (&desc->laundry_node));
+	    assert (! desc->age);
+	    assert (desc->policy.priority == i);
 
-	desc->activity = victim->parent;
-	count ++;
+	    desc->activity = victim->parent;
+	    desc->policy.priority = OBJECT_PRIORITY_MIN;
+	    count ++;
+	  }
+	activity_list_join
+	  (&victim->parent->frames[OBJECT_PRIORITY_MIN].inactive,
+	   &victim->frames[i].inactive);
       }
-    activity_lru_list_join (&victim->parent->inactive,
-			    &victim->inactive);
 
 
     /* And move all of VICTIM's eviction candidates to VICTIM->PARENT's
@@ -323,12 +305,54 @@ activity_prepare (struct activity *principal, struct activity *activity)
 					   activity, last);
     }
 
+#ifndef NDEBUG
   activity_children_list_init (&activity->children, "activity->children");
 
-  activity_lru_list_init (&activity->active, "active");
-  activity_lru_list_init (&activity->inactive, "inactive");
+  static const char *names[OBJECT_PRIORITY_LEVELS]
+    = { "inactive-64", "inactive-63", "inactive-62", "inactive-61",
+	"inactive-60", "inactive-59", "inactive-58", "inactive-57",
+	"inactive-56", "inactive-55", "inactive-54", "inactive-53",
+	"inactive-52", "inactive-51", "inactive-50", "inactive-49",
+	"inactive-48", "inactive-47", "inactive-46", "inactive-45",
+	"inactive-44", "inactive-43", "inactive-42", "inactive-41",
+	"inactive-40", "inactive-39", "inactive-38", "inactive-37",
+	"inactive-36", "inactive-35", "inactive-34", "inactive-33",
+	"inactive-32", "inactive-31", "inactive-30", "inactive-29",
+	"inactive-28", "inactive-27", "inactive-26", "inactive-25",
+	"inactive-24", "inactive-23", "inactive-22", "inactive-21",
+	"inactive-20", "inactive-19", "inactive-18", "inactive-17",
+	"inactive-16", "inactive-15", "inactive-14", "inactive-13",
+	"inactive-12", "inactive-11", "inactive-10", "inactive-9",
+	"inactive-8", "inactive-7", "inactive-6", "inactive-5",
+	"inactive-4", "inactive-3", "inactive-2", "inactive-1",
+	"inactive0", "inactive1", "inactive2", "inactive3",
+	"inactive4", "inactive5", "inactive6", "inactive7",
+	"inactive8", "inactive9", "inactive10", "inactive11",
+	"inactive12", "inactive13", "inactive14", "inactive15",
+	"inactive16", "inactive17", "inactive18", "inactive19",
+	"inactive20", "inactive21", "inactive22", "inactive23",
+	"inactive24", "inactive25", "inactive26", "inactive27",
+	"inactive28", "inactive29", "inactive30", "inactive31",
+	"inactive32", "inactive33", "inactive34", "inactive35",
+	"inactive36", "inactive37", "inactive38", "inactive39",
+	"inactive40", "inactive41", "inactive42", "inactive43",
+	"inactive44", "inactive45", "inactive46", "inactive47",
+	"inactive48", "inactive49", "inactive50", "inactive51",
+	"inactive52", "inactive53", "inactive54", "inactive55",
+	"inactive56", "inactive57", "inactive58", "inactive59",
+	"inactive60", "inactive61", "inactive62", "inactive63" };
+ 
+  int i;
+  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+    {
+      activity_list_init (&activity->frames[i].active,
+			  &names[i - OBJECT_PRIORITY_MIN][2]);
+      activity_list_init (&activity->frames[i].inactive,
+			  names[i - OBJECT_PRIORITY_MIN]);
+    }
   eviction_list_init (&activity->eviction_clean, "evict clean");
   eviction_list_init (&activity->eviction_dirty, "evict dirty");
+#endif
 }
 
 void
@@ -337,8 +361,12 @@ activity_deprepare (struct activity *principal, struct activity *victim)
   /* If we have any in-memory children or frames, then we can't be
      paged out.  */
   assert (! activity_children_list_head (&victim->children));
-  assert (! activity_lru_list_count (&victim->active));
-  assert (! activity_lru_list_count (&victim->inactive));
+  int i;
+  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+    {
+      assert (! activity_list_count (&victim->frames[i].active));
+      assert (! activity_list_count (&victim->frames[i].inactive));
+    }
   assert (! eviction_list_count (&victim->eviction_clean));
   assert (! eviction_list_count (&victim->eviction_dirty));
 
@@ -408,8 +436,15 @@ do_activity_dump (struct activity *activity, int indent)
   memset (indent_string, ' ', indent);
   indent_string[indent] = 0;
 
-  int active = activity_lru_list_count (&activity->active);
-  int inactive = activity_lru_list_count (&activity->inactive);
+  int active = 0;
+  int inactive = 0;
+
+  int i;
+  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+    {
+      active += activity_list_count (&activity->frames[i].active);
+      inactive += activity_list_count (&activity->frames[i].inactive);
+    }
   int clean = eviction_list_count (&activity->eviction_clean);
   int dirty = eviction_list_count (&activity->eviction_dirty);
 
@@ -442,7 +477,7 @@ activity_dump (struct activity *activity)
 	      zalloc_memory + available_list_count (&available),
 	      (100 * (zalloc_memory + available_list_count (&available))) /
 	      memory_total,
-	      eviction_list_count (&laundry));
+	      laundry_list_count (&laundry));
       do_activity_dump (activity, 0);
     }
 }

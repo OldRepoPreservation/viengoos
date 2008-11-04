@@ -605,8 +605,7 @@ ager_loop (void)
 
 		  object_age (desc, referenced);
 
-		  if (! object_active (desc)
-		      && desc->policy.priority == OBJECT_PRIORITY_LRU)
+		  if (! object_active (desc))
 		    /* The object has become inactive and needs to be
 		       moved.  */
 		    {
@@ -614,11 +613,13 @@ ager_loop (void)
 
 		      became_inactive ++;
 
-		      /* Detach from active list.  */
-		      activity_lru_list_unlink (&desc->activity->active,
-						desc);
-
-		      activity_lru_list_push (&desc->activity->inactive, desc);
+		      /* Detach from active list and reattach to
+			 inactive list.  */
+		      int priority = desc->policy.priority;
+		      activity_list_unlink
+			(&desc->activity->frames[priority].active, desc);
+		      activity_list_push
+			(&desc->activity->frames[priority].inactive, desc);
 		    }
 		  else
 		    ACTIVITY_STATS (desc->activity)->active ++;
@@ -635,16 +636,13 @@ ager_loop (void)
 
 		      became_active ++;
 
-		      if (desc->policy.priority == OBJECT_PRIORITY_LRU)
-			{
-			  /* Detach from inactive list.  */
-			  activity_lru_list_unlink
-			    (&desc->activity->inactive, desc);
-
-			  /* Attach to active list.  */
-			  activity_lru_list_push (&desc->activity->active,
-						  desc);
-			}
+		      /* Detach from inactive list and reattach to the
+			 active list.  */
+		      int priority = desc->policy.priority;
+		      activity_list_unlink
+			(&desc->activity->frames[priority].inactive, desc);
+		      activity_list_push
+			(&desc->activity->frames[priority].active, desc);
 
 		      desc->dirty |= dirty;
 		    }

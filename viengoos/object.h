@@ -168,13 +168,13 @@ struct object_desc
   union
   {
     /* ACTIVITY is valid, EVICTION_CANDIDATE is false, POLICY.PRIORITY
-       != OBJECT_PRIORITY_LRU.
+       != OBJECT_PRIORITY_DEFAULT.
 
          => attached to ACTIVITY->PRIORITIES.  */
     hurd_btree_node_t priority_node;
 
     /* ACTIVITY is valid, EVICTION_CANDIDATE is false, POLICY.PRIORITY
-       == OBJECT_PRIORITY_LRU,
+       == OBJECT_PRIORITY_DEFAULT,
 
          => attached to one of ACTIVITY's LRU lists.
 
@@ -245,7 +245,7 @@ extern struct object_desc *object_descs;
     space;							\
   }), OID_PRINTF (object_to_object_desc ((__onp))->oid)		\
 
-LIST_CLASS(activity_lru, struct object_desc, activity_node, true)
+LIST_CLASS(activity, struct object_desc, activity_node, true)
 LIST_CLASS(eviction, struct object_desc, activity_node, true)
 
 LIST_CLASS(available, struct object_desc, available_node, true)

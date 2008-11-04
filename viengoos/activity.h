@@ -70,17 +70,19 @@ struct activity
   struct activity_children_list children;
   struct list_node sibling;
 
-  /* Objects claimed by this activity whose priority is
-     OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
-     false.  */
-  struct activity_lru_list active;
-  struct activity_lru_list inactive;
-
-  /* Objects claimed by this activity whose priority is not
-     OBJECT_PRIORITY_LRU and for which DESC->EVICTION_CANDIDATE is
-     false.  Keyed by priority.  */
-  hurd_btree_priorities_t priorities;
-  int priorities_count;
+  /* Objects claimed by this activity for which
+     DESC->EVICTION_CANDIDATE is false.  As priority is signed, to
+     avoid having to adjust the index, we play a small trick.  */
+  struct
+  {
+    struct activity_list active;
+    struct activity_list inactive;
+  } frames_[-OBJECT_PRIORITY_MIN];
+  struct
+  {
+    struct activity_list active;
+    struct activity_list inactive;
+  } frames[OBJECT_PRIORITY_MAX + 1];
 
   /* Objects that are owned by this activity and have been selected
      for eviction (DESC->EVICTION_CANDIDATE is true).  These objects
@@ -90,17 +92,15 @@ struct activity
   struct eviction_list eviction_dirty;
 
   /* Number of frames allocated to this activity not counting
-     children.  This includes all frames allocated on the PRIORITY
-     tree and the ACTIVE, INACTIVE and EVICTION_DIRTY lists (but not
-     the EVICTION_CLEAN list, as it is elements on it are immediately
-     reclaimable).  */
+     children.  This includes all frames allocated on the ACTIVE,
+     INACTIVE and EVICTION_DIRTY lists (but not the EVICTION_CLEAN
+     list, as it is elements on it are immediately reclaimable).  */
   uint32_t frames_local;
   /* Number of frames allocated to this activity (including children).
-     This is the sum of the number of objects on the PRIORITY tree,
-     and the ACTIVE, INACTIVE and EVICTION_DIRTY lists plus the number
-     of frames allocated to each child.  This does not include the
-     number of frames on the eviction_clean and eviction_dirty
-     lists.  */
+     This is the sum of the number of objects on the ACTIVE, INACTIVE
+     and EVICTION_DIRTY lists plus the number of frames allocated to
+     each child.  This does not include the number of frames on the
+     eviction_clean and eviction_dirty lists.  */
   uint32_t frames_total;
 
   /* Dirty frames that are pending eviction.  */
