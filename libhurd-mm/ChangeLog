@@ -1,3 +1,10 @@
+2008-11-06  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.c (fault): Handle the case where COUNT > 0.  Don't
+	assume that storage has been allocated if INFO.DISCARDED is true.
+	(advise): Interpret pager_advice_normal to mean to cleared
+	discarded pages and to allocate unallocated pages.
+
 2008-11-03  Neal H. Walfield  <neal@gnu.org>
 
 	* headers.m4: Don't create an empty libhurd-mm/libhurd-mm.a.

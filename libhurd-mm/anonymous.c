@@ -128,51 +128,36 @@ static struct hurd_slab_space anonymous_pager_slab
   = HURD_SLAB_SPACE_INITIALIZER (struct anonymous_pager,
 				 slab_alloc, slab_dealloc, NULL, NULL, NULL);
 
-#if 0
-void
-anonymous_pager_ensure (struct anonymous_pager *anon,
-			uintptr_t addr, size_t count)
-{
-  assert ((addr & (PAGESIZE - 1)) == 0);
-  assert ((count & (PAGESIZE - 1)) == 0);
-
-  assert (addr_prefix (anon->pager->region.start) <= addr);
-  // assert (addr + count * PAGESIZE < addr_prefix (anon->pager->region.start) <= addr);
-
-  addr_t page = addr_chop (PTR_TO_ADDR (addr), PAGESIZE_LOG2);
-
-  struct storage_desc *storage_desc = NULL;
-  storage_desc = hurd_btree_pager_find (&anon->storage, &page);
-
-  while (count > 0)
-    {
-    }
-}
-#endif
-
 static bool
 fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
        uintptr_t fault_addr, uintptr_t ip, struct exception_info info)
 {
-  debug (5, "Fault at %x", fault_addr);
-
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+
+  debug (5, "Fault at " ADDR_FMT " + %x",
+	 ADDR_PRINTF (anon->map_area), fault_addr);
 
   ss_mutex_lock (&anon->lock);
 
+  /* Determine if we have been invoked recursively.  This can only
+     happen if there is a fill function as we do not access a pager's
+     pages.  */
   bool recursive = false;
   if (anon->fill)
     {
       if (! ss_mutex_trylock (&anon->fill_lock))
+	/* The fill lock is held.  */
 	{
 	  if (anon->fill_thread == l4_myself ())
+	    /* By us!  */
 	    recursive = true;
 
 	  if (! recursive)
-	    /* Wait for the fill lock.  */
+	    /* By another thread.  Wait for the fill lock.  */
 	    ss_mutex_lock (&anon->fill_lock);
 	}
 
+      /* We have the lock.  */
       if (! recursive)
 	assert (anon->fill_thread == l4_nilthread);
       anon->fill_thread = l4_myself ();
@@ -189,86 +174,104 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	}
     }
 
-  assert (offset < pager->length);
-
   offset &= ~(PAGESIZE - 1);
   fault_addr &= ~(PAGESIZE - 1);
 
-  struct storage_desc *storage_desc = NULL;
+  assertx (offset + count * PAGESIZE <= pager->length,
+	   "%x + %d pages <= %x",
+	   offset, count, pager->length);
+
+  void *pages[count];
+
   if (! (anon->flags & ANONYMOUS_NO_ALLOC))
     {
       hurd_btree_storage_desc_t *storage_descs;
       storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
 
-      storage_desc = hurd_btree_storage_desc_find (storage_descs, &offset);
-
-      if (info.discarded)
+      int i;
+      for (i = 0; i < count; i ++)
 	{
-	  /* We can only fault on a page that we already have a descriptor
-	     for if the page was discardable.  Thus, if the pager is not
-	     an anonymous pager, we know that there is no descriptor for
-	     the page.  */
-	  assert (storage_desc);
-	  assert (anon->policy.discardable);
-	  assert (anon->fill);
+	  uintptr_t o = offset + i * PAGESIZE;
 
-	  error_t err;
-	  err = rm_object_discarded_clear (ADDR_VOID, storage_desc->storage);
-	  assertx (err == 0, "%d", err);
+	  struct storage_desc *storage_desc;
+	  storage_desc = hurd_btree_storage_desc_find (storage_descs, &o);
 
-	  debug (5, "Clearing discarded bit for %p / " ADDR_FMT,
-		 fault_addr, ADDR_PRINTF (storage_desc->storage));
-	}
-      else
-	{
-	  if (! storage_desc)
-	    /* Seems we have not yet allocated a page.  */
+	  if (storage_desc && info.discarded)
 	    {
-	      storage_desc = storage_desc_alloc ();
-	      storage_desc->offset = offset;
+	      /* We can only fault on a page that we already have a descriptor
+		 for if the page was discardable.  Thus, if the pager is not
+		 an anonymous pager, we know that there is no descriptor for
+		 the page.  */
+	      assert (storage_desc);
+	      assert (anon->policy.discardable);
 
-	      struct storage storage
-		= storage_alloc (anon->activity,
-				 cap_page, STORAGE_UNKNOWN, anon->policy,
-				 ADDR_VOID);
-	      if (ADDR_IS_VOID (storage.addr))
-		panic ("Out of memory.");
-	      storage_desc->storage = storage.addr;
+	      error_t err;
+	      err = rm_object_discarded_clear (ADDR_VOID,
+					       storage_desc->storage);
+	      assertx (err == 0, "%d", err);
 
-	      struct storage_desc *conflict;
-	      conflict = hurd_btree_storage_desc_insert (storage_descs,
-							 storage_desc);
-	      assertx (! conflict,
-		       "Fault address: %x, offset: %x",
-		       fault_addr, offset);
-
-	      debug (5, "Allocating storage for %p at " ADDR_FMT,
-		     fault_addr, ADDR_PRINTF (storage_desc->storage));
+	      debug (5, "Clearing discarded bit for %p / " ADDR_FMT,
+		     (void *) fault_addr + i * PAGESIZE,
+		     ADDR_PRINTF (storage_desc->storage));
 	    }
 	  else
-	    debug (5, "Copying storage " ADDR_FMT " to %p",
-		   ADDR_PRINTF (storage_desc->storage), fault_addr);
+	    {
+	      if (! storage_desc)
+		/* Seems we have not yet allocated a page.  */
+		{
+		  storage_desc = storage_desc_alloc ();
+		  storage_desc->offset = o;
 
-	  /* We generate a fake shadow cap for the storage as we know
-	     its contents (It is a page that is in a folio with the
-	     policy ANON->POLICY.)  */
-	  struct cap page;
-	  memset (&page, 0, sizeof (page));
-	  page.type = cap_page;
-	  CAP_POLICY_SET (&page, anon->policy);
+		  struct storage storage
+		    = storage_alloc (anon->activity,
+				     cap_page, STORAGE_UNKNOWN, anon->policy,
+				     ADDR_VOID);
+		  if (ADDR_IS_VOID (storage.addr))
+		    panic ("Out of memory.");
+		  storage_desc->storage = storage.addr;
 
-	  addr_t addr = addr_chop (PTR_TO_ADDR (fault_addr), PAGESIZE_LOG2);
-	  as_ensure_use
-	    (addr,
-	     ({
-	       bool ret;
-	       ret = cap_copy_x (anon->activity,
-				 ADDR_VOID, slot, addr,
-				 ADDR_VOID, page, storage_desc->storage,
-				 read_only ? CAP_COPY_WEAKEN : 0,
-				 CAP_PROPERTIES_VOID);
-	       assert (ret);
-	     }));
+		  struct storage_desc *conflict;
+		  conflict = hurd_btree_storage_desc_insert (storage_descs,
+							     storage_desc);
+		  assertx (! conflict,
+			   "Fault address: %p, offset: %x",
+			   (void *) fault_addr + i * PAGESIZE, o);
+
+		  debug (5, "Allocating storage for %p at " ADDR_FMT,
+			 (void *) fault_addr  + i * PAGESIZE,
+			 ADDR_PRINTF (storage_desc->storage));
+		}
+	      else
+		debug (5, "Copying storage " ADDR_FMT " to %p",
+		       ADDR_PRINTF (storage_desc->storage),
+		       (void *) fault_addr + i * PAGESIZE);
+
+	      /* We generate a fake shadow cap for the storage as we know
+		 its contents (It is a page that is in a folio with the
+		 policy ANON->POLICY.)  */
+	      struct cap page;
+	      memset (&page, 0, sizeof (page));
+	      page.type = cap_page;
+	      CAP_POLICY_SET (&page, anon->policy);
+
+	      addr_t addr = addr_chop (PTR_TO_ADDR (fault_addr + i * PAGESIZE),
+				       PAGESIZE_LOG2);
+	      as_ensure_use
+		(addr,
+		 ({
+		   bool ret;
+		   ret = cap_copy_x (anon->activity,
+				     ADDR_VOID, slot, addr,
+				     ADDR_VOID, page, storage_desc->storage,
+				     read_only ? CAP_COPY_WEAKEN : 0,
+				     CAP_PROPERTIES_VOID);
+		   assert (ret);
+		 }));
+	    }
+
+	  if (! recursive || ! (anon->flags & ANONYMOUS_NO_RECURSIVE))
+	    pages[i] = ADDR_TO_PTR (addr_extend (storage_desc->storage,
+						 0, PAGESIZE_LOG2));
 	}
     }
 
@@ -278,16 +281,15 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
     {
       if (! recursive || ! (anon->flags & ANONYMOUS_NO_RECURSIVE))
 	{
-	  debug (5, "Fault at %x, storage: " ADDR_FMT,
-		 fault_addr,
-		 ADDR_PRINTF (storage_desc
-			      ? storage_desc->storage : ADDR_VOID));
-	  void *pages[1]
-	    = { storage_desc
-		? ADDR_TO_PTR (addr_extend (storage_desc->storage,
-					    0, PAGESIZE_LOG2))
-		: (void *) fault_addr };
-	  r = anon->fill (anon, offset, 1, pages, info);
+	  debug (5, "Fault at %p + %c", (void *) fault_addr, count);
+	  if ((anon->flags & ANONYMOUS_NO_ALLOC))
+	    {
+	      int i;
+	      for (i = 0; i < count; i ++)
+		pages[i] = (void *) fault_addr + i * PAGESIZE;
+	    }
+
+	  r = anon->fill (anon, offset, count, pages, info);
 	}
 
       if (! recursive)
@@ -308,6 +310,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
     }
 
   ss_mutex_unlock (&anon->lock);
+
+  debug (5, "Fault at %x resolved", fault_addr);
 
   return r;
 }
@@ -436,42 +440,67 @@ static void
 advise (struct pager *pager,
 	uintptr_t start, uintptr_t length, uintptr_t advice)
 {
-  if (advice != pager_advice_dontneed)
-    /* This is the only advice we currently handle.  */
-    return;
-
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
   
-  uintptr_t offset[2];
-  offset[0] = start | 1;
-  offset[1] = length;
-
-  hurd_btree_storage_desc_t *storage_descs;
-  storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
-
-  struct storage_desc *next
-    = hurd_btree_storage_desc_find (storage_descs, &offset[0]);
-  if (next)
+  switch (advice)
     {
-      struct storage_desc *prev = hurd_btree_storage_desc_prev (next);
+    case pager_advice_dontneed:
+      {
+	uintptr_t offset[2];
+	offset[0] = start | 1;
+	offset[1] = length;
 
-      int dir;
-      struct storage_desc *storage_desc;
-      for (dir = 0; dir < 2; dir ++, next = prev)
-	while ((storage_desc = next))
+	hurd_btree_storage_desc_t *storage_descs;
+	storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
+
+	struct storage_desc *next
+	  = hurd_btree_storage_desc_find (storage_descs, &offset[0]);
+	if (next)
 	  {
-	    next = (dir == 0 ? hurd_btree_storage_desc_next (storage_desc)
-		    : hurd_btree_storage_desc_prev (storage_desc));
+	    struct storage_desc *prev = hurd_btree_storage_desc_prev (next);
 
-	    if (storage_desc->offset < start
-		|| storage_desc->offset >= start + length)
-	      break;
+	    int dir;
+	    struct storage_desc *storage_desc;
+	    for (dir = 0; dir < 2; dir ++, next = prev)
+	      while ((storage_desc = next))
+		{
+		  next = (dir == 0 ? hurd_btree_storage_desc_next (storage_desc)
+			  : hurd_btree_storage_desc_prev (storage_desc));
 
-	    error_t err;
-	    err = rm_object_discard (anon->activity, storage_desc->storage);
-	    if (err)
-	      panic ("err: %d", err);
+		  if (storage_desc->offset < start
+		      || storage_desc->offset >= start + length)
+		    break;
+
+		  error_t err;
+		  err = rm_object_discard (anon->activity,
+					   storage_desc->storage);
+		  if (err)
+		    panic ("err: %d", err);
+		}
 	  }
+
+	break;
+      }
+
+    case pager_advice_normal:
+      {
+	struct exception_info info;
+	info.discarded = true;
+	info.type = cap_page;
+	/* XXX: What should be set info.access to?  */
+	info.access = MAP_ACCESS_ALL;
+
+	bool r = fault (pager, start, length / PAGESIZE, false,
+			addr_prefix (anon->map_area) + start, 0, info);
+	if (! r)
+	  debug (5, "Did not resolve fault for anonymous pager");
+
+	break;
+      }
+
+    default:
+      /* We don't support other types of advice.  */
+      break;
     }
 }
 
