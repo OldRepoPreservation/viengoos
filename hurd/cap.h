@@ -262,7 +262,7 @@ struct cap
   struct object *shadow;
 
   uint32_t discardable : 1;
-  uint32_t priority : OBJECT_PRIORITY_BITS;
+  int32_t priority : OBJECT_PRIORITY_BITS;
 
   uint32_t type : CAP_TYPE_BITS;
 
