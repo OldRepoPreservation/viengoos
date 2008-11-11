@@ -249,7 +249,7 @@ struct cap
   /* Whether the designated object may be discarded.  */
   uint32_t discardable : 1;
   /* The designated object's priority.  */
-  uint32_t priority : OBJECT_PRIORITY_BITS;
+  int32_t priority : OBJECT_PRIORITY_BITS;
 
   struct cap_addr_trans addr_trans;
 

@@ -1,3 +1,7 @@
+2008-11-11  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (struct cap): Make priority signed.
+
 2008-11-04  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (OBJECT_PRIORITY_BITS): Change to 7.
