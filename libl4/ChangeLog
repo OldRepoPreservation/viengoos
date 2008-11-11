@@ -1,3 +1,7 @@
+2008-11-11  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32/l4/bits/vregs.h (_L4_utcb): Use %gs:0.
+
 2008-08-16  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/ipc.h (_L4_reply_wait_timeout): Use _L4_zero_time, not

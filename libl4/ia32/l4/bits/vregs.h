@@ -32,7 +32,7 @@ _L4_utcb (void)
 #ifndef _L4_TEST_ENVIRONMENT
   _L4_word_t *utcb;
 
-  __asm__ __volatile__ ("movl %%gs:4, %[utcb]"
+  __asm__ __volatile__ ("movl %%gs:0, %[utcb]"
 			: [utcb] "=r" (utcb));
 
   return utcb;
