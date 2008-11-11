@@ -1,5 +1,9 @@
 2008-11-11  Neal H. Walfield  <neal@gnu.org>
 
+	* configure.ac: Generate benchmarks/sqlite/Makefile.
+
+2008-11-11  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (libc-stmp): Only touch sysroot/lib/libc.a, don't
 	overwrite it.
 

@@ -20,7 +20,7 @@
 bootdir = $(prefix)/boot
 
 if ! ENABLE_TESTS
-SUBDIRS = boehm-gc
+SUBDIRS = sqlite boehm-gc
 
 boot_PROGRAMS = shared-memory-distribution activity-distribution gcbench
 endif
