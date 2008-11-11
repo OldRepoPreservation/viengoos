@@ -56,8 +56,7 @@ libc-stmp: @LIBC_A@ @LIBC_M@ \
       libhurd-ihash/libhurd-ihash.a \
       libhurd-btree/libhurd-btree.a \
       libc-parts/libc-parts.a
-	touch libc-stmp
-	echo '/* This file intentionally left blank.  */'>sysroot/lib/libc.a
+	touch libc-stmp sysroot/lib/libc.a
 
 else
 
