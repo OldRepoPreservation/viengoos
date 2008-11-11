@@ -307,10 +307,26 @@ s_cprintf (int (*putchar) (int), const char *fmt, ...)
 int
 s_printf (const char *fmt, ...)
 {
+#ifndef RM_INTERN
+  struct io_buffer buffer;
+  buffer.len = 0;
+
+  int putchar (int chr)
+  {
+    io_buffer_append (&buffer, chr);
+    return 0;
+  }
+#endif
+
   va_list ap;
 
   va_start (ap, fmt);
-  int r = s_cvprintf (s_putchar, fmt, ap);
+  int r = s_cvprintf (putchar, fmt, ap);
   va_end (ap);
+
+#ifndef RM_INTERN
+  io_buffer_flush (&buffer);
+#endif
+
   return r;
 }

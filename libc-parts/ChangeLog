@@ -1,5 +1,10 @@
 2008-11-11  Neal H. Walfield  <neal@gnu.org>
 
+	* s_printf.c [! RM_INTERN] (s_printf): Don't use s_putchar to send
+	individual characters.  Use an io_buffer instead.
+
+2008-11-11  Neal H. Walfield  <neal@gnu.org>
+
 	* profile.c [! __gnu_hurd_viengoos__]: Don't include <l4.h> or
 	<hurd/rm.h>.  Include <sys/time.h> and <stdio.h>.
 	[! __gnu_hurd_viengoos__ && ! PAGESIZE] (PAGESIZE): Define.
