@@ -904,7 +904,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 	 cap_type_string (desc->type),
 	 desc->policy.discardable ? "discardable" : "precious");
 
- out:
+ out:;
 #ifndef NDEBUG
   if (desc->activity && update_accounting)
     {
