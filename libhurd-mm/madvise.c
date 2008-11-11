@@ -32,9 +32,15 @@ int
 madvise (void *addr, size_t length, int advice)
 {
   if (((uintptr_t) addr & (PAGESIZE - 1)) != 0)
-    return EINVAL;
+    {
+      debug (0, "Address %x not multiple of pagesize.", addr);
+      return EINVAL;
+    }
   if ((length & (PAGESIZE - 1)) != 0)
-    return EINVAL;
+    {
+      debug (0, "Length %x not multiple of pagesize.", addr);
+      return EINVAL;
+    }
 
   switch (advice)
     {
@@ -59,8 +65,6 @@ madvise (void *addr, size_t length, int advice)
 
   uintptr_t start = (uintptr_t) addr;
   uintptr_t end = start + length - 1;
-
-  debug (0, "(%p, %x (%p), %d)", addr, length, end, advice);
 
   struct region region = { (uintptr_t) addr, length };
 

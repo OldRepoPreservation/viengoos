@@ -1,5 +1,9 @@
 2008-11-11  Neal H. Walfield  <neal@gnu.org>
 
+	* madvise.c (madvise): Add debugging output for bad arguments.
+
+2008-11-11  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.c: Include <profile.h>.
 	(fault): Profile.
 
