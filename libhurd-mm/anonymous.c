@@ -30,6 +30,8 @@
 
 #include <hurd/rm.h>
 
+#include <profile.h>
+
 #include "anonymous.h"
 #include "pager.h"
 #include "storage.h"
@@ -133,11 +135,14 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
        uintptr_t fault_addr, uintptr_t ip, struct exception_info info)
 {
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+  bool r;
 
   debug (5, "Fault at " ADDR_FMT " + %x",
 	 ADDR_PRINTF (anon->map_area), fault_addr);
 
   ss_mutex_lock (&anon->lock);
+
+  profile_region ("anonymous_fault");
 
   /* Determine if we have been invoked recursively.  This can only
      happen if there is a fill function as we do not access a pager's
@@ -194,7 +199,9 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	  uintptr_t o = offset + i * PAGESIZE;
 
 	  struct storage_desc *storage_desc;
+	  profile_region ("anonymous_fault(storage_desc_lookup)");
 	  storage_desc = hurd_btree_storage_desc_find (storage_descs, &o);
+	  profile_region_end ();
 
 	  if (storage_desc && info.discarded)
 	    {
@@ -206,9 +213,11 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	      assert (anon->policy.discardable);
 
 	      error_t err;
+	      profile_region ("anonymous_fault(discarded_clear)");
 	      err = rm_object_discarded_clear (ADDR_VOID,
 					       storage_desc->storage);
 	      assertx (err == 0, "%d", err);
+	      profile_region_end ();
 
 	      debug (5, "Clearing discarded bit for %p / " ADDR_FMT,
 		     (void *) fault_addr + i * PAGESIZE,
@@ -222,6 +231,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		  storage_desc = storage_desc_alloc ();
 		  storage_desc->offset = o;
 
+		  profile_region ("anonymous_fault(storage alloc)");
+
 		  struct storage storage
 		    = storage_alloc (anon->activity,
 				     cap_page, STORAGE_UNKNOWN, anon->policy,
@@ -229,6 +240,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		  if (ADDR_IS_VOID (storage.addr))
 		    panic ("Out of memory.");
 		  storage_desc->storage = storage.addr;
+
+		  profile_region_end ();
 
 		  struct storage_desc *conflict;
 		  conflict = hurd_btree_storage_desc_insert (storage_descs,
@@ -245,6 +258,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		debug (5, "Copying storage " ADDR_FMT " to %p",
 		       ADDR_PRINTF (storage_desc->storage),
 		       (void *) fault_addr + i * PAGESIZE);
+
+	      profile_region ("anonymous_fault(install)");
 
 	      /* We generate a fake shadow cap for the storage as we know
 		 its contents (It is a page that is in a folio with the
@@ -267,6 +282,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 				     CAP_PROPERTIES_VOID);
 		   assert (ret);
 		 }));
+
+	      profile_region_end ();
 	    }
 
 	  if (! recursive || ! (anon->flags & ANONYMOUS_NO_RECURSIVE))
@@ -275,7 +292,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	}
     }
 
-  bool r = true;
+  r = true;
 
   if (anon->fill)
     {
@@ -289,7 +306,9 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		pages[i] = (void *) fault_addr + i * PAGESIZE;
 	    }
 
+	  profile_region ("anonymous_fault(user fill)");
 	  r = anon->fill (anon, offset, count, pages, info);
+	  profile_region_end ();
 	}
 
       if (! recursive)
@@ -310,6 +329,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
     }
 
   ss_mutex_unlock (&anon->lock);
+
+  profile_region_end ();
 
   debug (5, "Fault at %x resolved", fault_addr);
 

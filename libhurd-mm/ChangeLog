@@ -1,3 +1,8 @@
+2008-11-11  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.c: Include <profile.h>.
+	(fault): Profile.
+
 2008-11-06  Neal H. Walfield  <neal@gnu.org>
 
 	* anonymous.c (fault): Handle the case where COUNT > 0.  Don't
