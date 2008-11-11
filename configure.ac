@@ -334,6 +334,7 @@ AC_CONFIG_FILES([Makefile
 		 ruth/Makefile
 		 benchmarks/Makefile
 		 benchmarks/boehm-gc/Makefile
+		 benchmarks/sqlite/Makefile
 		 doc/Makefile
 		 ])
 AC_OUTPUT
