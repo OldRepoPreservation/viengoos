@@ -1,3 +1,19 @@
+2008-11-11  Neal H. Walfield  <neal@gnu.org>
+
+	* profile.c [! __gnu_hurd_viengoos__]: Don't include <l4.h> or
+	<hurd/rm.h>.  Include <sys/time.h> and <stdio.h>.
+	[! __gnu_hurd_viengoos__ && ! PAGESIZE] (PAGESIZE): Define.
+	[! __gnu_hurd_viengoos__ && ! panic] (panic): Define.
+	[! __gnu_hurd_viengoos__ && ! do_debug] (do_debug): Define.
+	(now): New function.
+	(profile_stats_dump): Use it instead of l4_system_clock.
+	(profile_start): Likewise.
+	(profile_end): Likewise.
+	(profile_start) [__gnu_hurd_viengoos__]: If NAME is NULL, use
+	"unknown".
+
+	* profile.h [! RM_INTERN] (NPROFILE): Don't define.
+
 2008-11-03  Neal H. Walfield  <neal@gnu.org>
 
 	* headers.m4: Don't create an empty libc-parts/libc-parts.a.

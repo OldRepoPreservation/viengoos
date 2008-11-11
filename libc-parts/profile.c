@@ -28,8 +28,50 @@
 #include <hurd/ihash.h>
 #include <stddef.h>
 #include <string.h>
-#include <l4.h>
-#include <hurd/rm.h>
+
+#ifdef __gnu_hurd_viengoos__
+# include <l4.h>
+# include <hurd/rm.h>
+#else
+# include <sys/time.h>
+# ifndef s_printf
+#  define s_printf printf
+# endif
+# ifndef PAGESIZE
+/* We only use this to determine a buffer size.  It needs to be a
+   constant.  */
+#  define PAGESIZE 4096
+# endif
+# ifndef panic
+#  define panic(fmt, ...)						\
+  do									\
+    {									\
+      printf ("%s:%d: " fmt "\n", __func__, __LINE__ , ##__VA_ARGS__);	\
+      abort ();								\
+    }									\
+  while (0)
+# endif
+#include <stdio.h>
+# ifndef do_debug
+#  define do_debug(x) if (0)
+# endif
+#endif
+
+static inline uint64_t
+now (void)
+{
+#ifdef __gnu_hurd_viengoos__
+  return l4_system_clock ();
+#else
+  struct timeval t;
+  struct timezone tz;
+
+  if (gettimeofday (&t, &tz) == -1)
+    return 0;
+  return (t.tv_sec * 1000000ULL + t.tv_usec);
+#endif
+}
+
 
 static struct hurd_ihash sites_hash;
 static char sites_hash_buffer[PAGESIZE];
@@ -65,7 +107,7 @@ static int extant;
 void
 profile_stats_dump (void)
 {
-  uint64_t now = l4_system_clock ();
+  uint64_t n = now ();
 
   int i;
   for (i = 0; i < used; i ++)
@@ -77,12 +119,12 @@ profile_stats_dump (void)
 		sites[i].time / 1000,
 		sites[i].time / sites[i].calls,
 		(int) ((10 * sites[i].time) / sites[i].calls) % 10,
-		(int) ((100 * sites[i].time) / (now - epoch)),
+		(int) ((100 * sites[i].time) / (n - epoch)),
 		(int) ((100 * sites[i].time) / total_time));
 
   s_printf ("profiled time: %lld ms, calls: %lld\n",
 	    total_time / 1000, calls);
-  s_printf ("uptime: %lld ms\n", (now - epoch) / 1000);
+  s_printf ("uptime: %lld ms\n", (n - epoch) / 1000);
 }
 
 #undef profile_start
@@ -114,7 +156,7 @@ profile_start (uintptr_t id, const char *name)
 				   HURD_IHASH_NO_LOCP,
 				   buffer, size);
 
-      epoch = l4_system_clock ();
+      epoch = now ();
 
       init = 2;
     }
@@ -135,14 +177,20 @@ profile_start (uintptr_t id, const char *name)
       if (name)
 	site->name = name;
       else
-	site->name = rm_method_id_string (id);
+	{
+#ifdef __gnu_hurd_viengoos__
+	  site->name = rm_method_id_string (id);
+#else
+	  site->name = "unknown";
+#endif
+	}      
     }
 
   extant ++;
 
   site->pending ++;
   if (site->pending == 1)
-    site->start = l4_system_clock ();
+    site->start = now ();
 }
 
 #undef profile_end
@@ -155,7 +203,7 @@ profile_end (uintptr_t id)
   struct site *site = hurd_ihash_find (&sites_hash, id);
   if (! site)
     panic ("profile_end called without corresponding profile_begin (%p)!",
-	   id);
+	   (void *) id);
 
   if (! site->pending)
     panic ("profile_end called but no extant profile_start!");
@@ -165,12 +213,12 @@ profile_end (uintptr_t id)
   site->pending --;
   if (site->pending == 0)
     {
-      uint64_t now = l4_system_clock ();
+      uint64_t n = now ();
 
-      site->time += now - site->start;
+      site->time += n - site->start;
 
       if (extant == 0)
-	total_time += now - site->start;
+	total_time += n - site->start;
 
       site->calls ++;
       calls ++;

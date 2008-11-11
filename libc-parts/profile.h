@@ -25,7 +25,7 @@
 
 /* Currently, only enable by default for Viengoos.  */
 #ifndef RM_INTERN
-#define NPROFILE
+// #define NPROFILE
 #endif
 
 #ifndef NPROFILE
