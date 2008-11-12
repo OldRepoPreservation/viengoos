@@ -99,6 +99,8 @@ reclaim_from (struct activity *victim, int goal)
 
   for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
     {
+      int s = count;
+
       struct object_desc *desc;
       while (count < goal
 	     && (desc = activity_list_head (&victim->frames[i].inactive)))
@@ -114,7 +116,7 @@ reclaim_from (struct activity *victim, int goal)
 	  object_desc_flush (desc, false);
 	  if (desc->dirty && ! desc->policy.discardable)
 	    {
-	      eviction_list_push (&victim->eviction_dirty, desc);
+	      eviction_list_queue (&victim->eviction_dirty, desc);
 
 	      laundry_list_queue (&laundry, desc);
 	      laundry_count ++;
@@ -123,7 +125,7 @@ reclaim_from (struct activity *victim, int goal)
 	    {
 	      is_clean (desc);
 
-	      eviction_list_push (&victim->eviction_clean, desc);
+	      eviction_list_queue (&victim->eviction_clean, desc);
 
 	      available_list_queue (&available, desc);
 
@@ -135,6 +137,11 @@ reclaim_from (struct activity *victim, int goal)
 
 	  count ++;
 	}
+
+      if (count - s > 0)
+	debug (5, "Reclaimed %d inactive, priority level %d",
+	       count - s, i);
+      s = count;
 
       /* Currently we evict in LIFO order.  We should do a semi-sort and
 	 then evict accordingly.  */
@@ -174,6 +181,10 @@ reclaim_from (struct activity *victim, int goal)
 
 	  count ++;
 	}
+
+      if (count - s > 0)
+	debug (5, "Reclaimed %d active, priority level %d",
+	       count - s, i);
     }
 
   victim->frames_local -= count - laundry_count;
@@ -348,6 +359,8 @@ pager_collect (int goal)
 	return false;
       }
 
+      profile_region ("pager_collect(find victim)");
+
       victim = root_activity;
       do
 	{
@@ -434,6 +447,8 @@ pager_collect (int goal)
 	  ACTIVITY_STATS (victim)->pressure ++;
 	}
       while (victim != parent);
+
+      profile_region_end ();
 
       if (! victim)
 	break;

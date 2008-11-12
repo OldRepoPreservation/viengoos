@@ -1,3 +1,8 @@
+2008-11-12  Neal H. Walfield  <neal@gnu.org>
+
+	* pager.c (reclaim_from): Add victims to the end of the eviction
+	list.
+
 2008-11-11  Neal H. Walfield  <neal@gnu.org>
 
 	* ager.c (ager_loop): Add frames to the end of the active or
