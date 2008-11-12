@@ -175,7 +175,7 @@ list_push (struct list *list, struct list_node *item)
 
 /* Add ITEM to the end of the list LIST.  */
 static inline void
-list_queue (struct list *list, struct list_node *item)
+list_enqueue (struct list *list, struct list_node *item)
 {
   /* We require that when an item is added to a list that its next and
      previous pointers be NULL.  This helps to catch when an item is
@@ -211,6 +211,57 @@ list_queue (struct list *list, struct list_node *item)
     }
 
   list->count ++;
+}
+
+/* Remove the first item in list LIST and return it.  If the list is
+   empty, returns NULL.  */
+static inline struct list_node *
+list_dequeue (struct list *list)
+{
+  if (! list->head)
+    /* List is empty.  */
+    {
+      assert (list->count == 0);
+      return NULL;
+    }
+
+  struct list_node *item = list_head (list);
+  assert (item);
+  assert (LIST_SENTINEL_P (item->prev));
+
+  /* The new head.  */
+  struct list_node *head = list_next (item);
+  list->head = head;
+
+#ifndef NDEBUG
+  /* The current tail.  It remains pointing at LIST.  */
+  struct list_node *tail = LIST_PTR (item->prev);
+  assert (LIST_PTR (tail->next) == (void *) list);
+#endif
+
+  if (! head)
+    /* The list contained a single element.  It is now empty.  */
+    {
+      /* Next pointers: list -> item -> list.  */
+      assert (LIST_SENTINEL_P (item->next));
+      assert (LIST_PTR (item->next) == (void *) list);
+      /* Previous pointers: item <- item.  */
+      assert (LIST_PTR (item->prev) == item);
+
+      assert (list->count == 1);
+    }
+  else
+    /* Update the new head's previous pointer to point at the list's
+       tail.  */
+    head->prev = item->prev;
+
+  list->count --;
+
+#ifndef NDEBUG
+  item->next = item->prev = NULL;
+#endif
+
+  return item;
 }
 
 /* Insert ITEM after node NODE.  If NODE is NULL, insert at the head
@@ -255,6 +306,7 @@ list_unlink (struct list *list, struct list_node *item)
   assert (item->prev);
 
   /* Ensure that ITEM appears on LIST.  */
+#ifndef NCHECK
   assertx (({
 	struct list_node *i = item;
 	while (! LIST_SENTINEL_P (i->next))
@@ -269,6 +321,7 @@ list_unlink (struct list *list, struct list_node *item)
 	LIST_PTR (i->next) == (void *) list;
       }), "list: %p (%s) (%d), item: %p",
     list, list->name, list_count (list), item);
+#endif
 
   if (LIST_SENTINEL_P (item->next) && LIST_SENTINEL_P (item->prev))
     /* The only item on the list.  */
@@ -381,7 +434,8 @@ list_join (struct list *target, struct list *source)
      struct foo *foo_list_prev (struct foo *item);
 
      void foo_list_push (struct foo_list *list, struct foo *object);
-     void foo_list_queue (struct foo_list *list, struct foo *object);
+     void foo_list_enqueue (struct foo_list *list, struct foo *object);
+     void foo_list_dequeue (struct foo_list *list, struct foo *object);
      void foo_list_unlink (struct foo_list *list, struct foo *object);
 
      void foo_list_move (struct foo_list *target, struct foo_list *source);
@@ -460,9 +514,18 @@ list_join (struct list *target, struct list *source)
   }									\
 									\
   static inline void							\
-  name##_list_queue (struct name##_list *list, object_type *object)	\
+  name##_list_enqueue (struct name##_list *list, object_type *object)	\
   {									\
-    list_queue (&list->list, &object->node_field);			\
+    list_enqueue (&list->list, &object->node_field);			\
+  }									\
+									\
+  static inline object_type *						\
+  name##_list_dequeue (struct name##_list *list)			\
+  {									\
+    struct list_node *node = list_dequeue (&list->list);		\
+    if (! node)								\
+      return NULL;							\
+    return (void *) node - offsetof (object_type, node_field);		\
   }									\
 									\
   static inline void							\

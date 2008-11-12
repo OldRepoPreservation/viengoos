@@ -134,6 +134,8 @@ server_loop (void)
 	       any message in the last few seconds.  Perhaps there is
 	       a dead-lock.  Dump the rpc trace.  */
 	    {
+	      debug (0, "No IPCs for some time.  Deadlock?");
+
 	      struct thread *thread;
 	      while ((thread = futex_waiter_list_head (&futex_waiters)))
 		{
@@ -1624,7 +1626,7 @@ server_loop (void)
 		object_wait_queue_enqueue (principal, object1, thread);
 
 #ifndef NDEBUG
-		futex_waiter_list_queue (&futex_waiters, thread);
+		futex_waiter_list_enqueue (&futex_waiters, thread);
 #endif
 
 		/* Don't reply.  */

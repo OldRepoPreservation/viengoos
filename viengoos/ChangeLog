@@ -1,5 +1,13 @@
 2008-11-12  Neal H. Walfield  <neal@gnu.org>
 
+	* list.h (list_queue): Rename from this...
+	(list_enqueue): ... to this.  Update users.
+	(list_dequeue): New function.
+	(LIST_CLASS): Rename the generated queue function accordingly and
+	update users.  Generate a stub for dequeueing elements.
+
+2008-11-12  Neal H. Walfield  <neal@gnu.org>
+
 	* pager.c (reclaim_from): Add victims to the end of the eviction
 	list.
 

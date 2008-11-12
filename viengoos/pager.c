@@ -116,18 +116,18 @@ reclaim_from (struct activity *victim, int goal)
 	  object_desc_flush (desc, false);
 	  if (desc->dirty && ! desc->policy.discardable)
 	    {
-	      eviction_list_queue (&victim->eviction_dirty, desc);
+	      eviction_list_enqueue (&victim->eviction_dirty, desc);
 
-	      laundry_list_queue (&laundry, desc);
+	      laundry_list_enqueue (&laundry, desc);
 	      laundry_count ++;
 	    }
 	  else
 	    {
 	      is_clean (desc);
 
-	      eviction_list_queue (&victim->eviction_clean, desc);
+	      eviction_list_enqueue (&victim->eviction_clean, desc);
 
-	      available_list_queue (&available, desc);
+	      available_list_enqueue (&available, desc);
 
 	      if (desc->policy.discardable)
 		discarded ++;
@@ -162,9 +162,9 @@ reclaim_from (struct activity *victim, int goal)
 	  if (desc->dirty && ! desc->policy.discardable)
 	    {
 	      if (! list_node_attached (&desc->laundry_node))
-		laundry_list_queue (&laundry, desc);
+		laundry_list_enqueue (&laundry, desc);
 
-	      eviction_list_queue (&victim->eviction_dirty, desc);
+	      eviction_list_enqueue (&victim->eviction_dirty, desc);
 	      laundry_count ++;
 	    }
 	  else
@@ -172,8 +172,8 @@ reclaim_from (struct activity *victim, int goal)
 	      assert (! list_node_attached (&desc->available_node));
 	      is_clean (desc);
 
-	      available_list_queue (&available, desc);
-	      eviction_list_queue (&victim->eviction_clean, desc);
+	      available_list_enqueue (&available, desc);
+	      eviction_list_enqueue (&victim->eviction_clean, desc);
 
 	      if (desc->policy.discardable)
 		discarded ++;

@@ -618,7 +618,7 @@ ager_loop (void)
 		      int priority = desc->policy.priority;
 		      activity_list_unlink
 			(&desc->activity->frames[priority].active, desc);
-		      activity_list_queue
+		      activity_list_enqueue
 			(&desc->activity->frames[priority].inactive, desc);
 		    }
 		  else
@@ -641,7 +641,7 @@ ager_loop (void)
 		      int priority = desc->policy.priority;
 		      activity_list_unlink
 			(&desc->activity->frames[priority].inactive, desc);
-		      activity_list_queue
+		      activity_list_enqueue
 			(&desc->activity->frames[priority].active, desc);
 
 		      desc->dirty |= dirty;
