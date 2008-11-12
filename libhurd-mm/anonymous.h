@@ -123,7 +123,9 @@ struct anonymous_pager
 
   /* The thread in the fill function.  (If none, NULL.)  */
   l4_thread_id_t fill_thread;
-  /* Used to serialize the fill function.  */
+  /* Used to serialize the fill function.  Also protects FILL_THREAD.
+     If ANONYMOUS_THREAD_SAFE is set, then this lock protects the
+     staging area.  Must be taken while holding LOCK.  */
   ss_mutex_t fill_lock;
 };
 

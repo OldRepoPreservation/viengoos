@@ -292,6 +292,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	}
     }
 
+  ss_mutex_unlock (&anon->lock);
+
   r = true;
 
   if (anon->fill)
@@ -327,8 +329,6 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	  ss_mutex_unlock (&anon->fill_lock);
 	}
     }
-
-  ss_mutex_unlock (&anon->lock);
 
   profile_region_end ();
 
@@ -435,6 +435,9 @@ destroy (struct pager *pager)
   assert (! pager->maps);
 
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+
+  /* Wait any fill function returns.  */
+  ss_mutex_lock (&anon->fill_lock);
 
   if (anon->staging_area)
     /* Free the staging area.  */

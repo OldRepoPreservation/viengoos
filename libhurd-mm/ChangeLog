@@ -1,3 +1,14 @@
+2008-11-12  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.h (struct anonymous_pager): Improve documentation for
+	the fill_lock field.
+	* anonymous.c (fault): Drop ANON->LOCK before calling the user's
+	fill function.
+	(destroy): Before destroying ANON, take ANON->FILL_LOCK.
+
+	* madvise.c (madvise): Refactor to not hold map lock when calling
+	MAP->PAGER->ADVISE.
+
 2008-11-11  Neal H. Walfield  <neal@gnu.org>
 
 	* madvise.c (madvise): Add debugging output for bad arguments.
