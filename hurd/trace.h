@@ -122,12 +122,14 @@ trace_buffer_add (const char *func, const int lineno,
   trace_buffer_add (__FUNCTION__, __LINE__, buf, fmt, ##__VA_ARGS__)
 
 static inline void
-trace_buffer_dump (struct trace_buffer *buffer, int count)
+trace_buffer_dump (const char *func, int line,
+		   struct trace_buffer *buffer, int count)
 {
   if (! buffer->nolock)
     ss_mutex_lock (&buffer->lock);
 
-  s_printf ("Dumping trace buffer %s(%x)\n", buffer->name, buffer->id);
+  s_printf ("%s:%d: Dumping trace buffer %s(%x)\n",
+	    func, line, buffer->name, buffer->id);
 
   if (buffer->written == 0)
     {
@@ -201,5 +203,7 @@ trace_buffer_dump (struct trace_buffer *buffer, int count)
   if (! buffer->nolock)
     ss_mutex_unlock (&buffer->lock);
 }
+#define trace_buffer_dump(buffer, count)	\
+  trace_buffer_dump (__FUNCTION__, __LINE__, buffer, count)
 
 #endif /* _HURD_TRACE_H  */

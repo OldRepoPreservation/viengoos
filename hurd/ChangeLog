@@ -1,3 +1,9 @@
+2008-11-12  Neal H. Walfield  <neal@gnu.org>
+
+	* trace.h (trace_buffer_dump): Take additional arguments func and
+	line.  Print them.
+	(trace_buffer_dump): Also define as a macro.
+
 2008-11-11  Neal H. Walfield  <neal@gnu.org>
 
 	* cap.h (struct cap): Make priority signed.
