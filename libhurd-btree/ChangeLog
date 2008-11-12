@@ -1,3 +1,13 @@
+2008-11-12  Neal H. Walfield  <neal@gnu.org>
+
+	* btree.h (find_first): New function.
+	(BTREE_CLASS): Generate a find_first function.
+	* t-find-first.c (region_compare): New file.
+	* Makefile.am (TESTS): Add t-find-first.
+	(check_PROGRAMS): Likewise.
+	(t_find_first_SOURCES): New variable.
+	(t_find_first_CPPFLAGS): Likewise.
+
 2008-11-11  Neal H. Walfield  <neal@gnu.org>
 
 	* btree.c: Remove dead code.

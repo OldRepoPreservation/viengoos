@@ -34,8 +34,11 @@ libhurd_btree_a_CFLAGS = $(USER_CFLAGS)
 endif
 libhurd_btree_a_SOURCES = btree.h btree.c
 
-TESTS = btree-test
+TESTS = btree-test t-find-first
 
-check_PROGRAMS = btree-test
+check_PROGRAMS = btree-test t-find-first
 btree_test_SOURCES = btree-test.c btree.h btree.c
 btree_test_CPPFLAGS = $(CHECK_CPPFLAGS)
+
+t_find_first_SOURCES = t-find-first.c btree.h btree.c
+t_find_first_CPPFLAGS = $(CHECK_CPPFLAGS)

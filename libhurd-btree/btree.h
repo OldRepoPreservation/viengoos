@@ -1,5 +1,5 @@
 /* Balanced tree insertion and deletion routines.
-   Copyright (C) 2004, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -381,6 +381,45 @@ BTREE_(find) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
   return node;
 }
 
+/* Given the set of nodes that compare equal to KEY according to
+   COMPARE, return the one that occurs lexically first according to
+   the tree's order.  Returns NULL .  */
+BTREE_EXTERN_INLINE BTREE_(node_t) *
+BTREE_(find_first) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
+		    size_t key_offset, const void *key);
+BTREE_EXTERN_INLINE BTREE_(node_t) *
+BTREE_(find_first) (BTREE_(t) *btree, BTREE_(key_compare_t) compare,
+		    size_t key_offset, const void *key)
+{
+  struct BTREE_(node_ptr) *nodep = &btree->root;
+  BTREE_(node_t) *first = NULL;
+
+  while (BTREE_NP_CHILD (*nodep))
+    {
+      /* We need NODE not because it is convenient but because if any
+	 rotations are done by BTREE_(maybe_split_internal) then the
+	 value it contains may be invalid.  */
+      BTREE_(node_t) *node = BTREE_NP (*nodep);
+
+      BTREE_(maybe_split_internal) (btree, node, 0);
+      /* If that did any rotations NODEP may now be garbage.  That
+	 doesn't matter, because the value it contains is never used
+	 again in that case.  */
+
+      int r = compare (key, (void *) node + key_offset);
+      if (r == 0)
+	/* NODE compares equal to KEY according to COMPARE.  It must
+	   be the smallest such key that we have seen so far.  */
+	first = node;
+
+      /* Node with a key matching KEY and which is smaller than NODE
+	 must be on the left if r <= 0 or right if r > 0.  */
+      nodep = r <= 0 ? &node->left : &node->right;
+    }
+
+  return first;
+}
+
 /* Insert node NODE into btree BTREE.  COMPARE is the comparison
    function.  NEWNODE's key must be valid.  If MAY_OVERLAP is not
    true, and there exists a node with a key that compares equal to
@@ -551,6 +590,8 @@ BTREE_(prev) (BTREE_(node_t) *node)
     Functions:
      void btree_NAME_tree_init (btree_NAME_t *btree, NODE_TYPE *node);
      NODE_TYPE *btree_NAME_find (btree_NAME_t *btree, const KEY_TYPE *key);
+     NODE_TYPE *btree_NAME_find_first (btree_NAME_t *btree,
+                                       const KEY_TYPE *key);
      NODE_TYPE *btree_NAME_insert (btree_NAME_t *btree, NODE_TYPE *newnode);
      void btree_NAME_detach (btree_NAME_t *btree, NODE_TYPE *node);
      NODE_TYPE *btree_NAME_first (btree_NAME_t *btree);
@@ -631,6 +672,20 @@ BTREE_(name##_find) (BTREE_(name##_t) *btree, const key_type *key)	\
 			  offsetof (node_type, key_field)		\
 			  - offsetof (node_type, btree_node_field),	\
 			  (const void *) key);				\
+									\
+  return n ? n - offsetof (node_type, btree_node_field) : NULL;		\
+}									\
+									\
+static inline node_type *						\
+BTREE_(name##_find_first) (BTREE_(name##_t) *btree, const key_type *key) \
+{									\
+  int (*cmp) (const key_type *, const key_type *) = (cmp_function);	\
+  void *n = BTREE_(find_first)						\
+    (&btree->btree,							\
+     (int (*) (const void *, const void *)) cmp,			\
+     offsetof (node_type, key_field)					\
+     - offsetof (node_type, btree_node_field),				\
+     (const void *) key);						\
 									\
   return n ? n - offsetof (node_type, btree_node_field) : NULL;		\
 }									\
