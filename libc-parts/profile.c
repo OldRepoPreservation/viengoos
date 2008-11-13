@@ -109,18 +109,53 @@ profile_stats_dump (void)
 {
   uint64_t n = now ();
 
+  int width = 0;
+  int count = 0;
+
   int i;
   for (i = 0; i < used; i ++)
+    {
+      if (sites[i].calls)
+	count ++;
+      if (sites[i].calls && sites[i].name && strlen (sites[i].name) > width)
+	width = strlen (sites[i].name);
+    }
+
+  char spaces[width + 1];
+  memset (spaces, ' ', sizeof (spaces));
+  spaces[width] = 0;
+
+  /* Do a simple bubble sort.  */
+  int order[count];
+
+  int j = 0;
+  for (i = 0; i < used; i ++)
     if (sites[i].calls)
-      s_printf ("%s:\t%d calls,\t%lld ms,\t%lld.%d us per call,\t"
-		"%d%% total time,\t%d%% profiled time\n",
-		sites[i].name,
-		sites[i].calls,
-		sites[i].time / 1000,
-		sites[i].time / sites[i].calls,
-		(int) ((10 * sites[i].time) / sites[i].calls) % 10,
-		(int) ((100 * sites[i].time) / (n - epoch)),
-		(int) ((100 * sites[i].time) / total_time));
+      order[j ++] = i;
+
+  for (i = 0; i < count; i ++)
+    for (j = 0; j < count - 1; j ++)
+      if (sites[order[j]].time < sites[order[j + 1]].time)
+	{
+	  int t = order[j];
+	  order[j] = order[j + 1];
+	  order[j + 1] = t;
+	}
+
+  for (j = 0; j < count; j ++)
+    {
+      i = order[j];
+      if (sites[i].calls)
+	s_printf ("%s%s: %d calls,\t%lld ms,\t%lld.%d us per call,\t"
+		  "%d%% total time,\t%d%% profiled time\n",
+		  &spaces[strlen (sites[i].name)], sites[i].name,
+		  sites[i].calls,
+		  sites[i].time / 1000,
+		  sites[i].time / sites[i].calls,
+		  (int) ((10 * sites[i].time) / sites[i].calls) % 10,
+		  (int) ((100 * sites[i].time) / (n - epoch)),
+		  (int) ((100 * sites[i].time) / total_time));
+    }
 
   s_printf ("profiled time: %lld ms, calls: %lld\n",
 	    total_time / 1000, calls);
