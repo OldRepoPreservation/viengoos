@@ -1,5 +1,9 @@
 2008-11-14  Neal H. Walfield  <neal@gnu.org>
 
+	* pager.c (reclaim_from): Use list_dequeue instead of list_unlink.
+
+2008-11-14  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (object_init): Set OBJECTS load factory to 30.
 
 2008-11-14  Neal H. Walfield  <neal@gnu.org>

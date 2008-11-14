@@ -103,15 +103,13 @@ reclaim_from (struct activity *victim, int goal)
 
       struct object_desc *desc;
       while (count < goal
-	     && (desc = activity_list_head (&victim->frames[i].inactive)))
+	     && (desc = activity_list_dequeue (&victim->frames[i].inactive)))
 	{
 	  assert (! desc->eviction_candidate);
 	  assert (! list_node_attached (&desc->available_node));
 	  assertx (i == desc->policy.priority,
 		   "%d != %d",
 		   i, desc->policy.priority);
-
-	  activity_list_unlink (&victim->frames[i].inactive, desc);
 
 	  object_desc_flush (desc, false);
 	  if (desc->dirty && ! desc->policy.discardable)
@@ -125,9 +123,8 @@ reclaim_from (struct activity *victim, int goal)
 	    {
 	      is_clean (desc);
 
-	      eviction_list_enqueue (&victim->eviction_clean, desc);
-
 	      available_list_enqueue (&available, desc);
+	      eviction_list_enqueue (&victim->eviction_clean, desc);
 
 	      if (desc->policy.discardable)
 		discarded ++;
@@ -146,7 +143,7 @@ reclaim_from (struct activity *victim, int goal)
       /* Currently we evict in LIFO order.  We should do a semi-sort and
 	 then evict accordingly.  */
       while (count < goal
-	     && (desc = activity_list_head (&victim->frames[i].active)))
+	     && (desc = activity_list_dequeue (&victim->frames[i].active)))
 	{
 	  assert (! desc->eviction_candidate);
 	  assertx (i == desc->policy.priority,
@@ -156,8 +153,6 @@ reclaim_from (struct activity *victim, int goal)
 	  object_desc_flush (desc, false);
 
 	  desc->eviction_candidate = true;
-
-	  activity_list_unlink (&victim->frames[i].active, desc);
 
 	  if (desc->dirty && ! desc->policy.discardable)
 	    {
