@@ -71,7 +71,10 @@ object_init (void)
   /* Allocate object hash.  */
   int count = (last_frame - first_frame) / PAGESIZE + 1;
 
-  size_t size = hurd_ihash_buffer_size (count, true, 0);
+  /* XXX: Use a load factory of just 30% until we get a better hash
+     implementation.  The default of 80% can result in very long
+     chains.  */
+  size_t size = hurd_ihash_buffer_size (count, true, 30);
   /* Round up to a multiple of the page size.  */
   size = (size + PAGESIZE - 1) & ~(PAGESIZE - 1);
 
