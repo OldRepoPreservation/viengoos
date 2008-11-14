@@ -54,3 +54,15 @@ backtrace (void **array, int size)
   RA(20);
   return 21;
 }
+
+int
+backtrace_print (void)
+{
+  void *bt[20];
+  int count = backtrace (bt, sizeof (bt) / sizeof (bt[0]));
+
+  int i;
+  for (i = 0; i < count; i ++)
+    printf ("%p ", bt[i]);
+  printf ("\n");
+}

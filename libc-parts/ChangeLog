@@ -1,3 +1,7 @@
+2008-11-14  Neal H. Walfield  <neal@gnu.org>
+
+	* backtrace.c (backtrace_print): New function.
+
 2008-11-13  Neal H. Walfield  <neal@gnu.org>
 
 	* profile.c (profile_stats_dump): Sort by the total time.
