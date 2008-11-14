@@ -1,5 +1,10 @@
 2008-11-14  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.c (activity_destroy): Dump the current statistics
+	whenever an activity is destroyed.
+
+2008-11-14  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (struct fault_info): New structure.
 	(page_fault): New function.
 	(server_loop): Implement page fault handling in terms of the new

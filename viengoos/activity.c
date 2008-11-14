@@ -81,23 +81,23 @@ activity_destroy (struct activity *activity, struct activity *victim)
   assert (object_type ((struct object *) activity) == cap_activity_control);
   assert (object_type ((struct object *) victim) == cap_activity_control);
 
+  profile_stats_dump ();
+  debug (0, ""
+#ifdef NCHECK
+	 "NCHECK "
+#endif
+#ifdef NDEBUG
+	 "NDEBUG "
+#endif
+#ifdef DEBUG_ELIDE
+	 "DEBUG_ELIDE=%d", DEBUG_ELIDE + 0
+#endif
+	     );
+	     
   /* We should never destroy the root activity.  */
   if (! victim->parent)
     {
       assert (victim == root_activity);
-      profile_stats_dump ();
-      debug (0, ""
-#ifdef NCHECK
-	     "NCHECK "
-#endif
-#ifdef NDEBUG
-	     "NDEBUG "
-#endif
-#ifdef DEBUG_ELIDE
-	     "DEBUG_ELIDE=%d", DEBUG_ELIDE + 0
-#endif
-	     );
-	     
       panic ("Request to destroy root activity");
     }
 
