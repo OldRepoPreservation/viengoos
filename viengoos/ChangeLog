@@ -1,5 +1,10 @@
 2008-11-14  Neal H. Walfield  <neal@gnu.org>
 
+	* memory.c (memory_frame_allocate): Take frames from the head of
+	the available list.
+
+2008-11-14  Neal H. Walfield  <neal@gnu.org>
+
 	* activity.c (activity_destroy): Dump the current statistics
 	whenever an activity is destroyed.
 

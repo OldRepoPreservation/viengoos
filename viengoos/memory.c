@@ -364,7 +364,7 @@ memory_frame_allocate (struct activity *activity)
 
       /* XXX: We avoid objects that require special treatment.
 	 Realize this special treatment.  */
-      struct object_desc *desc = available_list_tail (&available);
+      struct object_desc *desc = available_list_head (&available);
       while (desc)
 	{
 	  if (desc->type != cap_activity_control
@@ -373,7 +373,7 @@ memory_frame_allocate (struct activity *activity)
 	       memory_object_destroy.  */
 	    break;
 
-	  desc = available_list_prev (desc);
+	  desc = available_list_next (desc);
 	}
 
       if (desc)
