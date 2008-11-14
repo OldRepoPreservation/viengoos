@@ -103,6 +103,7 @@
 
 #include <hurd/stddef.h>
 #include <l4/ipc.h>
+#include <l4/space.h>
 #include <errno.h>
 
 /* First we define some cpp help macros.  */
@@ -644,7 +645,7 @@
 		  (&msg));						\
 									\
     l4_msg_load (msg);							\
-    l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);				\
+    l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));		\
 									\
     bool call = true;							\
     for (;;)								\

@@ -52,7 +52,7 @@ struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
 
 /* Like debug but also prints the method id and saves to the trace
    buffer if level is less than or equal to 4.  */
-#define DEBUG(level, format, args...)					\
+# define DEBUG(level, format, args...)					\
   do									\
     {									\
       if (level <= 4)							\
@@ -69,10 +69,91 @@ struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
   while (0)
 
 #else
-#define DEBUG(level, format, args...) do {} while (0)
+# define DEBUG(level, format, args...) do {} while (0)
 #endif
 
 #define PAGEFAULT_METHOD 2
+
+struct fault_info
+{
+  struct object *page;
+  bool discarded;
+  bool writable;
+};
+
+/* Fault the page at PAGE_ADDR in thread THREAD's address space in.
+   Does not map it (but marks it as mapped).  If there is no page or
+   some other error occurs, returns PAGE == 0.  If the page is
+   discarded, sets DISCARDED to true.  */
+static struct fault_info
+page_fault (struct activity *activity,
+	    struct thread *thread,
+	    l4_word_t page_addr,
+	    bool require_writable)
+{
+  struct fault_info info;
+  memset (&info, 0, sizeof (info));
+
+  struct cap cap;
+  cap = as_object_lookup_rel (activity, &thread->aspace,
+			      addr_chop (PTR_TO_ADDR (page_addr),
+					 PAGESIZE_LOG2),
+			      cap_rpage, &info.writable);
+  assert (cap.type == cap_void
+	  || cap.type == cap_page
+	  || cap.type == cap_rpage);
+
+  if (require_writable && ! info.writable)
+    {
+      debug (5, "Access fault at %x", page_addr);
+      return info;
+    }
+
+  if (! info.writable && cap.discardable)
+    {
+      debug (5, "Clearing discardable predicate for cap designating "
+	     OID_FMT " (%s)",
+	     OID_PRINTF (cap.oid), cap_type_string (cap.type));
+      cap.discardable = false;
+    }
+
+  struct object *page = cap_to_object_soft (activity, &cap);
+  if (! page && cap.type != cap_void)
+    /* It's not in-memory.  See if it was discarded.  If not,
+       load it using cap_to_object.  */
+    {
+      int object = (cap.oid % (FOLIO_OBJECTS + 1)) - 1;
+      oid_t foid = cap.oid - object - 1;
+      struct folio *folio
+	= (struct folio *) object_find (activity, foid,
+					OBJECT_POLICY_DEFAULT);
+      assert (folio);
+      assert (object_type ((struct object *) folio) == cap_folio);
+
+      if (folio_object_discarded (folio, object))
+	{
+	  debug (5, OID_FMT " (%s) was discarded",
+		 OID_PRINTF (cap.oid),
+		 cap_type_string (folio_object_type (folio,
+						     object)));
+
+	  assert (! folio_object_content (folio, object));
+
+	  info.discarded = true;
+
+	  debug (5, "Raising discarded fault at %x", page_addr);
+	}
+      else
+	page = cap_to_object (activity, &cap);
+    }
+
+  if (page)
+    object_to_object_desc (page)->mapped = true;
+
+  info.page = page;
+
+  return info;
+}
 
 void
 server_loop (void)
@@ -233,84 +314,20 @@ server_loop (void)
 	  l4_word_t ip;
 	  l4_word_t fault = l4_pagefault (msg_tag, &access, &ip);
 	  bool w = !! (access & L4_FPAGE_WRITABLE);
-	  enum cap_type type = w ? cap_page : cap_rpage;
 
 	  DEBUG (4, "%s fault at %x (ip = %x)",
 		 w ? "Write" : "Read", fault, ip);
+
 	  l4_word_t page_addr = fault & ~(PAGESIZE - 1);
 
-	  bool writable;
-	  struct cap cap;
-	  struct object *page = NULL;
+	  struct fault_info fault_info
+	    = page_fault (activity, thread, page_addr, w);
 
-	  bool raise_fault = false;
-	  bool discarded = false;
-
-	  cap = as_object_lookup_rel (activity, &thread->aspace,
-				      addr_chop (PTR_TO_ADDR (page_addr),
-						 PAGESIZE_LOG2),
-				      type, &writable);
-	  assert (cap.type == cap_void
-		  || cap.type == cap_page
-		  || cap.type == cap_rpage);
-
-	  if (! writable && cap.discardable)
-	    {
-	      debug (5, "Clearing discardable predicate for cap designating "
-		     OID_FMT " (%s)",
-		     OID_PRINTF (cap.oid), cap_type_string (cap.type));
-	      cap.discardable = false;
-	    }
-
-	  page = cap_to_object_soft (activity, &cap);
-	  if (! page && cap.type != cap_void)
-	    /* It's not in-memory.  See if it was discarded.  If not,
-	       load it using cap_to_object.  */
-	    {
-	      int object = (cap.oid % (FOLIO_OBJECTS + 1)) - 1;
-	      oid_t foid = cap.oid - object - 1;
-	      struct folio *folio
-		= (struct folio *) object_find (activity, foid,
-						OBJECT_POLICY_DEFAULT);
-	      assert (folio);
-	      assert (object_type ((struct object *) folio) == cap_folio);
-
-	      if (folio_object_discarded (folio, object))
-		{
-		  debug (5, OID_FMT " (%s) was discarded",
-			 OID_PRINTF (cap.oid),
-			 cap_type_string (folio_object_type (folio,
-								 object)));
-
-		  assert (! folio_object_content (folio, object));
-
-		  raise_fault = true;
-		  discarded = true;
-
-		  DEBUG (5, "Raising discarded fault at %x", page_addr);
-		}
-	      else
-		page = cap_to_object (activity, &cap);
-	    }
-
-	  if (! page)
-	    {
-	      raise_fault = true;
-	      DEBUG (5, "fault (ip: %x; fault: %x.%c)!",
-		     ip, fault, w ? 'w' : 'r');
-	    }
-	  else if (w && ! writable)
-	    /* Only allow permitted writes through.  */
-	    {
-	      raise_fault = true;
-	      DEBUG (5, "access fault (ip: %x; fault: %x.%c)!",
-		     ip, fault, w ? 'w' : 'r');
-	    }
-
-	  if (raise_fault)
+	  if (fault_info.discarded || ! fault_info.page)
 	    {
 	      DEBUG (4, "Reflecting fault (ip: %x; fault: %x.%c%s)!",
-		     ip, fault, w ? 'w' : 'r', discarded ? " discarded" : "");
+		     ip, fault, w ? 'w' : 'r',
+		     fault_info.discarded ? " discarded" : "");
 
 	      l4_word_t c = _L4_XCHG_REGS_DELIVER;
 	      l4_thread_id_t targ = thread->tid;
@@ -321,8 +338,9 @@ server_loop (void)
 
 	      struct exception_info info;
 	      info.access = access;
-	      info.type = type;
-	      info.discarded = discarded;
+	      info.type = w ? cap_page : cap_rpage;
+
+	      info.discarded = fault_info.discarded;
 
 	      l4_msg_t msg;
 	      exception_fault_send_marshal (&msg, PTR_TO_ADDR (fault),
@@ -333,15 +351,19 @@ server_loop (void)
 	      continue;
 	    }
 
-	  DEBUG (4, "%s fault at %x (ip=%x), replying with %p (" OID_FMT ")",
-		 w ? "Write" : "Read", fault, ip, page, OID_PRINTF (cap.oid));
-	  l4_map_item_t map_item
-	    = l4_map_item (l4_fpage_add_rights (l4_fpage ((uintptr_t) page,
-							  PAGESIZE),
-						access),
-			   page_addr);
+	  access = L4_FPAGE_READABLE;
+	  if (fault_info.writable)
+	    access |= L4_FPAGE_WRITABLE;
 
-	  object_to_object_desc (page)->mapped = true;
+	  DEBUG (4, "%s fault at %x (ip=%x), replying with %p(r%s)",
+		 w ? "Write" : "Read", fault, ip, fault_info.page,
+		 fault_info.writable ? "w" : "");
+	  l4_map_item_t map_item
+	    = l4_map_item
+	       (l4_fpage_add_rights (l4_fpage ((uintptr_t) fault_info.page,
+					       PAGESIZE),
+				     access),
+		page_addr);
 
 	  /* Formulate the reply message.  */
 	  l4_pagefault_reply_formulate_in (msg, &map_item);
@@ -975,6 +997,47 @@ server_loop (void)
 		break;
 	      case RM_cap_copy:
 		rm_cap_copy_reply_marshal (&msg);
+
+		if (ADDR_IS_VOID (target_as_addr)
+		    && cap_types_compatible (target->type, cap_page)
+		    && (addr_depth (target_addr) + CAP_GUARD_BITS (target)
+			== ADDR_BITS - PAGESIZE_LOG2))
+		  /* The target address space is the caller's.  The target
+		     object appears to be a page.  It seems to be
+		     installed at a point where it would appear in the
+		     hardware address space.  If this is really the case,
+		     then we can map it now and save a fault later.  */
+		  {
+		    profile_region ("cap_copy(prefault)");
+
+		    l4_word_t page_addr
+		      = addr_prefix (addr_extend (target_addr,
+						  CAP_GUARD_BITS (target),
+						  CAP_GUARD (target)));
+		    struct fault_info fault_info
+		      = page_fault (principal, thread, page_addr, false);
+		    if (fault_info.page)
+		      {
+			assert (! fault_info.discarded);
+
+			l4_fpage_t fpage
+			  = l4_fpage ((uintptr_t) fault_info.page, PAGESIZE);
+
+			if (fault_info.writable)
+			  fpage = l4_fpage_add_rights (fpage,
+						       L4_FPAGE_READABLE
+						       | L4_FPAGE_WRITABLE);
+			else
+			  fpage = l4_fpage_add_rights (fpage,
+						       L4_FPAGE_READABLE);
+
+			l4_map_item_t map_item = l4_map_item (fpage, page_addr);
+			l4_msg_append_map_item (msg, map_item);
+		      }
+
+		    profile_region_end ();
+		  }
+
 		break;
 	      }
 	    break;
@@ -1112,9 +1175,51 @@ server_loop (void)
 	    if (folio_object_version (folio, idx) != cap.version)
 	      REPLY (ENOENT);
 
+	    bool was_discarded = folio_object_discarded (folio, idx);
 	    folio_object_discarded_set (folio, idx, false);
 
 	    rm_object_discarded_clear_reply_marshal (&msg);
+
+	    if (was_discarded
+		&& cap_types_compatible (cap.type, cap_page)
+		&& (addr_depth (object_addr) + CAP_GUARD_BITS (&cap)
+		    == ADDR_BITS - PAGESIZE_LOG2))
+	      /* The target object was discarded, appears to be a page
+		 and seems to be installed at a point where it would
+		 appear in the hardware address space.  If this is
+		 really the case, then we can map it now and save a
+		 fault later.  */
+	      {
+		profile_region ("object_discard(prefault)");
+
+		l4_word_t page_addr
+		  = addr_prefix (addr_extend (object_addr,
+					      CAP_GUARD_BITS (&cap),
+					      CAP_GUARD (&cap)));
+		struct fault_info fault_info
+		  = page_fault (principal, thread, page_addr, false);
+		if (fault_info.page)
+		  {
+		    assert (! fault_info.discarded);
+
+		    l4_fpage_t fpage
+		      = l4_fpage ((uintptr_t) fault_info.page, PAGESIZE);
+
+		    if (fault_info.writable)
+		      fpage = l4_fpage_add_rights (fpage,
+						   L4_FPAGE_READABLE
+						   | L4_FPAGE_WRITABLE);
+		    else
+		      fpage = l4_fpage_add_rights (fpage,
+						   L4_FPAGE_READABLE);
+
+		    l4_map_item_t map_item = l4_map_item (fpage, page_addr);
+		    l4_msg_append_map_item (msg, map_item);
+		  }
+
+		profile_region_end ();
+	      }
+
 	    break;
 	  }
 

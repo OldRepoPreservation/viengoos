@@ -1,3 +1,14 @@
+2008-11-14  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (struct fault_info): New structure.
+	(page_fault): New function.
+	(server_loop): Implement page fault handling in terms of the new
+	function.  When copying a capability that makes a page available
+	in the caller's hardware address space, map it preemptively.  When
+	clearing a discarded bit for a page that appears in the caller's
+	hardware address space, allocate the object and map it
+	preemptively.
+
 2008-11-12  Neal H. Walfield  <neal@gnu.org>
 
 	* list.h (list_queue): Rename from this...
