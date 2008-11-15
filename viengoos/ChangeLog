@@ -1,3 +1,12 @@
+2008-11-15  Neal H. Walfield  <neal@gnu.org>
+
+	* zalloc.h (zalloc_internal): New declaration.
+	(zalloc): Change to an inline function, which calls
+	zalloc_internal if there is sufficient memory to satisfy the
+	request.
+	* zalloc.c (zalloc): Rename from this...
+	(zalloc_internal): ... to this.
+
 2008-11-14  Neal H. Walfield  <neal@gnu.org>
 
 	* pager.c (reclaim_from): Use list_dequeue instead of list_unlink.

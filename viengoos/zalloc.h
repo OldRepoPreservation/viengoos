@@ -1,5 +1,5 @@
-/* Zone allocator for physical memory server.
-   Copyright (C) 2003, 2007 Free Software Foundation, Inc.
+/* Fast memory allocator.
+   Copyright (C) 2003, 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H Walfield.
 
    This file is part of the GNU Hurd.
@@ -22,6 +22,7 @@
 #define __ZALLOC_H__
 
 #include <stdint.h>
+#include <hurd/stddef.h>
 
 /* The amount of memory available (in PAGESIZE units).  */
 extern uintptr_t zalloc_memory;
@@ -33,7 +34,16 @@ void zfree (uintptr_t block, uintptr_t size);
 
 /* Allocate a block of memory of size SIZE.  SIZE must be a multiple
    of the system's minimum page size. */
-uintptr_t zalloc (uintptr_t size);
+uintptr_t zalloc_internal (uintptr_t size);
+
+static inline uintptr_t
+zalloc (uintptr_t size)
+{
+  if (size / PAGESIZE > zalloc_memory)
+    return 0;
+
+  return zalloc_internal (size);
+}
 
 /* Dump some internal data structures.  Only defined if zalloc was
    compiled without NDEBUG defined.  */
