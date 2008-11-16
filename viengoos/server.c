@@ -111,13 +111,13 @@ page_fault (struct activity *activity,
 
   if (! info.writable && cap.discardable)
     {
-      debug (5, "Clearing discardable predicate for cap designating "
+      debug (5, "Ignoring discardable predicate for cap designating "
 	     OID_FMT " (%s)",
 	     OID_PRINTF (cap.oid), cap_type_string (cap.type));
       cap.discardable = false;
     }
 
-  struct object *page = cap_to_object_soft (activity, &cap);
+  struct object *page = cap_to_object (activity, &cap);
   if (! page && cap.type != cap_void)
     /* It's not in-memory.  See if it was discarded.  If not,
        load it using cap_to_object.  */
@@ -130,21 +130,22 @@ page_fault (struct activity *activity,
       assert (folio);
       assert (object_type ((struct object *) folio) == cap_folio);
 
-      if (folio_object_discarded (folio, object))
+      if (cap.version == folio_object_version (folio, object))
 	{
-	  debug (5, OID_FMT " (%s) was discarded",
-		 OID_PRINTF (cap.oid),
-		 cap_type_string (folio_object_type (folio,
-						     object)));
+	  if (folio_object_discarded (folio, object))
+	    {
+	      debug (5, OID_FMT " (%s) was discarded",
+		     OID_PRINTF (cap.oid),
+		     cap_type_string (folio_object_type (folio,
+							 object)));
 
-	  assert (! folio_object_content (folio, object));
+	      assert (! folio_object_content (folio, object));
 
-	  info.discarded = true;
+	      info.discarded = true;
 
-	  debug (5, "Raising discarded fault at %x", page_addr);
+	      debug (5, "Raising discarded fault at %x", page_addr);
+	    }
 	}
-      else
-	page = cap_to_object (activity, &cap);
     }
 
   if (page)
@@ -253,7 +254,7 @@ server_loop (void)
 
       debug (5, "%x (p: %d, %x) sent %s (%x)",
 	     from, l4_ipc_propagated (msg_tag), l4_actual_sender (),
-	     (l4_is_pagefault (msg_tag) ? "pagefault"
+	     (l4_is_pagefault (msg_tag) ? "fault handler"
 	      : rm_method_id_string (label)),
 	     label);
 
@@ -261,7 +262,7 @@ server_loop (void)
 	/* Message from a kernel thread.  */
 	panic ("Kernel thread %x (propagated: %d, actual: %x) sent %s? (%x)!",
 	       from, l4_ipc_propagated (msg_tag), l4_actual_sender (),
-	       (l4_is_pagefault (msg_tag) ? "pagefault"
+	       (l4_is_pagefault (msg_tag) ? "fault handler"
 		      : rm_method_id_string (label)),
 	       label);
 
@@ -275,8 +276,8 @@ server_loop (void)
       else
 	method = label;
       profile_start (method,
-		     method == PAGEFAULT_METHOD ? "pagefault"
-		     : rm_method_id_string (method));
+		     method == PAGEFAULT_METHOD ? "fault handler"
+		     : rm_method_id_string (method), NULL);
 
       /* Find the sender.  */
       struct thread *thread = thread_lookup (from);

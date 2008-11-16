@@ -49,10 +49,6 @@ cap_to_object_internal (struct activity *activity, struct cap *cap,
   if (hard)
     {
       object = object_find (activity, cap->oid, CAP_POLICY_GET (*cap));
-      if (! object)
-	/* Clear the capability to save the effort of looking up the
-	   object in the future.  */
-	cap->type = cap_void;
     }
   else
     object = object_find_soft (activity, cap->oid, CAP_POLICY_GET (*cap));
