@@ -332,3 +332,12 @@ _L4_set_gs0 (_L4_word_t user_gs0)
 			: "a" (user_gs0)
 			: "ecx", "edx", "esi", "edi", "ebx");
 }
+
+static inline void
+_L4_attribute_always_inline
+_L4_kdb (char *message)
+{
+  __asm__ __volatile__ ("int $3\n"
+			:
+			: "a" (message));
+}
