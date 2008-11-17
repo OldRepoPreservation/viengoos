@@ -1,5 +1,10 @@
 2008-11-17  Neal H. Walfield  <neal@gnu.org>
 
+	* object.h (struct object_desc): Add field maybe_folio_desc.
+	(objects_folio): Use it if valid.  If not, update it.
+	
+2008-11-17  Neal H. Walfield  <neal@gnu.org>
+
 	* object.c (object_init): Don't clear BUFFER or OBJECT_DESCS.
 	* thread.c (thread_init): Don't clear BUFFER.
 

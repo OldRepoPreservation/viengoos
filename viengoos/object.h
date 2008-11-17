@@ -160,6 +160,10 @@ struct object_desc
      be found by looking at the folio.)  */
   struct activity *activity;
 
+  /* The object's folio (perhaps).  Must first check that the OID
+     matches.  */
+  struct object_desc *maybe_folio_desc;
+
   /* The following members are protected by LRU_LOCK.  */
 
   /* Every in-memory object lives in a hash hashed on its OID.  */
@@ -502,9 +506,16 @@ objects_folio (struct activity *activity, struct object *object)
   int page = objects_folio_offset (object);
   oid_t foid = odesc->oid - page - 1;
 
+  if (odesc->maybe_folio_desc
+      && odesc->maybe_folio_desc->live
+      && odesc->maybe_folio_desc->oid == foid)
+    return (struct folio *) object_desc_to_object (odesc->maybe_folio_desc);
+
   struct folio *folio = (struct folio *) object_find (activity, foid,
 						      OBJECT_POLICY_VOID);
   assert (folio);
+
+  odesc->maybe_folio_desc = object_to_object_desc ((struct object *) folio);
 
   return folio;
 }
