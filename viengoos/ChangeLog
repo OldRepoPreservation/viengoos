@@ -1,5 +1,10 @@
 2008-11-17  Neal H. Walfield  <neal@gnu.org>
 
+	* object.c (object_init): Don't clear BUFFER or OBJECT_DESCS.
+	* thread.c (thread_init): Don't clear BUFFER.
+
+2008-11-17  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (struct fault_info): Remove struct.
 	(page_fault): Remove function.  Inline code in callers.
 	(server_loop): Comment out code that prefaults pages in cap_copy

@@ -82,8 +82,6 @@ object_init (void)
   if (! buffer)
     panic ("Failed to allocate memory for object hash!\n");
 
-  memset (buffer, 0, size);
-
   hurd_ihash_init_with_buffer (&objects, true,
 			       (int) (&((struct object_desc *)0)->locp),
 			       buffer, size);
@@ -99,8 +97,6 @@ object_init (void)
   object_descs = (void *) zalloc (size);
   if (! object_descs)
     panic ("Failed to allocate memory for object descriptor array!\n");
-
-  memset (object_descs, 0, size);
 }
 
 /* Allocate and set up a memory object.  TYPE, OID and VERSION must
@@ -299,7 +295,7 @@ object_find (struct activity *activity, oid_t oid,
 
       if (folio_object_discarded (folio, page))
 	/* Don't return a discarded object until the discarded flag is
-	   explicitly clearly.  */
+	   explicitly cleared.  */
 	return NULL;
 
       if (! folio_object_content (folio, page))

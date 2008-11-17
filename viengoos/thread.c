@@ -91,8 +91,6 @@ thread_init (struct thread *thread)
       if (! buffer)
 	panic ("Failed to allocate memory for thread has.");
 
-      memset (buffer, 0, size);
-
       hurd_ihash_init_with_buffer (&tid_to_thread, false, HURD_IHASH_NO_LOCP,
 				   buffer, size);
 
