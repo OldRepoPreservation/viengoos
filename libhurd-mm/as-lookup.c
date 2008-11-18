@@ -36,22 +36,23 @@
 
 #ifndef NDEBUG
 #define DUMP_OR_RET(ret)			\
-  {						\
-    if (dump_path)				\
-      {						\
-	debug (0, "Bye.");			\
-	return ret;				\
-      }						\
-    else					\
-      {						\
-	dump_path = true;			\
-	goto dump_path;				\
-      }						\
-  }
+  do						\
+    {						\
+      if (dump_path)				\
+	{					\
+	  debug (0, "Bye.");			\
+	  return ret;				\
+	}					\
+      else					\
+	{					\
+	  dump_path = true;			\
+	  goto dump_path;			\
+	}					\
+    }						\
+  while (0)
 #else
 #define DUMP_OR_RET(ret)			\
-  if (dump_path)				\
-    return ret;
+  return ret;
 #endif
 
 static bool
@@ -61,10 +62,14 @@ as_lookup_rel_internal (activity_t activity,
 			enum as_lookup_mode mode, union as_lookup_ret *rt,
 			bool dump)
 {
-  bool dump_path = dump;
-
   struct cap *start = root;
- dump_path:;
+
+#ifndef NDEBUG
+  bool dump_path = dump;
+ dump_path:
+#else
+# define dump_path false
+#endif
   root = start;
 
   l4_uint64_t addr = addr_prefix (address);
@@ -331,14 +336,16 @@ as_lookup_rel (activity_t activity,
 	       enum cap_type type, bool *writable,
 	       enum as_lookup_mode mode, union as_lookup_ret *rt)
 {
+  bool r;
+
 #ifdef RM_INTERN
-  profile_start ((uintptr_t) &as_lookup_rel, "as_lookup");
+  profile_region (NULL);
 #endif
-  bool r = as_lookup_rel_internal (activity,
-				   root, address, type, writable, mode, rt,
-				   false);
+  r = as_lookup_rel_internal (activity,
+			      root, address, type, writable, mode, rt,
+			      false);
 #ifdef RM_INTERN
-  profile_end ((uintptr_t) &as_lookup_rel);
+  profile_region_end ();
 #endif
 
   return r;

@@ -1,3 +1,8 @@
+2008-11-17  Neal H. Walfield  <neal@gnu.org>
+
+	* as-lookup.c (DUMP_OR_RET) [NDEBUG]: Just return.
+	(as_lookup_rel_internal) [NDEBUG]: Define dump_path to be false.
+
 2008-11-12  Neal H. Walfield  <neal@gnu.org>
 
 	* anonymous.h (struct anonymous_pager): Improve documentation for
