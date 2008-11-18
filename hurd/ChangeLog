@@ -1,3 +1,7 @@
+2008-11-18  Neal H. Walfield  <neal@gnu.org>
+
+	* cap.h (cap_copy_x): Correctly detect type mismatches.
+
 2008-11-14  Neal H. Walfield  <neal@gnu.org>
 
 	* rpc.h: Include <l4/space.h>.

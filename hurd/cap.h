@@ -636,6 +636,10 @@ cap_copy_x (activity_t activity,
       gbits = CAP_GUARD_BITS (&source);
     }
 
+  int type = source.type;
+  if ((flags & CAP_COPY_WEAKEN))
+    type = cap_type_weaken (type);
+
 #ifdef RM_INTERN
   /* Changing a capability can change how addresses are translated.
      In this case, we need to shoot down all cached translations.  */
@@ -668,9 +672,7 @@ cap_copy_x (activity_t activity,
       changes_translation = true;
     }
 
-  if (target->type != source.type
-      && ! ((flags & CAP_COPY_WEAKEN)
-	    && cap_type_weaken (source.type) == target->type))
+  if (type != target->type)
     {
       debug (5, "Type changed, invalidating translation");
       changes_translation = true;
@@ -704,9 +706,7 @@ cap_copy_x (activity_t activity,
 
   *target = source;
   target->addr_trans = properties.addr_trans;
-
-  if ((flags & CAP_COPY_WEAKEN))
-    target->type = cap_type_weaken (target->type);
+  target->type = type;
 
   if ((flags & CAP_COPY_DISCARDABLE_SET))
     target->discardable = properties.policy.discardable;
