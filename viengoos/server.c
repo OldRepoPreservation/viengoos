@@ -61,15 +61,19 @@ struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
 			  l4_is_pagefault (msg_tag) ? "pagefault"	\
 			  : rm_method_id_string (label), label,		\
 			  ##args);					\
-      debug (level, "(%x %s %d) " format,				\
+      debug (level, "(%x %s:%d %d) " format,				\
 	     thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"	\
-	     : rm_method_id_string (label), label,			\
+	     : rm_method_id_string (label), __LINE__, label,		\
 	     ##args);							\
     }									\
   while (0)
 
 #else
-# define DEBUG(level, format, args...) do {} while (0)
+# define DEBUG(level, format, args...)					\
+      debug (level, "(%x %s:%d %d) " format,				\
+	     thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"	\
+	     : rm_method_id_string (label), __LINE__, label,		\
+	     ##args)
 #endif
 
 #define PAGEFAULT_METHOD 2
@@ -235,7 +239,7 @@ server_loop (void)
 	  bool write_fault = !! (access & L4_FPAGE_WRITABLE);
 
 	  DEBUG (4, "%s fault at %x (ip = %x)",
-		 w ? "Write" : "Read", fault, ip);
+		 write_fault ? "Write" : "Read", fault, ip);
 
 	  l4_word_t page_addr = fault & ~(PAGESIZE - 1);
 
@@ -301,7 +305,7 @@ server_loop (void)
 	    {
 	    do_fault:
 	      DEBUG (4, "Reflecting fault (ip: %x; fault: %x.%c%s)!",
-		     ip, fault, w ? 'w' : 'r',
+		     ip, fault, write_fault ? 'w' : 'r',
 		     discarded ? " discarded" : "");
 
 	      l4_word_t c = _L4_XCHG_REGS_DELIVER;
@@ -326,9 +330,9 @@ server_loop (void)
 	      continue;
 	    }
 
-	  DEBUG (4, "%s fault at %x (ip=%x), replying with %p(r%s)",
-		 w ? "Write" : "Read", fault, ip, fault_info.page,
-		 fault_info.writable ? "w" : "");
+	  DEBUG (4, "%s fault at " DEBUG_BOLD ("%x") " (ip=%x), replying with %p(r%s)",
+		 write_fault ? "Write" : "Read", page_addr, ip, page,
+		 writable ? "w" : "");
 
 	  object_to_object_desc (page)->mapped = true;
 
@@ -344,6 +348,57 @@ server_loop (void)
 
 	  /* Formulate the reply message.  */
 	  l4_pagefault_reply_formulate_in (msg, &map_item);
+
+#if 0
+	  int count = 0;
+	  while (sizeof (l4_map_item_t) / sizeof (l4_word_t)
+		 < (L4_NUM_MRS - 1
+		    - l4_untyped_words (l4_msg_msg_tag (msg))
+		    - l4_typed_words (l4_msg_msg_tag (msg))))
+	    {
+	      page_addr += PAGESIZE;
+
+	      cap = as_object_lookup_rel (activity, &thread->aspace,
+					  addr_chop (PTR_TO_ADDR (page_addr),
+						     PAGESIZE_LOG2),
+					  cap_rpage, &writable);
+
+	      if (cap.type != cap_page && cap.type != cap_rpage)
+		break;
+
+	      if (! writable && cap.discardable)
+		cap.discardable = false;
+
+	      struct object *page = cap_to_object (activity, &cap);
+	      if (! page)
+		break;
+
+	      object_to_object_desc (page)->mapped = true;
+
+	      access = L4_FPAGE_READABLE;
+	      if (writable)
+		access |= L4_FPAGE_WRITABLE;
+
+	      l4_fpage_t fpage = l4_fpage ((uintptr_t) page, PAGESIZE);
+	      fpage = l4_fpage_add_rights (fpage, access);
+	      l4_map_item_t map_item = l4_map_item (fpage, page_addr);
+
+	      l4_msg_append_map_item (msg, map_item);
+
+	      DEBUG (5, "Prefaulting " DEBUG_BOLD ("%x") " <- %p (%x/%x/%x) %s",
+		     page_addr,
+		     page, l4_address (fpage), l4_size (fpage),
+		     l4_rights (fpage), cap_type_string (cap.type));
+
+	      count ++;
+	    }
+
+	  if (count > 0)
+	    DEBUG (5, "Prefaulted %d pages (%d/%d)", count,
+		   l4_untyped_words (l4_msg_msg_tag (msg)),
+		   l4_typed_words (l4_msg_msg_tag (msg)));
+#endif
+
 	  do_reply = 1;
 	  continue;
 	}
@@ -378,7 +433,7 @@ server_loop (void)
 					  *capp = slot;
 					})))
 	    {
-	      DEBUG (1, "No capability slot at 0x%llx/%d",
+	      DEBUG (0, "No capability slot at 0x%llx/%d",
 		     addr_prefix (addr), addr_depth (addr));
 	      as_dump_from (activity, root, "");
 	      return ENOENT;
@@ -534,7 +589,7 @@ server_loop (void)
 	  err = rm_read_send_unmarshal (&msg, &max);
 	  if (err)
 	    {
-	      debug (0, "Read error!");
+	      DEBUG (0, "Read error!");
 	      REPLY (EINVAL);
 	    }
 
