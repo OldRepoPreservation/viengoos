@@ -135,19 +135,21 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
        uintptr_t fault_addr, uintptr_t ip, struct exception_info info)
 {
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
-  bool r;
 
-  debug (5, "Fault at " ADDR_FMT " + %x",
-	 ADDR_PRINTF (anon->map_area), fault_addr);
+  debug (5, "Fault at %p, %d pages (%d kb); pager at " ADDR_FMT "+%d",
+	 fault_addr, count, count * PAGESIZE / 1024,
+	 ADDR_PRINTF (anon->map_area), offset);
 
   ss_mutex_lock (&anon->lock);
 
-  profile_region ("anonymous_fault");
+  bool recursive = false;
+  void *pages[count];
+
+  profile_region (count > 1 ? ">1" : "=1");
 
   /* Determine if we have been invoked recursively.  This can only
      happen if there is a fill function as we do not access a pager's
      pages.  */
-  bool recursive = false;
   if (anon->fill)
     {
       if (! ss_mutex_trylock (&anon->fill_lock))
@@ -186,7 +188,32 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	   "%x + %d pages <= %x",
 	   offset, count, pager->length);
 
-  void *pages[count];
+  if (count == 1 && ! anon->fill)
+    /* It's likely a real fault (and not advice).  Fault in multiple
+       pages, if possible.  */
+    {
+      /* Up to 8 prior to the fault location.  */
+      uintptr_t left = 8 * PAGESIZE;
+      if (left > offset)
+	left = offset;
+
+      /* And up to 16 following the fault location.  */
+      uintptr_t right = 16 * PAGESIZE;
+      if (right > anon->pager.length - (count * PAGESIZE + offset))
+	right = anon->pager.length - count * PAGESIZE - offset;
+
+      fault_addr -= left;
+      offset -= left;
+      count += (left + right) / PAGESIZE;
+
+      assertx (offset + count * PAGESIZE <= pager->length,
+	       "%x + %d pages <= %x",
+	       offset, count, pager->length);
+
+      debug (5, "Fault at %p, %d pages (%d kb); pager at " ADDR_FMT "+%d",
+	     fault_addr, count, count * PAGESIZE / 1024,
+	     ADDR_PRINTF (anon->map_area), offset);
+    }
 
   if (! (anon->flags & ANONYMOUS_NO_ALLOC))
     {
@@ -199,7 +226,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	  uintptr_t o = offset + i * PAGESIZE;
 
 	  struct storage_desc *storage_desc;
-	  profile_region ("anonymous_fault(storage_desc_lookup)");
+	  profile_region ("storage_desc_lookup");
 	  storage_desc = hurd_btree_storage_desc_find (storage_descs, &o);
 	  profile_region_end ();
 
@@ -213,53 +240,48 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	      assert (anon->policy.discardable);
 
 	      error_t err;
-	      profile_region ("anonymous_fault(discarded_clear)");
+	      /* We pass the fault address and not the underlying
+		 storage address as object_discarded_clear also
+		 returns a mapping and we are likely to access the
+		 data at the fault address.  */
 	      err = rm_object_discarded_clear (ADDR_VOID,
 					       storage_desc->storage);
 	      assertx (err == 0, "%d", err);
-	      profile_region_end ();
 
 	      debug (5, "Clearing discarded bit for %p / " ADDR_FMT,
 		     (void *) fault_addr + i * PAGESIZE,
 		     ADDR_PRINTF (storage_desc->storage));
 	    }
-	  else
+	  else if (! storage_desc)
+	    /* Seems we have not yet allocated a page.  */
 	    {
-	      if (! storage_desc)
-		/* Seems we have not yet allocated a page.  */
-		{
-		  storage_desc = storage_desc_alloc ();
-		  storage_desc->offset = o;
+	      storage_desc = storage_desc_alloc ();
+	      storage_desc->offset = o;
 
-		  profile_region ("anonymous_fault(storage alloc)");
+	      profile_region ("storage alloc");
 
-		  struct storage storage
-		    = storage_alloc (anon->activity,
-				     cap_page, STORAGE_UNKNOWN, anon->policy,
-				     ADDR_VOID);
-		  if (ADDR_IS_VOID (storage.addr))
-		    panic ("Out of memory.");
-		  storage_desc->storage = storage.addr;
+	      struct storage storage
+		= storage_alloc (anon->activity,
+				 cap_page, STORAGE_UNKNOWN, anon->policy,
+				 ADDR_VOID);
+	      if (ADDR_IS_VOID (storage.addr))
+		panic ("Out of memory.");
+	      storage_desc->storage = storage.addr;
 
-		  profile_region_end ();
+	      profile_region_end ();
 
-		  struct storage_desc *conflict;
-		  conflict = hurd_btree_storage_desc_insert (storage_descs,
-							     storage_desc);
-		  assertx (! conflict,
-			   "Fault address: %p, offset: %x",
-			   (void *) fault_addr + i * PAGESIZE, o);
+	      struct storage_desc *conflict;
+	      conflict = hurd_btree_storage_desc_insert (storage_descs,
+							 storage_desc);
+	      assertx (! conflict,
+		       "Fault address: %p, offset: %x",
+		       (void *) fault_addr + i * PAGESIZE, o);
 
-		  debug (5, "Allocating storage for %p at " ADDR_FMT,
-			 (void *) fault_addr  + i * PAGESIZE,
-			 ADDR_PRINTF (storage_desc->storage));
-		}
-	      else
-		debug (5, "Copying storage " ADDR_FMT " to %p",
-		       ADDR_PRINTF (storage_desc->storage),
-		       (void *) fault_addr + i * PAGESIZE);
+	      debug (5, "Allocating storage for %p at " ADDR_FMT,
+		     (void *) fault_addr  + i * PAGESIZE,
+		     ADDR_PRINTF (storage_desc->storage));
 
-	      profile_region ("anonymous_fault(install)");
+	      profile_region ("install");
 
 	      /* We generate a fake shadow cap for the storage as we know
 		 its contents (It is a page that is in a folio with the
@@ -271,6 +293,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 
 	      addr_t addr = addr_chop (PTR_TO_ADDR (fault_addr + i * PAGESIZE),
 				       PAGESIZE_LOG2);
+
 	      as_ensure_use
 		(addr,
 		 ({
@@ -294,8 +317,9 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 
   ss_mutex_unlock (&anon->lock);
 
-  r = true;
+  profile_region_end ();
 
+  bool r = true;
   if (anon->fill)
     {
       if (! recursive || ! (anon->flags & ANONYMOUS_NO_RECURSIVE))
@@ -308,7 +332,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		pages[i] = (void *) fault_addr + i * PAGESIZE;
 	    }
 
-	  profile_region ("anonymous_fault(user fill)");
+	  profile_region ("user fill");
 	  r = anon->fill (anon, offset, count, pages, info);
 	  profile_region_end ();
 	}
@@ -329,8 +353,6 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	  ss_mutex_unlock (&anon->fill_lock);
 	}
     }
-
-  profile_region_end ();
 
   debug (5, "Fault at %x resolved", fault_addr);
 
