@@ -1,5 +1,10 @@
 2008-11-18  Neal H. Walfield  <neal@gnu.org>
 
+	* activity.c (activity_destroy): Only print configuration when
+	destroying the root activity.
+
+2008-11-18  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (ager_loop): Count the number of shared pages that are
 	unmapped, the total number of active pages and the total number of
 	inactive pages.  Print this information.
