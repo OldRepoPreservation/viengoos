@@ -33,6 +33,7 @@ enum rm_method_id
     RM_write = 100,
     RM_read,
     RM_as_dump,
+    RM_fault,
   };
 
 static inline const char *
@@ -46,6 +47,8 @@ rm_method_id_string (int id)
       return "read";
     case RM_as_dump:
       return "as_dump";
+    case RM_fault:
+      return "fault";
     case RM_folio_alloc:
       return "folio_alloc";
     case RM_folio_free:
@@ -115,5 +118,9 @@ RPC(read, 1, 1, int, max, struct io_buffer, io)
 
 /* Dump the address space rooted at ROOT.  */
 RPC(as_dump, 2, 0, addr_t, principal, addr_t, root)
+
+/* Fault up to the MIN (15, COUNT) pages starting at START.  */
+RPC(fault, 3, 1, addr_t, principal, uintptr_t, start, int, count,
+    int, ocount)
 
 #endif

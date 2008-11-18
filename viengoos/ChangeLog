@@ -1,5 +1,12 @@
 2008-11-18  Neal H. Walfield  <neal@gnu.org>
 
+	* rm.h (RM_fault): Define.
+	(rm_method_id_string): Handle it.
+	(fault): New RPC.
+	* server.c (server_loop): Implement it.
+
+2008-11-18  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Add code to the page fault handler that
 	not only map the faulted page but also some following pages.
 	Leave disabled.

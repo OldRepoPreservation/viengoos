@@ -1,5 +1,10 @@
 2008-11-18  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.c (fault): Add code to prefault the pages.  Leave
+	disabled.
+
+2008-11-18  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.c (advise): When ADVICE is pager_advice_normal, set
 	INFO.DISCARDED to ANON->POLICY.DISCARDABLE.
 

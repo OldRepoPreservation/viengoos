@@ -652,6 +652,78 @@ server_loop (void)
 
       switch (label)
 	{
+	case RM_fault:
+	  {
+	    uintptr_t start;
+	    int max;
+
+	    err = rm_fault_send_unmarshal (&msg, &principal_addr,
+					   &start, &max);
+	    if (err)
+	      REPLY (err);
+
+	    DEBUG (4, "(%p, %d)", start, max);
+
+	    start &= ~(PAGESIZE - 1);
+
+	    rm_fault_reply_marshal (&msg, 0);
+	    int limit = (L4_NUM_MRS - 1
+			 - l4_untyped_words (l4_msg_msg_tag (msg)))
+	      * sizeof (l4_word_t) / sizeof (l4_map_item_t);
+	    if (max > limit)
+	      max = limit;
+
+	    l4_map_item_t map_items[max];
+	    int count = 0;
+	    for (count = 0; count < max; count ++, start += PAGESIZE)
+	      {
+		struct cap cap;
+		bool writable;
+		cap = as_object_lookup_rel (activity, &thread->aspace,
+					    addr_chop (PTR_TO_ADDR (start),
+						       PAGESIZE_LOG2),
+					    cap_rpage, &writable);
+
+		if (cap.type != cap_page && cap.type != cap_rpage)
+		  break;
+
+		if (! writable && cap.discardable)
+		  cap.discardable = false;
+
+		struct object *page = cap_to_object (activity, &cap);
+		if (! page)
+		  break;
+
+		object_desc_unmap (object_to_object_desc (page));
+		object_to_object_desc (page)->mapped = true;
+
+		int access = L4_FPAGE_READABLE;
+		if (writable)
+		  access |= L4_FPAGE_WRITABLE;
+
+		l4_fpage_t fpage = l4_fpage ((uintptr_t) page, PAGESIZE);
+		fpage = l4_fpage_add_rights (fpage, access);
+		map_items[count] = l4_map_item (fpage, start);
+
+		DEBUG (4, "Prefault %d: " DEBUG_BOLD ("%x") " <- %x/%x %s",
+		       count + 1, start,
+		       l4_address (fpage), l4_rights (fpage),
+		       cap_type_string (cap.type));
+	      }
+
+	    if (count > 0)
+	      DEBUG (4, "Prefaulted %d pages (%d/%d)", count,
+		     l4_untyped_words (l4_msg_msg_tag (msg)),
+		     l4_typed_words (l4_msg_msg_tag (msg)));
+
+	    rm_fault_reply_marshal (&msg, count);
+	    int i;
+	    for (i = 0; i < count; i ++)
+	      l4_msg_append_map_item (msg, map_items[i]);
+
+	    break;
+	  }
+
 	case RM_folio_alloc:
 	  {
 	    addr_t folio_addr;

@@ -313,6 +313,17 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	    pages[i] = ADDR_TO_PTR (addr_extend (storage_desc->storage,
 						 0, PAGESIZE_LOG2));
 	}
+
+#if 0
+      int faulted;
+      for (i = 0; i < count; i += faulted)
+	{
+	  error_t err = rm_fault (ADDR_VOID, fault_addr + i * PAGESIZE,
+				  count - i, &faulted);
+	  if (err || faulted == 0)
+	    break;
+	}
+#endif
     }
 
   ss_mutex_unlock (&anon->lock);
