@@ -31,6 +31,12 @@ $ install -s laden/laden /l4/boot
 $ install -s viengoos/viengoos /l4/boot
 $ install -s hieronymus/hieronymus /l4/boot
 
+When configuring, you can use --enable-runtime-checks=N, 0 <= N <= 3,
+to control which run-checks are executed.  Level 3 includes very
+expensive consistency checks; level 0 disables all consistency checks,
+the trace buffer and all debugging output except that at level 0.
+
+
 You need at least automake 1.9 and autoconf 2.57.
 
 If you happen to be on a multi-processor system, you can run ``make -j'' to
