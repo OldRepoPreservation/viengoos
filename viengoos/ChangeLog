@@ -1,5 +1,11 @@
 2008-11-18  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c (ager_loop): Count the number of shared pages that are
+	unmapped, the total number of active pages and the total number of
+	inactive pages.  Print this information.
+
+2008-11-18  Neal H. Walfield  <neal@gnu.org>
+
 	* ager.c (ager_loop): Update use of profile_start to match new
 	API.
 	* pager.c (pager_collect): Likewise.

@@ -471,6 +471,8 @@ ager_loop (void)
 
       bool also_unmap;
 
+      int shared_unmapped = 0;
+
       /* We try to batch calls to l4_unmap, hence the acrobatics.  */
 
       /* Grab a batch of live objects starting with object I.  */
@@ -508,7 +510,10 @@ ager_loop (void)
 		if (desc->type == cap_page)
 		  /* We only unmap the object if it is a page.  No
 		     other objects are actually mapped to users.  */
-		  also_unmap = true;
+		  {
+		    also_unmap = true;
+		    shared_unmapped ++;
+		  }
 		desc->mapped = false;
 		desc->floating = true;
 	      }
@@ -521,6 +526,8 @@ ager_loop (void)
 
       int became_inactive = 0;
       int became_active = 0;
+      int active = 0;
+      int inactive = 0;
 
       while (frame < frames)
 	{
@@ -612,6 +619,7 @@ ager_loop (void)
 		      ACTIVITY_STATS (desc->activity)->became_inactive ++;
 
 		      became_inactive ++;
+		      inactive ++;
 
 		      /* Detach from active list and reattach to
 			 inactive list.  */
@@ -622,7 +630,10 @@ ager_loop (void)
 			(&desc->activity->frames[priority].inactive, desc);
 		    }
 		  else
-		    ACTIVITY_STATS (desc->activity)->active ++;
+		    {
+		      ACTIVITY_STATS (desc->activity)->active ++;
+		      active ++;
+		    }
 		}
 	      else
 		/* The object was inactive.  */
@@ -635,6 +646,7 @@ ager_loop (void)
 		      ACTIVITY_STATS (desc->activity)->became_active ++;
 
 		      became_active ++;
+		      active ++;
 
 		      /* Detach from inactive list and reattach to the
 			 active list.  */
@@ -646,6 +658,8 @@ ager_loop (void)
 
 		      desc->dirty |= dirty;
 		    }
+		  else
+		    inactive ++;
 		}
 
 	      if (desc->dirty && ! desc->policy.discardable)
@@ -669,11 +683,13 @@ ager_loop (void)
 	      ss_mutex_lock (&kernel_lock);
 	      int a = zalloc_memory + available_list_count (&available);
 	      debug (0, "%d: %d of %d (%d%%) free; laundry: %d; "
-		     "%d became inactive, %d became active",
+		     "%d active (%d new); %d inactive (%d new), "
+		     "%d shared unmapped",
 		     period / FREQ,
 		     a, memory_total, (a * 100) / memory_total,
 		     laundry_list_count (&laundry),
-		     became_inactive, became_active);
+		     active, became_active, inactive, became_inactive,
+		     shared_unmapped);
 	      ss_mutex_unlock (&kernel_lock);
 	    }
 	}
