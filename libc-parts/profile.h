@@ -24,8 +24,8 @@
    safe.  */
 
 /* Currently, only enable by default for Viengoos.  */
-#ifndef RM_INTERN
-// #define NPROFILE
+#ifdef RM_INTERN
+#define NPROFILE
 #endif
 
 #ifndef NPROFILE
@@ -33,7 +33,7 @@
 /* Start a timer for the profile site ID (this must be unique per
    site, can be the function's address).  NAME is the symbolic
    name.  */
-extern void profile_start (uintptr_t id, const char *name);
+extern void profile_start (uintptr_t id, const char *name, const char *name2);
 
 /* End the timer for the profile site ID.  */
 extern void profile_end (uintptr_t id);
@@ -42,17 +42,17 @@ extern void profile_stats_dump (void);
 
 #else
 
-#define profile_start(id, name) do { } while (0)
+#define profile_start(id, name, name2) do { } while (0)
 #define profile_end(id) do { } while (0)
 #define profile_stats_dump() do { } while (0)
 
 #endif
 
-#define profile_region(__pr_id)				\
-  {							\
-    const char *__pr_id_ = (__pr_id);			\
-    profile_start((uintptr_t) __pr_id_, __pr_id_)
+#define profile_region(__pr_name)					\
+  {									\
+    uintptr_t __pr_id_ = (uintptr_t) __func__ + (uintptr_t) (__pr_name); \
+    profile_start (__pr_id_, __func__, (__pr_name))
 
 #define profile_region_end()			\
-    profile_end ((uintptr_t) __pr_id_);		\
+    profile_end (__pr_id_);			\
   }

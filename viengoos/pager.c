@@ -244,7 +244,7 @@ pager_collect (int goal)
 	 laundry_list_count (&laundry),
 	 PAGER_LOW_WATER_MARK, goal);
 
-  profile_start ((uintptr_t) &pager_collect, __FUNCTION__);
+  profile_start ((uintptr_t) &pager_collect, __FUNCTION__, NULL);
 
   /* Find a victim.  */
   struct activity *victim;
@@ -354,7 +354,7 @@ pager_collect (int goal)
 	return false;
       }
 
-      profile_region ("pager_collect(find victim)");
+      profile_region ("find victim");
 
       victim = root_activity;
       do

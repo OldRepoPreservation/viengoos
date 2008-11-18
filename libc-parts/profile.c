@@ -32,7 +32,9 @@
 #ifdef __gnu_hurd_viengoos__
 # include <l4.h>
 # include <hurd/rm.h>
+#  include <s-printf.h>
 #else
+# include <pthread.h>
 # include <sys/time.h>
 # ifndef s_printf
 #  define s_printf printf
@@ -72,36 +74,107 @@ now (void)
 #endif
 }
 
+#define CALL_SITES 100
+struct call_site
+{
+  const char *name;
+  const char *name2;
+  uint64_t time;
+  uint64_t start;
+  int calls;
+  int nested_calls;
+  int pending;
+};
 
-static struct hurd_ihash sites_hash;
-static char sites_hash_buffer[PAGESIZE];
-static int init;
+/* The number of threads we support.  */
+#define THREADS 4
+static int thread_count;
+
+struct profile_block
+{
+#ifdef __gnu_hurd_viengoos__
+#define MYSELF() l4_myself ()
+  l4_thread_id_t tid;
+#else
+#define MYSELF() pthread_self ()
+  pthread_t tid;
+#endif
+
+  /* When we started profiling.  */
+  uint64_t epoch;
+  uint64_t profiled_time;
+
+  uint64_t calls;
+  /* Number of extant profiling calls.  We only update profiled_time
+     if EXTANT is 0.  The result is that the time spent profiling is
+     correct, and the percent of the time profile that a function has
+     been is more meaningful.  */
+  int extant;
+
+  int init_done;
+
+  struct call_site call_sites[CALL_SITES];
+  int call_sites_used;
+
+  struct hurd_ihash sites_hash;
+#ifndef RM_INTERN
+  char sites_hash_buffer[PAGESIZE];
+#endif
+};
+
+static struct profile_block profile_blocks[THREADS];
+
+/* Return the profile block associated with the calling thread.  If
+   there is none, initialize one.  */
+static struct profile_block *
+profile_block (void)
+{
+  int i;
+  for (i = 0; i < thread_count; i ++)
+    if (profile_blocks[i].tid == MYSELF())
+      return &profile_blocks[i];
+
+  /* New thread.  */
+
+  i = __sync_fetch_and_add (&thread_count, 1);
+  if (i >= THREADS)
+    panic ("More threads than profile space available!");
+
+  struct profile_block *pb = &profile_blocks[i];
+
+  pb->tid = MYSELF ();
+
+  size_t size;
+  void *buffer;
+#ifdef RM_INTERN
+  size = hurd_ihash_buffer_size (CALL_SITES, false, 0);
+  /* Round up to a multiple of the page size.  */
+  size = (size + PAGESIZE - 1) & ~(PAGESIZE - 1);
+
+  buffer = (void *) zalloc (size);
+#else
+  size = sizeof (pb->sites_hash_buffer);
+  buffer = pb->sites_hash_buffer;
+#endif
+  if (! buffer)
+    panic ("Failed to allocate memory for object hash!\n");
+
+  memset (buffer, 0, size);
+
+  hurd_ihash_init_with_buffer (&pb->sites_hash, false,
+			       HURD_IHASH_NO_LOCP,
+			       buffer, size);
+
+  pb->epoch = now ();
+  pb->init_done = true;
+
+  return pb;
+}
 
 /* XXX: This implementation assumes that we are single threaded!  In
    the case of Viengoos, this is essentially true: all relevant
    functionality is with the kernel lock held.  We also don't
    currently support nested calls.  */
-
-#define SIZE 1000
-struct site
-{
-  const char *name;
-  uint64_t time;
-  uint64_t start;
-  int calls;
-  int pending;
-} sites[SIZE];
-static int used;
-
-static uint64_t epoch;
-static uint64_t calls;
-/* It's nothing but it prevents a divide by zero.  */
-static uint64_t total_time = 1;
-/* Number of extant profiling calls.  We only update total_time if
-   EXTANT is 0.  The result is that the time spent profiling is
-   correct, and the percent of the time profile that a function has
-   been is more meaningful.  */
-static int extant;
 
 #undef profile_stats_dump
 void
@@ -109,103 +182,134 @@ profile_stats_dump (void)
 {
   uint64_t n = now ();
 
-  int width = 0;
-  int count = 0;
+  char digit_whitespace[11];
+  memset (digit_whitespace, ' ', sizeof (digit_whitespace));
+  digit_whitespace[sizeof (digit_whitespace) - 1] = 0;
 
-  int i;
-  for (i = 0; i < used; i ++)
+  char *dws (uint64_t number)
+  {
+    int w = 0;
+    if (number < 0)
+      w ++;
+
+    while (number != 0)
+      {
+	w ++;
+	number /= 10;
+      }
+    if (w == 0)
+      w = 1;
+
+    if (w > sizeof (digit_whitespace))
+      return "";
+    else
+      return &digit_whitespace[w];
+  }
+
+  int t;
+  for (t = 0; t < thread_count; t ++)
     {
-      if (sites[i].calls)
-	count ++;
-      if (sites[i].calls && sites[i].name && strlen (sites[i].name) > width)
-	width = strlen (sites[i].name);
-    }
+      struct profile_block *pb = &profile_blocks[t];
+      if (! pb->init_done)
+	continue;
 
-  char spaces[width + 1];
-  memset (spaces, ' ', sizeof (spaces));
-  spaces[width] = 0;
+      int width = 0;
+      int count = 0;
 
-  /* Do a simple bubble sort.  */
-  int order[count];
-
-  int j = 0;
-  for (i = 0; i < used; i ++)
-    if (sites[i].calls)
-      order[j ++] = i;
-
-  for (i = 0; i < count; i ++)
-    for (j = 0; j < count - 1; j ++)
-      if (sites[order[j]].time < sites[order[j + 1]].time)
+      int i;
+      for (i = 0; i < pb->call_sites_used; i ++)
 	{
-	  int t = order[j];
-	  order[j] = order[j + 1];
-	  order[j + 1] = t;
+	  if (pb->call_sites[i].calls)
+	    count ++;
+	  if (pb->call_sites[i].calls)
+	    {
+	      int w = 0;
+	      if (pb->call_sites[i].name)
+		w += strlen (pb->call_sites[i].name);
+	      if (pb->call_sites[i].name2)
+		w += strlen (pb->call_sites[i].name2);
+	      if (pb->call_sites[i].name && pb->call_sites[i].name2)
+		w += 2;
+	      if (w > width)
+		width = w;
+	    }
 	}
 
-  for (j = 0; j < count; j ++)
-    {
-      i = order[j];
-      if (sites[i].calls)
-	s_printf ("%s%s: %d calls,\t%lld ms,\t%lld.%d us per call,\t"
-		  "%d%% total time,\t%d%% profiled time\n",
-		  &spaces[strlen (sites[i].name)], sites[i].name,
-		  sites[i].calls,
-		  sites[i].time / 1000,
-		  sites[i].time / sites[i].calls,
-		  (int) ((10 * sites[i].time) / sites[i].calls) % 10,
-		  (int) ((100 * sites[i].time) / (n - epoch)),
-		  (int) ((100 * sites[i].time) / total_time));
-    }
+      char spaces[width + 1];
+      memset (spaces, ' ', sizeof (spaces));
+      spaces[width] = 0;
 
-  s_printf ("profiled time: %lld ms, calls: %lld\n",
-	    total_time / 1000, calls);
-  s_printf ("uptime: %lld ms\n", (n - epoch) / 1000);
+      /* Do a simple bubble sort.  */
+      int order[count];
+
+      int j = 0;
+      for (i = 0; i < pb->call_sites_used; i ++)
+	if (pb->call_sites[i].calls)
+	  order[j ++] = i;
+
+      for (i = 0; i < count; i ++)
+	for (j = 0; j < count - 1; j ++)
+	  if (pb->call_sites[order[j]].time
+	      < pb->call_sites[order[j + 1]].time)
+	    {
+	      int t = order[j];
+	      order[j] = order[j + 1];
+	      order[j + 1] = t;
+	    }
+
+      s_printf ("Thread: %x\n", pb->tid);
+      for (j = 0; j < count; j ++)
+	{
+	  i = order[j];
+	  if (pb->call_sites[i].calls)
+	    s_printf ("%s%s%s%s%s: %s%d calls (%d nested),\t%s%lld ms,"
+		      "\t%lld.%d us/call,\t%d%% total,\t%d%% profiled\n",
+		      &spaces[strlen (pb->call_sites[i].name ?: "")
+			      + strlen (pb->call_sites[i].name2 ?: "")
+			      + (pb->call_sites[i].name
+				 && pb->call_sites[i].name2 ? 2 : 0)],
+		      pb->call_sites[i].name ?: "",
+		      pb->call_sites[i].name && pb->call_sites[i].name2
+		      ? "(" : "",
+		      pb->call_sites[i].name2 ?: "",
+		      pb->call_sites[i].name && pb->call_sites[i].name2
+		      ? ")" : "",
+		      dws (pb->call_sites[i].calls), pb->call_sites[i].calls,
+		      pb->call_sites[i].nested_calls,
+		      dws (pb->call_sites[i].time / 1000),
+		      pb->call_sites[i].time / 1000,
+		      pb->call_sites[i].time / pb->call_sites[i].calls,
+		      (int) ((10 * pb->call_sites[i].time)
+			     / pb->call_sites[i].calls) % 10,
+		      (int) ((100 * pb->call_sites[i].time) / (n - pb->epoch)),
+		      (int) ((100 * pb->call_sites[i].time)
+			     / pb->profiled_time));
+	}
+
+      s_printf ("profiled time: %lld ms (%d%%), calls: %lld\n",
+		pb->profiled_time / 1000,
+		(int) ((100 * pb->profiled_time) / (n - pb->epoch)),
+		pb->calls);
+      s_printf ("total time: %lld ms\n", (n - pb->epoch) / 1000);
+    }
 }
 
 #undef profile_start
 void
-profile_start (uintptr_t id, const char *name)
+profile_start (uintptr_t id, const char *name, const char *name2)
 {
-  if (! init)
-    {
-      init = 1;
-
-      size_t size;
-      void *buffer;
-#ifdef RM_INTERN
-      size = hurd_ihash_buffer_size (SIZE, false, 0);
-      /* Round up to a multiple of the page size.  */
-      size = (size + PAGESIZE - 1) & ~(PAGESIZE - 1);
-
-      buffer = (void *) zalloc (size);
-#else
-      size = sizeof (sites_hash_buffer);
-      buffer = sites_hash_buffer;
-#endif
-      if (! buffer)
-	panic ("Failed to allocate memory for object hash!\n");
-
-      memset (buffer, 0, size);
-
-      hurd_ihash_init_with_buffer (&sites_hash, false,
-				   HURD_IHASH_NO_LOCP,
-				   buffer, size);
-
-      epoch = now ();
-
-      init = 2;
-    }
-  else if (init == 1)
+  struct profile_block *pb = profile_block ();
+  if (! pb->init_done)
     return;
 
-  struct site *site = hurd_ihash_find (&sites_hash, id);
+  struct call_site *site = hurd_ihash_find (&pb->sites_hash, id);
   if (! site)
     {
-      site = &sites[used ++];
-      if (used == SIZE)
+      site = &pb->call_sites[pb->call_sites_used ++];
+      if (pb->call_sites_used == CALL_SITES)
 	panic ("Out of profile space.");
 
-      error_t err = hurd_ihash_add (&sites_hash, id, site);
+      error_t err = hurd_ihash_add (&pb->sites_hash, id, site);
       if (err)
 	panic ("Failed to add to hash: %d.", err);
 
@@ -218,10 +322,11 @@ profile_start (uintptr_t id, const char *name)
 #else
 	  site->name = "unknown";
 #endif
-	}      
+	}
+      site->name2 = name2;
     }
 
-  extant ++;
+  pb->extant ++;
 
   site->pending ++;
   if (site->pending == 1)
@@ -232,10 +337,13 @@ profile_start (uintptr_t id, const char *name)
 void
 profile_end (uintptr_t id)
 {
-  if (init == 1)
+  uint64_t n = now ();
+
+  struct profile_block *pb = profile_block ();
+  if (! pb->init_done)
     return;
 
-  struct site *site = hurd_ihash_find (&sites_hash, id);
+  struct call_site *site = hurd_ihash_find (&pb->sites_hash, id);
   if (! site)
     panic ("profile_end called without corresponding profile_begin (%p)!",
 	   (void *) id);
@@ -243,24 +351,24 @@ profile_end (uintptr_t id)
   if (! site->pending)
     panic ("profile_end called but no extant profile_start!");
 
-  extant --;
+  pb->extant --;
 
   site->pending --;
   if (site->pending == 0)
     {
-      uint64_t n = now ();
-
       site->time += n - site->start;
 
-      if (extant == 0)
-	total_time += n - site->start;
+      if (pb->extant == 0)
+	pb->profiled_time += n - site->start;
 
       site->calls ++;
-      calls ++;
+      pb->calls ++;
 
       do_debug (5)
-	if (calls % 100000 == 0)
+	if (pb->calls % 100000 == 0)
 	  profile_stats_dump ();
     }
+  else
+    site->nested_calls ++;
 }
 

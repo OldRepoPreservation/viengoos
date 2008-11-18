@@ -65,7 +65,7 @@ static void
 update_stats (void)
 {
   ss_mutex_lock (&kernel_lock);
-  profile_region ("update_stats");
+  profile_region (NULL);
 
   /* XXX: Update the statistics.  We need to average some of the
      fields including the number of active, inactive, clean and dirty
@@ -525,7 +525,7 @@ ager_loop (void)
       while (frame < frames)
 	{
 	  ss_mutex_lock (&kernel_lock);
-	  profile_start ((uintptr_t) &ager_loop, "ager");
+	  profile_start ((uintptr_t) &ager_loop, "ager", NULL);
 
 	  int count = grab ();
 	  if (count == 0)
@@ -548,7 +548,7 @@ ager_loop (void)
 	     thread, it does not for subsequent threads.  Moreover, we
 	     would have to access the pages at fault time to ensure
 	     that they are mapped, which is just ugly.  */
-	  profile_start ((uintptr_t) &ager_loop + 1, "l4_unmap");
+	  profile_start ((uintptr_t) &ager_loop + 1, "l4_unmap", NULL);
 	  l4_flush_fpages (count, fpages);
 	  if (also_unmap)
 	    {

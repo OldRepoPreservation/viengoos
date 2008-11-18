@@ -1,3 +1,9 @@
+2008-11-18  Neal H. Walfield  <neal@gnu.org>
+
+	* ager.c (ager_loop): Update use of profile_start to match new
+	API.
+	* pager.c (pager_collect): Likewise.
+
 2008-11-17  Neal H. Walfield  <neal@gnu.org>
 
 	* object.h (struct object_desc): Add field maybe_folio_desc.
