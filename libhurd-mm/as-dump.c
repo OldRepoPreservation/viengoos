@@ -77,7 +77,7 @@ do_walk (activity_t activity, int index,
     /* Cap is there but the object has been deallocated.  */
     return;
 
-  if (output_prefix)
+  if (output_prefix && *output_prefix)
     S_PRINTF ("%s: ", output_prefix);
   for (i = 0; i < indent; i ++)
     S_PRINTF (".");
@@ -183,5 +183,9 @@ do_walk (activity_t activity, int index,
 void
 as_dump_from (activity_t activity, struct cap *root, const char *prefix)
 {
-  do_walk (activity, -1, root, ADDR (0, 0), 0, true, prefix);
+  debug (0, "Dumping address space.");
+  backtrace_print ();
+
+  if (0)
+    do_walk (activity, -1, root, ADDR (0, 0), 0, true, prefix);
 }
