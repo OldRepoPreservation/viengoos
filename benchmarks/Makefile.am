@@ -20,9 +20,9 @@
 bootdir = $(prefix)/boot
 
 if ! ENABLE_TESTS
-SUBDIRS = sqlite boehm-gc
+SUBDIRS = sqlite # boehm-gc
 
-boot_PROGRAMS = shared-memory-distribution activity-distribution gcbench
+boot_PROGRAMS = shared-memory-distribution activity-distribution cache # gcbench
 endif
 
 shared_memory_distribution_CPPFLAGS = $(USER_CPPFLAGS)
@@ -42,4 +42,10 @@ gcbench_CFLAGS = $(USER_CFLAGS)
 gcbench_LDFLAGS = $(USER_LDFLAGS) -Lboehm-gc/gc-install/lib
 gcbench_LDADD = -lgc $(USER_LDADD)
 gcbench_SOURCES = GCbench.c
+
+cache_CPPFLAGS = $(USER_CPPFLAGS) -Isqlite/install/include
+cache_CFLAGS = $(USER_CFLAGS)
+cache_LDFLAGS = $(USER_LDFLAGS) -Lsqlite/install/lib
+cache_LDADD = $(USER_LDADD) -lm -lsqlite3
+cache_SOURCES = cache.c zipf.c
 

@@ -59,6 +59,58 @@ succeed:
 Also the header files are a good source of documentation.
 
 
+L4
+--
+
+Viengoos uses Pistachio as a hardware abstraction.
+
+Download Pistachio by cloning upstream's mercurial repository.  You
+can find instructions on how to do this at:
+
+	http://www.l4ka.org/projects/pistachio/download.php
+
+Enter the kernel directory and run `make' to set up a build
+environment.  Configure the source.  Select your platform.  Optionally
+enabled the kernel debugger.  And, be sure to enable the following
+option:
+
+  Kernel -> Experimental Features -> Pager ExchangeRegisters
+
+You'll also need to build sigma0.  It is in the user
+directory.
+
+sigma0 must be built with a different link base from the default
+(0x20000), because this conflicts with GRUB.  I have successfully used
+a link base of 0x40000.  Use the configure option
+--with-s0-linkbase=0x40000 when configuring the user space of the L4
+distribution.
+
+You only need the ia32-kernel and sigma0 binary from the L4
+distribution.  You may want to install the other programs and
+utilities as well to test your L4 kernel, though.
+
+
+Booting
+-------
+
+GRUB can boot Viengoos.  Set up GRUB to boot laden as the kernel, and
+load the L4 kernel, sigma0, viengoos and hieronymus as modules (in
+that order).
+
+Try the debug option to laden (-D) and viengoos (-D 3) to see some
+output from them.  They are relatively silent by default.
+
+Here is an example menu.lst file for GNU GRUB:
+
+title Viengoos
+root (hd0,0)
+kernel /boot/laden -D
+module /boot/ia32-kernel
+module /boot/sigma0
+module /boot/viengoos -D 3
+module /boot/hieronymus -D 3
+
+
 Using the Cross-Compiler
 ------------------------
 
@@ -72,44 +124,5 @@ package's `config.guess' and `config.sub' to the Viengoos ones.  That's what
 `newlib/Makefile.am', for example.  After that, configuring the to-be-built
 package with ``--host=i686-pc-viengoos-gnu'' is all that *should* be needed,
 for a portable package.  Otherwise you'll see things explode.
-
-
-Installation on ia32
---------------------
-
-Prerequisites: Pistachio from CVS with the patch below.  You can find
-information about how to download the Pistachio source distribution
-(which includes the kernel and sigma0) at the following URL:
-
-	http://www.l4ka.org/projects/pistachio/download.php
-
-Make sure that Kernel -> Experimental Features -> Pager ExchangeRegisters
-is enabled.
-
-sigma0 must be built with a different link base than the default value
-0x20000, because that conflicts with GRUB (on ia32).  I have
-successfully used a link base of 0x40000.  Use the configure option
---with-s0-linkbase=0x40000 when configuring the user space of the L4
-distribution.
-
-You only need the ia32-kernel and sigma0 binary from the L4
-distribution.  You may want to install the other programs and
-utilities as well to test your L4 kernel, though.
-
-Then set up GRUB to boot laden as the kernel, and the L4 kernel,
-sigma0, viengoos and hieronymus (in that order).
-
-Try the debug option (-D 3) to laden and viengoos to see some output
-from them.  They are relatively silent by default.
-
-Here is an example menu.lst file for GNU GRUB:
-
-title Viengoos
-root (hd0,0)
-kernel /boot/laden -D
-module /boot/ia32-kernel
-module /boot/sigma0
-module /boot/viengoos -D 3
-module /boot/hieronymus -D 3
 
 
