@@ -1,9 +1,13 @@
 2008-11-18  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.c (advise): When ADVICE is pager_advice_normal, set
+	INFO.DISCARDED to ANON->POLICY.DISCARDABLE.
+
+2008-11-18  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.c (fault): Preallocate the pages surrounding a fault.
 	Only copy the capability in place if we just allocated the
 	storage.
-
 2008-11-17  Neal H. Walfield  <neal@gnu.org>
 
 	* as-lookup.c (DUMP_OR_RET) [NDEBUG]: Just return.

@@ -531,9 +531,9 @@ advise (struct pager *pager,
     case pager_advice_normal:
       {
 	struct exception_info info;
-	info.discarded = true;
+	info.discarded = anon->policy.discardable;
 	info.type = cap_page;
-	/* XXX: What should be set info.access to?  */
+	/* XXX: What should we set info.access to?  */
 	info.access = MAP_ACCESS_ALL;
 
 	bool r = fault (pager, start, length / PAGESIZE, false,
