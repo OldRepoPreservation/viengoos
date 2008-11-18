@@ -1,3 +1,13 @@
+2008-11-18  Neal H. Walfield  <neal@gnu.org>
+
+	* cache.c: New file.
+	* Makefile.am (cache_CPPFLAGS): New variable.
+	(cache_CFLAGS): Likewise.
+	(cache_LDFLAGS): Likewise.
+	(cache_LDADD): Likewise.
+	(cache_SOURCES): Likewise.
+	(boot_PROGRAMS): Add cache.
+
 2008-11-11  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (SUBDIRS): Add sqlite.
