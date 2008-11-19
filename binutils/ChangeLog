@@ -1,3 +1,16 @@
+2008-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* patches/00-bfd-config-bfd.patch: New file.
+	* patches/01-ld-configure-tgt.patch: New file.
+	* Makefrag.am (patch_files): New variable.
+	(EXTRA_DIST): Likewise.
+	($(addsuffix .applied,$(patch_files))): Depend on
+	binutils/binutils/unpack.stamp and $(patch_files).  Apply patches
+	to the source tree.
+	(rpatch): New rule.
+	(binutils/binutils/patch.stamp): Also depend on the applied patch
+	files.
+
 2008-11-03  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefrag.am (binutils_version): Bump to 2.19.

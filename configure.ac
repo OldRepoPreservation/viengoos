@@ -115,15 +115,16 @@ AC_CANONICAL_HOST
 # Checks for header files.
 
 arch_ia32=false
+arch_x86_64=false
 arch_powerpc=false
 case $host_cpu in
   alpha)
     arch=alpha
     arch_alpha=true
     ;;
-  amd64)
-    arch=amd64
-    arch_amd64=true
+  x86_64)
+    arch=x86_64
+    arch_x86_64=true
     ;;
   i386 | i486 | i586 | i686)
     arch=ia32
@@ -146,7 +147,7 @@ case $host_cpu in
     ;;
 esac
 AM_CONDITIONAL([ARCH_ALPHA], $arch_alpha)
-AM_CONDITIONAL([ARCH_AMD64], $arch_amd64)
+AM_CONDITIONAL([ARCH_X86_64], $arch_x86_64)
 AM_CONDITIONAL([ARCH_IA32], $arch_ia32)
 AM_CONDITIONAL([ARCH_IA64], $arch_ia64)
 AM_CONDITIONAL([ARCH_POWERPC], $arch_powerpc)
@@ -315,7 +316,7 @@ AC_CONFIG_FILES([Makefile
 		 libl4/x2/Makefile
 		 libl4/tests/Makefile libl4/Makefile
 		 libviengoos/Makefile
-		 platform/alpha/Makefile platform/amd64/Makefile
+		 platform/alpha/Makefile platform/x86_64/Makefile
 		 platform/ia32/Makefile platform/ia64/Makefile
 		 platform/powerpc/Makefile platform/powerpc64/Makefile
 		 platform/Makefile

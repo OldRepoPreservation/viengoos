@@ -1,0 +1,20 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+Tweak the configuration.
+
+--- binutils/bfd/config.bfd~	2008-04-16 20:02:01.000000000 +0200
++++ binutils/bfd/config.bfd	2008-11-18 15:25:02.000000000 +0100
+@@ -614,6 +614,11 @@ case "${targ}" in
+     targ_selvecs="bfd_elf32_i386_vec i386linux_vec bfd_efi_app_ia32_vec bfd_efi_bsdrv_ia32_vec bfd_efi_rtdrv_ia32_vec bfd_efi_app_x86_64_vec bfd_efi_bsdrv_x86_64_vec bfd_efi_rtdrv_x86_64_vec"
+     want64=true
+     ;;
++  x86_64-*-gnu*)
++    targ_defvec=bfd_elf64_x86_64_vec
++    targ_selvecs="bfd_elf32_i386_vec i386linux_vec bfd_efi_app_ia32_vec bfd_efi_bsdrv_ia32_vec bfd_efi_rtdrv_ia32_vec bfd_efi_app_x86_64_vec bfd_efi_bsdrv_x86_64_vec bfd_efi_rtdrv_x86_64_vec"
++    want64=true
++    ;;
+   x86_64-*-mingw*)
+     targ_defvec=x86_64pe_vec
+     targ_selvecs="x86_64pe_vec x86_64pei_vec bfd_elf64_x86_64_vec"

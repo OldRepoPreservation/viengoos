@@ -22,7 +22,8 @@ gcc_snapshot = $(addprefix ftp://ftp.gnu.org/gnu/gcc/gcc-$(gcc_version)/,$(1))
 
 # Patches to apply to GCC's source tree.
 gcc_patch_files = \
-	configury.patch
+	configury.patch \
+	configury2.patch
 
 $(addprefix $(srcdir)/gcc/,$(gcc_tarballs)): $(srcdir)/gcc/%:
 	cd $(srcdir)/gcc/ && \
@@ -61,6 +62,11 @@ gcc/gcc.build/configure.stamp: $(srcdir)/gcc/gcc/patch.stamp binutils/binutils.b
 	rm -rf gcc/gcc.build
 	mkdir -p gcc/gcc.build
 	( cd gcc/gcc.build && \
+	  case "$(host_alias)" in \
+	    i[34567]86-*-*) \
+	      extra_args=--with-arch=$(word 1,$(subst -, ,$(host_alias))) \
+	      ;; \
+	  esac && \
 	  $(abs_srcdir)/gcc/gcc/configure \
 	    --target=$(host_alias) \
 	    --prefix='$(abs_top_builddir)' \
@@ -71,7 +77,7 @@ gcc/gcc.build/configure.stamp: $(srcdir)/gcc/gcc/patch.stamp binutils/binutils.b
 	    --without-headers \
 	    --with-newlib \
 	    --enable-languages=c \
-	    --with-arch=$(word 1,$(subst -, ,$(host_alias))) \
+	    $$extra_args \
 	)
 	touch $@
 

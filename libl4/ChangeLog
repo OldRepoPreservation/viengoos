@@ -1,3 +1,7 @@
+2008-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* headers.m4: Only link the header files if $ARCH is ia32.
+
 2008-12-04  Neal H. Walfield  <neal@gnu.org>
 
 	* l4/space.h: Don't include <assert.h>.

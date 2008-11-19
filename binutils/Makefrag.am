@@ -15,6 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Patches to apply to the source tree.
+patch_files = 00-bfd-config-bfd.patch \
+	01-ld-configure-tgt.patch
+
+EXTRA_DIST = $(addprefix binutils/patches/, $(patch_files))
+
 # The GNU binutils version that we use.
 binutils_version = 2.19
 binutils_tarball = binutils-$(binutils_version).tar.bz2
@@ -33,7 +39,23 @@ $(srcdir)/binutils/binutils/unpack.stamp: $(srcdir)/binutils/$(binutils_tarball)
 		&& mv binutils-$(binutils_version) binutils )
 	touch $@
 
-$(srcdir)/binutils/binutils/patch.stamp: $(srcdir)/binutils/binutils/unpack.stamp
+# Apply any local patches.  (Revert any applied older version.)
+$(addprefix $(srcdir)/binutils/binutils/,$(addsuffix .applied,$(patch_files))): $(srcdir)/binutils/binutils/unpack.stamp
+$(addprefix $(srcdir)/binutils/binutils/,$(addsuffix .applied,$(patch_files))): $(srcdir)/binutils/binutils/%.applied: $(srcdir)/binutils/patches/%
+	if test -e "$@"; \
+	then \
+	  ( cd $(srcdir)/binutils/binutils && sh /dev/stdin -R ) < $@ && rm -f $@; \
+	fi
+	( cd $(srcdir)/binutils/binutils && sh /dev/stdin ) < $<
+	cp $< $@
+
+rpatch:
+	for p in $(shell tac -s ' ' $(patch_files)) ; do \
+		(cd $(srcdir)/binutils/binutils; sh ../$(srcdir)/$${p} -R) || exit 1 ; \
+	done
+
+$(srcdir)/binutils/binutils/patch.stamp: $(srcdir)/binutils/binutils/unpack.stamp \
+  $(addprefix $(srcdir)/binutils/binutils/,$(addsuffix .applied,$(patch_files)))
 	cd $(srcdir)/binutils/binutils/ && \
 	$(fix_config_guess_and_sub)
 	touch $@

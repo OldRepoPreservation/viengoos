@@ -21,8 +21,8 @@
 if ARCH_ALPHA
   ARCH_SUBDIR = alpha
 endif
-if ARCH_AMD64
-  ARCH_SUBDIR = amd64
+if ARCH_X86_64
+  ARCH_SUBDIR = x86_64
 endif
 if ARCH_IA32
   ARCH_SUBDIR = ia32

@@ -1,3 +1,10 @@
+2008-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* configury2.patch: New file.
+	* Makefrag.am (gcc_patch_files): Add configury2.patch.
+	(gcc/gcc.build/configure.stamp): Only add --with-arch for x86
+	machines.
+
 2008-12-04  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefrag.am (gcc/gcc.build/configure.stamp): Disable c++.

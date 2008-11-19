@@ -1,3 +1,17 @@
+2008-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (ARCH_SUBDIR) [ARCH_X86_64]: Set to x86_64.
+	* amd64/Makefile.am: Move from here...
+	* x86_64/Makefile.am: ... to here.
+	* amd64/bits/atomic.h: Move from here...
+	* x86_64/bits/atomic.h: ... to here.
+	* amd64/bits/endian.h: Move from here...
+	* x86_64/bits/endian.h: ... to here.
+	* amd64/bits/wordsize.h: Move from here...
+	* x86_64/bits/wordsize.h: ... to here.
+	* amd64/sys/io.h: Move from here...
+	* x86_64/sys/io.h: ... to here.
+
 2008-05-29  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* headers.m4: Link files into `sysroot/include/' instead of `include/'.

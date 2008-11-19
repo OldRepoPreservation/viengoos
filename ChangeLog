@@ -1,3 +1,7 @@
+2008-11-19  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Rename amd64 to x86_64.  Update users.
+
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
 	* libviengoos: New directory.

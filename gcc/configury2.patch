@@ -1,0 +1,25 @@
+#!/bin/sh
+
+patch -p0 -f "$@" < $0
+exit "$?"
+
+
+Add x86_64 support.
+
+--- gcc/config.gcc~	2008-11-03 12:51:22.000000000 +0100
++++ gcc/config.gcc	2008-11-18 16:16:15.000000000 +0100
+@@ -1091,12 +1091,13 @@ i[34567]86-*-linux* | i[34567]86-*-kfree
+ 	# TODO.  GNU/Hurd originally didn't have `t-dfprules'.
+ 	tmake_file="${tmake_file} i386/t-crtstuff i386/t-crtfm t-dfprules"
+ 	;;
+-x86_64-*-linux* | x86_64-*-kfreebsd*-gnu | x86_64-*-knetbsd*-gnu)
++x86_64-*-linux* | x86_64-*-kfreebsd*-gnu | x86_64-*-knetbsd*-gnu | x86_64-*-viengoos-gnu*)
+ 	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h svr4.h linux.h \
+ 		 i386/x86-64.h i386/linux64.h"
+ 	case ${target} in
+ 	x86_64-*-kfreebsd*-gnu) tm_file="${tm_file} kfreebsd-gnu.h" ;;
+ 	x86_64-*-knetbsd*-gnu) tm_file="${tm_file} knetbsd-gnu.h" ;;
++	x86_64-*-viengoos-gnu*) tm_file="${tm_file} gnu.h viengoos.h i386/viengoos.h" ;;
+ 	esac
+ 	tmake_file="${tmake_file} i386/t-linux64 i386/t-crtfm t-dfprules"
+ 	;;
