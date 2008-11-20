@@ -39,13 +39,13 @@ typedef error_t (*hurd_slab_allocate_buffer_t) (void *hook, size_t size,
 typedef error_t (*hurd_slab_deallocate_buffer_t) (void *hook, void *buffer,
 						  size_t size);
 
-/* Initialize the slab object pointed to by BUFFER.  HOOK is as
+/* Initialize the slab object pointed to by OBJECT.  HOOK is as
    provided to hurd_slab_create.  */
-typedef error_t (*hurd_slab_constructor_t) (void *hook, void *buffer);
+typedef error_t (*hurd_slab_constructor_t) (void *hook, void *object);
 
-/* Destroy the slab object pointed to by BUFFER.  HOOK is as provided
+/* Destroy the slab object pointed to by OBJECT.  HOOK is as provided
    to hurd_slab_create.  */
-typedef void (*hurd_slab_destructor_t) (void *hook, void *buffer);
+typedef void (*hurd_slab_destructor_t) (void *hook, void *object);
 
 
 /* The type of a slab space.  
