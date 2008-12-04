@@ -1,5 +1,11 @@
 2008-12-04  Neal H. Walfield  <neal@gnu.org>
 
+	* t-addr-trans.c: Don't include <l4/math.h> or <l4/types.h>.
+	Include <stdint.h>.
+	(main): Don't use L4_WORDSIZE.  Just take the size of a uintptr_t.
+
+2008-12-04  Neal H. Walfield  <neal@gnu.org>
+
 	* lock.h: Don't include <atomic.h>.
 	(ss_lock_trace_dump): Set FUNC to 0, not NULL.
 

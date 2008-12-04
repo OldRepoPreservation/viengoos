@@ -1,5 +1,5 @@
 /* t-cap.c - Test the implementation of the various cap functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -20,8 +20,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
-#include <l4/math.h>
-#include <l4/types.h>
+#include <stdint.h>
 
 #include "stddef.h"
 #include "addr-trans.h"
@@ -57,10 +56,10 @@ main (int argc, char *argv[])
 	      == subpage_size_log2);
 
       int gdepth;
-      for (gdepth = 0; gdepth < L4_WORDSIZE; gdepth ++)
+      for (gdepth = 0; gdepth < sizeof (uintptr_t) * 8; gdepth ++)
 	{
 	  int guard_bits;
-	  for (guard_bits = 0; guard_bits < L4_WORDSIZE; guard_bits ++)
+	  for (guard_bits = 0; guard_bits < sizeof (uintptr_t) * 8; guard_bits ++)
 	    {
 	      int guard = (1 << guard_bits) - 1;
 	      r = CAP_ADDR_TRANS_SET_GUARD (&cap_addr_trans, guard, gdepth);
