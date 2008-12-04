@@ -23,6 +23,7 @@
 #define _L4_MISC_H	1
 
 #include <l4/types.h>
+#include <l4/space.h>
 #include <l4/bits/misc.h>
 #include <l4/vregs.h>
 #include <l4/syscall.h>
