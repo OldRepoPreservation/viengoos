@@ -37,7 +37,6 @@ typedef int ss_mutex_t;
 #define _HURD_MUTEX_H
 
 #include <l4/thread.h>
-#include <atomic.h>
 #include <assert.h>
 #include <hurd/lock.h>
 #include <hurd/futex.h>
@@ -53,37 +52,49 @@ typedef int ss_mutex_t;
 static inline void
 ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lockp)
 {
-  int c;
-  c = atomic_compare_and_exchange_val_acq (lockp, _MUTEX_LOCKED,
-					   _MUTEX_UNLOCKED);
-  if (c != _MUTEX_UNLOCKED)
-    /* Someone else owns the lock.  */
+  for (;;)
     {
+      assert (*lockp == _MUTEX_UNLOCKED || *lockp == _MUTEX_LOCKED
+	      || *lockp == _MUTEX_WAITERS);
+
+      int c = *lockp;
+      if (c == _MUTEX_UNLOCKED)
+	/* It looks free.  Try to acquire it.  */
+	c = __sync_val_compare_and_swap (lockp, _MUTEX_UNLOCKED, _MUTEX_LOCKED);
+
+      if (c == _MUTEX_UNLOCKED)
+	/* We got the lock!  */
+	{
+	  ss_mutex_trace_add (SS_MUTEX_LOCK, caller, line, lockp);
+	  return;
+	}
+
+      /* Someone else owns the lock.  */
       ss_mutex_trace_add (SS_MUTEX_LOCK_WAIT, caller, line, lockp);
 
-      if (c != _MUTEX_WAITERS)
+      if (c == _MUTEX_LOCKED)
 	/* Note that there are waiters.  */
-	c = atomic_exchange_acq (lockp, _MUTEX_WAITERS);
-
-      /* Try to sleep but only if LOCKP is _MUTEX_WAITERS.  */
-      while (c != _MUTEX_UNLOCKED)
 	{
-	  if (futex_wait (lockp, _MUTEX_WAITERS) == -1 && errno == EDEADLK)
-	    {
-	      debug (0, "Possible deadlock: %p!", lockp);
-	      extern int backtrace (void **array, int size);
-	      void *a[20];
-	      int c = backtrace (a, sizeof (a) / sizeof (a[0]));
-	      int i;
-	      for (i = 0; i < c; i ++)
-		debug (0, "%p", a[i]);
-	      ss_lock_trace_dump (lockp);
-	    }
-	  c = atomic_exchange_acq (lockp, _MUTEX_WAITERS);
+	  c = __sync_val_compare_and_swap (lockp,
+					   _MUTEX_LOCKED, _MUTEX_WAITERS);
+	  if (c == _MUTEX_UNLOCKED)
+	    /* It's suddenly free.  */
+	    continue;
+	}
+
+      /* Try to sleep--but only if LOCKP is _MUTEX_WAITERS.  */
+      if (futex_wait (lockp, _MUTEX_WAITERS) == -1 && errno == EDEADLK)
+	{
+	  debug (0, "Possible deadlock: %p!", lockp);
+	  extern int backtrace (void **array, int size);
+	  void *a[20];
+	  int c = backtrace (a, sizeof (a) / sizeof (a[0]));
+	  int i;
+	  for (i = 0; i < c; i ++)
+	    debug (0, "%p", a[i]);
+	  ss_lock_trace_dump (lockp);
 	}
     }
-
-  ss_mutex_trace_add (SS_MUTEX_LOCK, caller, line, lockp);
 }
 
 #define ss_mutex_lock(__sml_lockp)					\
@@ -97,12 +108,15 @@ ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lockp)
 static inline void
 ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lockp)
 {
+  assertx (*lockp == _MUTEX_LOCKED || *lockp == _MUTEX_WAITERS,
+	   "%p: %d", lockp, *lockp);
+
   /* We rely on the knowledge that unlocked is 0, locked and no
      waiters is 1 and locked with waiters is 2.  Thus if *lockp is 1,
      an atomic dec yields 1 (the old value) and we know that there are
      no waiters.  */
-  if (atomic_decrement_and_test (lockp) != _MUTEX_LOCKED)
-    /* There are waiters.  */
+  if (__sync_fetch_and_add (lockp, -1) == _MUTEX_WAITERS)
+    /* There are waiters.  Wake them.  */
     {
       *lockp = 0;
       futex_wake (lockp, 1);
@@ -122,9 +136,14 @@ ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lockp)
 static inline bool
 ss_mutex_trylock (__const char *caller, int line, ss_mutex_t *lockp)
 {
-  int c;
-  c = atomic_compare_and_exchange_val_acq (lockp, _MUTEX_LOCKED,
-					   _MUTEX_UNLOCKED);
+  assert (*lockp == _MUTEX_UNLOCKED || *lockp == _MUTEX_LOCKED
+	  || *lockp == _MUTEX_WAITERS);
+
+  int c = *lockp;
+  if (*lockp == _MUTEX_UNLOCKED)
+    /* It looks as if it is free.  Try to acquire it.  */
+    c = __sync_val_compare_and_swap (lockp, _MUTEX_UNLOCKED, _MUTEX_LOCKED);
+
   if (c == _MUTEX_UNLOCKED)
     /* Got the lock.  */
     {
