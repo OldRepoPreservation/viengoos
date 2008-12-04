@@ -48,7 +48,8 @@ endif
 
 if HAVE_CROSS
 
-all-local: libc-stmp libstdc++
+# libstdc++
+all-local: libc-stmp
 libc-stmp: @LIBC_A@ @LIBC_M@ \
       libhurd-mm/libhurd-mm.a \
       libpthread/libpthread.a \
