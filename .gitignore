@@ -9,3 +9,15 @@ autom4te.cache
 *-stamp
 build-aux
 *~
+gcc/gcc
+binutils/binutils
+newlib/newlib
+benchmarks/sqlite/src
+benchmarks/boehm-gc/gc
+build-686
+build-fast
+build
+build-normal
+build-x86_64
+build.log
+build-test
