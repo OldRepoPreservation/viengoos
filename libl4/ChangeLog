@@ -1,5 +1,10 @@
 2008-12-04  Neal H. Walfield  <neal@gnu.org>
 
+	* l4/space.h: Don't include <assert.h>.
+	(_L4_fpage): Remove asserts.
+
+2008-12-04  Neal H. Walfield  <neal@gnu.org>
+
 	* l4/misc.h: Include <l4/space.h>.
 
 2008-11-17  Neal H. Walfield  <neal@gnu.org>
