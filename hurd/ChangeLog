@@ -1,5 +1,10 @@
 2008-12-04  Neal H. Walfield  <neal@gnu.org>
 
+	* lock.h: Don't include <atomic.h>.
+	(ss_lock_trace_dump): Set FUNC to 0, not NULL.
+
+2008-12-04  Neal H. Walfield  <neal@gnu.org>
+
 	* bits/ia32/math.h: New file.
 	* math.h: New file.
 	* headers.m4: Link sysroot/include/hurd/math.h to hurd/math.h and

@@ -23,7 +23,6 @@
 
 #include <l4/thread.h>
 #include <l4/ipc.h>
-#include <atomic.h>
 #include <assert.h>
 
 #ifndef NDEBUG
@@ -77,7 +76,7 @@ ss_lock_trace_dump (void *lock)
       if (trace->lock != lock)
 	continue;
 
-      __const char *func = NULL;
+      __const char *func = 0;
       switch (trace->func)
 	{
 	case SS_MUTEX_LOCK:
