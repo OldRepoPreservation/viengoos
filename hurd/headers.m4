@@ -27,4 +27,6 @@ AC_CONFIG_LINKS([sysroot/include/hurd/stddef.h:hurd/stddef.h
 		 sysroot/include/hurd/rmutex.h:hurd/rmutex.h
 		 sysroot/include/hurd/futex.h:hurd/futex.h
 		 sysroot/include/hurd/error.h:hurd/error.h
+		 sysroot/include/hurd/math.h:hurd/math.h
+		 sysroot/include/hurd/bits/math.h:hurd/bits/${arch}/math.h
 		])
