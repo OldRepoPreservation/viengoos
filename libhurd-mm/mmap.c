@@ -55,7 +55,7 @@ mmap (void *addr, size_t length, int protect, int flags,
     {
       if (((uintptr_t) addr & (PAGESIZE - 1)))
 	{
-	  debug (0, "MAP_FIXED passed but address not page aligned: %x",
+	  debug (0, "MAP_FIXED passed but address not page aligned: %p",
 		 addr);
 	  return MAP_FAILED;
 	}
@@ -74,7 +74,7 @@ mmap (void *addr, size_t length, int protect, int flags,
   length = (length + PAGESIZE - 1) & ~(PAGESIZE - 1);
 
   if (addr)
-    debug (5, "Trying to allocate memory %x-%x", addr, addr + length);
+    debug (5, "Trying to allocate memory %p-%p", addr, addr + length);
 
   struct anonymous_pager *pager;
   pager = anonymous_pager_alloc (ADDR_VOID, addr, length, access,
@@ -87,7 +87,7 @@ mmap (void *addr, size_t length, int protect, int flags,
       return MAP_FAILED;
     }
 
-  debug (5, "Allocated memory %x-%x", addr, addr + length);
+  debug (5, "Allocated memory %p-%p", addr, addr + length);
 
   return addr;
 }
@@ -98,7 +98,7 @@ munmap (void *addr, size_t length)
   uintptr_t start = (uintptr_t) addr;
   uintptr_t end = start + length - 1;
 
-  debug (5, "(%p, %x (%p))", addr, length, end);
+  debug (5, "(%p, %x (%p))", addr, length, (void *) end);
 
   struct region region = { (uintptr_t) addr, length };
 

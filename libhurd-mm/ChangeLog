@@ -1,5 +1,9 @@
 2008-12-04  Neal H. Walfield  <neal@gnu.org>
 
+	* mmap.c (mmap): Use correct format conversions.
+
+2008-12-04  Neal H. Walfield  <neal@gnu.org>
+
 	* madvise.c (madvise): Use the correct format modifiers.  Print
 	the correct values.
 
