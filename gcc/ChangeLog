@@ -1,3 +1,7 @@
+2008-12-04  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefrag.am (gcc/gcc.build/configure.stamp): Disable c++.
+
 2008-06-18  Thomas Schwinge  <tschwinge@gnu.org>
 
 	* Makefrag.am (libstdc++)

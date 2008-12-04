@@ -70,7 +70,7 @@ gcc/gcc.build/configure.stamp: $(srcdir)/gcc/gcc/patch.stamp binutils/binutils.b
 	    --disable-threads \
 	    --without-headers \
 	    --with-newlib \
-	    --enable-languages=c,c++ \
+	    --enable-languages=c \
 	    --with-arch=$(word 1,$(subst -, ,$(host_alias))) \
 	)
 	touch $@
