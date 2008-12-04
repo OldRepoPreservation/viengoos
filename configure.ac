@@ -162,6 +162,7 @@ AC_ARG_ENABLE([l4-abi],
 	      AC_HELP_STRING([--enable-l4-abi=abi],
 		             [L4 ABI to use (supported are: v2, x2)]),
 	      [ac_cv_use_l4_abi=$enableval], [ac_cv_use_l4_abi=no])
+AC_DEFINE([USE_L4], [], [Whether to use L4.])
 case $ac_cv_use_l4_abi in
   v2)
     l4_abi=v2
@@ -264,7 +265,7 @@ esac
 
 USER_CPPFLAGS=" \
 	$CPP_CHECKS  \
-	-D_GNU_SOURCE \
+	-D_GNU_SOURCE -DUSE_L4 \
 	-I${LIBC}/include \
 	-I${ABS_SRCDIR}/libc-parts"
 USER_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline $C_CHECKS"
@@ -272,7 +273,7 @@ USER_LDFLAGS="-u_start -e_start"
 
 KERNEL_CPPFLAGS="\
 	$CPP_CHECKS \
-	-D_GNU_SOURCE -DRM_INTERN \
+	-D_GNU_SOURCE -DRM_INTERN -DUSE_L4 \
 	-I${ABS_SRCDIR}/libc-parts"
 KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline $C_CHECKS"
 
