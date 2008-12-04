@@ -26,8 +26,6 @@ endif
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = slab.h
 
-# FIXME: Build a special libhurd-ihash.a using libc-parts for the rootservers,
-# and a normal for everybody else.
-AM_CPPFLAGS = -I$(LIBC)/include -I$(top_builddir)/include	\
-	-I$(top_srcdir)/libc-parts
+AM_CPPFLAGS = $(USER_CPPFLAGS)
+AM_CFLAGS = $(USER_CFLAGS)
 libhurd_slab_a_SOURCES = slab.h slab.c

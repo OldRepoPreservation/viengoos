@@ -35,12 +35,12 @@ madvise (void *addr, size_t length, int advice)
 
   if (((uintptr_t) addr & (PAGESIZE - 1)) != 0)
     {
-      debug (0, "Address %x not multiple of pagesize.", addr);
+      debug (0, "Address %p not multiple of pagesize.", addr);
       return EINVAL;
     }
   if ((length & (PAGESIZE - 1)) != 0)
     {
-      debug (0, "Length %x not multiple of pagesize.", addr);
+      debug (0, "Length %x not multiple of pagesize.", length);
       return EINVAL;
     }
 
