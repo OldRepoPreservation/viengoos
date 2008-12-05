@@ -23,7 +23,7 @@
 #define _HURD_ADDR_H 1
 
 #include <hurd/types.h>
-#include <l4/math.h>
+#include <hurd/math.h>
 #include <stdint.h>
 
 #include <assert.h>
@@ -80,7 +80,7 @@ typedef struct addr addr_t;
 static inline int
 addr_depth (addr_t addr)
 {
-  return ADDR_BITS - (l4_lsb64 (addr.raw) - 1);
+  return ADDR_BITS - (vg_lsb64 (addr.raw) - 1);
 }
 
 /* Return ADDR's prefix.  */
