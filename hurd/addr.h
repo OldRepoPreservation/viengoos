@@ -157,6 +157,10 @@ addr_extract (addr_t addr, int width)
 #define PTR_TO_ADDR(ptr_) \
   (ADDR ((uintptr_t) (ptr_), ADDR_BITS))
 
+/* Return the address of the page that would contain pointer PTR_.  */
+#define PTR_TO_PAGE(ptr_) \
+  addr_chop (ADDR ((uintptr_t) (ptr_), ADDR_BITS), PAGESIZE_LOG2)
+
 static inline addr_t
 addr_add (addr_t addr, uint64_t count)
 {

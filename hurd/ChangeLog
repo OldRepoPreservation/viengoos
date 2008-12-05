@@ -1,5 +1,9 @@
 2008-12-05  Neal H. Walfield  <neal@gnu.org>
 
+	* addr.h (PTR_TO_PAGE): Define.
+
+2008-12-05  Neal H. Walfield  <neal@gnu.org>
+
 	* addr.h: Don't include <l4/math.h>.  Include <math.h>.
 	(addr_depth): Use vg_lsb64, not l4_lsb64.
 
