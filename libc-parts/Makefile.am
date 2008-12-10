@@ -29,8 +29,7 @@ noinst_LIBRARIES = libc-parts.a libc-kernel.a
 endif
 
 common_sources = assert.h 					\
-	strtol.c strtoll.c strtoul.c strtoull.c			\
-	setjmp.h backtrace.c s-printf.h s_printf.c startup.c	\
+	backtrace.c s-printf.h s_printf.c startup.c		\
 	panic.c _exit.c						\
 	elf.h loader.h loader.c					\
 	process-spawn.h process-spawn.c				\
@@ -50,6 +49,7 @@ libc_kernel_a_CFLAGS = $(KERNEL_CFLAGS)
 libc_kernel_a_SOURCES =						\
 	$(ARCH_COMMON_SOURCES) $(ARCH_KERNEL_SOURCES) 		\
 	errno.h errno.c	 					\
+	strtol.c strtoll.c strtoul.c strtoull.c			\
 	setjmp.h						\
 	$(common_sources)
 
