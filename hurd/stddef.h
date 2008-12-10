@@ -5,17 +5,17 @@
    This file is part of the GNU Hurd.
 
    GNU Hurd is free software: you can redistribute it and/or modify it
-   under the terms of the GNU Lesser General Public License as
-   published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
+   under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
    GNU Hurd is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+   General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with GNU Hurd.  If not, see
+   You should have received a copy of the GNU General Public License
+   along with GNU Hurd.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
 #ifndef _HURD_STDDEF_H
@@ -83,8 +83,8 @@ extern int output_debug;
       extern int S_PRINTF (const char *, ...);				\
       do_debug (level)							\
         S_PRINTF ("%s (%x):%s:%d: " fmt "\n",				\
-		   program_name, l4_myself (), __func__, __LINE__,	\
-		   ##__VA_ARGS__);					\
+		  program_name, l4_myself (), __func__, __LINE__,	\
+		  ##__VA_ARGS__);					\
     }									\
   while (0)
 
@@ -101,7 +101,7 @@ extern void __attribute__ ((__noreturn__, format (printf, 3, 4)))
 /* XXX: We define these here as they are useful macros, everyone uses
    them and everyone includes this header file.  We should put them
    somewhere else.  */
-#if i386
+#ifdef i386
 #define PAGESIZE 0x1000
 #define PAGESIZE_LOG2 12
 #else
