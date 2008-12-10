@@ -1,5 +1,14 @@
 2008-12-10  Neal H. Walfield  <neal@gnu.org>
 
+	* assert.h (assertx): Replace use of backtrace with
+	backtrace_print.
+
+2008-12-10  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (common_sources): Add stack-protector.c.
+	
+2008-12-10  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (common_sources): Remove strtol.c, strtoll.c,
 	strtoul.c and strtoull.c.
 	(libc_kernel_a_SOURCES): Add strtol.c, strtoll.c, strtoul.c and

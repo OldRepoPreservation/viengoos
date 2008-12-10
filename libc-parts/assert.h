@@ -52,24 +52,17 @@
     if (! (__ax_expr))							\
       {									\
 	S_PRINTF ("%s (%x):%s:%s:%d: %s failed",			\
-		program_name, l4_myself (),				\
-		__FILE__, __func__, __LINE__,				\
-		#__ax_expr);						\
+		  program_name, l4_myself (),				\
+		  __FILE__, __func__, __LINE__,				\
+		  #__ax_expr);						\
 	if ((__ax_fmt) && *(__ax_fmt))					\
 	  {								\
 	    S_PRINTF (": " __ax_fmt, ##__VA_ARGS__);			\
 	  }								\
 	S_PRINTF ("\n");						\
 									\
-	extern int backtrace (void **array, int size);			\
-									\
-	void *a[10];							\
-	int count = backtrace (a, sizeof (a) / sizeof (a[0]));		\
-	int i;								\
-	S_PRINTF ("Backtrace: ");					\
-	for (i = 0; i < count; i ++)					\
-	  S_PRINTF ("%p ", a[i]);					\
-	S_PRINTF ("\n");						\
+	extern void backtrace_print (void);				\
+	backtrace_print ();						\
 									\
 	for (;;)							\
 	  {								\
