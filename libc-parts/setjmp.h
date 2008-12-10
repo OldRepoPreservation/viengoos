@@ -22,6 +22,8 @@
 #ifndef _SETJMP_H
 #define _SETJMP_H	1
 
+#ifdef RM_INTERN
+
 #include <stdint.h>
 
 struct jmp_buf
@@ -35,5 +37,11 @@ typedef struct jmp_buf jmp_buf[1];
 
 void _longjmp(jmp_buf env, int val) __attribute__ ((noreturn));
 int _setjmp(jmp_buf env) __attribute__ ((returns_twice));
+
+#else
+
+#include_next <setjmp.h>
+
+#endif
 
 #endif

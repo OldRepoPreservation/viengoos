@@ -19,9 +19,9 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
 if ARCH_IA32
-  ARCH_COMMON_SOURCES = ia32-setjmp.S 
+  ARCH_COMMON_SOURCES = 
   ARCH_USER_SOURCES = ia32-cmain.c ia32-crt0.S
-  ARCH_KERNEL_SOURCES =
+  ARCH_KERNEL_SOURCES = ia32-setjmp.S 
 endif
 
 if ! ENABLE_TESTS
@@ -50,6 +50,7 @@ libc_kernel_a_CFLAGS = $(KERNEL_CFLAGS)
 libc_kernel_a_SOURCES =						\
 	$(ARCH_COMMON_SOURCES) $(ARCH_KERNEL_SOURCES) 		\
 	errno.h errno.c	 					\
+	setjmp.h						\
 	$(common_sources)
 
 TESTS = t-setjmp

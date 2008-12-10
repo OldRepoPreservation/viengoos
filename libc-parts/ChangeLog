@@ -1,3 +1,10 @@
+2008-12-10  Neal H. Walfield  <neal@gnu.org>
+
+	* setjmp.h [!RM_INTERN]: Just #include_next <setjmp.h>.
+	* Makefile.am (ARCH_COMMON_SOURCES): Remove ia32-setjmp.S.
+	(ARCH_KERNEL_SOURCES): Add ia32-setjmp.S.
+	(libc_kernel_a_SOURCES): Add setjmp.h.
+
 2008-11-18  Neal H. Walfield  <neal@gnu.org>
 
 	* profile.h (profile_start): Take additional parameter name2.
