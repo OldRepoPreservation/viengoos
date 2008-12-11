@@ -34,7 +34,7 @@
 #include <hurd/startup.h>
 #include <hurd/mm.h>
 #include <hurd/stddef.h>
-
+#include <hurd/storage.h>
 
 /* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
@@ -45,11 +45,36 @@ extern int main (int, char *[]);
 
 char *program_name = "in crt0";
 
+extern char _stack, _stack_end;
+
 static void
 finish (void)
 {
   int argc = 0;
   char **argv = 0;
+
+  if (! ((void *) &_stack <= (void *) &argc
+	 && (void *) &argc < (void *) &_stack_end))
+    /* We are not running on the initial stack.  Free it.  */
+    {
+      void *p;
+      for (p = &_stack; p < &_stack_end; p += PAGESIZE)
+	{
+	  struct hurd_object_desc *desc;
+	  int i;
+	  for (i = 0, desc = &__hurd_startup_data->descs[0];
+	       i < __hurd_startup_data->desc_count;
+	       i ++, desc ++)
+	    {
+	      if (ADDR_EQ (PTR_TO_PAGE (p), desc->object))
+		{
+		  storage_free (desc->storage, true);
+		  break;
+		}
+	    }
+	  assert (i != __hurd_startup_data->desc_count);
+	}
+    }
 
   if (__hurd_startup_data->argz_len)
     /* A command line was passed.  We assume that it is in argz
@@ -108,7 +133,7 @@ cmain (void)
   mm_init (__hurd_startup_data->activity);
 
   extern void (*_pthread_init_routine)(void (*entry) (void *), void *)
-    __attribute__ ((noreturn));
+    __attribute__ ((noreturn, weak));
   if (_pthread_init_routine)
     _pthread_init_routine (finish, NULL);
   else
