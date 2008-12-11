@@ -1,3 +1,7 @@
+2008-12-11  Neal H. Walfield  <neal@gnu.org>
+
+	* .gitignore: New file.
+
 2008-02-01  Neal H. Walfield  <neal@gnu.org>
 
 	* gpt.svg: New file.
