@@ -1,5 +1,9 @@
 2008-12-11  Neal H. Walfield  <neal@gnu.org>
 
+	* backtrace.h: New file.
+
+2008-12-11  Neal H. Walfield  <neal@gnu.org>
+
 	* headers.m4: Create sysroot/lib/libssp.a and
 	sysroot/lib/libssp-nonshared.a.
 	* stack-protector.c: New file.
