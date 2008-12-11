@@ -1,5 +1,14 @@
 2008-12-11  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.c (bootstrap): Add code to configure the memory to
+	better detect buffer overflows and other incorrect memory
+	accesses.
+	(bootstrap): Don't fault in the binary here...
+	(memory_configure): ... but here.  Set the main thread's pager to
+	l4_nilthread.
+
+2008-12-11  Neal H. Walfield  <neal@gnu.org>
+
 	* zalloc.c (zalloc_internal): Only assert that ZALLOC_MEMORY is
 	zero if the requested allocation is for PAGESIZE bytes of memory.
 

@@ -199,6 +199,19 @@ memory_configure (void)
   memory_grab ();
 
   printf ("memory: %x-%x\n", first_frame, last_frame);
+
+  /* We need to ensure that the whole binary is faulted in.  sigma0 is
+     only willing to page the first thread.  Since memory_configure
+     only grabs otherwise unreserved memory and the binary is
+     reserved, we either have to implement a pager for additional
+     threads (e.g., the ager) or we just fault the binary in now.  The
+     latter is the easiest solution.  */
+  l4_word_t p;
+  for (p = (l4_word_t) &_start; p < (l4_word_t) &_end; p += PAGESIZE)
+    * (volatile l4_word_t *) p = *(l4_word_t *)p;
+
+  /* After this point, we should never fault.  */
+  l4_set_pager (l4_nilthread);
 }
 
 struct thread *
@@ -282,20 +295,57 @@ bootstrap (void)
 
   object_init ();
 
-  /* We need to ensure that the whole binary is faulted in.  sigma0 is
-     only willing to page the first thread.  Since memory_configure
-     only grabs otherwise unreserved memory and the binary is
-     reserved, we either have to implement a pager for additional
-     threads (e.g., the ager) or we just fault the binary in now.  The
-     latter is the easiest solution.  */
-  l4_word_t p;
-  for (p = (l4_word_t) &_start; p < (l4_word_t) &_end; p += PAGESIZE)
-    * (volatile l4_word_t *) p = *(l4_word_t *)p;
-
   ager_start ();
 
   /* Load the system task.  */
   struct thread *thread = system_task_load ();
+
+#if 0
+  /* Discard every second page to try and catch out of bounds errors.
+     After this point, there will be no unallocated frames that are
+     consecutive in memory.  */
+  int discarded = 0;
+
+  void discard (void *f)
+  {
+    l4_flush (l4_fpage ((l4_word_t) f, PAGESIZE));
+    discarded ++;
+  }
+
+
+  uintptr_t size;
+  for (size = 1 << (sizeof (uintptr_t) * 8 - 1); size > PAGESIZE; size >>= 1)
+    {
+      void *chunk;
+      while ((chunk = zalloc (size)))
+	{
+	  void *f = chunk;
+	  void *end = chunk + size;
+
+	  /* Discard the first page.  */
+	  discard (f);
+	  f += PAGESIZE;
+
+	  while (end - f >= 2 * PAGESIZE)
+	    {
+	      /* Release the second.  */
+	      zfree (f, PAGESIZE);
+	      f += PAGESIZE;
+
+	      discard (f);
+	      f += PAGESIZE;
+	    }
+
+	  if (f < end)
+	    {
+	      assert (f + PAGESIZE == end);
+	      discard (f);
+	    }
+	}
+    }
+
+  debug (0, DEBUG_BOLD ("Discarded %d pages"), discarded);
+#endif
 
   /* MEMORY_TOTAL is the total number of frames in the system.  We
      need to know the number of frames that are available to user
