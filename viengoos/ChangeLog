@@ -1,3 +1,8 @@
+2008-12-11  Neal H. Walfield  <neal@gnu.org>
+
+	* zalloc.c (zalloc_internal): Only assert that ZALLOC_MEMORY is
+	zero if the requested allocation is for PAGESIZE bytes of memory.
+
 2008-11-18  Neal H. Walfield  <neal@gnu.org>
 
 	* rm.h (RM_fault): Define.

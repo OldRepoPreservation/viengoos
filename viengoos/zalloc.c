@@ -242,7 +242,8 @@ zalloc_internal (uintptr_t size)
   if (zone_nr == ZONES)
     {
       debug (4, "Cannot allocate a block of %d bytes!", size);
-      assert (zalloc_memory == 0);
+      if (size == PAGESIZE)
+	assert (zalloc_memory == 0);
       return 0;
     }
 
@@ -285,7 +286,8 @@ zalloc_dump_zones (const char *prefix)
 	int count = 0;
 
 	print_empty = 1;
-	printf ("%s: %d: { ", prefix, ZONE_SIZE (i) / PAGESIZE);
+	printf ("%s%s%d: { ",
+		prefix ?: "", prefix ? ": " : "", ZONE_SIZE (i) / PAGESIZE);
 	for (block = zone[i]; block; block = block->next)
 	  {
 	    available += ZONE_SIZE (i) / PAGESIZE;
@@ -295,7 +297,8 @@ zalloc_dump_zones (const char *prefix)
 	printf ("} = %d pages\n", count * ZONE_SIZE (i) / PAGESIZE);
       }
 
-  printf ("%s: %llu (0x%llx) kbytes (%d pages) available\n", prefix,
+  printf ("%s%s%llu (0x%llx) kbytes (%d pages) available\n",
+	  prefix ?: "", prefix ? ": " : "",
 	  (unsigned long long) 4 * available,
 	  (unsigned long long) 4 * available,
 	  available);
