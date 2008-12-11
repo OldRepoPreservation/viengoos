@@ -34,7 +34,8 @@ common_sources = assert.h 					\
 	elf.h loader.h loader.c					\
 	process-spawn.h process-spawn.c				\
 	md5.h md5.c						\
-	profile.h profile.c
+	profile.h profile.c					\
+	stack-protector.c
 
 libc_parts_a_CPPFLAGS = $(USER_CPPFLAGS)
 libc_parts_a_CFLAGS = $(USER_CFLAGS)

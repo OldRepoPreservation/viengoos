@@ -246,13 +246,15 @@ AC_ARG_ENABLE([runtime-checks],
 case $ac_cv_runtime_checks in
      3)
        CPP_CHECKS=""
+       C_CHECKS="-fstack-protector-all"
        ;;
      yes | 2)
        CPP_CHECKS="-DNCHECK"
+       C_CHECKS="-fstack-protector-all"
        ;;
      1)
        CPP_CHECKS="-DNCHECK -DNDEBUG"
-       C_CHECKS="-Wno-unused-variable"
+       C_CHECKS="-Wno-unused-variable -fstack-protector-all"
        ;;
      no | 0)
        CPP_CHECKS="-DNCHECK -DNDEBUG -DDEBUG_ELIDE=1"

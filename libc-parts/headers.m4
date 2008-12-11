@@ -17,6 +17,8 @@
 
 AC_CONFIG_COMMANDS_POST([
   mkdir -p sysroot/lib libc-parts &&
+  echo '/* This file intentionally left blank.  */' >sysroot/lib/libssp.a &&
+  echo '/* This file intentionally left blank.  */' >sysroot/lib/libssp_nonshared.a &&
   ln -sf ../../libc-parts/libc-parts.a sysroot/lib/ &&
   echo '/* This file intentionally left blank.  */' >libc-parts/libc-parts.a
 ])
