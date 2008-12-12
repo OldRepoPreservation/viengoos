@@ -55,7 +55,6 @@ On Ubuntu hardy (probably pretty much the same for Debian and other Ubuntu
 systems) you'll need these packages installed for the documentation build to
 succeed:
 
-  * inkscape
   * texlive-fonts-recommended
   * texlive-latex-base
   * texlive-latex-extra

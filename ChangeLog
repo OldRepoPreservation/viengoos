@@ -1,3 +1,8 @@
+2008-11-20  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac: Don't look for inkscape.
+	* README: Don't mention inkscape.
+
 2008-12-11  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac (C_CHECKS): Add `-fstack-protector-all' for all

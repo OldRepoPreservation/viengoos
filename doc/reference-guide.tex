@@ -3,9 +3,20 @@
 \usepackage[latin1]{inputenc}
 \usepackage{times}
 \usepackage{url}
-\usepackage{graphicx}
 
-\usepackage[noend]{algorithmic}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algblockx[foreach]{Foreach}{EndForeach}
+  [1]{\textbf{foreach} #1}
+  [0]{\textbf{end foreach}}
+\newcommand{\BigComment}[1]{\State $\triangleright$ #1}
+\newcommand{\plusequals}{\mbox{~+=~}}
+\newcommand{\minusequals}{\mbox{~-=~}}
+
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usetikzlibrary{topaths}
+\usetikzlibrary{fit}
 
 % Laying out data structures.
 

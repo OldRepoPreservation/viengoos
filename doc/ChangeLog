@@ -1,3 +1,11 @@
+2008-11-20  Neal H. Walfield  <neal@gnu.org>
+
+	* viengoos.tex: Improve section on address translation.
+	* reference-guide.tex: Don't use package graphicx or algorithmic.
+	Use packages algorithm, algpseudocode and tikz.  Use tikz
+	libraries calc, topaths and fit.  Define some convenience macros.
+	* gpt.svg: Remove file.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (%.pdf): Add `\\nonstopmode\\input' when invoking

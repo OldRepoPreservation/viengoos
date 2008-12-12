@@ -1,6 +1,6 @@
 \part{Viengoos}
 
-\chapter{Addressing}
+\chapter{Designation}
 
 \begin{quotation}
   ``The name of the song is called `HADDOCKS' EYES.'\,''
@@ -32,30 +32,31 @@
 
 
 Viengoos is an object-capability system.  Objects are designated
-exclusively by way of capabilities.  A capability is a
-kernel-protected, unforgeable reference.  Capabilities are addressed
-in the context of an address space.  Each thread object has a
-capability slot that represents the root of its address space.  When
-the thread generates an address, the address is resolved in the
-context of its address space.
+exclusively by way of capabilities, which are kernel-protected,
+unforgeable references.  Capabilities are in turn designated by
+indexing an address space.  Each thread object has a capability slot
+that identifies the root of its address space.  When a thread invokes
+an object, it specifies an index.  Viengoos finds the capability
+corresponding to this index in its address space and then dereferences
+the capability to obtain the object.
 
 This chapter first describes how capabilities work, their format, and
 the kernel supported methods for manipulating capabilities.  We then
-discuss addressing.  Namely, how addresses are encoded, address spaces
+discuss addressing.  Namely, how addresses are encoded, address space
 construction, and address resolution.
 
 \section{Capabilities}
 
 A capability both \emph{designates} an object and \emph{authorizes}
-access to it.  (The importance of this is best illustrated with the
+access to it.  (The importance of this is best illustrated by the
 Confused Deputy problem \cite{hardy88confused-deputy}.)  Capabilities
-are unforgeable in that they are kernel protected--their bit
-representation is never exposed--and thus can only be transferred via
+are unforgeable in that they are kernel protected---their bit
+representation is never exposed---and thus can only be transferred via
 authorized channels.
 
-To sense or modify an object, a capability designating it is
-\emph{invoked}.  Invocation causes a message to be sent to the object.
-The exact semantics of an invocation depend on the object's
+To sense or modify an object, a thread may \emph{invoke} it.
+Invocation causes a message to be sent to the object.  The exact
+semantics of an invocation depend on the invoked object's
 implementation.
 
 A capability may be delegated by transferring it in an object
@@ -70,11 +71,11 @@ the object.\footnote{Revocation can be implemented by way of Redell's
 destroying the object, all capabilities designating it become invalid
 and act as if they designated the VOID object.
 
-Viengoos allows user-object implementations.  A user-object is
+Viengoos allows user-object implementations.  A user object is
 implemented by a process.  The process allocates an end point and
-distributes it to clients.  Clients may invoke the end point.  The
-server process may collect the messages from the end point and act on
-them as it sees fit.
+delegates it to clients.  To use the object, a client invokes the end
+point.  The server process is then notified that there is a message
+and may act on it as it sees fit.
 
 As user objects are accessed in the same way as kernel objects, it is
 possible to interpose on specific objects or to fully or partially
@@ -171,52 +172,29 @@ subpage to index.  Address translation is discussed in section
 
 To allow principals to control memory is managed, each capability
 contains two fields that describe the discardability and the priority
-of the designated object.  When the object is accessed via the
-capability, if the object is claimed,\footnote{Claiming is discussed
-  in \ref{object-claiming}.} the policy is applied to the object.
+of the designated object.  Resource management is described in
+chapter~\ref{chapter:resource-management}.
 
-The discardability property is a hint that Viengoos may, instead of
-flushing changes to disk, simply discard a frame's content.  If a
-capability has the weak predicate set, this hint is ignored.  If
-content discarded, the next access to the object will raise a
-discarded event.  If an activity is discarded, all objects allocated
-against the activity are destroyed.
+\section{Addressing}
 
-The priority property allows an activity to control the order in which
-the frames, which it has claimed, are released.  If the content is
-dirty and has not been marked as discardable, the content is written
-to backing store.  Otherwise, the frame is made eligible for immediate
-reuse.
-
-The lower the numric value of the priority field, the lower the
-frame's priority.  Frames are released in priority order.  If multiple
-frames have the same priority, they are released in a random order
-unless the priority is 0, in which case, the frames are released in
-approximately LRU order.
-
-\section{Local Addresses}
-
-Capabilities are designated using local addresses.  Each thread object
-contains a capability slot that is used as the root of the thread's
-address space.  When the thread faults or otherwise causes an object
-look, address translation starts at this capability.
+Capabilities designated using thread-local addresses.  Each thread
+object contains a capability slot that identifies the root of its
+address space.  To designate a capability, a thread specifies the
+index of the capability in this address space.
 
 \subsection{Address Encoding}
 
 On Viengoos, all addresses are 64-bits wide.  This is true even on
-32-bit platforms.  On these platforms, the address is automatically
-extended.
+32-bit platforms.  On these platforms, hardware addresses are
+automatically extended.
 
-Viengoos addresses consist of a {\bf prefix} and a {\bf depth}.  The
+A Viengoos address consists of a {\bf prefix} and a {\bf depth}.  The
 depth specifies the length of the prefix.  This type of addressing
-allows, for example, addressing not only leaf objects but also
-internal nodes.  (Hence, the intuition behind depth is how far into
-the tree to search.)  The address prefix is encoded in the most
-significant bits of the address.  This is followed by a bit with the
-value of 1, and then $63 - depth$ (\var{idepth}), which is encoded in
-unary.  The address with all zeros is the NULL address.  The NULL
-address is sometimes used to denote some default action.  When
-returned, it typically means failure.
+allows addressing not only leaf objects but also internal nodes.  (The
+intuition behind an addresses depth is how far into the tree to
+search.)  The address prefix is encoded in the most significant bits
+of the address.  This is followed by a bit with the value of 1, and
+then $63 - depth$ (\var{idepth}), which is encoded in unary.
 
 \begin{center}
   \begin{bytefield}{32}
@@ -228,6 +206,10 @@ returned, it typically means failure.
 Observe that the value of idepth is the position of the least
 significant bit that is on.
 
+The address with all zeros is the NULL address.  The NULL address is
+sometimes used to denote some default action.  When returned, it
+typically means failure.
+
 By convention, addresses are written \emph{prefix/depth}.
 
 Viengoos automatically translates machine addresses to the above form.
@@ -235,7 +217,7 @@ The prefix is set to the machine address zero-extended to 63 bits and
 the depth is set to 63.  For machines with 64-bits addresses,
 addresses with the most significant bit set are illegal.
 
-The root capability slot is identified with by the address 0/0.  Its
+The root capability slot is identified by the address 0/0.  Its
 encoding is:
 
 \begin{center}
@@ -264,67 +246,199 @@ hardware has base pages with a size of 4kb, then the address would be
 \subsection{Address Translation}
 \label{address-translation}
 
-Address translation starts at the root of the current address space
-and consumes the address by checking guards and indexing cappages,
-until all address bits are consumed.  More formally, the following
-algorithm returns the object designated by the local address
-\var{address}.
+\begin{algorithm}
+\begin{algorithmic}[1]
+\Function{Thread $\rightarrow$ CapabilitySlotLookup}{$\mathit{address}$}
+  \State $C \gets \mathit{thread.root}$
+  \Comment{The root of the address space.}
+  \State $P \gets \mathit{prefix}(\mathit{address})$
+  \Comment{The bits to translate.}
+  \State $R \gets \mathit{depth}(\mathit{address})$
+  \Comment{The number of bits remaining.}
+  \Statex
 
-\begin{algorithmic}
-\STATE $C \leftarrow \mbox{Root}$
-\STATE $P \leftarrow \mathop{prefix}(\mbox{address})$
-\STATE $R \leftarrow \mathop{depth}(\mbox{address})$
-\LOOP
-  \IF{$R < \mathop{guard\_length}(C)$}
-    \RETURN failure \COMMENT{Not enough remaining bits to translate the guard}
-  \ENDIF
-  \IF {$\mathop{guard}(C) \neq P_{R..R-\mathop{guard\_length}(C) + 1}$}
-    \RETURN failure \COMMENT{The guard does not match}
-  \ENDIF
+  \Loop
+  \If {$R = 0$} \label{alg:before-guard-check-start}
+    \State \Return $\&C$
+    \Comment{C is the designated capability.}
+  \EndIf \label{alg:before-guard-check-end}
+  \Statex
 
-  \STATE $R = R - $guard\_length$(C)$
-  \IF {$R = 0$}
-    \RETURN cap\_to\_object$(C)$
-  \ENDIF
+  \BigComment{Check the guard.}
+  \If{$R < \mathit{guard\_length}(C)$} \label{alg:guard-compare-start}
+    \State \Return failure
+    \Comment{Not enough bits to translate guard.}
+  \EndIf
+  \If {$\mathit{guard}(C) \not= P_{R..R-\mathit{guard\_length}(C) + 1}$}
+    \State \Return failure
+    \Comment{The guard does not match.}
+  \EndIf
+  \State $R \gets R - \mathit{guard\_length}(C)$ \label{alg:guard-compare-end}
 
-  \STATE $S \leftarrow 256/\mathop{subpages}(C)$ \COMMENT{The subpage size}
-  \IF {$R < log_2(S)$}
-    \RETURN failure \COMMENT{Not enough remaining bits to index the cappage}
-  \ENDIF
+  \Statex
+  \If {$R = 0$} \label{alg:after-guard-check-start}
+    \State \Return $\&C$
+    \Comment{C is the designated capability.}
+  \EndIf \label{alg:after-guard-check-end}
 
-  \STATE $O \leftarrow $ cap\_to\_object$(C)$
-  \IF{not $O$ or typeof $O \neq$ cappage}
-    \RETURN failure \COMMENT{Type mismatch}
-  \ENDIF
+  \Statex
+  \State $\triangleright$ Look up the object designated by the PTE.
+  \State $O \gets \mathit{cap\_to\_object}(C)$ \label{alg:object-lookup}
+  \If{$\neg O \mathit{or} \mathit{typeof} (O) \not= cappage$}
+    \State \Return failure \Comment{Type mismatch.}
+  \EndIf
 
-  \STATE $C \leftarrow
-    O.\mbox{caps}\left[S/\mathop{subpages}(C)
-    + P_{R..R-\log_2(S)+1}\right]$ \COMMENT{The next page table}
+  \Statex
+  \State $\triangleright$ Index the capability page getting the next
+  page table entry.
+  \State $S \gets 256/\mathit{subpages}(C)$ \Comment{The subpage size.}
+  \label{alg:subpage-index-start}
+  \If {$R < log_2(S)$}
+    \State \Return failure
+    \Comment{Not enough bits to index the cappage.}
+  \EndIf
 
-  \STATE $R \leftarrow R - \log_2(S)$
-\ENDLOOP
+  \State $C \gets
+    O.\mathit{caps}\left[S/\mathit{subpages}(C)
+    + P_{R..R-\log_2(S)+1}\right]$
+
+  \State $R \gets R - \log_2(S)$ \label{alg:subpage-index-end}
+\EndLoop
+\EndFunction
 \end{algorithmic}
+\caption{Capability slot lookup.}
+\label{alg:capability-lookup}
+\end{algorithm}
 
 \begin{figure}
   \begin{center}
-    \includegraphics[width=0.9\textwidth]{gpt}
+    \begin{tikzpicture}
+      % Draw a capability page on the right.
+      \begin{scope}[shift={(6.5,0)}]
+        \draw[dashed,black!80] (-0.5,0) -- +(3,0)
+          (-0.5,3) node (subpage1) {} -- +(3,0)
+          (-0.5,6) node (subpage0) {} -- +(3,0);
+
+        \draw (-0.025,-0.025) rectangle +(2.05,6.05);
+
+        % Each slot is 2x0.5.  We leave 0.025 white space around the
+        % outline shape thus imply 0.05 white space between objects.
+        \foreach \s in {2,3,...,5,8,9,...,11}
+          \draw (0, \s/2)
+            +(1,0.25) node (slot\s) {}
+            ++(0.025,0.025) rectangle +(1.95,0.45);
+
+        \path (2,6) node[anchor=north west] {\small{0}}
+              ++(0,-3) node[anchor=south west] {\small{127}}
+              ++(0,0) node[anchor=north west] {\small{128}}
+              ++(0,-3) node[anchor=south west] {\small{255}};
+
+        \node[anchor=south] at (slot11.north) {Cappage};
+      \end{scope}
+
+      % Draw the address.
+
+      % The address.
+      \path[inner sep=0] node (apre) [anchor=west] at (0,1.5) {\ldots0110}
+        (apre.east) node (ag) [anchor=west] {10000}
+        (ag.east) node (ai) [anchor=west] {0000011}
+        (ai.east) node (apost) [anchor=west] {1011\ldots};
+
+      % The bounding box.
+      \path (apre.north west) +(-0.1,0.1) node (a_tl) {};
+      \path (apost.south east) +(0.1,-0.1) node (a_br) {};
+      \draw (a_tl) rectangle (a_br);
+
+      % Vertical separators.
+      \foreach \h in {0.8}
+      {
+        \draw (apre.east) -- +(0, \h / 2) -- +(0, -\h / 2);
+        \draw (ag.east) -- +(0, \h / 2) -- +(0, -\h / 2);
+        \draw (ai.east) -- +(0, \h / 2) -- +(0, -\h / 2);
+      }
+
+      % The labels.
+      \path (ag.south) +(0,-0.5) node[anchor=base] {\small guard}
+        (ai.south) +(0,-0.5) node[anchor=base] {\small index};
+
+
+      % Draw the capability.
+
+      \draw (1,6) node[draw] (guard) {10000/5}
+        (guard.east) +(0.05,0) node [draw,anchor=west] (subpage) {0/2}
+        (subpage.east) +(0.05,0) node [draw,anchor=west] (oid) {0xF4D6};
+
+      \path (guard.north) +(0,0.1) node[anchor=base] {\small guard}
+        (subpage.north) +(0,0.1) node[anchor=base] {\small subpage}
+        (oid.north) +(0,0.1) node[anchor=base] {\small OID};
+
+
+      % Connect the dots.
+      \draw[->] (oid.east) -- node [near start, above] {\small 2.} (subpage0);
+
+      \draw[black!80] (subpage0) -- node (subpage0mid) {} (subpage1);
+      \draw[->] (subpage.south) |- node [near start, left] {\small 3.} (subpage0mid);
+
+      \path (guard) -- node (compare) {=?} (ag);
+      \draw[->] (guard) -- (compare);
+      \draw[->] (ag.north) +(0,0.1) -- (compare);
+      \node at (compare.north west) {\small 1.};
+
+      \draw[->] (ai.north) +(0,0) node (ain) {}
+        (slot8.west) ++(-0.8,0) node (slot8w) {}
+        (ain) |- node [very near start, left] {\small 4.} (slot8w);
+
+      \node[anchor=east] at (guard.west) {GPT:};
+      \node[anchor=east] at (apre.west) {Address:};
+
+    \end{tikzpicture}
   \end{center}
-  \caption[Address Translation]{Translating part of an address using a
-    guarded page table entry.  First, the guard is compared.  If it
-    matches, the subpage descriptor is applied to the designated
-    object and the correct subpage selected.  The subpage is then
-    indexed to find the next capability.  This process is repeated
-    until all address bits are translated or a fault occurs.}
+  \caption[Address translation using guard page tables]{Translating
+    part of an address using a GPT entry.  The capability containing
+    the GPT entry is at the top left in the figure, to the right is
+    the referenced capability page, and bottom left is the address.
+    First, the guard is compared to the address.  If they match, the
+    object is found.  The subpage descriptor selects a part of the
+    capability page, which is then indexed using the next portion of
+    the address.}
   \label{fig:address-translation}
 \end{figure}
 
-The translation of a guarded page table entry is illustrated in figure
-\ref{fig:address-translation}.
+\index{address translation!algorithm|(}
 
-When copying capabilities, the same principle applies, however, to
-allow the easy designation of the capability that designates the
-object at some address, if there are not bits remaining to translate
-after translating the guard, the capability is returned.
+Address translation proceeds according to the following algorithm.
+Given an address, translation starts with the capability in the
+thread's address space capability slot.  First, the most significant
+bits of the address are compared with the guard in the capability
+(lines \ref{alg:guard-compare-start}--\ref{alg:guard-compare-end}).
+If these match, those address bits are consumed.  If there are no
+address bits left, then the designated capability slot has been
+located and is returned.  Otherwise, the object designated by the
+capability is found (line \ref{alg:object-lookup}), divided according
+to the subpage descriptor in the capability and indexed using the most
+significant remaining bits of the address (lines
+\ref{alg:subpage-index-start}--\ref{alg:subpage-index-end}).  Again,
+the number of bits used to index the subpage are consumed.  If all the
+bits are consumed, the capability slot has been located and is
+returned.  Otherwise, the process is repeated with the new capability
+and the remaining address bits.  An iteration of this process is
+illustrated in figure~\ref{fig:address-translation}.
+
+Note that a capability slot can be identified by two different names:
+either with or without the guard specified in the slot.  This is a
+matter of convenience: it is useful to be able to modify the
+capability that designates the object at a particular address by
+designating the object.  If this functionality were not provided,
+doing this would require finding the guard, which is possible but
+cumbersome.  Moreover, the extension is quite simple.
+
+When looking up objects, the same principle applies, however, the
+check if the address has been fully translated at
+lines~\ref{alg:before-guard-check-start}--\ref{alg:before-guard-check-end}
+is removed.  That is, it is not sufficient to specify the capability
+slot that designates the object, the guard must also match.
+
+\index{address translation!algorithm|)}
 
 \section{Data Structures}
 
@@ -362,8 +476,8 @@ width is also not fixed.
 
 The \type{object_policy} structure has the following layout:
 
-\begin{struct}{16}
-  \bits{5}{\dontcare} & \bit{D} & \bits{10}{priority}
+\begin{struct}{8}
+  \bit{D} & \bits{7}{priority}
 \end{struct}
 
 \var{D} is the discardability predicate.
@@ -373,7 +487,7 @@ The \type{object_policy} structure has the following layout:
 The \type{cap_properties} structure has the following layout:
 
 \begin{struct}{32}
-  \bits{16}{\dontcare} & \bits{16}{object\_policy} \\
+  \bits{24}{\dontcare} & \bits{8}{object\_policy} \\
   \bits{32}{addr\_trans}
 \end{struct}
 
@@ -384,13 +498,41 @@ the discardability predicate, the priority and the address translator
 are exposed to the user.
 
 \begin{struct}{32}
-  \bits{20}{version} & \bit{W} & \bit{D} & \bits{10}{priority} \\
+  \bits{23}{version} & \bit{W} & \bit{D} & \bits{7}{priority} \\
   \bits{32}{address translator} \\
   \wordbox{2}{OID}
 \end{struct}
 
 \var{D} is the discardability predicate.  \var{W} is the weak
 predicate.
+
+\chapter{Resource Management}
+\label{chapter:resource-management}
+
+\section{Object Policy}
+
+When an object is accessed, if the object is
+claimed,\footnote{Claiming is discussed in \ref{object-claiming}.} the
+policy in the designating object is applied to the object.
+
+The discardability property is a hint that Viengoos may, instead of
+flushing changes to disk, simply discard a frame's content.  If a
+capability has the weak predicate set, this hint is ignored.  If
+content discarded, the next access to the object will raise a
+discarded event.  If an activity is discarded, all objects allocated
+against the activity are destroyed.
+
+The priority property allows an activity to control the order in which
+the frames, which it has claimed, are released.  If the content is
+dirty and has not been marked as discardable, the content is written
+to backing store.  Otherwise, the frame is made eligible for immediate
+reuse.
+
+The lower the numric value of the priority field, the lower the
+frame's priority.  Frames are released in priority order.  If multiple
+frames have the same priority, they are released in a random order
+unless the priority is 0, in which case, the frames are released in
+approximately LRU order.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

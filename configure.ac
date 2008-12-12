@@ -70,10 +70,6 @@ AC_PATH_PROG([BIBTEX], [bibtex], no)
 if test "x$BIBTEX" = xno; then
   missing_doc_progs="$missing_doc_progs bibtex"
 fi
-AC_PATH_PROG([INKSCAPE], [inkscape], no)
-if test "x$INKSCAPE" = xno; then
-  missing_doc_progs="$missing_doc_progs inkscape"
-fi
 DOC=
 if test x"$missing_doc_progs" != "x"; then
   AC_MSG_WARN([[The following programs were not found:$missing_doc_progs.  ]]dnl
