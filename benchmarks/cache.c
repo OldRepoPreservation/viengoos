@@ -632,7 +632,7 @@ bool
 object_fill (struct anonymous_pager *anon,
 	     uintptr_t offset, uintptr_t count,
 	     void *pages[],
-	     struct exception_info info)
+	     struct activation_fault_info info)
 {
   profile_region (NULL);
 
@@ -646,7 +646,6 @@ object_fill (struct anonymous_pager *anon,
   if (id <= 0 || id > OBJECTS)
     {
       s_printf ("id %d out of range!\n", id);
-      backtrace_print ();
       abort ();
     }
 
