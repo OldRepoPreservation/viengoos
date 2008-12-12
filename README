@@ -13,6 +13,20 @@ will eventually be removed.
 How to build
 ------------
 
+You need at least automake 1.9 and autoconf 2.57.
+
+To build the documentation, you also need pdflatex and some supporting
+packages.  On Ubuntu Hardy (probably pretty much the same for Debian
+and other Ubuntu systems), you'll need these packages installed for
+the documentation build to succeed:
+
+  * texlive-fonts-recommended
+  * texlive-latex-base
+  * texlive-latex-extra
+  * texlive-latex-recommended
+  * texlive-science
+
+
 Building the code is straightforward:
 
 $ autoreconf -i
@@ -37,8 +51,6 @@ expensive consistency checks; level 0 disables all consistency checks,
 the trace buffer and all debugging output except that at level 0.
 
 
-You need at least automake 1.9 and autoconf 2.57.
-
 If you happen to be on a multi-processor system, you can run ``make -j'' to
 have several target be built in parallel.  This may save some time.  It might
 even shorten the building time on one-processor system.  (No specific
@@ -49,19 +61,9 @@ Documentation
 -------------
 
 A ``Viengoos Developer Reference'' is available in the `doc' subdirectory.  A
-PDF will be created during the build process.
+PDF will be created during the build process if pdflatex is found.
 
-On Ubuntu hardy (probably pretty much the same for Debian and other Ubuntu
-systems) you'll need these packages installed for the documentation build to
-succeed:
-
-  * texlive-fonts-recommended
-  * texlive-latex-base
-  * texlive-latex-extra
-  * texlive-latex-recommended
-  * texlive-science
-
-Also the header files are a good source of documentation.
+Also, the header files are a good source of documentation.
 
 
 L4
