@@ -1,5 +1,11 @@
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Fix the activity_policy implementation
+	to allow a weak capability to set an activity's child relative
+	policy but not its sibling relative policy.
+
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
 	Implement messengers and convert to new IPC semantics.
 	* messenger.h: New file.
 	* messenger.c: New file.

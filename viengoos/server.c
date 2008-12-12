@@ -1754,7 +1754,7 @@ server_loop (void)
 
 	    if (! target_writable
 		&& (flags & (ACTIVITY_POLICY_STORAGE_SET
-			     | ACTIVITY_POLICY_CHILD_REL_SET)))
+			     | ACTIVITY_POLICY_SIBLING_REL_SET)))
 	      REPLY (EPERM);
 
 	    rm_activity_policy_reply (principal, reply, activity->policy);
