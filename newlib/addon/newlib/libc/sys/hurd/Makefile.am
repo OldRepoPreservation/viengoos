@@ -50,6 +50,15 @@ GENERAL_SOURCES = \
 	malloc.c \
 	mallocr.c \
 	crt0.c \
+	access.c \
+	fsync.c \
+	ftruncate.c \
+	getcwd.c \
+	getpwuid.c \
+	getrusage.c \
+	getuid.c \
+	sleep.c \
+	pipefile.c memfile.c fd.h \
 	$(addprefix $(machine_dir)/,$(MACHINE_SOURCES))
 
 if USE_LIBTOOL

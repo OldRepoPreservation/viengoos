@@ -1,3 +1,37 @@
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	* addon/newlib/libc/sys/hurd/access.c: New file.
+	* addon/newlib/libc/sys/hurd/fd.h: Likewise.
+	* addon/newlib/libc/sys/hurd/fsync.c: Likewise.
+	* addon/newlib/libc/sys/hurd/ftruncate.c: Likewise.
+	* addon/newlib/libc/sys/hurd/getcwd.c: Likewise.
+	* addon/newlib/libc/sys/hurd/getpwuid.c: Likewise.
+	* addon/newlib/libc/sys/hurd/getrusage.c: Likewise.
+	* addon/newlib/libc/sys/hurd/getuid.c: Likewise.
+	* addon/newlib/libc/sys/hurd/memfile.c: Likewise.
+	* addon/newlib/libc/sys/hurd/memfile.h: Likewise.
+	* addon/newlib/libc/sys/hurd/pipefile.c: Likewise.
+	* addon/newlib/libc/sys/hurd/sleep.c: Likewise.
+	* Makefile.am (addon): Add newlib/libc/sys/hurd/access.c,
+	newlib/libc/sys/hurd/fsync.c, newlib/libc/sys/hurd/ftruncate.c,
+	newlib/libc/sys/hurd/getcwd.c, newlib/libc/sys/hurd/getpwuid.c,
+	newlib/libc/sys/hurd/getrusage.c, newlib/libc/sys/hurd/getuid.c,
+	newlib/libc/sys/hurd/sleep.c, newlib/libc/sys/hurd/fd.h,
+	newlib/libc/sys/hurd/pipefile.c and
+	newlib/libc/sys/hurd/memfile.c.
+	* addon/newlib/libc/sys/hurd/Makefile.am (GENERAL_SOURCES): Add
+	access.c, fsync.c, ftruncate.c, getcwd.c, getpwuid.c, getrusage.c,
+	getuid.c, sleep.c, pipefile.c, memfile.c and fd.h.
+	* addon/newlib/libc/sys/hurd/closer.c (close): Reimplement using
+	the descriptor abstraction.
+	* addon/newlib/libc/sys/hurd/lseekr.c (lseek): Likewise.
+	* addon/newlib/libc/sys/hurd/openr.c (open): Likewise.
+	* addon/newlib/libc/sys/hurd/readr.c (read): Likewise.
+	* addon/newlib/libc/sys/hurd/writer.c (write): Likewise.
+
+	* addon/newlib/libc/sys/hurd/fcntlr.c (fcntl): Return true for
+	valid file descriptors.
+
 2008-11-03  Neal H. Walfield  <neal@gnu.org>
 
 	* headers.m4: Don't create an empty newlib/libc.a or an empty

@@ -67,7 +67,18 @@ addon = \
 	newlib/libc/sys/hurd/include/signal.h \
 	newlib/libc/sys/hurd/sys/lock.h \
 	newlib/libc/sys/hurd/sys/config.h \
-	newlib/libc/sys/hurd/sys/errno.h
+	newlib/libc/sys/hurd/sys/errno.h \
+	newlib/libc/sys/hurd/access.c \
+	newlib/libc/sys/hurd/fsync.c \
+	newlib/libc/sys/hurd/ftruncate.c \
+	newlib/libc/sys/hurd/getcwd.c \
+	newlib/libc/sys/hurd/getpwuid.c \
+	newlib/libc/sys/hurd/getrusage.c \
+	newlib/libc/sys/hurd/getuid.c \
+	newlib/libc/sys/hurd/sleep.c \
+	newlib/libc/sys/hurd/fd.h \
+	newlib/libc/sys/hurd/pipefile.c \
+	newlib/libc/sys/hurd/memfile.c
 
 EXTRA_DIST = $(addprefix patches/, $(patch_files)) \
 	$(addprefix addon/, $(addon))

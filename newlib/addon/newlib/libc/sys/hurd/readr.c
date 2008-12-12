@@ -4,25 +4,42 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <hurd/rm.h>
+#include "fd.h"
 
 _ssize_t
-read (int fd, void *buf, size_t cnt)
+read (int fdi, void *buf, size_t cnt)
 {
-  if (fd != 0)
+  if (fdi < 0 || fdi >= _fd_size)
     {
       errno = EBADF;
       return -1;
     }
 
+  ss_mutex_lock (&_fd_lock);
+
+  struct _fd *fd = _fds[fdi];
+  if (! fd || ! fd->ops->pread)
+    {
+      errno = EBADF;
+      ss_mutex_unlock (&_fd_lock);
+      return -1;
+    }
+
   if (cnt == 0)
-    return 0;
+    {
+      ss_mutex_unlock (&_fd_lock);
+      return 0;
+    }
 
-  struct io_buffer buffer;
-  rm_read (cnt, &buffer);
+  ss_mutex_lock (&fd->lock);
+  ss_mutex_unlock (&_fd_lock);
 
-  memcpy (buf, buffer.data, buffer.len);
-  return buffer.len;
+  _ssize_t len = fd->ops->pread (fd, buf, cnt, fd->pos);
+  fd->pos += len;
+
+  ss_mutex_unlock (&fd->lock);
+
+  return len;
 }
 
 _ssize_t

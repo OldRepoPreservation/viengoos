@@ -2,45 +2,42 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <hurd/rm.h>
-
-static void
-io_buffer_flush (struct io_buffer *buffer)
-{
-  if (buffer->len == 0)
-    return;
-
-  rm_write (*buffer);
-  buffer->len = 0;
-}
-
-static void
-io_buffer_append (struct io_buffer *buffer, int chr)
-{
-  if (buffer->len == sizeof (buffer->data))
-    io_buffer_flush (buffer);
-
-  buffer->data[buffer->len ++] = chr;
-}
+#include "fd.h"
 
 _ssize_t
-write (int fd, const void *buf, size_t cnt)
+write (int fdi, const void *buf, size_t cnt)
 {
-  if (fd == 1 || fd == 2)
+  if (fdi < 0 || fdi >= _fd_size)
     {
-      struct io_buffer buffer;
-      buffer.len = 0;
-
-      int i;
-      for (i = 0; i < cnt; i ++)
-	io_buffer_append (&buffer, ((char *) buf)[i]);
-      io_buffer_flush (&buffer);
-
-      return cnt;
+      errno = EBADF;
+      return -1;
     }
 
-  errno = EOPNOTSUPP;
-  return -1;
+  ss_mutex_lock (&_fd_lock);
+
+  struct _fd *fd = _fds[fdi];
+  if (! fd || ! fd->ops->pwrite)
+    {
+      errno = EBADF;
+      ss_mutex_unlock (&_fd_lock);
+      return -1;
+    }
+
+  if (cnt == 0)
+    {
+      ss_mutex_unlock (&_fd_lock);
+      return 0;
+    }
+
+  ss_mutex_lock (&fd->lock);
+  ss_mutex_unlock (&_fd_lock);
+
+  _ssize_t len = fd->ops->pwrite (fd, buf, cnt, fd->pos);
+  fd->pos += len;
+
+  ss_mutex_unlock (&fd->lock);
+
+  return len;
 }
 
 
