@@ -1,5 +1,10 @@
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
+	* ruth.c (main): When done with all tests, don't spin, just
+	return.
+
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
 	Update to new RPC interfaces.
 	* ruth.c (main): Update use of rm_folio_alloc,
 	rm_folio_object_alloc, rm_thread_exregs, rm_activity_policy,

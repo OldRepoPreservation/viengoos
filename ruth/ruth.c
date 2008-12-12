@@ -1072,9 +1072,5 @@ main (int argc, char *argv[])
 
   debug (1, DEBUG_BOLD ("\n\nAll tests ran successfully to completion!\n\n"));
 
-  debug (1, "Shutting down...");
-  while (1)
-    l4_sleep (L4_NEVER);
-
   return 0;
 }
