@@ -44,10 +44,13 @@ reference-guide.pdf: ${eps_files} ${pdf_files} ${tex_files} ${bib_files}
 SUFFIXES = .tex .eps .fig .pdf
 
 %.pdf: %.tex
-	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) $< -o $@ ; \
+	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) \
+		\\nonstopmode\\input $< -o $@ ; \
 	BIBINPUTS="$(srcdir):$(BIBINPUTS)" $(BIBTEX) $* ; \
-	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) $< -o $@ ; \
-	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) $< -o $@ ;
+	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) \
+		\\nonstopmode\\input $< -o $@ ; \
+	TEXINPUTS="$(srcdir):$(TEXINPUTS)" $(PDFLATEX) \
+		\\nonstopmode\\input $< -o $@ ;
 
 .fig.eps:
 	$(FIG2DEV) -L eps $< $@

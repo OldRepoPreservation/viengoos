@@ -1,3 +1,8 @@
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (%.pdf): Add `\\nonstopmode\\input' when invoking
+	pdflatex.
+
 2008-12-11  Neal H. Walfield  <neal@gnu.org>
 
 	* .gitignore: New file.
