@@ -125,7 +125,9 @@ do_index (activity_t activity, struct cap *pte, addr_t pt_addr, int idx,
 	  struct cap *fake_slot)
 {
   assert (pte->type == cap_cappage || pte->type == cap_rcappage
-	  || pte->type == cap_folio);
+	  || pte->type == cap_folio
+	  || pte->type == cap_thread
+	  || pte->type == cap_messenger || pte->type == cap_rmessenger);
 
   /* Load the referenced object.  */
   struct object *pt = cap_to_object (activity, pte);
@@ -156,6 +158,15 @@ do_index (activity_t activity, struct cap *pte, addr_t pt_addr, int idx,
 
       return fake_slot;
 
+    case cap_thread:
+      assert (idx < THREAD_SLOTS);
+      return &pt->caps[idx];
+      
+    case cap_messenger:
+      /* Note: rmessengers don't expose their capability slots.  */
+      assert (idx < VG_MESSENGER_SLOTS);
+      return &pt->caps[idx];
+      
     default:
       return NULL;
     }
@@ -244,7 +255,9 @@ ID (as_build) (activity_t activity,
 	   area.  */
 	break;
       else if ((pte->type == cap_cappage || pte->type == cap_rcappage
-		|| pte->type == cap_folio)
+		|| pte->type == cap_folio
+		|| pte->type == cap_thread
+		|| pte->type == cap_messenger)
 	       && remaining >= pte_gbits
 	       && pte_guard == addr_guard)
 	/* PTE's (possibly zero-width) guard matches and the
@@ -589,6 +602,15 @@ ID (as_build) (activity_t activity,
 
 	case cap_folio:
 	  width = FOLIO_OBJECTS_LOG2;
+	  break;
+
+	case cap_thread:
+	  width = THREAD_SLOTS_LOG2;
+	  break;
+
+	case cap_messenger:
+	  /* Note: rmessengers don't expose their capability slots.  */
+	  width = VG_MESSENGER_SLOTS_LOG2;
 	  break;
 
 	default:

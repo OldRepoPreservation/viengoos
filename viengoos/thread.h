@@ -23,34 +23,11 @@
 
 #include <l4.h>
 #include <errno.h>
-
-#include "list.h"
+#include <hurd/cap.h>
+#include <hurd/thread.h>
 
 /* Forward.  */
-struct folio;
 struct activity;
-
-/* Number of capability slots at the start of the thread
-   structure.  */
-enum
-  {
-    THREAD_SLOTS = 3,
-  };
-
-enum
-  {
-    /* THREAD is blocked on an object wait for a futex.
-       WAIT_REASON_ARG holds the byte offset in the object on which it
-       is waiting.  */
-    THREAD_WAIT_FUTEX,
-    /* THREAD is blocked on an object waiting for the object to be
-       destroyed.  */
-    THREAD_WAIT_DESTROY,
-    /* THREAD is blocked on an activity waiting for information.  The
-       type of information is stored in wait_reason_arg.  The period
-       in wait_reason_arg2.  */
-    THREAD_WAIT_ACTIVITY_INFO,
-  };
 
 struct thread
 {
@@ -63,10 +40,14 @@ struct thread
      this thread's storage is allocated!)  */
   struct cap activity;
 
-  /* Capability identifying a page to use to store exceptions.  */
-  struct cap exception_page;
+  /* A capability designating a messenger to which to deliver
+     exceptions.  */
+  struct cap exception_messenger;
 
-  /* Non-user accessible fields.  */
+  /* A capability the page that contains the thread's UTCB.  */
+  struct cap utcb;
+
+  /* Non-user-accessible fields.  */
 
   /* Allocated thread id.  */
   l4_thread_id_t tid;
@@ -82,47 +63,8 @@ struct thread
   /* Whether the thread has been commissioned (a tid allocated).  */
   uint32_t commissioned : 1;
 
-  /* Whether the object is attached to a wait queue.  (This is
-     different from the value of folio_object_wait_queue_p which
-     specifies if there are objects on this thread's wait queue.)  */
-  bool wait_queue_p;
-
-  /* Whether this thread is the head of the wait queue.  If so,
-     WAIT_QUEUE.PREV designates the object.  */
-  uint32_t wait_queue_head : 1;
-
-  /* Whether this thread is the tail of the wait queue.  If so,
-     WAIT_QUEUE.NEXT designates the object.  */
-  uint32_t wait_queue_tail : 1;
-
-  /* The event the thread is interested in.  */
-  uint32_t wait_reason : 28;
-  /* More information about the reason.  */
-  uint32_t wait_reason_arg;
-  uint32_t wait_reason_arg2;
-
-  /* The object the thread is waiting on.  Only meaningful if
-     WAIT_QUEUE_P is true.  */
-  struct
-  {
-    /* We don't need versioning as we automatically collect on object
-       destruction.  */
-    oid_t next;
-    oid_t prev;
-  } wait_queue;
-
-#ifndef NDEBUG
-  struct list_node futex_waiter_node;
-#endif
-
   struct object_name name;
 };
-
-#ifndef NDEBUG
-LIST_CLASS(futex_waiter, struct thread, futex_waiter_node, true)
-/* List of threads waiting on a futex.  */
-extern struct futex_waiter_list futex_waiters;
-#endif
 
 /* The hardwired base of the UTCB (2.5GB).  */
 #define UTCB_AREA_BASE (0xA0000000)
@@ -152,21 +94,33 @@ extern void thread_decommission (struct thread *thread);
    USER_HANDLER are as per l4_exchange_regs, however, the caller may
    not set the pager.  */
 extern error_t thread_exregs (struct activity *principal,
-			      struct thread *thread, l4_word_t control,
-			      struct cap *aspace,
-			      l4_word_t flags, struct cap_properties properties,
-			      struct cap *activity,
-			      struct cap *exception_page,
-			      l4_word_t *sp, l4_word_t *ip,
-			      l4_word_t *eflags, l4_word_t *user_handle,
-			      struct cap *aspace_out,
-			      struct cap *activity_out,
-			      struct cap *exception_page_out);
+			      struct thread *thread, uintptr_t control,
+			      struct cap aspace,
+			      uintptr_t flags, struct cap_properties properties,
+			      struct cap activity,
+			      struct cap utcb,
+			      struct cap exception_messenger,
+			      uintptr_t *sp, uintptr_t *ip,
+			      uintptr_t *eflags, uintptr_t *user_handle);
 
-/* Send thread THREAD an exception.  */
+/* Deliver the message carried by messenger MESSENGER to thread
+   thread.  If thread is not activated, activate the thread.  Returns
+   whether the message was delivered or the messenger was enqueued on
+   the thread.  */
+extern bool thread_activate (struct activity *activity,
+			     struct thread *thread,
+			     struct messenger *messenger,
+			     bool may_block);
+
+/* Send thread THREAD's exception messenger the exception described by
+   MESSAGE.  If this would block, silently discards MESSAGE.  */
 extern void thread_raise_exception (struct activity *activity,
 				    struct thread *thread,
-				    l4_msg_t *msg);
+				    struct vg_message *message);
+
+/* Deliver a pending message, if any and if possible.  */
+extern void thread_deliver_pending (struct activity *activity,
+				    struct thread *thread);
 
 /* Given the L4 thread id THREADID, find the associated thread.  */
 extern struct thread *thread_lookup (l4_thread_id_t threadid);

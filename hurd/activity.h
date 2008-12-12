@@ -169,12 +169,6 @@ struct activity_stats
 
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
-#undef RPC_TARGET_NEED_ARG
-#define RPC_TARGET \
-  ({ \
-    extern struct hurd_startup_data *__hurd_startup_data; \
-    __hurd_startup_data->rm; \
-  })
 
 #include <hurd/rpc.h>
 
@@ -194,7 +188,8 @@ enum
 };
 
 /* Get ACTIVITY's policy and set according to FLAGS and IN.  */
-RPC (activity_policy, 3, 1, addr_t, activity,
+RPC (activity_policy, 2, 1, 0,
+     /* cap_t principal, cap_t activity */
      uintptr_t, flags, struct activity_policy, in,
      /* Out: */
      struct activity_policy, out);
@@ -248,7 +243,8 @@ struct activity_info
    indicating that the activity must free some memory or will be such
    subject to paging.  In this case, the activity should try to free
    at least the indicated number of pages as quickly as possible.  */
-RPC (activity_info, 3, 1, addr_t, activity,
+RPC (activity_info, 2, 1, 0,
+     /* cap_t principal, cap_t activity, */
      uintptr_t, flags, uintptr_t, until_period,
      /* Out: */
      struct activity_info, info)

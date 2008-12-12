@@ -1,3 +1,115 @@
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	Implement messengers and convert to new IPC semantics.
+	* messenger.h: New file.
+	* messenger.c: New file.
+	* Makefile.am (viengoos_SOURCES): Add messenger.h and messenger.c.
+	* ager.c: Include "messenger.h".
+	(update_stats): Update notifivation code to use messengers.
+	* cap.c: Include <hurd/messenger.h>.
+	(cap_shootdown): Follow thread and messenger objects.
+	* object.h (object_wait_queue_head): Use and return struct
+	messenger *'s, not struct thread *'s.  Update users.
+	(object_wait_queue_tail): Likewise.
+	(object_wait_queue_next): Likewise.
+	(object_wait_queue_prev): Likewise.
+	(object_wait_queue_enqueue): Likewise.
+	(object_wait_queue_dequeue): Likewise.  Rename from this...
+	(object_wait_queue_unlink): ... to this.
+	(object_wait_queue_push): New declaration.
+	(folio_object_wait_queue_for_each): Use and return struct
+	messenger *'s, not struct thread *'s.  Update users.
+	(object_wait_queue_for_each): Likewise.
+	* object.c: Include <hurd/messenger.h> and "messenger.h".
+	(folio_object_alloc): When destroying a messenger, call
+	messenger_destroy.
+	(folio_object_alloc): Send notifications using messengers.
+	(object_wait_queue_head): Use and return struct messenger *'s, not
+	struct thread *'s.
+	(object_wait_queue_tail): Likewise.
+	(object_wait_queue_next): Likewise.
+	(object_wait_queue_prev): Likewise.
+	(object_wait_queue_check): Likewise.
+	(object_wait_queue_enqueue): Likewise.  Add MESSENGER to end of
+	the queue, not the beginning.
+	(object_wait_queue_push): New function.
+	(object_wait_queue_dequeue): Use and return struct messenger *'s,
+	not struct thread *'s.  Rename from this...
+	(object_wait_queue_unlink): ... to this.
+	* pager.c: Include "messenger.h".
+	* thread.h: Don't include "list.h".  Include <hurd/cap.h> and
+	<hurd/thread.h>.
+	(struct folio): Remove declaration.
+	(THREAD_SLOTS): Don't define.
+	(THREAD_WAIT_FUTEX): Move from here...
+	* messenger.h (MESSENGER_WAIT_FUTEX): ... to here.
+	* thread.h (THREAD_WAIT_DESTROY): Move from here...
+	* messenger.h (MESSENGER_WAIT_DESTROY): ... to here.
+	* thread.h (THREAD_WAIT_ACTIVITY_INFO): Move from here...
+	* messenger.h (MESSENGER_WAIT_ACTIVITY_INFO): ... to here.
+	* thread.h (struct thread): Rename field exception_page to utcb.
+	Add field exception_messenger.  Remove fields wait_queue_p,
+	wait_queue_head, wait_queue_tail, wait_reason, wait_reason_arg,
+	wait_reason_arg2, wait_queue and futex_waiter_node.
+	(futex_waiters): Don't declare.
+	(thread_exregs): Change input capabilities to not be pointers to
+	capabilities but just capability structures.  Add argument
+	exception_messenger.  Remove arguments aspace_out, activity_out
+	and exception_page_out.  Update users.
+	(thread_activate): New declaration.
+	(thread_raise_exception): Change MSG's type to be struct
+	vg_message *.  Update users.
+	(thread_deliver_pending): New declaration.
+	* thread.c (thread_deinit): Remove code to remove THREAD from a
+	wait queue.
+	(thread_exregs): Change input capabilities to not be pointers to
+	capabilities but just capability structures.  Update code.  Add
+	argument exception_messenger.  Set THREAD's exception messenger
+	according to it and CONTROL.  Remove arguments aspace_out,
+	activity_out and exception_page_out.  Don't save the old
+	capabilities.
+	(thread_raise_exception): Move body of function...
+	(thread_activate): ... to this new function.  Update to use
+	messengers.
+	(thread_raise_exception): Implement in terms of it.
+	(thread_deliver_pending): New function.
+	* server.c: Include <hurd/ipc.h> and "messenger.h".
+	(DEBUG): If label is the IPC label, use "IPC" as the function.
+	(OBJECT_): Take additional parameter WRITABLE.  Save whether the
+	object is writable in *WRITABLE.  Update users.
+	(OBJECT): Likewise.
+	(server_loop): Update to use messengers and the new IPC interface.
+	Update method implementations appropriately.  Don't marshal faults
+	using exception_fault_send_marshal but the new
+	activation_fault_send_marshal.  Remove implementations of
+	object_slot_copy_out, object_slot_copy_in and object_slot_read.
+	Reimplement object_discard.  In the thread_exregs implementation,
+	handle the exception messenger.  Implement thread_id.  Remove
+	thread_wait_object_destroyed.  Implement
+	object_reply_on_destruction.  In activity_info and
+	activity_policy, don't operate on PRINCIPAL but the invoke
+	activity.  Implement thread_activation_collect.  When blocking on
+	a futex, don't enqueue the calling thread but the reply messenger.
+	Implement the messenger_id method.
+	(REPLY): Redefine before processing an object invocation to reply
+	using the reply messenger included in the request.
+
+	* rm.h: Include <l4/message.h>.
+	(rm_method_id_string): Don't handle object_slot_copy_out,
+	object_slot_copy_in, object_slot_read, exception_collect or
+	thread_wait_object_destroyed.  Handle object_reply_on_destruction,
+	thread_id, thread_activation_collect.
+	(RPC_TARGET_NEED_ARG): Don't undefine.
+	(RPC_TARGET): Don't define.
+	(struct io_buffer): Redefine in terms of L4_NUM_BRS.
+	(write): Update interface specification according to new IDL
+	interface.  Update users.
+	(read): Likewise.
+	(as_dump): Likewise.
+	(fault): Likewise.
+	(RPC_STUB_PREFIX): Don't undefine.
+	(RPC_ID_PREFIX): Likewise.
+
 2008-12-11  Neal H. Walfield  <neal@gnu.org>
 
 	* viengoos.c (bootstrap): Add code to configure the memory to

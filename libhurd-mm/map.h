@@ -23,8 +23,8 @@
 
 #include <hurd/btree.h>
 #include <hurd/addr.h>
-#include <hurd/exceptions.h>
 #include <hurd/mutex.h>
+#include <hurd/as.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -161,7 +161,7 @@ maps_lock_lock (void)
 {
   extern ss_mutex_t maps_lock;
 
-  map_lock_ensure_stack (EXCEPTION_STACK_SIZE - PAGESIZE);
+  map_lock_ensure_stack (AS_STACK_SPACE);
 
   ss_mutex_lock (&maps_lock);
 }
@@ -231,6 +231,6 @@ extern bool map_join (struct map *first, struct map *second);
 /* Raise a fault at address ADDR.  Returns true if the fault was
    handled, false otherwise.  */
 extern bool map_fault (addr_t addr,
-		       uintptr_t ip, struct exception_info info);
+		       uintptr_t ip, struct activation_fault_info info);
 
 #endif

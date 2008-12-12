@@ -40,7 +40,28 @@ io_buffer_flush (struct io_buffer *buffer)
   if (buffer->len == 0)
     return;
 
-  rm_write (*buffer);
+  // rm_write_send_nonblocking (ADDR_VOID, ADDR_VOID, *buffer, ADDR_VOID);
+  l4_msg_tag_t tag = l4_niltag;
+  l4_msg_tag_set_label (&tag, 2132);
+
+  l4_msg_t msg;
+  l4_msg_clear (msg);
+  l4_msg_set_msg_tag (msg, tag);
+
+  l4_msg_append_word (msg, buffer->len);
+
+  assert (buffer->len <= sizeof (buffer->data));
+
+  uintptr_t *data = (uintptr_t) &buffer->data[0];
+  int remaining;
+  for (remaining = buffer->len; remaining > 0; remaining -= sizeof (uintptr_t))
+    l4_msg_append_word (msg, *(data ++));
+
+  l4_msg_load (msg);
+
+  extern struct hurd_startup_data *__hurd_startup_data;      
+  l4_send (__hurd_startup_data->rm);
+
   buffer->len = 0;
 }
 
@@ -68,7 +89,7 @@ s_putchar (int chr)
   struct io_buffer buffer;
   buffer.len = 1;
   buffer.data[0] = chr;
-  rm_write (buffer);
+  io_buffer_flush (&buffer);
   return 0;
 #endif
 }

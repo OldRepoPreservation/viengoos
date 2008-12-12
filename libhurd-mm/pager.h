@@ -36,7 +36,7 @@ struct pager;
 typedef bool (*pager_fault_t) (struct pager *pager,
 			       uintptr_t offset, int count, bool ro,
 			       uintptr_t fault_addr, uintptr_t ip,
-			       struct exception_info info);
+			       struct activation_fault_info info);
 
 /* The count sub-trees starting at ADDR are no longer referenced and
    their associated storage may be reclaimed.  */
@@ -81,8 +81,11 @@ struct pager
   pager_advise_t advise;
 };
 
-/* Initialize the pager.  LENGTH and FAULT must be set
-   appropriately.  */
+#define PAGER_VOID { NULL, 0, 0, NULL, NULL, NULL }
+
+/* Initialize the pager.  All fields must be set appropriately.  After
+   calling this function, LENGTH and FAULT may no longer be
+   changed.  */
 extern bool pager_init (struct pager *pager);
 
 /* Deinitialize the pager PAGER, destroying all the mappings in the

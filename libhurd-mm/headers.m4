@@ -18,6 +18,7 @@ AC_CONFIG_LINKS([
   sysroot/include/hurd/map.h:libhurd-mm/map.h
   sysroot/include/hurd/pager.h:libhurd-mm/pager.h
   sysroot/include/hurd/anonymous.h:libhurd-mm/anonymous.h
+  sysroot/include/hurd/message-buffer.h:libhurd-mm/message-buffer.h
 ])
 
 AC_CONFIG_COMMANDS_POST([

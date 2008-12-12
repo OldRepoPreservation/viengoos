@@ -23,8 +23,9 @@
 #include "activity.h"
 #include "object.h"
 #include "pager.h"
-#include "thread.h"
 #include "profile.h"
+#include "messenger.h"
+#include "thread.h"
 
 int pager_min_alloc_before_next_collect;
 
@@ -484,14 +485,13 @@ pager_collect (int goal)
 
       bool need_reclaim = true;
 
-      struct thread *thread;
-      object_wait_queue_for_each (victim, (struct object *) victim,
-				  thread)
-	if (thread->wait_reason == THREAD_WAIT_ACTIVITY_INFO
-	    && (thread->wait_reason_arg & activity_info_pressure))
+      struct messenger *m;
+      object_wait_queue_for_each (victim, (struct object *) victim, m)
+	if (m->wait_reason == MESSENGER_WAIT_ACTIVITY_INFO
+	    && (m->wait_reason_arg & activity_info_pressure))
 	  break;
 
-      if (thread)
+      if (m)
 	{
 	  debug (5, DEBUG_BOLD ("Requesting that " OBJECT_NAME_FMT " free "
 				"%d pages.")
@@ -528,12 +528,12 @@ pager_collect (int goal)
 
 	  object_wait_queue_for_each (victim,
 				      (struct object *) victim,
-				      thread)
-	    if (thread->wait_reason == THREAD_WAIT_ACTIVITY_INFO
-		&& (thread->wait_reason_arg & activity_info_pressure))
+				      m)
+	    if (m->wait_reason == MESSENGER_WAIT_ACTIVITY_INFO
+		&& (m->wait_reason_arg & activity_info_pressure))
 	      {
-		object_wait_queue_dequeue (victim, thread);
-		rm_activity_info_reply (thread->tid, info);
+		object_wait_queue_unlink (victim, m);
+		rm_activity_info_reply (root_activity, m, info);
 	      }
 	}
 

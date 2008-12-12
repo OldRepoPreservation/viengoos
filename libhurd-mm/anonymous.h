@@ -80,11 +80,15 @@ enum
 typedef bool (*anonymous_pager_fill_t) (struct anonymous_pager *anon,
 					uintptr_t offset, uintptr_t count,
 					void *pages[],
-					struct exception_info info);
+					struct activation_fault_info info);
+
+#define ANONYMOUS_MAGIC 0xa707a707
 
 struct anonymous_pager
 {
   struct pager pager;
+
+  uintptr_t magic;
 
   /* The staging area.  Only valid if ANONYMOUS_STAGING_AREA is
      set.  */

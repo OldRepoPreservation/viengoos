@@ -536,56 +536,63 @@ extern void folio_policy (struct activity *activity,
 			  struct folio_policy *out);
 
 /* Return the first waiter queued on object OBJECT.  */
-extern struct thread *object_wait_queue_head (struct activity *activity,
-					      struct object *object);
+extern struct messenger *object_wait_queue_head (struct activity *activity,
+						 struct object *object);
 
 /* Return the last waiter queued on object OBJECT.  */
-extern struct thread *object_wait_queue_tail (struct activity *activity,
-					      struct object *object);
+extern struct messenger *object_wait_queue_tail (struct activity *activity,
+						 struct object *object);
 
-/* Return the waiter following THREAD.  */
-extern struct thread *object_wait_queue_next (struct activity *activity,
-					      struct thread *thread);
+/* Return the waiter following MESSENGER.  */
+extern struct messenger *object_wait_queue_next (struct activity *activity,
+						 struct messenger *messenger);
 
-/* Return the waiter preceding THREAD.  */
-extern struct thread *object_wait_queue_prev (struct activity *activity,
-					      struct thread *thread);
+/* Return the waiter preceding MESSENGER.  */
+extern struct messenger *object_wait_queue_prev (struct activity *activity,
+						 struct messenger *messenger);
 
-/* Enqueue thread on object OBJECT's wait queue.  */
+/* Push the messenger MESSENGER onto object OBJECT's wait queue (i.e.,
+   add it to the front of the wait queue).  */
+extern void object_wait_queue_push (struct activity *activity,
+				    struct object *object,
+				    struct messenger *messenger);
+
+/* Enqueue the messenger MESSENGER on object OBJECT's wait queue
+   (i.e., add it to the end of the wait queue).  */
 extern void object_wait_queue_enqueue (struct activity *activity,
 				       struct object *object,
-				       struct thread *thread);
+				       struct messenger *messenger);
 
-/* Dequeue thread THREAD from its wait queue.  */
-extern void object_wait_queue_dequeue (struct activity *activity,
-				       struct thread *thread);
+/* Unlink messenger MESSENGER from its wait queue.  */
+extern void object_wait_queue_unlink (struct activity *activity,
+				      struct messenger *messenger);
 
 
-/* Iterate over each thread waiting on the object at IDX in FOLIO.  It
+/* Iterate over each messenger waiting on the object at IDX in FOLIO.  It
    is safe to call object_wait_queue_dequeue.  */
 #define folio_object_wait_queue_for_each(__owqfe_activity,		\
 					 __owqfe_folio, __owqfe_idx,	\
-					 __owqfe_thread)		\
-  for (struct thread *__owqfe_next					\
-	 = (struct thread *)						\
+					 __owqfe_messenger)		\
+  for (struct messenger *__owqfe_next					\
+	 = (struct messenger *)						\
 	 (folio_object_wait_queue_p (__owqfe_folio, __owqfe_idx)	\
 	  ? object_find (__owqfe_activity,				\
 			 folio_object_wait_queue (__owqfe_folio,	\
 						  __owqfe_idx),		\
 			 OBJECT_POLICY_VOID)				\
 	  : NULL);							\
-       (__owqfe_thread = __owqfe_next)					\
+       (__owqfe_messenger = __owqfe_next)				\
 	 && ((__owqfe_next = object_wait_queue_next (__owqfe_activity,	\
-						     __owqfe_thread))	\
+						     __owqfe_messenger)) \
 	     || 1); /* do nothing.  */)
 
 #define object_wait_queue_for_each(__owqfe_activity, __owqfe_object,	\
-				   __owqfe_thread)			\
-  for (struct thread *__owqfe_next					\
+				   __owqfe_messenger)			\
+  for (struct messenger *__owqfe_next					\
 	 = object_wait_queue_head (__owqfe_activity, __owqfe_object);	\
-       (__owqfe_thread = __owqfe_next)					\
+       (__owqfe_messenger = __owqfe_next)				\
 	 && ((__owqfe_next = object_wait_queue_next (__owqfe_activity,	\
-						     __owqfe_thread))	\
+						     __owqfe_messenger)) \
 	     || 1); /* do nothing.  */)
 
 #endif

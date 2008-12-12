@@ -28,6 +28,7 @@
 #include <hurd/futex.h>
 #include <hurd/trace.h>
 #include <hurd/as.h>
+#include <hurd/ipc.h>
 
 #include "server.h"
 
@@ -38,6 +39,7 @@
 #include "object.h"
 #include "thread.h"
 #include "activity.h"
+#include "messenger.h"
 #include "viengoos.h"
 #include "profile.h"
 
@@ -48,7 +50,7 @@ struct futex_waiter_list futex_waiters;
 #ifndef NDEBUG
 
 struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
-						   false, false, false);
+						   true, false, false);
 
 /* Like debug but also prints the method id and saves to the trace
    buffer if level is less than or equal to 4.  */
@@ -59,11 +61,14 @@ struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
 	trace_buffer_add (&rpc_trace, "(%x %s %d) " format,		\
 			  thread->tid,					\
 			  l4_is_pagefault (msg_tag) ? "pagefault"	\
-			  : rm_method_id_string (label), label,		\
+			  : label == 8194 ? "IPC"			\
+			  : rm_method_id_string (label),		\
+			  label,					\
 			  ##args);					\
       debug (level, "(%x %s:%d %d) " format,				\
 	     thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"	\
-	     : rm_method_id_string (label), __LINE__, label,		\
+	     : label == 8194 ? "IPC" : rm_method_id_string (label),	\
+	     __LINE__, label,						\
 	     ##args);							\
     }									\
   while (0)
@@ -72,7 +77,8 @@ struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
 # define DEBUG(level, format, args...)					\
       debug (level, "(%x %s:%d %d) " format,				\
 	     thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"	\
-	     : rm_method_id_string (label), __LINE__, label,		\
+	     : label == 8194 ? "IPC" : rm_method_id_string (label),	\
+	     __LINE__, label,						\
 	     ##args)
 #endif
 
@@ -140,11 +146,11 @@ server_loop (void)
 	    {
 	      debug (0, "No IPCs for some time.  Deadlock?");
 
-	      struct thread *thread;
-	      while ((thread = futex_waiter_list_head (&futex_waiters)))
+	      struct messenger *messenger;
+	      while ((messenger = futex_waiter_list_head (&futex_waiters)))
 		{
-		  object_wait_queue_dequeue (root_activity, thread);
-		  rpc_error_reply (thread->tid, EDEADLK);
+		  object_wait_queue_unlink (root_activity, messenger);
+		  rpc_error_reply (root_activity, messenger, EDEADLK);
 		}
 
 	      trace_buffer_dump (&rpc_trace, 0);
@@ -166,7 +172,7 @@ server_loop (void)
 #endif
 
       l4_msg_store (msg_tag, msg);
-      l4_word_t label;
+      uintptr_t label;
       label = l4_label (msg_tag);
 
       /* By default we reply to the sender.  */
@@ -233,15 +239,15 @@ server_loop (void)
 	   Thus, it is difficult to incorporate it into the case
 	   switch below.  */
 	{
-	  l4_word_t access;
-	  l4_word_t ip;
-	  l4_word_t fault = l4_pagefault (msg_tag, &access, &ip);
+	  uintptr_t access;
+	  uintptr_t ip;
+	  uintptr_t fault = l4_pagefault (msg_tag, &access, &ip);
 	  bool write_fault = !! (access & L4_FPAGE_WRITABLE);
 
-	  DEBUG (4, "%s fault at %x (ip = %x)",
+	  DEBUG (4, "%s fault at %x (ip: %x)",
 		 write_fault ? "Write" : "Read", fault, ip);
 
-	  l4_word_t page_addr = fault & ~(PAGESIZE - 1);
+	  uintptr_t page_addr = fault & ~(PAGESIZE - 1);
 
 	  struct cap cap;
 	  bool writable;
@@ -264,7 +270,7 @@ server_loop (void)
 
 	  if (! writable && cap.discardable)
 	    {
-	      debug (5, "Ignoring discardable predicate for cap designating "
+	      DEBUG (4, "Ignoring discardable predicate for cap designating "
 		     OID_FMT " (%s)",
 		     OID_PRINTF (cap.oid), cap_type_string (cap.type));
 	      cap.discardable = false;
@@ -287,7 +293,7 @@ server_loop (void)
 		{
 		  if (folio_object_discarded (folio, object))
 		    {
-		      debug (5, OID_FMT " (%s) was discarded",
+		      DEBUG (4, OID_FMT " (%s) was discarded",
 			     OID_PRINTF (cap.oid),
 			     cap_type_string (folio_object_type (folio,
 								 object)));
@@ -296,7 +302,7 @@ server_loop (void)
 
 		      discarded = true;
 
-		      debug (5, "Raising discarded fault at %x", page_addr);
+		      DEBUG (5, "Raising discarded fault at %x", page_addr);
 		    }
 		}
 	    }
@@ -308,30 +314,29 @@ server_loop (void)
 		     ip, fault, write_fault ? 'w' : 'r',
 		     discarded ? " discarded" : "");
 
-	      l4_word_t c = _L4_XCHG_REGS_DELIVER;
+	      uintptr_t c = _L4_XCHG_REGS_DELIVER;
 	      l4_thread_id_t targ = thread->tid;
-	      l4_word_t sp = 0;
-	      l4_word_t dummy = 0;
+	      uintptr_t sp = 0;
+	      uintptr_t dummy = 0;
 	      _L4_exchange_registers (&targ, &c,
 				      &sp, &dummy, &dummy, &dummy, &dummy);
 
-	      struct exception_info info;
+	      struct activation_fault_info info;
 	      info.access = access;
 	      info.type = write_fault ? cap_page : cap_rpage;
 
 	      info.discarded = discarded;
 
-	      l4_msg_t msg;
-	      exception_fault_send_marshal (&msg, PTR_TO_ADDR (fault),
-					    sp, ip, info);
-
-	      thread_raise_exception (activity, thread, &msg);
+	      activation_fault_send_marshal (reply_buffer, PTR_TO_ADDR (fault),
+					     sp, ip, info, ADDR_VOID);
+	      thread_raise_exception (activity, thread, reply_buffer);
 
 	      continue;
 	    }
 
-	  DEBUG (4, "%s fault at " DEBUG_BOLD ("%x") " (ip=%x), replying with %p(r%s)",
-		 write_fault ? "Write" : "Read", page_addr, ip, page,
+	  DEBUG (4, "%s fault at " DEBUG_BOLD ("%x") " (ip=%x), "
+		 "replying with %p(r%s)",
+		 write_fault ? "Write" : "Read", fault, ip, page,
 		 writable ? "w" : "");
 
 	  object_to_object_desc (page)->mapped = true;
@@ -405,19 +410,18 @@ server_loop (void)
 
       struct activity *principal;
 
-  /* If ERR_ is not 0, create a message indicating an error with the
-     error code ERR_.  Go to the start of the server loop.  */
+  /* Create a message indicating an error with the error code ERR_.
+     Go to the start of the server loop.  */
 #define REPLY(err_)						\
       do							\
 	{							\
 	  if (err_)						\
-	    {							\
-	      DEBUG (1, DEBUG_BOLD ("Returning error %d"), err_);	\
-	      l4_msg_clear (msg);				\
-	      l4_msg_put_word (msg, 0, (err_));			\
-	      l4_msg_set_untyped_words (msg, 1);		\
-	      do_reply = 1;					\
-	    }							\
+	    DEBUG (1, DEBUG_BOLD ("Returning error %d to %x"),	\
+		   err_, from);					\
+	  l4_msg_clear (msg);					\
+	  l4_msg_put_word (msg, 0, (err_));			\
+	  l4_msg_set_untyped_words (msg, 1);			\
+	  do_reply = 1;						\
 	  goto out;						\
 	}							\
       while (0)
@@ -498,24 +502,26 @@ server_loop (void)
 
       error_t OBJECT_ (struct cap *root,
 		       addr_t addr, int type, bool require_writable,
-		       struct object **objectp)
+		       struct object **objectp, bool *writable)
 	{
-	  bool writable = true;
+	  bool w = true;
 	  struct cap cap;
-	  cap = as_object_lookup_rel (principal, root, addr, type,
-				      require_writable ? &writable : NULL);
+	  cap = as_object_lookup_rel (principal, root, addr, type, &w);
 	  if (type != -1 && ! cap_types_compatible (cap.type, type))
 	    {
-	      DEBUG (4, "Addr 0x%llx/%d does not reference object of "
+	      DEBUG (0, "Addr 0x%llx/%d does not reference object of "
 		     "type %s but %s",
 		     addr_prefix (addr), addr_depth (addr),
 		     cap_type_string (type), cap_type_string (cap.type));
 	      return ENOENT;
 	    }
 
-	  if (require_writable && ! writable)
+	  if (writable)
+	    *writable = w;
+
+	  if (require_writable && ! w)
 	    {
-	      DEBUG (4, "Addr " ADDR_FMT " not writable",
+	      DEBUG (0, "Addr " ADDR_FMT " not writable",
 		     ADDR_PRINTF (addr));
 	      return EPERM;
 	    }
@@ -523,19 +529,20 @@ server_loop (void)
 	  *objectp = cap_to_object (principal, &cap);
 	  if (! *objectp)
 	    {
-	      DEBUG (4, "Addr " ADDR_FMT " contains a dangling pointer: "
-		     CAP_FMT,
-		     ADDR_PRINTF (addr), CAP_PRINTF (&cap));
+	      do_debug (4)
+		DEBUG (0, "Addr " ADDR_FMT " contains a dangling pointer: "
+		       CAP_FMT,
+		       ADDR_PRINTF (addr), CAP_PRINTF (&cap));
 	      return ENOENT;
 	    }
 
 	  return 0;
 	}
-#define OBJECT(root_, addr_, type_, require_writable_)	\
+#define OBJECT(root_, addr_, type_, require_writable_, writablep_)	\
       ({								\
 	struct object *OBJECT_ret;					\
 	error_t err = OBJECT_ (root_, addr_, type_, require_writable_,	\
-			       &OBJECT_ret);				\
+			       &OBJECT_ret, writablep_);		\
 	if (err)							\
 	  REPLY (err);							\
 	OBJECT_ret;							\
@@ -557,7 +564,7 @@ server_loop (void)
 	       thread if it matches the guard exactly.  */		\
 	    struct object *t_;						\
 	    error_t err = OBJECT_ (&thread->aspace, root_addr_,		\
-				   cap_thread, true, &t_);		\
+				   cap_thread, true, &t_, NULL);	\
 	    if (! err)							\
 	      root_ = &((struct thread *) t_)->aspace;			\
 	    else							\
@@ -567,46 +574,6 @@ server_loop (void)
 									\
 	root_;								\
       })
-
-      if (label == RM_write)
-	{
-	  struct io_buffer buffer;
-	  err = rm_write_send_unmarshal (&msg, &buffer);
-	  if (! err)
-	    {
-	      int i;
-	      for (i = 0; i < buffer.len; i ++)
-		putchar (buffer.data[i]);
-	    }
-
-	  /* No reply needed.  */
-	  do_reply = 0;
-	  continue;
-	}
-      else if (label == RM_read)
-	{
-	  int max;
-	  err = rm_read_send_unmarshal (&msg, &max);
-	  if (err)
-	    {
-	      DEBUG (0, "Read error!");
-	      REPLY (EINVAL);
-	    }
-
-	  struct io_buffer buffer;
-	  buffer.len = 0;
-
-	  if (max > 0)
-	    {
-	      buffer.len = 1;
-	      buffer.data[0] = getchar ();
-	    }
-
-	  rm_read_reply_marshal (&msg, buffer);
-	  continue;
-	}
-
-      do_reply = 1;
 
   /* Return the next word.  */
 #define ARG(word_) l4_msg_word (msg, word_);
@@ -628,19 +595,224 @@ server_loop (void)
 
 #define ARG_ADDR(word_) ((addr_t) { ARG64(word_) })
 
-      principal = activity;
-      addr_t principal_addr = ARG_ADDR (0);
-      struct cap principal_cap;
-      if (! ADDR_IS_VOID (principal_addr))
+      if (label == 2132)
+	/* write.  */
 	{
+	  int len = msg[1];
+	  char *buffer = (char *) &msg[2];
+	  buffer[len] = 0;
+	  s_printf ("%s", buffer);
+	  continue;
+	}
+
+      if (label != 8194)
+	{
+	  DEBUG (0, "Invalid label: %d", label);
+	  continue;
+	}
+
+      int i = 0;
+      uintptr_t flags = ARG (i);
+      i ++;
+      addr_t recv_activity = ARG_ADDR (i);
+      i += ARG64_WORDS;
+      addr_t recv_messenger = ARG_ADDR (i);
+      i += ARG64_WORDS;
+      addr_t recv_buf = ARG_ADDR (i);
+      i += ARG64_WORDS;
+      addr_t recv_inline_cap = ARG_ADDR (i);
+      i += ARG64_WORDS;
+
+      addr_t send_activity = ARG_ADDR (i);
+      i += ARG64_WORDS;
+      addr_t target_messenger = ARG_ADDR (i);
+      i += ARG64_WORDS;
+
+      addr_t send_messenger = ARG_ADDR (i);
+      i += ARG64_WORDS;
+      addr_t send_buf = ARG_ADDR (i);
+      i += ARG64_WORDS;
+
+      uintptr_t inline_word1 = ARG (i);
+      i ++;
+      uintptr_t inline_word2 = ARG (i);
+      i ++;
+      addr_t inline_cap = ARG_ADDR (i);
+
+#ifndef NDEBUG
+      /* Get the label early to improve debugging output in case the
+	 target is invalid.  */
+      if ((flags & VG_IPC_SEND))
+	{
+	  if ((flags & VG_IPC_SEND_INLINE))
+	    label = inline_word1;
+	  else
+	    {
+	      principal = activity;
+
+	      struct cap cap = CAP_VOID;
+	      if (! ADDR_IS_VOID (send_buf))
+		/* Caller provided a send buffer.  */
+		CAP_ (&thread->aspace, send_buf, cap_page, true, &cap);
+	      else
+		{
+		  struct object *object = NULL;
+		  OBJECT_ (&thread->aspace, send_messenger,
+			   cap_messenger, true, &object, NULL);
+		  if (object)
+		    cap = ((struct messenger *) object)->buffer;
+		}
+		
+	      struct vg_message *message;
+	      message = (struct vg_message *) cap_to_object (principal,
+							     &cap);
+	      if (message)
+		label = vg_message_word (message, 0);
+	    }
+	}
+#endif
+
+      DEBUG (4, "flags: %s%s%s%s%s%s %s%s%s%s%s%s %s %s%s%s%s(%x),"
+	     "recv (" ADDR_FMT ", " ADDR_FMT ", " ADDR_FMT "), "
+	     "send (" ADDR_FMT ", " ADDR_FMT ", " ADDR_FMT ", " ADDR_FMT "), "
+	     "inline (" ADDR_FMT "; %x, %x, " ADDR_FMT ")",
+	     (flags & VG_IPC_RECEIVE) ? "R" : "-",
+	     (flags & VG_IPC_RECEIVE_NONBLOCKING) ? "N" : "B",
+	     (flags & VG_IPC_RECEIVE_ACTIVATE) ? "A" : "-",
+	     (flags & VG_IPC_RECEIVE_SET_THREAD_TO_CALLER) ? "T" : "-",
+	     (flags & VG_IPC_RECEIVE_SET_ASROOT_TO_CALLERS) ? "A" : "-",
+	     (flags & VG_IPC_RECEIVE_INLINE) ? "I" : "-",
+	     (flags & VG_IPC_SEND) ? "S" : "-",
+	     (flags & VG_IPC_SEND_NONBLOCKING) ? "N" : "B",
+	     (flags & VG_IPC_SEND_ACTIVATE) ? "A" : "-",
+	     (flags & VG_IPC_SEND_SET_THREAD_TO_CALLER) ? "T" : "-",
+	     (flags & VG_IPC_SEND_SET_ASROOT_TO_CALLERS) ? "A" : "-",
+	     (flags & VG_IPC_SEND_INLINE) ? "I" : "-",
+	     (flags & VG_IPC_RETURN) ? "R" : "-",
+	     (flags & VG_IPC_RECEIVE_INLINE_CAP1) ? "C" : "-",
+	     (flags & VG_IPC_SEND_INLINE_WORD1) ? "1" : "-",
+	     (flags & VG_IPC_SEND_INLINE_WORD2) ? "2" : "-",
+	     (flags & VG_IPC_SEND_INLINE_CAP1) ? "C" : "-",
+	     flags,
+	     ADDR_PRINTF (recv_activity), ADDR_PRINTF (recv_messenger),
+	     ADDR_PRINTF (recv_buf),
+	     ADDR_PRINTF (send_activity), ADDR_PRINTF (target_messenger),
+	     ADDR_PRINTF (send_messenger), ADDR_PRINTF (send_buf),
+	     ADDR_PRINTF (recv_inline_cap),
+	     inline_word1, inline_word2, ADDR_PRINTF (inline_cap));
+
+      if ((flags & VG_IPC_RECEIVE))
+	/* IPC includes a receive phase.  */
+	{
+	  principal = activity;
+	  if (! ADDR_IS_VOID (recv_activity))
+	    {
+	      principal = (struct activity *) OBJECT (&thread->aspace,
+						      recv_activity,
+						      cap_activity, false,
+						      NULL);
+	      if (! principal)
+		{
+		  DEBUG (0, "Invalid receive activity.");
+		  REPLY (ENOENT);
+		}
+	    }
+
+	  struct messenger *messenger
+	    = (struct messenger *) OBJECT (&thread->aspace,
+					   recv_messenger, cap_messenger,
+					   true, NULL);
+	  if (! messenger)
+	    {
+	      DEBUG (0, "IPC includes receive phase, however, "
+		     "no receive messenger provided.");
+	      REPLY (EINVAL);
+	    }
+
+	  if ((flags & VG_IPC_RECEIVE_INLINE))
+	    {
+	      messenger->out_of_band = false;
+	      if ((flags & VG_IPC_RECEIVE_INLINE_CAP1))
+		messenger->inline_caps[0] = recv_inline_cap;
+	    }
+	  else
+	    {
+	      messenger->out_of_band = true;
+	      if (unlikely (! ADDR_IS_VOID (recv_buf)))
+		/* Associate RECV_BUF with RECV_MESSENGER.  */
+		messenger->buffer = CAP (&thread->aspace, recv_buf,
+					 cap_page, true);
+	    }
+
+	  if (unlikely ((flags & VG_IPC_RECEIVE_SET_THREAD_TO_CALLER)))
+	    messenger->thread = object_to_cap ((struct object *) thread);
+
+	  if (unlikely ((flags & VG_IPC_RECEIVE_SET_ASROOT_TO_CALLERS)))
+	    messenger->as_root = thread->aspace;
+
+	  messenger->activate_on_receive = (flags & VG_IPC_RECEIVE_ACTIVATE);
+
+	  /* See if there is a messenger trying to send to
+	     MESSENGER.  */
+	  struct messenger *sender;
+	  object_wait_queue_for_each (principal,
+				      (struct object *) messenger, sender)
+	    if (sender->wait_reason == MESSENGER_WAIT_TRANSFER_MESSAGE)
+	      /* There is.  Transfer SENDER's message to MESSENGER.  */
+	      {
+		object_wait_queue_unlink (principal, sender);
+
+		assert (messenger->blocked);
+		messenger->blocked = 0;
+		bool ret = messenger_message_transfer (principal,
+						       messenger, sender,
+						       true);
+		assert (ret);
+
+		break;
+	      }
+
+	  if (! sender)
+	    /* There was no sender waiting.  */
+	    {
+	      if ((flags & VG_IPC_RECEIVE_NONBLOCKING))
+		/* The receive phase is non-blocking.  */
+		REPLY (EWOULDBLOCK);
+	      else
+		/* Unblock MESSENGER.  */
+		messenger->blocked = 0;
+	    }
+	}
+
+      if (! (flags & VG_IPC_SEND))
+	/* No send phase.  */
+	{
+	  if ((flags & VG_IPC_RETURN))
+	    /* But a return phase.  */
+	    REPLY (0);
+
+	  continue;
+	}
+
+      /* Send phase.  */
+
+      if ((flags & VG_IPC_SEND_INLINE))
+	label = inline_word1;
+
+      principal = activity;
+      struct cap principal_cap;
+      if (! ADDR_IS_VOID (send_activity))
+	{
+	  /* We need the cap below, otherwise, we could just use
+	     OBJECT.  */
 	  principal_cap = CAP (&thread->aspace,
-			       principal_addr, cap_activity, false);
+			       send_activity, cap_activity, false);
 	  principal = (struct activity *) cap_to_object (principal,
 							 &principal_cap);
 	  if (! principal)
 	    {
 	      DEBUG (4, "Dangling pointer at " ADDR_FMT,
-		     ADDR_PRINTF (principal_addr));
+		     ADDR_PRINTF (send_activity));
 	      REPLY (ENOENT);
 	    }
 	}
@@ -650,26 +822,243 @@ server_loop (void)
 	  principal = activity;
 	}
 
+      struct messenger *source
+	= (struct messenger *) OBJECT (&thread->aspace,
+				       send_messenger, cap_messenger,
+				       true, NULL);
+      if (unlikely (! source))
+	{
+	  DEBUG (0, "Source not valid.");
+	  REPLY (ENOENT);
+	}
+
+      if (unlikely (! ADDR_IS_VOID (send_buf)))
+	source->buffer = CAP (&thread->aspace, send_buf, cap_page, true);
+
+      if (unlikely ((flags & VG_IPC_SEND_SET_THREAD_TO_CALLER)))
+	source->thread = object_to_cap ((struct object *) thread);
+
+      if (unlikely ((flags & VG_IPC_SEND_SET_ASROOT_TO_CALLERS)))
+	source->as_root = thread->aspace;
+
+      source->activate_on_send = (flags & VG_IPC_SEND_ACTIVATE);
+
+      bool target_writable = true;
+      struct object *target;
+      /* We special case VOID to mean the current thread.  */
+      if (ADDR_IS_VOID (target_messenger))
+	target = (struct object *) thread;
+      else
+	target = OBJECT (&thread->aspace, target_messenger, -1, false,
+			 &target_writable);
+      if (! target)
+	{
+	  DEBUG (0, "Target not valid.");
+	  REPLY (ENOENT);
+	}
+
+      if (object_type (target) == cap_messenger && ! target_writable)
+	/* TARGET is a weak reference to a messenger.  Forward the
+	   message.  */
+	{
+	  DEBUG (5, "IPC: " OID_FMT " -> " OID_FMT,
+		 OID_PRINTF (object_oid ((struct object *) source)),
+		 OID_PRINTF (object_oid ((struct object *) target)));
+
+	  if ((flags & VG_IPC_SEND_INLINE))
+	    {
+	      source->out_of_band = false;
+	      source->inline_words[0] = inline_word1;
+	      source->inline_words[1] = inline_word2;
+	      source->inline_caps[0] = inline_cap;
+
+	      if ((flags & VG_IPC_SEND_INLINE_WORD1)
+		  && (flags & VG_IPC_SEND_INLINE_WORD2))
+		source->inline_word_count = 2;
+	      else if ((flags & VG_IPC_SEND_INLINE_WORD1))
+		source->inline_word_count = 1;
+	      else
+		source->inline_word_count = 0;
+
+	      if ((flags & VG_IPC_SEND_INLINE_CAP1))
+		source->inline_cap_count = 1;
+	      else
+		source->inline_cap_count = 0;
+	    }
+	  else
+	    source->out_of_band = true;
+
+	  if (messenger_message_transfer (principal,
+					  (struct messenger *) target,
+					  source,
+					  ! (flags & VG_IPC_SEND_NONBLOCKING)))
+	    /* The messenger has been enqueued.  */
+	    {
+	      if ((flags & VG_IPC_RETURN))
+		REPLY (0);
+	      continue;
+	    }
+	  else
+	    REPLY (ETIMEDOUT);
+	}
+
+      /* TARGET designates a kernel implemented object.  Implement
+	 it.  */
+
+      /* The reply messenger (if any).  */
+      struct messenger *reply = NULL;
+
+      /* We are now so far that we should not reply to the caller but
+	 to TARGET.  Set up our handy REPLY macro to do so.  */
+#undef REPLY
+  /* Send a reply indicating that an error with the error code ERR_.
+     Go to the start of the server loop.  */
+#define REPLY(err_)						\
+      do							\
+	{							\
+	  if (err_)						\
+	    DEBUG (0, DEBUG_BOLD ("Returning error %d"), err_);	\
+	  if (reply)						\
+	    if (rpc_error_reply (principal, reply, err_))	\
+	      DEBUG (0, DEBUG_BOLD ("Failed to send reply"));	\
+	  goto out;						\
+	}							\
+      while (0)
+
+
+      struct vg_message *message;
+      if ((flags & VG_IPC_SEND_INLINE))
+	{
+	  message = reply_buffer;
+	  vg_message_clear (message);
+	  if ((flags & VG_IPC_SEND_INLINE_WORD1))
+	    vg_message_append_word (message, inline_word1);
+	  if ((flags & VG_IPC_SEND_INLINE_WORD2))
+	    vg_message_append_word (message, inline_word2);
+	  if ((flags & VG_IPC_SEND_INLINE_CAP1))
+	    vg_message_append_cap (message, inline_cap);
+	}
+      else
+	{
+	  if (source->buffer.type != cap_page)
+	    {
+	      DEBUG (0, "Sender user-buffer has wrong type: %s",
+		     cap_type_string (source->buffer.type));
+	      REPLY (EINVAL);
+	    }
+	  message = (struct vg_message *) cap_to_object (principal,
+							 &source->buffer);
+	  if (! message)
+	    {
+	      DEBUG (0, "Sender user-buffer has wrong type: %s",
+		     cap_type_string (source->buffer.type));
+	      REPLY (EINVAL);
+	    }
+	}
+
+      label = vg_message_word (message, 0);
+
+      do_debug (5)
+	{
+	  DEBUG (0, "");
+	  vg_message_dump (message);
+	}
+
+      /* Extract the reply messenger (if any).  */
+      if (vg_message_cap_count (message) > 0)
+	/* We only look for a messenger here.  We know that any reply
+	   that a kernel object generates that is sent to a kernel
+	   object will just result in a discarded EINVAL.  */
+	reply = (struct messenger *)
+	  OBJECT (&thread->aspace,
+		  vg_message_cap (message,
+				  vg_message_cap_count (message) - 1),
+		  cap_rmessenger, false, NULL);
+
+      /* There are a number of methods that look up an object relative
+	 to the invoked object.  Generate an appropriate root for
+	 them.  */
+      struct cap target_root_cap;
+      struct cap *target_root;
+      if (likely (target == (struct object *) thread))
+	target_root = &thread->aspace;
+      else if (object_type (target) == cap_thread)
+	target_root = &((struct thread *) target)->aspace;
+      else
+	{
+	  target_root_cap = object_to_cap (target);
+	  target_root = &target_root_cap;
+	}
+
+      DEBUG (4, OID_FMT " %s(%llx) -> " OID_FMT " %s(%llx)",
+	     OID_PRINTF (object_oid ((struct object *) source)),
+	     cap_type_string (object_type ((struct object *) source)),
+	     source->id,
+	     OID_PRINTF (object_oid ((struct object *) target)),
+	     cap_type_string (object_type (target)),
+	     object_type (target) == cap_messenger
+	     ? ((struct messenger *) target)->id : 0);
+      if (reply)
+	DEBUG (4, "reply to: " OID_FMT "(%llx)",
+	       OID_PRINTF (object_oid ((struct object *) reply)),
+	       reply->id);
+
       switch (label)
 	{
+	case RM_write:
+	  {
+	    struct io_buffer buffer;
+	    err = rm_write_send_unmarshal (message, &buffer, NULL);
+	    if (! err)
+	      {
+		int i;
+		for (i = 0; i < buffer.len; i ++)
+		  putchar (buffer.data[i]);
+	      }
+
+	    rm_write_reply (activity, reply);
+	    break;
+	  }
+	case RM_read:
+	  {
+	    int max;
+	    err = rm_read_send_unmarshal (message, &max, NULL);
+	    if (err)
+	      {
+		DEBUG (0, "Read error!");
+		REPLY (EINVAL);
+	      }
+
+	    struct io_buffer buffer;
+	    buffer.len = 0;
+
+	    if (max > 0)
+	      {
+		buffer.len = 1;
+		buffer.data[0] = getchar ();
+	      }
+
+	    rm_read_reply (activity, reply, buffer);
+	    break;
+	  }
+
 	case RM_fault:
 	  {
 	    uintptr_t start;
 	    int max;
 
-	    err = rm_fault_send_unmarshal (&msg, &principal_addr,
-					   &start, &max);
+	    err = rm_fault_send_unmarshal (message, &start, &max, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(%p, %d)", start, max);
+	    DEBUG (4, "(%p, %d)", (void *) start, max);
 
 	    start &= ~(PAGESIZE - 1);
 
-	    rm_fault_reply_marshal (&msg, 0);
+	    rm_fault_reply (activity, reply, 0);
 	    int limit = (L4_NUM_MRS - 1
 			 - l4_untyped_words (l4_msg_msg_tag (msg)))
-	      * sizeof (l4_word_t) / sizeof (l4_map_item_t);
+	      * sizeof (uintptr_t) / sizeof (l4_map_item_t);
 	    if (max > limit)
 	      max = limit;
 
@@ -716,7 +1105,7 @@ server_loop (void)
 		     l4_untyped_words (l4_msg_msg_tag (msg)),
 		     l4_typed_words (l4_msg_msg_tag (msg)));
 
-	    rm_fault_reply_marshal (&msg, count);
+	    rm_fault_reply (activity, reply, count);
 	    int i;
 	    for (i = 0; i < count; i ++)
 	      l4_msg_append_map_item (msg, map_items[i]);
@@ -726,82 +1115,80 @@ server_loop (void)
 
 	case RM_folio_alloc:
 	  {
-	    addr_t folio_addr;
-	    struct folio_policy policy;
+	    if (object_type (target) != cap_activity_control)
+	      {
+		DEBUG (0, "target " ADDR_FMT " not an activity but a %s",
+		       ADDR_PRINTF (target_messenger),
+		       cap_type_string (object_type (target)));
+		REPLY (EINVAL);
+	      }
 
-	    err = rm_folio_alloc_send_unmarshal (&msg, &principal_addr,
-						 &folio_addr, &policy);
+	    struct activity *activity = (struct activity *) target;
+
+	    struct folio_policy policy;
+	    err = rm_folio_alloc_send_unmarshal (message, &policy, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(" ADDR_FMT ")", ADDR_PRINTF (folio_addr));
+	    DEBUG (4, "(" ADDR_FMT ")", ADDR_PRINTF (target_messenger));
 
-	    struct cap *folio_slot = SLOT (&thread->aspace, folio_addr);
-
-	    struct folio *folio = folio_alloc (principal, policy);
+	    struct folio *folio = folio_alloc (activity, policy);
 	    if (! folio)
 	      REPLY (ENOMEM);
 
-	    bool r = cap_set (principal, folio_slot,
-			      object_to_cap ((struct object *) folio));
-	    assert (r);
-
-	    rm_folio_alloc_reply_marshal (&msg);
+	    rm_folio_alloc_reply (principal, reply,
+				  object_to_cap ((struct object *) folio));
 	    break;
 	  }
 
 	case RM_folio_free:
 	  {
-	    addr_t folio_addr;
+	    if (object_type (target) != cap_folio)
+	      REPLY (EINVAL);
 
-	    err = rm_folio_free_send_unmarshal (&msg, &principal_addr,
-						&folio_addr);
+	    struct folio *folio = (struct folio *) target;
+
+	    err = rm_folio_free_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(" ADDR_FMT ")", ADDR_PRINTF (folio_addr));
+	    DEBUG (4, "(" ADDR_FMT ")", ADDR_PRINTF (target_messenger));
 
-	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
-							   folio_addr,
-							   cap_folio, true);
 	    folio_free (principal, folio);
 
-	    rm_folio_free_reply_marshal (&msg);
+	    rm_folio_free_reply (activity, reply);
 	    break;
 	  }
 
 	case RM_folio_object_alloc:
 	  {
-	    addr_t folio_addr;
+	    if (object_type (target) != cap_folio)
+	      REPLY (EINVAL);
+
+	    struct folio *folio = (struct folio *) target;
+
 	    uint32_t idx;
 	    uint32_t type;
 	    struct object_policy policy;
 	    uintptr_t return_code;
-	    addr_t object_addr;
-	    addr_t object_weak_addr;
 
-	    err = rm_folio_object_alloc_send_unmarshal (&msg, &principal_addr,
-							&folio_addr, &idx,
-							&type, &policy,
-							&return_code,
-							&object_addr,
-							&object_weak_addr);
+	    err = rm_folio_object_alloc_send_unmarshal (message,
+							&idx, &type, &policy,
+							&return_code, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(" ADDR_FMT ", %d, %s, (%s, %d), %d, "
-		   ADDR_FMT", "ADDR_FMT")",
-
-		   ADDR_PRINTF (folio_addr), idx, cap_type_string (type),
+	    DEBUG (4, "(" ADDR_FMT ", %d (" ADDR_FMT "), %s, (%s, %d), %d)",
+		   ADDR_PRINTF (target_messenger), idx,
+		   addr_depth (target_messenger) + FOLIO_OBJECTS_LOG2
+		   <= ADDR_BITS
+		   ? ADDR_PRINTF (addr_extend (target_messenger,
+					       idx, FOLIO_OBJECTS_LOG2))
+		   : ADDR_PRINTF (ADDR_VOID),
+		   cap_type_string (type),
 		   policy.discardable ? "discardable" : "precious",
 		   policy.priority,
-		   return_code,
-		   ADDR_PRINTF (object_addr),
-		   ADDR_PRINTF (object_weak_addr));
-
-	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
-							   folio_addr,
-							   cap_folio, true);
+		   return_code);
 
 	    if (idx >= FOLIO_OBJECTS)
 	      REPLY (EINVAL);
@@ -809,202 +1196,61 @@ server_loop (void)
 	    if (! (CAP_TYPE_MIN <= type && type <= CAP_TYPE_MAX))
 	      REPLY (EINVAL);
 
-	    struct cap *object_slot = NULL;
-	    if (! ADDR_IS_VOID (object_addr))
-	      object_slot = SLOT (&thread->aspace, object_addr);
-
-	    struct cap *object_weak_slot = NULL;
-	    if (! ADDR_IS_VOID (object_weak_addr))
-	      object_weak_slot = SLOT (&thread->aspace, object_weak_addr);
-
 	    struct cap cap;
 	    cap = folio_object_alloc (principal,
 				      folio, idx, type, policy, return_code);
 
-	    if (type != cap_void)
-	      {
-		if (object_slot)
-		  {
-		    bool r = cap_set (principal, object_slot, cap);
-		    assert (r);
-		  }
-		if (object_weak_slot)
-		  {
-		    bool r = cap_set (principal, object_weak_slot, cap);
-		    assert (r);
-		    object_weak_slot->type
-		      = cap_type_weaken (object_weak_slot->type);
-		  }
-	      }
+	    struct cap weak = cap;
+	    weak.type = cap_type_weaken (cap.type);
 
-	    rm_folio_object_alloc_reply_marshal (&msg);
+	    rm_folio_object_alloc_reply (activity, reply, cap, weak);
 	    break;
 	  }
 
 	case RM_folio_policy:
 	  {
-	    addr_t folio_addr;
-	    l4_word_t flags;
+	    if (object_type (target) != cap_folio)
+	      REPLY (EINVAL);
+
+	    struct folio *folio = (struct folio *) target;
+
+	    uintptr_t flags;
 	    struct folio_policy in, out;
 
-	    err = rm_folio_policy_send_unmarshal (&msg, &principal_addr,
-						  &folio_addr,
-						  &flags, &in);
+	    err = rm_folio_policy_send_unmarshal (message, &flags, &in, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    DEBUG (4, "(" ADDR_FMT ", %d)",
-		   ADDR_PRINTF (folio_addr), flags);
-
-	    struct folio *folio = (struct folio *) OBJECT (&thread->aspace,
-							   folio_addr,
-							   cap_folio, true);
+		   ADDR_PRINTF (target_messenger), flags);
 
 	    folio_policy (principal, folio, flags, in, &out);
 
-	    rm_folio_policy_reply_marshal (&msg, out);
+	    rm_folio_policy_reply (activity, reply, out);
 	    break;
 	  }
 
-	case RM_object_slot_copy_out:
+	case RM_cap_copy:
 	  {
 	    addr_t source_as_addr;
 	    addr_t source_addr;
 	    struct cap source;
 	    addr_t target_as_addr;
 	    addr_t target_addr;
-	    struct cap *target;
-	    uint32_t idx;
 	    uint32_t flags;
 	    struct cap_properties properties;
 
-	    struct cap object_cap;
-	    struct object *object;
-
-	    err = rm_object_slot_copy_out_send_unmarshal
-	      (&msg, &principal_addr, &source_as_addr, &source_addr, &idx,
-	       &target_as_addr, &target_addr, &flags, &properties);
-	    if (err)
-	      REPLY (err);
-
-	    DEBUG (4, "(" ADDR_FMT "@" ADDR_FMT "+%d -> "
-		   ADDR_FMT "@" ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
-
-		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
-		   idx,
-		   ADDR_PRINTF (target_as_addr), ADDR_PRINTF (target_addr),
-		   
-		   CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
-		   ? "copy subpage/" : "",
-		   CAP_COPY_COPY_ADDR_TRANS_GUARD & flags
-		   ? "copy trans guard/" : "",
-		   CAP_COPY_COPY_SOURCE_GUARD & flags
-		   ? "copy src guard/" : "",
-		   CAP_COPY_WEAKEN & flags ? "weak/" : "",
-		   CAP_COPY_DISCARDABLE_SET & flags ? "discardable/" : "",
-		   CAP_COPY_PRIORITY_SET & flags ? "priority" : "",
-
-		   properties.policy.discardable ? "discardable" : "precious",
-		   properties.policy.priority,
-		   CAP_ADDR_TRANS_GUARD (properties.addr_trans),
-		   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
-		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
-		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
-
-	    struct cap *root = ROOT (source_as_addr);
-	    object_cap = CAP (root, source_addr, -1, false);
-
-	    root = ROOT (target_as_addr);
-
-	    goto get_slot;
-
-	  case RM_object_slot_copy_in:
-	    err = rm_object_slot_copy_in_send_unmarshal
-	      (&msg, &principal_addr, &target_as_addr, &target_addr, &idx,
-	       &source_as_addr, &source_addr, &flags, &properties);
-	    if (err)
-	      REPLY (err);
-
-	    DEBUG (4, "(" ADDR_FMT "@" ADDR_FMT "+%d <- "
-		   ADDR_FMT "@" ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
-
-		   ADDR_PRINTF (target_as_addr), ADDR_PRINTF (target_addr),
-		   idx,
-		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
-		   
-		   CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
-		   ? "copy subpage/" : "",
-		   CAP_COPY_COPY_ADDR_TRANS_GUARD & flags
-		   ? "copy trans guard/" : "",
-		   CAP_COPY_COPY_SOURCE_GUARD & flags
-		   ? "copy src guard/" : "",
-		   CAP_COPY_WEAKEN & flags ? "weak/" : "",
-		   CAP_COPY_DISCARDABLE_SET & flags ? "discardable/" : "",
-		   CAP_COPY_PRIORITY_SET & flags ? "priority" : "",
-
-		   properties.policy.discardable ? "discardable" : "precious",
-		   properties.policy.priority,
-		   CAP_ADDR_TRANS_GUARD (properties.addr_trans),
-		   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
-		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
-		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
-
-	    root = ROOT (target_as_addr);
-	    object_cap = CAP (root, target_addr, -1, true);
-
-	    root = ROOT (source_as_addr);
-
-	  get_slot:
-	    if (idx >= cap_type_num_slots[object_cap.type])
-	      REPLY (EINVAL);
-
-	    if (object_cap.type == cap_cappage
-		|| object_cap.type == cap_rcappage)
-	      /* Ensure that IDX falls within the subpage.  */
-	      {
-		if (idx >= CAP_SUBPAGE_SIZE (&object_cap))
-		  {
-		    DEBUG (1, "index (%d) >= subpage size (%d)",
-			   idx, CAP_SUBPAGE_SIZE (&object_cap));
-		    REPLY (EINVAL);
-		  }
-
-		idx += CAP_SUBPAGE_OFFSET (&object_cap);
-	      }
-
-	    object = cap_to_object (principal, &object_cap);
-	    if (! object)
-	      {
-		DEBUG (1, CAP_FMT " maps to void", CAP_PRINTF (&object_cap));
-		REPLY (EINVAL);
-	      }
-
-	    if (label == RM_object_slot_copy_out)
-	      {
-		source = ((struct cap *) object)[idx];
-		target = SLOT (root, target_addr);
-	      }
-	    else
-	      {
-		source = CAP (root, source_addr, -1, false);
-		target = &((struct cap *) object)[idx];
-	      }
-
-	    goto cap_copy_body;
-
-	  case RM_cap_copy:
-	    err = rm_cap_copy_send_unmarshal (&msg,
-					      &principal_addr,
-					      &target_as_addr, &target_addr,
+	    err = rm_cap_copy_send_unmarshal (message,
+					      &target_addr, 
 					      &source_as_addr, &source_addr,
-					      &flags, &properties);
+					      &flags, &properties, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    DEBUG (4, "(" ADDR_FMT "@" ADDR_FMT " <- "
 		   ADDR_FMT "@" ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
 
-		   ADDR_PRINTF (target_as_addr), ADDR_PRINTF (target_addr),
+		   ADDR_PRINTF (target_messenger), ADDR_PRINTF (target_addr),
 		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
 		   
 		   CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
@@ -1024,13 +1270,11 @@ server_loop (void)
 		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
 		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
 
-	    root = ROOT (target_as_addr);
-	    target = SLOT (root, target_addr);
+	    struct cap *target;
+	    target = SLOT (target_root, target_addr);
 
-	    root = ROOT (source_as_addr);
-	    source = CAP (root, source_addr, -1, false);
-
-	  cap_copy_body:;
+	    target_root = ROOT (source_as_addr);
+	    source = CAP (target_root, source_addr, -1, false);
 
 	    if ((flags & ~(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
 			   | CAP_COPY_COPY_ADDR_TRANS_GUARD
@@ -1091,165 +1335,98 @@ server_loop (void)
 		  }
 	      }
 
-	    switch (label)
-	      {
-	      case RM_object_slot_copy_out:
-		rm_object_slot_copy_out_reply_marshal (&msg);
-		break;
-	      case RM_object_slot_copy_in:
-		rm_object_slot_copy_in_reply_marshal (&msg);
-		break;
-	      case RM_cap_copy:
-		rm_cap_copy_reply_marshal (&msg);
+	    rm_cap_copy_reply (activity, reply);
 
 #if 0
-		/* XXX: Surprisingly, it appears that this may be
-		   more expensive than just faulting the pages
-		   normally.  This needs more investivation.  */
-		if (ADDR_IS_VOID (target_as_addr)
-		    && cap_types_compatible (target->type, cap_page)
-		    && CAP_GUARD_BITS (target) == 0
-		    && addr_depth (target_addr) == ADDR_BITS - PAGESIZE_LOG2)
-		  /* The target address space is the caller's.  The target
-		     object appears to be a page.  It seems to be
-		     installed at a point where it would appear in the
-		     hardware address space.  If this is really the case,
-		     then we can map it now and save a fault later.  */
+	    /* XXX: Surprisingly, it appears that this may be
+	       more expensive than just faulting the pages
+	       normally.  This needs more investivation.  */
+	    if (ADDR_IS_VOID (target_as_addr)
+		&& cap_types_compatible (target->type, cap_page)
+		&& CAP_GUARD_BITS (target) == 0
+		&& addr_depth (target_addr) == ADDR_BITS - PAGESIZE_LOG2)
+	      /* The target address space is the caller's.  The target
+		 object appears to be a page.  It seems to be
+		 installed at a point where it would appear in the
+		 hardware address space.  If this is really the case,
+		 then we can map it now and save a fault later.  */
+	      {
+		profile_region ("cap_copy-prefault");
+
+		struct cap cap = *target;
+		if (target->type == cap_rpage)
+		  cap.discardable = false;
+
+		struct object *page = cap_to_object_soft (principal, &cap);
+		if (page)
 		  {
-		    profile_region ("cap_copy-prefault");
+		    object_to_object_desc (page)->mapped = true;
 
-		    struct cap cap = *target;
-		    if (target->type == cap_rpage)
-		      cap.discardable = false;
+		    l4_fpage_t fpage
+		      = l4_fpage ((uintptr_t) page, PAGESIZE);
+		    fpage = l4_fpage_add_rights (fpage, L4_FPAGE_READABLE);
+		    if (cap.type == cap_page)
+		      fpage = l4_fpage_add_rights (fpage,
+						   L4_FPAGE_WRITABLE);
 
-		    struct object *page = cap_to_object_soft (principal, &cap);
-		    if (page)
-		      {
-			object_to_object_desc (page)->mapped = true;
+		    uintptr_t page_addr = addr_prefix (target_addr);
 
-			l4_fpage_t fpage
-			  = l4_fpage ((uintptr_t) page, PAGESIZE);
-			fpage = l4_fpage_add_rights (fpage, L4_FPAGE_READABLE);
-			if (cap.type == cap_page)
-			  fpage = l4_fpage_add_rights (fpage,
-						       L4_FPAGE_WRITABLE);
+		    l4_map_item_t map_item = l4_map_item (fpage, page_addr);
 
-			l4_word_t page_addr = addr_prefix (target_addr);
-
-			l4_map_item_t map_item = l4_map_item (fpage, page_addr);
-
-			l4_msg_append_map_item (msg, map_item);
-		      }
-
-		    profile_region_end ();
+		    l4_msg_append_map_item (msg, map_item);
 		  }
+
+		profile_region_end ();
+	      }
 #endif
 
-		break;
-	      }
 	    break;
 	  }
 
 	case RM_cap_rubout:
 	  {
-	    addr_t target_as_addr;
-	    addr_t target_addr;
+	    addr_t addr;
 
-	    err = rm_cap_rubout_send_unmarshal (&msg,
-						&principal_addr,
-						&target_as_addr,
-						&target_addr);
+	    err = rm_cap_rubout_send_unmarshal (message, &addr, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    DEBUG (4, ADDR_FMT "@" ADDR_FMT,
-		   ADDR_PRINTF (target_as_addr),
-		   ADDR_PRINTF (target_addr));
-
-	    struct cap *root = ROOT (target_as_addr);
+		   ADDR_PRINTF (target_messenger),
+		   ADDR_PRINTF (addr));
 
 	    /* We don't look up the argument directly as we need to
-	       respect any subpag specification for cappages.  */
-	    struct cap *target = SLOT (root, target_addr);
+	       respect any subpage specification for cappages.  */
+	    struct cap *slot = SLOT (target_root, addr);
 
-	    cap_shootdown (principal, target);
+	    cap_shootdown (principal, slot);
 
-	    memset (target, 0, sizeof (*target));
+	    memset (target, 0, sizeof (*slot));
 
-	    rm_cap_rubout_reply_marshal (&msg);
-	    break;
-	  }
-
-	case RM_object_slot_read:
-	  {
-	    addr_t root_addr;
-	    addr_t source_addr;
-	    uint32_t idx;
-
-	    err = rm_object_slot_read_send_unmarshal (&msg,
-						      &principal_addr,
-						      &root_addr,
-						      &source_addr, &idx);
-	    if (err)
-	      REPLY (err);
-
-	    DEBUG (4, ADDR_FMT "@" ADDR_FMT "+%d",
-		   ADDR_PRINTF (root_addr), ADDR_PRINTF (source_addr), idx);
-
-	    struct cap *root = ROOT (root_addr);
-
-	    /* We don't look up the argument directly as we need to
-	       respect any subpag specification for cappages.  */
-	    struct cap source = CAP (root, source_addr, -1, false);
-
-	    struct object *object = cap_to_object (principal, &source);
-	    if (! object)
-	      REPLY (EINVAL);
-
-	    if (idx >= cap_type_num_slots[source.type])
-	      REPLY (EINVAL);
-
-	    if (source.type == cap_cappage || source.type == cap_rcappage)
-	      /* Ensure that idx falls within the subpage.  */
-	      {
-		if (idx >= CAP_SUBPAGE_SIZE (&source))
-		  REPLY (EINVAL);
-
-		idx += CAP_SUBPAGE_OFFSET (&source);
-	      }
-
-	    source = ((struct cap *) object)[idx];
-
-	    rm_object_slot_read_reply_marshal (&msg, source.type,
-					       CAP_PROPERTIES_GET (source));
+	    rm_cap_rubout_reply (activity, reply);
 	    break;
 	  }
 
 	case RM_cap_read:
 	  {
-	    addr_t root_addr;
 	    addr_t cap_addr;
 
-	    err = rm_cap_read_send_unmarshal (&msg, &principal_addr,
-					      &root_addr,
-					      &cap_addr);
+	    err = rm_cap_read_send_unmarshal (message, &cap_addr, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    DEBUG (4, ADDR_FMT "@" ADDR_FMT,
-		   ADDR_PRINTF (root_addr), ADDR_PRINTF (cap_addr));
+		   ADDR_PRINTF (target_messenger), ADDR_PRINTF (cap_addr));
 
-	    struct cap *root = ROOT (root_addr);
-
-	    struct cap cap = CAP (root, cap_addr, -1, false);
+	    struct cap cap = CAP (target_root, cap_addr, -1, false);
 	    /* Even if CAP.TYPE is not void, the cap may not designate
 	       an object.  Looking up the object will set CAP.TYPE to
 	       cap_void if this is the case.  */
 	    if (cap.type != cap_void)
 	      cap_to_object (principal, &cap);
 
-	    rm_cap_read_reply_marshal (&msg, cap.type,
-				       CAP_PROPERTIES_GET (cap));
+	    rm_cap_read_reply (activity, reply, cap.type,
+			       CAP_PROPERTIES_GET (cap));
 	    break;
 	  }
 
@@ -1258,15 +1435,16 @@ server_loop (void)
 	    addr_t object_addr;
 
 	    err = rm_object_discarded_clear_send_unmarshal
-	      (&msg, &principal_addr, &object_addr);
+	      (message, &object_addr, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (object_addr));
 
-	    /* We can't look up the object here as object_lookup
-	       returns NULL if the object's discardable bit is
-	       set!  Instead, we lookup the capability.  */
+	    /* We can't look up the object use OBJECT as object_lookup
+	       returns NULL if the object's discardable bit is set!
+	       Instead, we lookup the capability, find the object's
+	       folio and then clear its discarded bit.  */
 	    struct cap cap = CAP (&thread->aspace, object_addr, -1, true);
 	    if (cap.type == cap_void)
 	      REPLY (ENOENT);
@@ -1285,7 +1463,7 @@ server_loop (void)
 	    bool was_discarded = folio_object_discarded (folio, idx);
 	    folio_object_discarded_set (folio, idx, false);
 
-	    rm_object_discarded_clear_reply_marshal (&msg);
+	    rm_object_discarded_clear_reply (activity, reply);
 
 #if 0
 	    /* XXX: Surprisingly, it appears that this may be more
@@ -1313,7 +1491,7 @@ server_loop (void)
 						 L4_FPAGE_READABLE
 						 | L4_FPAGE_WRITABLE);
 
-		    l4_word_t page_addr = addr_prefix (object_addr);
+		    uintptr_t page_addr = addr_prefix (object_addr);
 
 		    l4_map_item_t map_item = l4_map_item (fpage, page_addr);
 
@@ -1334,87 +1512,32 @@ server_loop (void)
 
 	case RM_object_discard:
 	  {
-	    addr_t object_addr;
-
-	    err = rm_object_discard_send_unmarshal
-	      (&msg, &principal_addr, &object_addr);
+	    err = rm_object_discard_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (object_addr));
+	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (target_messenger));
 
-	    /* We can't look up the object here as object_lookup
-	       returns NULL if the object's discardable bit is
-	       set!  Instead, we lookup the capability.  */
-	    struct cap cap = CAP (&thread->aspace, object_addr, -1, true);
-	    if (cap.type == cap_void)
-	      REPLY (ENOENT);
-	    if (cap_type_weak_p (cap.type))
-	      REPLY (EPERM);
+	    struct folio *folio = objects_folio (principal, target);
 
-	    struct folio *folio;
-	    int offset;
+	    folio_object_content_set (folio,
+				      objects_folio_offset (target), false);
 
-	    struct object *object = cap_to_object_soft (principal, &cap);
-	    if (object)
-	      {
-		struct object_desc *desc = object_to_object_desc (object);
-
-		folio = objects_folio (principal, object);
-		offset = objects_folio_offset (object);
-
-		ACTIVITY_STATS (desc->activity)->discarded ++;
-
-		memory_object_destroy (principal, object);
-		memory_frame_free ((uintptr_t) object);
-
-		/* Consistent with the API, we do NOT set the discarded
-		   bit.  */
-
-		folio_object_content_set (folio, offset, false);
-
-		assertx (! cap_to_object_soft (principal, &cap),
-			 ADDR_FMT ": " CAP_FMT,
-			 ADDR_PRINTF (object_addr), CAP_PRINTF (&cap));
-	      }
-	    else
-	      /* The object is not in memory, however, we can still
-		 clear it's content bit.  */
-	      {
-		offset = (cap.oid % (1 + FOLIO_OBJECTS)) - 1;
-		oid_t foid = cap.oid - offset - 1;
-
-		folio = (struct folio *)
-		  object_find (activity, foid, OBJECT_POLICY_VOID);
-
-		if (folio_object_version (folio, offset) != cap.version)
-		  /* Or not, seems the object is gone!  */
-		  REPLY (ENOENT);
-	      }
-
-	    folio_object_content_set (folio, offset, false);
-
-	    rm_object_discard_reply_marshal (&msg);
+	    rm_object_discard_reply (activity, reply);
 	    break;
 	  }
 
 	case RM_object_status:
 	  {
-	    addr_t object_addr;
 	    bool clear;
-
-	    err = rm_object_status_send_unmarshal
-	      (&msg, &principal_addr, &object_addr, &clear);
+	    err = rm_object_status_send_unmarshal (message, &clear, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    DEBUG (4, ADDR_FMT ", %sclear",
-		   ADDR_PRINTF (object_addr), clear ? "" : "no ");
+		   ADDR_PRINTF (target_messenger), clear ? "" : "no ");
 
-	    struct object *object = OBJECT (&thread->aspace,
-					    object_addr, -1, true);
-
-	    struct object_desc *desc = object_to_object_desc (object);
+	    struct object_desc *desc = object_to_object_desc (target);
 	    uintptr_t status = (desc->user_referenced ? object_referenced : 0)
 	      | (desc->user_dirty ? object_dirty : 0);
 
@@ -1424,103 +1547,120 @@ server_loop (void)
 		desc->user_dirty = 0;
 	      }
 
-	    rm_object_status_reply_marshal (&msg, status);
+	    rm_object_status_reply (activity, reply, status);
 	    break;
 	  }
 
 	case RM_object_name:
 	  {
-	    addr_t object_addr;
 	    struct object_name name;
+	    err = rm_object_name_send_unmarshal (message, &name, NULL);
 
-	    err = rm_object_name_send_unmarshal
-	      (&msg, &principal_addr, &object_addr, &name);
-
-	    struct object *object = OBJECT (&thread->aspace,
-					    object_addr, -1, false);
-
-	    if (object_type (object) == cap_activity_control)
+	    if (object_type (target) == cap_activity_control)
 	      {
-		struct activity *a = (struct activity *) object;
+		struct activity *a = (struct activity *) target;
 
 		memcpy (a->name.name, name.name, sizeof (name));
 		a->name.name[sizeof (a->name.name) - 1] = 0;
 	      }
-	    else if (object_type (object) == cap_thread)
+	    else if (object_type (target) == cap_thread)
 	      {
-		struct thread *t = (struct thread *) object;
+		struct thread *t = (struct thread *) target;
 
 		memcpy (t->name.name, name.name, sizeof (name));
 		t->name.name[sizeof (t->name.name) - 1] = 0;
 	      }
 
-	    rm_object_name_reply_marshal (&msg);
+	    rm_object_name_reply (activity, reply);
 	    break;
 	  }
 
 	case RM_thread_exregs:
 	  {
+	    if (object_type (target) != cap_thread)
+	      REPLY (EINVAL);
+	    struct thread *t = (struct thread *) target;
+
 	    struct hurd_thread_exregs_in in;
-	    addr_t target;
-	    l4_word_t control;
-	    err = rm_thread_exregs_send_unmarshal (&msg,
-						   &principal_addr, &target,
-						   &control, &in);
+	    uintptr_t control;
+	    addr_t aspace_addr;
+	    addr_t activity_addr;
+	    addr_t utcb_addr;
+	    addr_t exception_messenger_addr;
+	    err = rm_thread_exregs_send_unmarshal
+	      (message, &control, &in,
+	       &aspace_addr, &activity_addr, &utcb_addr,
+	       &exception_messenger_addr,
+	       NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (target));
+	    int d = 4;
+	    DEBUG (d, "%s%s" ADDR_FMT "(%x): %s%s%s%s %s%s%s%s %s%s%s %s%s",
+		   t->name.name[0] ? t->name.name : "",
+		   t->name.name[0] ? ": " : "",
+		   ADDR_PRINTF (target_messenger), t->tid,
+		   (control & HURD_EXREGS_SET_UTCB) ? "U" : "-",
+		   (control & HURD_EXREGS_SET_EXCEPTION_MESSENGER) ? "E" : "-",
+		   (control & HURD_EXREGS_SET_ASPACE) ? "R" : "-",
+		   (control & HURD_EXREGS_SET_ACTIVITY) ? "A" : "-",
+		   (control & HURD_EXREGS_SET_SP) ? "S" : "-",
+		   (control & HURD_EXREGS_SET_IP) ? "I" : "-",
+		   (control & HURD_EXREGS_SET_EFLAGS) ? "F" : "-",
+		   (control & HURD_EXREGS_SET_USER_HANDLE) ? "U" : "-",
+		   (control & _L4_XCHG_REGS_CANCEL_RECV) ? "R" : "-",
+		   (control & _L4_XCHG_REGS_CANCEL_SEND) ? "S" : "-",
+		   (control & _L4_XCHG_REGS_CANCEL_IPC) ? "I" : "-",
+		   (control & _L4_XCHG_REGS_HALT) ? "H" : "-",
+		   (control & _L4_XCHG_REGS_SET_HALT) ? "Y" : "N");
 
-	    struct thread *t
-	      = (struct thread *) OBJECT (&thread->aspace,
-					  target, cap_thread, true);
+	    if ((control & HURD_EXREGS_SET_UTCB))
+	      DEBUG (d, "utcb: " ADDR_FMT, ADDR_PRINTF (utcb_addr));
+	    if ((control & HURD_EXREGS_SET_EXCEPTION_MESSENGER))
+	      DEBUG (d, "exception messenger: " ADDR_FMT,
+		     ADDR_PRINTF (exception_messenger_addr));
+	    if ((control & HURD_EXREGS_SET_ASPACE))
+	      DEBUG (d, "aspace: " ADDR_FMT, ADDR_PRINTF (aspace_addr));
+	    if ((control & HURD_EXREGS_SET_ACTIVITY))
+	      DEBUG (d, "activity: " ADDR_FMT, ADDR_PRINTF (activity_addr));
+	    if ((control & HURD_EXREGS_SET_SP))
+	      DEBUG (d, "sp: %p", (void *) in.sp);
+	    if ((control & HURD_EXREGS_SET_IP))
+	      DEBUG (d, "ip: %p", (void *) in.ip);
+	    if ((control & HURD_EXREGS_SET_EFLAGS))
+	      DEBUG (d, "eflags: %p", (void *) in.eflags);
+	    if ((control & HURD_EXREGS_SET_USER_HANDLE))
+	      DEBUG (d, "user_handle: %p", (void *) in.user_handle);
 
-	    struct cap *aspace = NULL;
-	    struct cap aspace_cap;
+	    struct cap aspace = CAP_VOID;
 	    if ((HURD_EXREGS_SET_ASPACE & control))
-	      {
-		aspace_cap = CAP (&thread->aspace, in.aspace, -1, false);
-		aspace = &aspace_cap;
-	      }
+	      aspace = CAP (&thread->aspace, aspace_addr, -1, false);
 
-	    struct cap *a = NULL;
-	    struct cap a_cap;
+	    struct cap a = CAP_VOID;
 	    if ((HURD_EXREGS_SET_ACTIVITY & control))
 	      {
-		if (ADDR_IS_VOID (in.activity))
-		  a = &thread->activity;
+		/* XXX: Remove this hack... */
+		if (ADDR_IS_VOID (activity_addr))
+		  a = thread->activity;
 		else
-		  {
-		    a_cap = CAP (&thread->aspace,
-				 in.activity, cap_activity, false);
-		    a = &a_cap;
-		  }
+		  a = CAP (&thread->aspace,
+			   activity_addr, cap_activity, false);
 	      }
 
-	    struct cap *exception_page = NULL;
-	    struct cap exception_page_cap;
-	    if ((HURD_EXREGS_SET_EXCEPTION_PAGE & control))
-	      {
-		exception_page_cap = CAP (&thread->aspace,
-					  in.exception_page, cap_page, true);
-		exception_page = &exception_page_cap;
-	      }
+	    struct cap utcb = CAP_VOID;
+	    if ((HURD_EXREGS_SET_UTCB & control))
+	      utcb = CAP (&thread->aspace, utcb_addr, cap_page, true);
 
-	    struct cap *aspace_out = NULL;
-	    if ((HURD_EXREGS_GET_REGS & control)
-		&& ! ADDR_IS_VOID (in.aspace_out))
-	      aspace_out = SLOT (&thread->aspace, in.aspace_out);
+	    struct cap exception_messenger = CAP_VOID;
+	    if ((HURD_EXREGS_SET_EXCEPTION_MESSENGER & control))
+	      exception_messenger
+		= CAP (&thread->aspace, exception_messenger_addr,
+		       cap_rmessenger, false);
 
-	    struct cap *activity_out = NULL;
-	    if ((HURD_EXREGS_GET_REGS & control)
-		&& ! ADDR_IS_VOID (in.activity_out))
-	      activity_out = SLOT (&thread->aspace, in.activity_out);
-
-	    struct cap *exception_page_out = NULL;
-	    if ((HURD_EXREGS_GET_REGS & control)
-		&& ! ADDR_IS_VOID (in.exception_page_out))
-	      exception_page_out = SLOT (&thread->aspace,
-					 in.exception_page_out);
+	    struct cap aspace_out = thread->aspace;
+	    struct cap activity_out = thread->activity;
+	    struct cap utcb_out = thread->utcb;
+	    struct cap exception_messenger_out = thread->exception_messenger;
 
 	    struct hurd_thread_exregs_out out;
 	    out.sp = in.sp;
@@ -1530,56 +1670,94 @@ server_loop (void)
 
 	    err = thread_exregs (principal, t, control,
 				 aspace, in.aspace_cap_properties_flags,
-				 in.aspace_cap_properties, a, exception_page,
+				 in.aspace_cap_properties,
+				 a, utcb, exception_messenger,
 				 &out.sp, &out.ip,
-				 &out.eflags, &out.user_handle,
-				 aspace_out, activity_out,
-				 exception_page_out);
+				 &out.eflags, &out.user_handle);
 	    if (err)
 	      REPLY (err);
 
-	    rm_thread_exregs_reply_marshal (&msg, out);
+	    rm_thread_exregs_reply (activity, reply, out,
+				    aspace_out, activity_out,
+				    utcb_out, exception_messenger_out);
 
 	    break;
 	  }
 
-	case RM_thread_wait_object_destroyed:
+	case RM_thread_id:
 	  {
-	    addr_t addr;
-	    err = rm_thread_wait_object_destroyed_send_unmarshal
-	      (&msg, &principal_addr, &addr);
+	    if (object_type (target) != cap_thread)
+	      REPLY (EINVAL);
+	    struct thread *t = (struct thread *) target;
+
+	    err = rm_thread_id_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (addr));
+	    rm_thread_id_reply (activity, reply, t->tid);
+	    break;	    
+	  }
 
-	    struct object *object = OBJECT (&thread->aspace, addr, -1, true);
+	case RM_object_reply_on_destruction:
+	  {
+	    err = rm_object_reply_on_destruction_send_unmarshal (message,
+								 NULL);
+	    if (err)
+	      REPLY (err);
 
-	    thread->wait_reason = THREAD_WAIT_DESTROY;
-	    object_wait_queue_enqueue (principal, object, thread);
+	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (target_messenger));
 
-	    do_reply = 0;
+	    reply->wait_reason = MESSENGER_WAIT_DESTROY;
+	    object_wait_queue_enqueue (principal, target, reply);
+
 	    break;
 	  }
 
 	case RM_activity_policy:
 	  {
+	    if (object_type (target) != cap_activity_control)
+	      {
+		DEBUG (0, "expects an activity, not a %s",
+		       cap_type_string (object_type (target)));
+		REPLY (EINVAL);
+	      }
+	    struct activity *activity = (struct activity *) target;
+
 	    uintptr_t flags;
 	    struct activity_policy in;
 
-	    err = rm_activity_policy_send_unmarshal (&msg, &principal_addr,
-						     &flags, &in);
+	    err = rm_activity_policy_send_unmarshal (message, &flags, &in,
+						     NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "");
+	    int d = 4;
+	    DEBUG (d, "(%s) child: %s%s; sibling: %s%s; storage: %s",
+		   target_writable ? "strong" : "weak",
+		   (flags & ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET) ? "P" : "-",
+		   (flags & ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET) ? "W" : "-",
+		   (flags & ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET)
+		   ? "P" : "-",
+		   (flags & ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET) ? "W" : "-",
+		   (flags & ACTIVITY_POLICY_STORAGE_SET) ? "P" : "-");
 
-	    if (principal_cap.type != cap_activity_control
+	    if ((flags & ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
+	      DEBUG (d, "Child priority: %d", in.child_rel.priority);
+	    if ((flags & ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET))
+	      DEBUG (d, "Child weight: %d", in.child_rel.weight);
+	    if ((flags & ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET))
+	      DEBUG (d, "Sibling priority: %d", in.sibling_rel.priority);
+	    if ((flags & ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET))
+	      DEBUG (d, "Sibling weight: %d", in.sibling_rel.weight);
+	    if ((flags & ACTIVITY_POLICY_STORAGE_SET))
+	      DEBUG (d, "Storage: %d", in.folios);
+
+	    if (! target_writable
 		&& (flags & (ACTIVITY_POLICY_STORAGE_SET
 			     | ACTIVITY_POLICY_CHILD_REL_SET)))
 	      REPLY (EPERM);
 
-	    rm_activity_policy_reply_marshal (&msg, principal->policy);
+	    rm_activity_policy_reply (principal, reply, activity->policy);
 
 	    if ((flags & (ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET
 			  | ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET
@@ -1602,7 +1780,7 @@ server_loop (void)
 		if ((flags & ACTIVITY_POLICY_STORAGE_SET))
 		  p.folios = in.folios;
 
-		activity_policy_update (principal, p);
+		activity_policy_update (activity, p);
 	      }
 
 	    break;
@@ -1610,32 +1788,36 @@ server_loop (void)
 
 	case RM_activity_info:
 	  {
+	    if (object_type (target) != cap_activity_control)
+	      REPLY (EINVAL);
+	    struct activity *activity = (struct activity *) target;
+
 	    uintptr_t flags;
 	    uintptr_t until_period;
 
-	    err = rm_activity_info_send_unmarshal (&msg, &principal_addr,
-						   &flags,
-						   &until_period);
+	    err = rm_activity_info_send_unmarshal (message,
+						   &flags, &until_period,
+						   NULL);
 	    if (err)
 	      REPLY (err);
 
-	    int period = principal->current_period - 1;
+	    int period = activity->current_period - 1;
 	    if (period < 0)
 	      period = (ACTIVITY_STATS_PERIODS + 1) + period;
 
 	    DEBUG (4, OBJECT_NAME_FMT ": %s%s%s(%d), "
 		   "period: %d (current: %d)",
-		   OBJECT_NAME_PRINTF ((struct object *) principal),
+		   OBJECT_NAME_PRINTF ((struct object *) activity),
 		   flags & activity_info_stats ? "stats" : "",
 		   (flags == (activity_info_pressure|activity_info_stats))
 		   ? ", " : "",
 		   flags & activity_info_pressure ? "pressure" : "",
 		   flags,
-		   until_period, principal->stats[period].period);
+		   until_period, activity->stats[period].period);
 	    
 	    if ((flags & activity_info_stats)
-		&& principal->stats[period].period > 0
-		&& principal->stats[period].period >= until_period)
+		&& activity->stats[period].period > 0
+		&& activity->stats[period].period >= until_period)
 	      /* Return the available statistics.  */
 	      {
 		/* XXX: Only return valid stat buffers.  */
@@ -1645,29 +1827,25 @@ server_loop (void)
 		int i;
 		for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
 		  {
-		    period = principal->current_period - 1 - i;
+		    period = activity->current_period - 1 - i;
 		    if (period < 0)
 		      period = (ACTIVITY_STATS_PERIODS + 1) + period;
 
-		    info.stats.stats[i] = principal->stats[period];
+		    info.stats.stats[i] = activity->stats[period];
 		  }
 
 		info.stats.count = ACTIVITY_STATS_PERIODS;
 
-		rm_activity_info_reply_marshal (&msg, info);
+		rm_activity_info_reply (principal, reply, info);
 	      }
 	    else if (flags)
 	      /* Queue thread on the activity.  */
 	      {
-		thread->wait_reason = THREAD_WAIT_ACTIVITY_INFO;
-		thread->wait_reason_arg = flags;
-		thread->wait_reason_arg2 = until_period;
+		reply->wait_reason = MESSENGER_WAIT_ACTIVITY_INFO;
+		reply->wait_reason_arg = flags;
+		reply->wait_reason_arg2 = until_period;
 
-		object_wait_queue_enqueue (principal,
-					   (struct object *) principal,
-					   thread);
-
-		do_reply = 0;
+		object_wait_queue_enqueue (principal, target, reply);
 	      }
 	    else
 	      REPLY (EINVAL);
@@ -1675,36 +1853,30 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_exception_collect:
+	case RM_thread_activation_collect:
 	  {
-	    /* We don't expect a principal.  */
-	    err = rm_exception_collect_send_unmarshal (&msg, &principal_addr);
+	    if (object_type (target) != cap_thread)
+	      REPLY (EINVAL);
+
+	    err = rm_thread_activation_collect_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    panic ("Collecting exception: %x", from);
-#warning exception_collect not implemented
+	    thread_deliver_pending (principal, (struct thread *) target);
 
-	    /* XXX: Implement me.  */
-
+	    rm_thread_activation_collect_reply (principal, reply);
 	    break;
 	  }
 
 	case RM_as_dump:
 	  {
-	    addr_t root_addr;
-	    err = rm_as_dump_send_unmarshal (&msg, &principal_addr,
-					     &root_addr);
+	    err = rm_as_dump_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "");
+	    as_dump_from (principal, target_root, "");
 
-	    struct cap *root = ROOT (root_addr);
-
-	    as_dump_from (principal, root, "");
-
-	    rm_as_dump_reply_marshal (&msg);
+	    rm_as_dump_reply (activity, reply);
 
 	    break;
 	  }
@@ -1716,22 +1888,22 @@ server_loop (void)
 		      int to_requeue, struct object *object2, int offset2)
 	    {
 	      int count = 0;
-	      struct thread *t;
+	      struct messenger *m;
 
-	      object_wait_queue_for_each (principal, object1, t)
-		if (t->wait_reason == THREAD_WAIT_FUTEX
-		    && t->wait_reason_arg == offset1)
+	      object_wait_queue_for_each (principal, object1, m)
+		if (m->wait_reason == MESSENGER_WAIT_FUTEX
+		    && m->wait_reason_arg == offset1)
 		  /* Got a match.  */
 		  {
 		    if (count < to_wake)
 		      {
-			object_wait_queue_dequeue (principal, t);
+			object_wait_queue_unlink (principal, m);
 
-			debug (5, "Waking thread %x", t->tid);
+			debug (5, "Waking messenger");
 
-			err = rm_futex_reply (t->tid, 0);
+			err = rm_futex_reply (principal, m, 0);
 			if (err)
-			  panic ("Error futex waking %x: %d", t->tid, err);
+			  panic ("Error futex waking: %d", err);
 
 			count ++;
 
@@ -1740,10 +1912,10 @@ server_loop (void)
 		      }
 		    else
 		      {
-			object_wait_queue_dequeue (principal, t);
+			object_wait_queue_unlink (principal, m);
 
-			t->wait_reason_arg = offset2;
-			object_wait_queue_enqueue (principal, object2, t);
+			m->wait_reason_arg = offset2;
+			object_wait_queue_enqueue (principal, object2, m);
 
 			count ++;
 
@@ -1763,10 +1935,10 @@ server_loop (void)
 	    void *addr2;
 	    union futex_val3 val3;
 
-	    err = rm_futex_send_unmarshal (&msg, &principal_addr,
+	    err = rm_futex_send_unmarshal (message,
 					   &addr1, &op, &val1,
 					   &timeout, &val2,
-					   &addr2, &val3);
+					   &addr2, &val3, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1790,14 +1962,12 @@ server_loop (void)
 
 	      char *mode = "unknown";
 
-	      struct object *page = cap_to_object (principal,
-						   &thread->exception_page);
+	      struct object *page = cap_to_object (principal, &thread->utcb);
 	      if (page && object_type (page) == cap_page)
 		{
-		  struct exception_page *exception_page
-		    = (struct exception_page *) page;
+		  struct vg_utcb *utcb = (struct vg_utcb *) page;
 
-		  if (exception_page->activated_mode)
+		  if (utcb->activated_mode)
 		    mode = "activated";
 		  else
 		    mode = "normal";
@@ -1821,7 +1991,7 @@ server_loop (void)
 
 	    addr_t addr = addr_chop (PTR_TO_ADDR (addr1), PAGESIZE_LOG2);
 	    struct object *object1 = OBJECT (&thread->aspace,
-					     addr, cap_page, true);
+					     addr, cap_page, true, NULL);
 	    int offset1 = (uintptr_t) addr1 & (PAGESIZE - 1);
 	    int *vaddr1 = (void *) object1 + offset1;
 
@@ -1834,17 +2004,15 @@ server_loop (void)
 		if (timeout)
 		  panic ("Timeouts not yet supported");
 
-		thread->wait_reason = THREAD_WAIT_FUTEX;
-		thread->wait_reason_arg = offset1;
+		reply->wait_reason = MESSENGER_WAIT_FUTEX;
+		reply->wait_reason_arg = offset1;
 
-		object_wait_queue_enqueue (principal, object1, thread);
+		object_wait_queue_enqueue (principal, object1, reply);
 
 #ifndef NDEBUG
-		futex_waiter_list_enqueue (&futex_waiters, thread);
+		futex_waiter_list_enqueue (&futex_waiters, reply);
 #endif
 
-		/* Don't reply.  */
-		do_reply = 0;
 		break;
 
 	      case FUTEX_WAKE:
@@ -1856,13 +2024,13 @@ server_loop (void)
 		  REPLY (EINVAL);
 
 		int count = wake (val1, object1, offset1, 0, 0, 0);
-		rm_futex_reply_marshal (&msg, count);
+		rm_futex_reply (activity, reply, count);
 		break;
 
 	      case FUTEX_WAKE_OP:
 		addr = addr_chop (PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
 		struct object *object2 = OBJECT (&thread->aspace,
-						 addr, cap_page, true);
+						 addr, cap_page, true, NULL);
 		int offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 		int *vaddr2 = (void *) object2 + offset2;
 
@@ -1914,7 +2082,7 @@ server_loop (void)
 		if (comparison)
 		  count += wake (val2.value, object2, offset2, 0, 0, 0);
 
-		rm_futex_reply_marshal (&msg, 0);
+		rm_futex_reply (activity, reply, 0);
 		break;
 
 	      case FUTEX_CMP_REQUEUE:
@@ -1929,14 +2097,33 @@ server_loop (void)
 
 		/* Get the second object.  */
 		addr = addr_chop (PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
-		object2 = OBJECT (&thread->aspace, addr, cap_page, true);
+		object2 = OBJECT (&thread->aspace, addr, cap_page, true, NULL);
 		offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 
 		count = wake (val1, object1, offset1,
 			      val2.value, object2, offset2);
-		rm_futex_reply_marshal (&msg, count);
+		rm_futex_reply (activity, reply, count);
 		break;
 	      }
+
+	    break;
+	  }
+
+	case VG_messenger_id:
+	  {
+	    if (object_type (target) != cap_messenger || ! target_writable)
+	      REPLY (EINVAL);
+	    struct messenger *m = (struct messenger *) target;
+
+	    uint64_t id;
+	    err = vg_messenger_id_send_unmarshal (message, &id, NULL);
+	    if (err)
+	      REPLY (EINVAL);
+
+	    uint64_t old = m->id;
+	    m->id = id;
+
+	    vg_messenger_id_reply (principal, reply, old);
 
 	    break;
 	  }
@@ -1946,6 +2133,15 @@ server_loop (void)
 	  DEBUG (1, "Didn't handle message from %x.%x with label %d",
 		 l4_thread_no (from), l4_version (from), label);
 	}
+
+      if ((flags & VG_IPC_RETURN))
+	{
+	  l4_msg_clear (msg);
+	  l4_msg_put_word (msg, 0, 0);
+	  l4_msg_set_untyped_words (msg, 1);
+	  do_reply = 1;
+	}
+      
     out:;
     }
 

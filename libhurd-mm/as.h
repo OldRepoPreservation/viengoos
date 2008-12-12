@@ -92,6 +92,9 @@ as_lock_ensure_stack (int amount)
     space[i] = 0;
 }
 
+/* The amount of stack space that needs to be available to avoid
+   faulting.  */
+#define AS_STACK_SPACE (8 * PAGESIZE)
 
 /* Address space lock.  Should hold a read lock when accessing the
    address space.  Must hold a write lock when modifying the address
@@ -104,7 +107,7 @@ as_lock (void)
   extern pthread_rwlock_t as_rwlock;
   extern l4_thread_id_t as_rwlock_owner;
 
-  as_lock_ensure_stack (EXCEPTION_STACK_SIZE - PAGESIZE);
+  as_lock_ensure_stack (AS_STACK_SPACE);
 
   storage_check_reserve (false);
 
@@ -133,7 +136,7 @@ as_lock_readonly (void)
   extern pthread_rwlock_t as_rwlock;
   extern l4_thread_id_t as_rwlock_owner;
 
-  as_lock_ensure_stack (EXCEPTION_STACK_SIZE - PAGESIZE);
+  as_lock_ensure_stack (AS_STACK_SPACE);
 
   storage_check_reserve (false);
 
@@ -218,7 +221,8 @@ extern struct cap shadow_root;
 		  && (!!__acs_p.policy.discardable			\
 		      == !!(__acs_cap)->discardable)))			\
 	die = true;							\
-      else if (__acs_p.addr_trans.raw != (__acs_cap)->addr_trans.raw)	\
+      else if ((__acs_type == cap_cappage || __acs_type == cap_rcappage) \
+	       && __acs_p.addr_trans.raw != (__acs_cap)->addr_trans.raw) \
 	die = true;							\
 									\
       if (die)								\
@@ -596,7 +600,7 @@ as_cap_lookup (addr_t addr, enum cap_type type, bool *writable)
    TYPE is the required type.  If the type is incompatible
    (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
    TYPE is -1, then any type is acceptable.  May cause paging.  If
-   non-NULL, returns whether the slot is writable in *WRITABLE.
+   non-NULL, returns whether the object is writable in *WRITABLE.
 
    This function locks (and unlocks) as_lock.  */
 static inline struct cap

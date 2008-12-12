@@ -22,70 +22,192 @@
 #include <hurd/stddef.h>
 #include <hurd/exceptions.h>
 #include <hurd/storage.h>
-#include <hurd/slab.h>
 #include <hurd/thread.h>
+#include <hurd/mm.h>
+#include <hurd/rm.h>
+#include <hurd/slab.h>
 #include <l4/thread.h>
 
 #include <signal.h>
 #include <string.h>
+#include <backtrace.h>
 
 #include "map.h"
 #include "as.h"
 
+void
+hurd_fault_catcher_register (struct hurd_fault_catcher *catcher)
+{
+  struct vg_utcb *utcb = hurd_utcb ();
+  assert (utcb);
+  assert (catcher);
+
+  catcher->magic = HURD_FAULT_CATCHER_MAGIC;
+
+  catcher->next = utcb->catchers;
+  catcher->prevp = &utcb->catchers;
+
+  utcb->catchers = catcher;
+  if (catcher->next)
+    catcher->next->prevp = &catcher->next;
+}
+
+void
+hurd_fault_catcher_unregister (struct hurd_fault_catcher *catcher)
+{
+  assertx (catcher->magic == HURD_FAULT_CATCHER_MAGIC,
+	   "%p", (void *) catcher->magic);
+  catcher->magic = ~HURD_FAULT_CATCHER_MAGIC;
+
+  *catcher->prevp = catcher->next;
+  if (catcher->next)
+    catcher->next->prevp = catcher->prevp;
+}
+
 extern struct hurd_startup_data *__hurd_startup_data;
 
-static void
-utcb_state_save (struct exception_frame *exception_frame)
+void
+hurd_activation_frame_longjmp (struct activation_frame *activation_frame,
+			       jmp_buf buf, bool set_ret, int ret)
 {
-  l4_word_t *utcb = _L4_utcb ();
+#ifdef i386
+  /* XXX: Hack! Hack! This is customized for the newlib version!!!
 
-  exception_frame->saved_sender = utcb[_L4_UTCB_SENDER];
-  exception_frame->saved_receiver = utcb[_L4_UTCB_RECEIVER];
-  exception_frame->saved_timeout = utcb[_L4_UTCB_TIMEOUT];
-  exception_frame->saved_error_code = utcb[_L4_UTCB_ERROR_CODE];
-  exception_frame->saved_flags = utcb[_L4_UTCB_FLAGS];
-  exception_frame->saved_br0 = utcb[_L4_UTCB_BR0];
-  memcpy (&exception_frame->saved_message,
-	  utcb, L4_NUM_MRS * sizeof (l4_word_t));
-}
+     From newlib/newlib/libc/machine/i386/setjmp.S
 
-static void
-utcb_state_restore (struct exception_frame *exception_frame)
-{
-  l4_word_t *utcb = _L4_utcb ();
+     jmp_buf:
+      eax ebx ecx edx esi edi ebp esp eip
+      0   4   8   12  16  20  24  28  32
+  */
+  /* A cheap check to try and ensure we are using a newlib data
+     structure.  */
+  assert (sizeof (jmp_buf) == sizeof (uintptr_t) * 9);
 
-  utcb[_L4_UTCB_SENDER] = exception_frame->saved_sender;
-  utcb[_L4_UTCB_RECEIVER] = exception_frame->saved_receiver;
-  utcb[_L4_UTCB_TIMEOUT] = exception_frame->saved_timeout;
-  utcb[_L4_UTCB_ERROR_CODE] = exception_frame->saved_error_code;
-  utcb[_L4_UTCB_FLAGS] = exception_frame->saved_flags;
-  utcb[_L4_UTCB_BR0] = exception_frame->saved_br0;
-  memcpy (utcb, &exception_frame->saved_message,
-	  L4_NUM_MRS * sizeof (l4_word_t));
+  uintptr_t *regs = (uintptr_t *) buf;
+  activation_frame->eax = *(regs ++);
+  activation_frame->ebx = *(regs ++);
+  activation_frame->ecx = *(regs ++);
+  activation_frame->edx = *(regs ++);
+  activation_frame->esi = *(regs ++);
+  activation_frame->edi = *(regs ++);
+  activation_frame->ebp = *(regs ++);
+  activation_frame->esp = *(regs ++);
+  activation_frame->eip = *(regs ++);
+
+  /* The return value is stored in eax.  */
+  if (set_ret)
+    activation_frame->eax = ret;
+
+#else
+# warning Not ported to this architecture
+#endif
 }
 
-static struct hurd_slab_space exception_frame_slab;
+static void
+l4_utcb_state_save (struct activation_frame *activation_frame)
+{
+  uintptr_t *utcb = _L4_utcb ();
+
+  activation_frame->saved_sender = utcb[_L4_UTCB_SENDER];
+  activation_frame->saved_receiver = utcb[_L4_UTCB_RECEIVER];
+  activation_frame->saved_timeout = utcb[_L4_UTCB_TIMEOUT];
+  activation_frame->saved_error_code = utcb[_L4_UTCB_ERROR_CODE];
+  activation_frame->saved_flags = utcb[_L4_UTCB_FLAGS];
+  activation_frame->saved_br0 = utcb[_L4_UTCB_BR0];
+  memcpy (&activation_frame->saved_message,
+	  &utcb[_L4_UTCB_MR0], L4_NUM_MRS * sizeof (uintptr_t));
+}
+
+static void
+l4_utcb_state_restore (struct activation_frame *activation_frame)
+{
+  uintptr_t *utcb = _L4_utcb ();
+
+  utcb[_L4_UTCB_SENDER] = activation_frame->saved_sender;
+  utcb[_L4_UTCB_RECEIVER] = activation_frame->saved_receiver;
+  utcb[_L4_UTCB_TIMEOUT] = activation_frame->saved_timeout;
+  utcb[_L4_UTCB_ERROR_CODE] = activation_frame->saved_error_code;
+  utcb[_L4_UTCB_FLAGS] = activation_frame->saved_flags;
+  utcb[_L4_UTCB_BR0] = activation_frame->saved_br0;
+  memcpy (&utcb[_L4_UTCB_MR0], &activation_frame->saved_message,
+	  L4_NUM_MRS * sizeof (uintptr_t));
+}
+
+/* Fetch any pending activation.  */
+void
+hurd_activation_fetch (void)
+{
+  debug (0, DEBUG_BOLD ("XXX"));
+
+  /* Any reply will come in the form of a pending activation being
+     delivered.  This RPC does not generate a response.  */
+  error_t err = rm_thread_activation_collect_send (ADDR_VOID, ADDR_VOID,
+						   ADDR_VOID);
+  if (err)
+    panic ("Sending thread_activation_collect failed: %d", err);
+}
+
+void
+hurd_activation_message_register (struct hurd_message_buffer *message_buffer)
+{
+  if (unlikely (! mm_init_done))
+    return;
+
+  struct vg_utcb *utcb = hurd_utcb ();
+  assert (utcb);
+  assert (message_buffer);
+
+  debug (5, "Registering %p (utcb: %p)", message_buffer, utcb);
+
+  if (utcb->extant_message)
+    panic ("Already have an extant message buffer!");
+
+  utcb->extant_message = message_buffer;
+  message_buffer->just_free = false;
+  message_buffer->closure = NULL;
+}
+
+void
+hurd_activation_message_unregister (struct hurd_message_buffer *message_buffer)
+{
+  if (unlikely (! mm_init_done))
+    return;
+
+  struct vg_utcb *utcb = hurd_utcb ();
+  assert (utcb);
+  assert (message_buffer);
+  assert (utcb->extant_message == message_buffer);
+  utcb->extant_message = NULL;
+}
+
+/* Message buffers contain an activation frame.  Exceptions reuse
+   message buffers and can be nested.  To avoid squashing the
+   activation frame, we need to allocate  */
+
+static error_t activation_frame_slab_alloc (void *, size_t, void **);
+static error_t activation_frame_slab_dealloc (void *, void *, size_t);
+
+static struct hurd_slab_space activation_frame_slab
+  = HURD_SLAB_SPACE_INITIALIZER (struct activation_frame,
+				 activation_frame_slab_alloc,
+				 activation_frame_slab_dealloc,
+				 NULL, NULL, NULL);
 
 static error_t
-exception_frame_slab_alloc (void *hook, size_t size, void **ptr)
+activation_frame_slab_alloc (void *hook, size_t size, void **ptr)
 {
   assert (size == PAGESIZE);
-
-  struct exception_frame frame;
-  utcb_state_save (&frame);
 
   struct storage storage = storage_alloc (meta_data_activity,
 					  cap_page, STORAGE_EPHEMERAL,
 					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
   *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
-  utcb_state_restore (&frame);
-
   return 0;
 }
 
 static error_t
-exception_frame_slab_dealloc (void *hook, void *buffer, size_t size)
+activation_frame_slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
@@ -94,345 +216,704 @@ exception_frame_slab_dealloc (void *hook, void *buffer, size_t size)
 
   return 0;
 }
-
-static struct exception_frame *
-exception_frame_alloc (struct exception_page *exception_page)
-{
-  struct exception_frame *exception_frame;
 
-  if (! exception_page->exception_stack
-      && exception_page->exception_stack_bottom)
-    /* The stack is empty but we have an available frame.  */
-    {
-      exception_frame = exception_page->exception_stack_bottom;
-      exception_page->exception_stack = exception_frame;
-    }
-  else if (exception_page->exception_stack
-	   && exception_page->exception_stack->prev)
-    /* The stack is not empty and we have an available frame.  */
-    {
-      exception_frame = exception_page->exception_stack->prev;
-      exception_page->exception_stack = exception_frame;
-    }
-  else
-    /* We do not have an available frame.  */
+static void
+check_activation_frame_reserve (struct vg_utcb *utcb)
+{
+  if (unlikely (! utcb->activation_stack
+		|| ! utcb->activation_stack->prev))
+    /* There are no activation frames in reserve.  Allocate one.  */
     {
       void *buffer;
-      error_t err = hurd_slab_alloc (&exception_frame_slab, &buffer);
+      error_t err = hurd_slab_alloc (&activation_frame_slab, &buffer);
       if (err)
 	panic ("Out of memory!");
 
-      exception_frame = buffer;
+      struct activation_frame *activation_frame = buffer;
+      activation_frame->canary = ACTIVATION_FRAME_CANARY;
 
-      exception_frame->prev = NULL;
-      exception_frame->next = exception_page->exception_stack;
-      if (exception_frame->next)
-	exception_frame->next->prev = exception_frame;
+      activation_frame->prev = NULL;
+      activation_frame->next = utcb->activation_stack;
+      if (activation_frame->next)
+	activation_frame->next->prev = activation_frame;
 
-      exception_page->exception_stack = exception_frame;
-
-      if (! exception_page->exception_stack_bottom)
+      if (! utcb->activation_stack_bottom)
 	/* This is the first frame we've allocated.  */
-	exception_page->exception_stack_bottom = exception_frame;
+	utcb->activation_stack_bottom = activation_frame;
     }
+}
 
-  return exception_frame;
+static struct activation_frame *
+activation_frame_alloc (struct vg_utcb *utcb)
+{
+  struct activation_frame *activation_frame;
+
+  if (! utcb->activation_stack
+      && utcb->activation_stack_bottom)
+    /* The stack is empty but we have an available frame.  */
+    {
+      activation_frame = utcb->activation_stack_bottom;
+      utcb->activation_stack = activation_frame;
+    }
+  else if (utcb->activation_stack
+	   && utcb->activation_stack->prev)
+    /* The stack is not empty and we have an available frame.  */
+    {
+      activation_frame = utcb->activation_stack->prev;
+      utcb->activation_stack = activation_frame;
+    }
+  else
+    /* We do not have an available frame.  */
+    panic ("Activation frame reserve is empty.");
+
+  return activation_frame;
 }
 
-/* Fetch an exception.  */
 void
-exception_fetch_exception (void)
+hurd_activation_stack_dump (void)
 {
-  l4_msg_t msg;
-  rm_exception_collect_send_marshal (&msg, ADDR_VOID);
-  l4_msg_load (msg);
+  struct vg_utcb *utcb = hurd_utcb ();
 
-  l4_thread_id_t from;
-  l4_msg_tag_t msg_tag = l4_reply_wait (__hurd_startup_data->rm, &from);
-  if (l4_ipc_failed (msg_tag))
-    panic ("Receiving message failed: %u", (l4_error_code () >> 1) & 0x7);
-}
-
-/* XXX: Before returning from either exception_handler_normal or
-   exception_handler_activated, we need to examine the thread's
-   control state and if the IPC was interrupt, set the error code
-   appropriately.  This also requires changing all invocations of IPCs
-   to loop on interrupt.  Currently, this is not a problem as the only
-   exception that we get is a page fault, which can only occur when
-   the thread is not in an IPC.  (Sure, there are string buffers, but
-   we don't use them.)  */
-
-void
-exception_handler_normal (struct exception_frame *exception_frame)
-{
-  debug (5, "Exception handler called (0x%x.%x, exception_frame: %p, "
-	 "next: %p)",
-	 l4_thread_no (l4_myself ()), l4_version (l4_myself ()),
-	 exception_frame, exception_frame->next);
-
-  l4_msg_t *msg = &exception_frame->exception;
-
-  l4_msg_tag_t msg_tag = l4_msg_msg_tag (*msg);
-  l4_word_t label;
-  label = l4_label (msg_tag);
-
-  switch (label)
+  int depth = 0;
+  struct activation_frame *activation_frame;
+  for (activation_frame = utcb->activation_stack;
+       activation_frame;
+       activation_frame = activation_frame->next)
     {
-    case EXCEPTION_fault:
-      {
-	addr_t fault;
-	uintptr_t ip;
-	uintptr_t sp;
-	struct exception_info info;
+      depth ++;
+      debug (0, "%d (%p): ip: %p, sp: %p, eax: %p, ebx: %p, ecx: %p, "
+	     "edx: %p, edi: %p, esi: %p, ebp: %p, eflags: %p",
+	     depth, activation_frame,
+	     (void *) activation_frame->eip,
+	     (void *) activation_frame->esp,
+	     (void *) activation_frame->eax,
+	     (void *) activation_frame->ebx,
+	     (void *) activation_frame->ecx,
+	     (void *) activation_frame->edx,
+	     (void *) activation_frame->edi,
+	     (void *) activation_frame->esi,
+	     (void *) activation_frame->ebp,
+	     (void *) activation_frame->eflags);
 
-	error_t err;
-	err = exception_fault_send_unmarshal (msg, &fault, &sp, &ip, &info);
-	if (err)
-	  panic ("Failed to unmarshal exception: %d", err);
+    }
+}
+
+void
+hurd_activation_handler_normal (struct activation_frame *activation_frame,
+				struct vg_utcb *utcb)
+{
+  assert (utcb == hurd_utcb ());
+  assert (activation_frame->canary == ACTIVATION_FRAME_CANARY);
+  assert (utcb->activation_stack == activation_frame);
 
-	bool r = map_fault (fault, ip, info);
-	if (! r)
-	  {
-	    debug (0, "SIGSEGV at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
-		   "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, "
-		   "eflags: %p)",
-		   ADDR_PRINTF (fault), ip, sp,
-		   exception_frame->regs[0],
-		   exception_frame->regs[5],
-		   exception_frame->regs[1],
-		   exception_frame->regs[2],
-		   exception_frame->regs[6],
-		   exception_frame->regs[7],
-		   exception_frame->regs[3]);
+  do_debug (4)
+    {
+      static int calls;
+      int call = ++ calls;
 
-	    extern int backtrace (void **array, int size);
+      int depth = 0;
+      struct activation_frame *af;
+      for (af = utcb->activation_stack; af; af = af->next)
+	depth ++;
 
-	    void *a[20];
-	    int count = backtrace (a, sizeof (a) / sizeof (a[0]));
-	    int i;
-	    s_printf ("Backtrace: ");
-	    for (i = 0; i < count; i ++)
-	      s_printf ("%p ", a[i]);
-	    s_printf ("\n");
-
-	    siginfo_t si;
-	    memset (&si, 0, sizeof (si));
-	    si.si_signo = SIGSEGV;
-	    si.si_addr = ADDR_TO_PTR (fault);
-
-	    /* XXX: Should set si.si_code to SEGV_MAPERR or
-	       SEGV_ACCERR.  */
-
-	    pthread_kill_siginfo_np (pthread_self (), si);
-	  }
-
-	break;
-      }
-
-    default:
-      panic ("Unknown message id: %d", label);
+      debug (0, "Activation (%d; %d nested) (frame: %p, next: %p)",
+	     call, depth, activation_frame, activation_frame->next);
+      hurd_activation_stack_dump ();
     }
 
-  utcb_state_restore (exception_frame);
+  struct hurd_message_buffer *mb = activation_frame->message_buffer;
+  assert (mb->magic == HURD_MESSAGE_BUFFER_MAGIC);
+
+  check_activation_frame_reserve (utcb);
+
+  if (mb->closure)
+    {
+      debug (5, "Executing closure %p", mb->closure);
+      mb->closure (mb);
+    }
+  else
+    {
+      debug (5, "Exception");
+
+      assert (mb == utcb->exception_buffer);
+
+      uintptr_t label = vg_message_word (mb->reply, 0);
+      switch (label)
+	{
+	case ACTIVATION_fault:
+	  {
+	    addr_t fault;
+	    uintptr_t ip;
+	    uintptr_t sp;
+	    struct activation_fault_info info;
+
+	    error_t err;
+	    err = activation_fault_send_unmarshal (mb->reply,
+						   &fault, &sp, &ip, &info,
+						   NULL);
+	    if (err)
+	      panic ("Failed to unmarshal exception: %d", err);
+
+	    debug (5, "Fault at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
+		   "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, ebp: %p, "
+		   "eflags: %p)",
+		   ADDR_PRINTF (fault),
+		   (void *) ip, (void *) sp,
+		   (void *) activation_frame->eax,
+		   (void *) activation_frame->ebx,
+		   (void *) activation_frame->ecx,
+		   (void *) activation_frame->edx,
+		   (void *) activation_frame->edi,
+		   (void *) activation_frame->esi,
+		   (void *) activation_frame->ebp,
+		   (void *) activation_frame->eflags);
+
+	    extern l4_thread_id_t as_rwlock_owner;
+
+	    bool r = false;
+	    if (likely (as_rwlock_owner != l4_myself ()))
+	      r = map_fault (fault, ip, info);
+	    if (! r)
+	      {
+		uintptr_t f = (uintptr_t) ADDR_TO_PTR (fault);
+		struct hurd_fault_catcher *catcher;
+		for (catcher = utcb->catchers; catcher; catcher = catcher->next)
+		  {
+		    assertx (catcher->magic == HURD_FAULT_CATCHER_MAGIC,
+			     "Catcher %p has bad magic: %p",
+			     catcher, (void *) catcher->magic);
+
+		    if (catcher->start <= f
+			&& f <= catcher->start + catcher->len - 1)
+		      {
+			debug (5, "Catcher caught fault at %p! (callback: %p)",
+			       (void *) f, catcher->callback);
+			if (catcher->callback (activation_frame, f))
+			  /* The callback claims that we can continue.  */
+			  break;
+		      }
+		    else
+		      debug (5, "Catcher %p-%p does not cover fault %p",
+			     (void *) catcher->start,
+			     (void *) catcher->start + catcher->len - 1,
+			     (void *) f);
+		  }
+
+		if (! catcher)
+		  {
+		    if (as_rwlock_owner == l4_myself ())
+		      debug (0, "I hold as_rwlock!");
+
+		    debug (0, "SIGSEGV at " ADDR_FMT " "
+			   "(ip: %p, sp: %p, eax: %p, ebx: %p, ecx: %p, "
+			   "edx: %p, edi: %p, esi: %p, ebp: %p, eflags: %p)",
+			   ADDR_PRINTF (fault),
+			   (void *) ip, (void *) sp,
+			   (void *) activation_frame->eax,
+			   (void *) activation_frame->ebx,
+			   (void *) activation_frame->ecx,
+			   (void *) activation_frame->edx,
+			   (void *) activation_frame->edi,
+			   (void *) activation_frame->esi,
+			   (void *) activation_frame->ebp,
+			   (void *) activation_frame->eflags);
+
+		    backtrace_print ();
+
+		    siginfo_t si;
+		    memset (&si, 0, sizeof (si));
+		    si.si_signo = SIGSEGV;
+		    si.si_addr = ADDR_TO_PTR (fault);
+
+		    /* XXX: Should set si.si_code to SEGV_MAPERR or
+		       SEGV_ACCERR.  */
+
+		    pthread_kill_siginfo_np (pthread_self (), si);
+		  }
+	      }
+
+	    break;
+	  }
+
+	default:
+	  panic ("Unknown message id: %d", label);
+	}
+    }
+
+  if (activation_frame->normal_mode_stack == utcb->alternate_stack)
+    utcb->alternate_stack_inuse = false;
+
+  assert (utcb->canary0 == UTCB_CANARY0);
+  assert (utcb->canary1 == UTCB_CANARY1);
+
+  l4_utcb_state_restore (activation_frame);
 }
 
 #ifndef NDEBUG
-static l4_word_t
-crc (struct exception_page *exception_page)
+static uintptr_t
+crc (struct vg_utcb *utcb)
 {
-  l4_word_t crc = 0;
-  l4_word_t *p;
-  for (p = (l4_word_t *) exception_page; p < &exception_page->crc; p ++)
+  uintptr_t crc = 0;
+  uintptr_t *p;
+  for (p = (uintptr_t *) utcb; p < &utcb->crc; p ++)
     crc += *p;
 
   return crc;
 }
 #endif
 
-struct exception_frame *
-exception_handler_activated (struct exception_page *exception_page)
+struct activation_frame *
+hurd_activation_handler_activated (struct vg_utcb *utcb)
 {
-  /* We expect EXCEPTION_PAGE to be page aligned.  */
-  assert (((uintptr_t) exception_page & (PAGESIZE - 1)) == 0);
-  assert (exception_page->activated_mode);
+  assert (((uintptr_t) utcb & (PAGESIZE - 1)) == 0);
+  assert (utcb->canary0 == UTCB_CANARY0);
+  assert (utcb->canary1 == UTCB_CANARY1);
+  assert (utcb->activated_mode);
+  /* XXX: Assumption that stack grows down...  */
+  assert (utcb->activation_handler_sp - PAGESIZE <= (uintptr_t) &utcb);
+  assert ((uintptr_t) &utcb <= utcb->activation_handler_sp);
 
-  /* Allocate an exception frame.  */
-  struct exception_frame *exception_frame
-    = exception_frame_alloc (exception_page);
-  utcb_state_save (exception_frame);
+  if (unlikely (! mm_init_done))
+    /* Just returns: during initialization, we don't except any faults or
+       asynchronous IPC.  We do expect that IPC will be made but it will
+       always be made with VG_IPC_RETURN and as such just returning will
+       do the right thing.  */
+    return NULL;
 
-  debug (5, "Exception handler called (exception_page: %p)",
-	 exception_page);
+  /* This comes after the mm_init_done check as when switching utcbs,
+     this may not be true.  */
+  assertx (utcb == hurd_utcb (),
+	   "%p != %p (func: %p; ip: %p, sp: %p)",
+	   utcb, hurd_utcb (), hurd_utcb,
+	   (void *) utcb->saved_ip, (void *) utcb->saved_sp);
+
+  debug (5, "Activation handler called (utcb: %p)", utcb);
+
+  struct hurd_message_buffer *mb
+    = (struct hurd_message_buffer *) (uintptr_t) utcb->messenger_id;
+
+  debug (5, "Got message %llx (utcb: %p)", utcb->messenger_id, utcb);
+
+  assert (mb->magic == HURD_MESSAGE_BUFFER_MAGIC);
+
+  struct activation_frame *activation_frame = activation_frame_alloc (utcb);
+  assert (activation_frame->canary == ACTIVATION_FRAME_CANARY);
+
+  l4_utcb_state_save (activation_frame);
+
+  activation_frame->message_buffer = mb;
 
 #ifndef NDEBUG
-  exception_page->crc = crc (exception_page);
+  utcb->crc = crc (utcb);
 #endif
 
-  l4_msg_t *msg = &exception_page->exception;
+  /* Whether we need to process the activation in normal mode.  */
+  bool trampoline = true;
 
-  l4_msg_tag_t msg_tag = l4_msg_msg_tag (*msg);
-  l4_word_t label;
-  label = l4_label (msg_tag);
-
-  switch (label)
+  if (mb == utcb->extant_message)
+    /* The extant IPC reply.  Just return, everything is in place.  */
     {
-    case EXCEPTION_fault:
-      {
-	addr_t fault;
-	uintptr_t ip;
-	uintptr_t sp;
-	struct exception_info info;
+#ifndef NDEBUG
+      do_debug (0)
+	{
+	  int label = 0;
+	  if (vg_message_data_count (mb->request) >= sizeof (uintptr_t))
+	    label = vg_message_word (mb->request, 0);
+	  error_t err = -1;
+	  if (vg_message_data_count (mb->reply) >= sizeof (uintptr_t))
+	    err = vg_message_word (mb->reply, 0);
 
-	error_t err;
-	err = exception_fault_send_unmarshal (msg, &fault, &sp, &ip, &info);
-	if (err)
-	  panic ("Failed to unmarshal exception: %d", err);
+	  debug (5, "Extant RPC: %s (%d) -> %d",
+		 rm_method_id_string (label), label, err);
+	}
+#endif
 
-	/* XXX: We assume that the stack grows down here.  */
-	uintptr_t f = (uintptr_t) ADDR_TO_PTR (fault);
-	if (sp - PAGESIZE <= f && f <= sp + PAGESIZE * 4)
-	  /* The fault occurs within four pages of the stack pointer.
-	     It has got to be a stack fault.  Handle it here.  */
+      utcb->extant_message = NULL;
+      trampoline = false;
+    }
+  else if (mb->closure)
+    {
+      debug (5, "Closure");
+    }
+  else if (mb == utcb->exception_buffer)
+    /* It's an exception.  Process it.  */
+    {
+      debug (5, "Exception");
+
+      uintptr_t label = vg_message_word (mb->reply, 0);
+      switch (label)
+	{
+	case ACTIVATION_fault:
 	  {
-	    debug (5, "Handling fault at " ADDR_FMT " in activated mode "
+	    addr_t fault;
+	    uintptr_t ip;
+	    uintptr_t sp;
+	    struct activation_fault_info info;
+
+	    error_t err;
+	    err = activation_fault_send_unmarshal (mb->reply,
+						   &fault, &sp, &ip, &info,
+						   NULL);
+	    if (err)
+	      panic ("Failed to unmarshal exception: %d", err);
+
+	    debug (4, "Fault at " ADDR_FMT "(ip: %x, sp: %x).",
+		   ADDR_PRINTF (fault), ip, sp);
+
+	    uintptr_t f = (uintptr_t) ADDR_TO_PTR (fault);
+	    uintptr_t stack_page = (sp & ~(PAGESIZE - 1));
+	    uintptr_t fault_page = (f & ~(PAGESIZE - 1));
+	    if (stack_page == fault_page
+		|| stack_page - PAGESIZE == fault_page)
+	      /* The fault on the same page as the stack pointer or
+		 the following page.  It is likely a stack fault.
+		 Handle it using the alternate stack.  */
+	      {
+		debug (5, "Stack fault at " ADDR_FMT "(ip: %x, sp: %x).",
+		       ADDR_PRINTF (fault), ip, sp);
+
+		assert (! utcb->alternate_stack_inuse);
+		utcb->alternate_stack_inuse = true;
+
+		assert (utcb->alternate_stack);
+
+		activation_frame->normal_mode_stack = utcb->alternate_stack;
+	      }
+
+	    debug (5, "Handling fault at " ADDR_FMT " in normal mode "
 		   "(ip: %x, sp: %x).",
 		   ADDR_PRINTF (fault), ip, sp);
 
-	    bool r = map_fault (fault, ip, info);
-	    if (! r)
-	      {
-		debug (0, "SIGSEGV at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
-		       "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, "
-		       "eflags: %p)",
-		       ADDR_PRINTF (fault), ip, sp,
-		       exception_frame->regs[0],
-		       exception_frame->regs[5],
-		       exception_frame->regs[1],
-		       exception_frame->regs[2],
-		       exception_frame->regs[6],
-		       exception_frame->regs[7],
-		       exception_frame->regs[3]);
-
-		siginfo_t si;
-		memset (&si, 0, sizeof (si));
-		si.si_signo = SIGSEGV;
-		si.si_addr = ADDR_TO_PTR (fault);
-
-		/* XXX: Should set si.si_code to SEGV_MAPERR or
-		   SEGV_ACCERR.  */
-
-		pthread_kill_siginfo_np (pthread_self (), si);
-	      }
-	    assert (exception_page->crc == crc (exception_page));
-
-	    utcb_state_restore (exception_frame);
-
-	    assert (exception_page->crc == crc (exception_page));
-	    assertx (exception_page->exception_stack == exception_frame,
-		     "%p != %p",
-		     exception_page->exception_stack, exception_frame);
-
-	    exception_page->exception_stack
-	      = exception_page->exception_stack->next;
-	    return NULL;
+	    break;
 	  }
 
-	debug (5, "Handling fault at " ADDR_FMT " in normal mode "
-	       "(ip: %x, sp: %x).",
-	       ADDR_PRINTF (fault), ip, sp);
+	default:
+	  panic ("Unknown message id: %d", label);
+	}
 
-	break;
-      }
-
-    default:
-      panic ("Unknown message id: %d", label);
+      /* Unblock the exception handler messenger.  */
+      error_t err = vg_ipc (VG_IPC_RECEIVE | VG_IPC_RECEIVE_ACTIVATE
+			    | VG_IPC_RETURN,
+			    ADDR_VOID, utcb->exception_buffer->receiver,
+			    ADDR_VOID,
+			    ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID);
+      assert (! err);
+    }
+  else if (mb->just_free)
+    {
+      debug (5, "Just freeing");
+      hurd_message_buffer_free (mb);
+      trampoline = false;
+    }
+  else
+    {
+      panic ("Unknown messenger %llx (extant: %p; exception: %p) (label: %d)",
+	     utcb->messenger_id,
+	     utcb->extant_message, utcb->exception_buffer,
+	     vg_message_word (mb->reply, 0));
     }
 
-  /* Handle the fault in normal mode.  */
+  /* Assert that the utcb has not been modified.  */
+  assert (utcb->crc == crc (utcb));
 
-  /* Copy the relevant bits.  */
-  memcpy (&exception_frame->exception, msg,
-	  (1 + l4_untyped_words (msg_tag)) * sizeof (l4_word_t));
+  if (! trampoline)
+    {
+      debug (5, "Direct return");
 
-  assert (exception_page->crc == crc (exception_page));
-  return exception_frame;
+      assert (utcb->activation_stack == activation_frame);
+      utcb->activation_stack = utcb->activation_stack->next;
+
+      l4_utcb_state_restore (activation_frame);
+
+      activation_frame = NULL;
+    }
+  else
+    {
+      debug (5, "Continuing in normal mode");
+      l4_utcb_state_restore (activation_frame);
+    }
+
+  assert (utcb->canary0 == UTCB_CANARY0);
+  assert (utcb->canary1 == UTCB_CANARY1);
+
+  return activation_frame;
+}
+
+static char activation_handler_area0[PAGESIZE]
+  __attribute__ ((aligned (PAGESIZE)));
+static char activation_handler_msg[PAGESIZE]
+  __attribute__ ((aligned (PAGESIZE)));
+static struct vg_utcb *initial_utcb = (void *) &activation_handler_area0[0];
+
+static struct vg_utcb *
+simple_utcb_fetcher (void)
+{
+  assert (initial_utcb->canary0 == UTCB_CANARY0);
+  assert (initial_utcb->canary1 == UTCB_CANARY1);
+
+  return initial_utcb;
 }
 
+struct vg_utcb *(*hurd_utcb) (void);
+
 void
-exception_handler_init (void)
+hurd_activation_handler_init_early (void)
 {
-  error_t err = hurd_slab_init (&exception_frame_slab,
-				sizeof (struct exception_frame), 0,
-				exception_frame_slab_alloc,
-				exception_frame_slab_dealloc,
-				NULL, NULL, NULL);
-  assert (! err);
+  initial_utcb->canary0 = UTCB_CANARY0;
+  initial_utcb->canary1 = UTCB_CANARY1;
 
-  extern struct hurd_startup_data *__hurd_startup_data;
+  hurd_utcb = simple_utcb_fetcher;
 
-  /* We use the start of the area (lowest address) as the exception page.  */
-  addr_t stack_area = as_alloc (EXCEPTION_STACK_SIZE_LOG2, 1, true);
-  void *stack_area_base
-    = ADDR_TO_PTR (addr_extend (stack_area, 0, EXCEPTION_STACK_SIZE_LOG2));
-
-  debug (5, "Exception area: %x-%x",
-	 stack_area_base, stack_area_base + EXCEPTION_STACK_SIZE - 1);
-
-  void *page;
-  for (page = stack_area_base;
-       page < stack_area_base + EXCEPTION_STACK_SIZE;
-       page += PAGESIZE)
-    {
-      addr_t slot = addr_chop (PTR_TO_ADDR (page), PAGESIZE_LOG2);
-
-      as_ensure (slot);
-
-      struct storage storage;
-      storage = storage_alloc (ADDR_VOID, cap_page,
-			       STORAGE_LONG_LIVED,
-			       OBJECT_POLICY_DEFAULT,
-			       slot);
-
-      if (ADDR_IS_VOID (storage.addr))
-	panic ("Failed to allocate page for exception state");
-    }
-
-  struct exception_page *exception_page = stack_area_base;
+  struct vg_utcb *utcb = hurd_utcb ();
+  assert (utcb == initial_utcb);
 
   /* XXX: We assume the stack grows down!  SP is set to the end of the
      exception page.  */
-  exception_page->exception_handler_sp
-    = (uintptr_t) stack_area_base + EXCEPTION_STACK_SIZE;
+  utcb->activation_handler_sp
+    = (uintptr_t) activation_handler_area0 + sizeof (activation_handler_area0);
 
-  /* The word beyond the base of the stack is a pointer to the
-     exception page.  */
-  exception_page->exception_handler_sp -= sizeof (void *);
-  * (void **) exception_page->exception_handler_sp = exception_page;
+  /* The word beyond the base of the stack is interpreted as a pointer
+     to the exception page.  Make it so.  */
+  utcb->activation_handler_sp -= sizeof (void *);
+  * (void **) utcb->activation_handler_sp = utcb;
 
-  exception_page->exception_handler_ip = (l4_word_t) &exception_handler_entry;
-  exception_page->exception_handler_end = (l4_word_t) &exception_handler_end;
+  utcb->activation_handler_ip = (uintptr_t) &hurd_activation_handler_entry;
+  utcb->activation_handler_end = (uintptr_t) &hurd_activation_handler_end;
 
   struct hurd_thread_exregs_in in;
-  in.exception_page = addr_chop (PTR_TO_ADDR (exception_page), PAGESIZE_LOG2);
+  memset (&in, 0, sizeof (in));
 
-  struct hurd_thread_exregs_out out;
-  err = rm_thread_exregs (ADDR_VOID, __hurd_startup_data->thread,
-			  HURD_EXREGS_SET_EXCEPTION_PAGE,
-			  in, &out);
+  struct vg_message *msg = (void *) &activation_handler_msg[0];
+  rm_thread_exregs_send_marshal (msg, HURD_EXREGS_SET_UTCB, in,
+				 ADDR_VOID, ADDR_VOID,
+				 PTR_TO_PAGE (utcb), ADDR_VOID,
+				 __hurd_startup_data->messengers[1]);
+
+  error_t err;
+  err = vg_ipc_full (VG_IPC_RECEIVE | VG_IPC_SEND | VG_IPC_RECEIVE_ACTIVATE
+		     | VG_IPC_RECEIVE_SET_THREAD_TO_CALLER
+		     | VG_IPC_RECEIVE_SET_ASROOT_TO_CALLERS
+		     | VG_IPC_RECEIVE_INLINE
+		     | VG_IPC_SEND_SET_THREAD_TO_CALLER
+		     | VG_IPC_SEND_SET_ASROOT_TO_CALLERS,
+		     ADDR_VOID,
+		     __hurd_startup_data->messengers[1], ADDR_VOID, ADDR_VOID,
+		     ADDR_VOID, __hurd_startup_data->thread,
+		     __hurd_startup_data->messengers[0], PTR_TO_PAGE (msg),
+		     0, 0, ADDR_VOID);
   if (err)
-    panic ("Failed to install exception page");
+    panic ("Failed to send IPC: %d", err);
+  if (utcb->inline_words[0])
+    panic ("Failed to install utcb page: %d", utcb->inline_words[0]);
 }
 
 void
-exception_page_cleanup (struct exception_page *exception_page)
+hurd_activation_handler_init (void)
 {
-  struct exception_frame *f;
-  struct exception_frame *prev = exception_page->exception_stack_bottom;
+  struct vg_utcb *utcb;
+  error_t err = hurd_activation_state_alloc (__hurd_startup_data->thread,
+					     &utcb);
+  if (err)
+    panic ("Failed to allocate activation state: %d", err);
 
+  assert (! initial_utcb->activation_stack);
+
+  initial_utcb = utcb;
+
+  debug (4, "initial_utcb (%p) is now: %p", &initial_utcb, initial_utcb);
+}
+
+/* The activation area is 16 pages large.  It consists of the utch,
+   the activation stack and an alternate stack (which is needed to
+   handle stack faults).  */
+#define ACTIVATION_AREA_SIZE_LOG2 (PAGESIZE_LOG2 + 4)
+#define ACTIVATION_AREA_SIZE (1 << ACTIVATION_AREA_SIZE_LOG2)
+
+error_t
+hurd_activation_state_alloc (addr_t thread, struct vg_utcb **utcbp)
+{
+  debug (5, DEBUG_BOLD ("allocating activation state for " ADDR_FMT),
+	 ADDR_PRINTF (thread));
+
+  addr_t activation_area = as_alloc (ACTIVATION_AREA_SIZE_LOG2, 1, true);
+  void *activation_area_base
+    = ADDR_TO_PTR (addr_extend (activation_area,
+				0, ACTIVATION_AREA_SIZE_LOG2));
+
+  debug (0, "Activation area: %p-%p",
+	 activation_area_base, activation_area_base + ACTIVATION_AREA_SIZE);
+
+  int page_count = 0;
+  /* Be careful!  We assume that pages is properly set up after at
+     most 2 allocations!  */
+  addr_t pages_[2];
+  addr_t *pages = pages_;
+
+  void alloc (void *addr)
+  {
+    addr_t slot = addr_chop (PTR_TO_ADDR (addr), PAGESIZE_LOG2);
+
+    as_ensure (slot);
+
+    struct storage storage;
+    storage = storage_alloc (ADDR_VOID, cap_page,
+			     STORAGE_LONG_LIVED,
+			     OBJECT_POLICY_DEFAULT,
+			     slot);
+
+    if (ADDR_IS_VOID (storage.addr))
+      panic ("Failed to allocate page for exception state");
+
+    if (pages == pages_)
+      assert (page_count < sizeof (pages_) / sizeof (pages_[0]));
+    pages[page_count ++] = storage.addr;
+  }
+
+  /* When NDEBUG is true, we leave some pages empty so that should
+     something overrun, we'll fault.  */
+#ifndef NDEBUG
+#define SKIP 1
+#else
+#define SKIP 0
+#endif
+
+  int page = SKIP;
+
+  /* Allocate the utcb.  */
+  struct vg_utcb *utcb = activation_area_base + page * PAGESIZE;
+  alloc (utcb);
+  page += 1 + SKIP;
+
+  /* And set up the small activation stack.
+     UTCB->ACTIVATION_HANDLER_SP is the base of the stack.
+
+     XXX: We assume the stack grows down!  */
+#ifndef NDEBUG
+  /* Use a dedicated page.  */
+  utcb->activation_handler_sp
+    = (uintptr_t) activation_area_base + page * PAGESIZE;
+  alloc ((void *) utcb->activation_handler_sp);
+
+  utcb->activation_handler_sp += PAGESIZE;
+  page += 1 + SKIP;
+#else
+  /* Use the end of the UTCB.  */
+  utcb->activation_handler_sp = utcb + PAGESIZE;
+#endif
+
+  /* At the top of the stack page, we use some space to remember the
+     storage we allocate so that we can free it later.  */
+  utcb->activation_handler_sp
+    -= sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE;
+  memset (utcb->activation_handler_sp, 0,
+	  sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE);
+  memcpy (utcb->activation_handler_sp, pages, sizeof (addr_t) * page_count);
+  pages = (addr_t *) utcb->activation_handler_sp;
+
+  /* The word beyond the base of the stack is a pointer to the
+     exception page.  */
+  utcb->activation_handler_sp -= sizeof (void *);
+  * (void **) utcb->activation_handler_sp = utcb;
+
+
+  /* And a medium-sized alternate stack.  */
+  void *a;
+  for (a = activation_area_base + page * PAGESIZE;
+       a < activation_area_base + ACTIVATION_AREA_SIZE - SKIP * PAGESIZE;
+       a += PAGESIZE)
+    alloc (a);
+
+  assert (a - activation_area_base + page * PAGESIZE >= AS_STACK_SPACE);
+
+  /* XXX: We again assume that the stack grows down.  */
+  utcb->alternate_stack = a;
+
+
+  utcb->activation_handler_ip = (uintptr_t) &hurd_activation_handler_entry;
+  utcb->activation_handler_end = (uintptr_t) &hurd_activation_handler_end;
+
+  utcb->exception_buffer = hurd_message_buffer_alloc_long ();
+  utcb->extant_message = NULL;
+
+  utcb->canary0 = UTCB_CANARY0;
+  utcb->canary1 = UTCB_CANARY1;
+
+  debug (5, "Activation area: %p-%p; utcb: %p; stack: %p; alt stack: %p",
+	 (void *) activation_area_base,
+	 (void *) activation_area_base + ACTIVATION_AREA_SIZE - 1,
+	 utcb, (void *) utcb->activation_handler_sp, utcb->alternate_stack);
+
+
+  /* Unblock the exception handler messenger.  */
+  error_t err = vg_ipc (VG_IPC_RECEIVE | VG_IPC_RECEIVE_ACTIVATE
+			| VG_IPC_RETURN,
+			ADDR_VOID, utcb->exception_buffer->receiver, ADDR_VOID,
+			ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID);
+  assert (! err);
+
+
+  *utcbp = utcb;
+
+  struct hurd_thread_exregs_in in;
+  struct hurd_thread_exregs_out out;
+
+  err = rm_thread_exregs (ADDR_VOID, thread,
+			  HURD_EXREGS_SET_UTCB
+			  | HURD_EXREGS_SET_EXCEPTION_MESSENGER,
+			  in, ADDR_VOID, ADDR_VOID,
+			  PTR_TO_PAGE (utcb), utcb->exception_buffer->receiver,
+			  &out, NULL, NULL, NULL, NULL);
+  if (err)
+    panic ("Failed to install utcb");
+
+  err = rm_cap_copy (ADDR_VOID,
+		     utcb->exception_buffer->receiver,
+		     ADDR (VG_MESSENGER_THREAD_SLOT, VG_MESSENGER_SLOTS_LOG2),
+		     ADDR_VOID, thread,
+		     0, CAP_PROPERTIES_DEFAULT);
+  if (err)
+    panic ("Failed to set messenger's thread");
+
+  check_activation_frame_reserve (utcb);
+
+  return 0;
+}
+
+void
+hurd_activation_state_free (struct vg_utcb *utcb)
+{
+  assert (utcb->canary0 == UTCB_CANARY0);
+  assert (utcb->canary1 == UTCB_CANARY1);
+  assert (! utcb->activation_stack);
+
+  /* Free any activation frames.  */
+  struct activation_frame *f;
+  struct activation_frame *prev = utcb->activation_stack_bottom;
   while ((f = prev))
     {
       prev = f->prev;
-      hurd_slab_dealloc (&exception_frame_slab, f);
+      hurd_slab_dealloc (&activation_frame_slab, f);
     }
-}
 
+  hurd_message_buffer_free (utcb->exception_buffer);
+
+  /* Free the allocated storage.  */
+  /* Copy the array as we're going to free the storage that it is
+     in.  */
+  addr_t pages[ACTIVATION_AREA_SIZE / PAGESIZE];
+  memcpy (pages,
+	  utcb->activation_handler_sp + sizeof (uintptr_t),
+	  sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE);
+
+  int i;
+  for (i = 0; i < sizeof (pages) / sizeof (pages[0]); i ++)
+    if (! ADDR_IS_VOID (pages[i]))
+      storage_free (pages[i], false);
+
+  /* Finally, free the address space.  */
+  int page = SKIP;
+  void *activation_area_base = (void *) utcb - page * PAGESIZE;
+  as_free (addr_chop (PTR_TO_ADDR (activation_area_base),
+		      ACTIVATION_AREA_SIZE_LOG2),
+	   false);
+}

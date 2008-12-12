@@ -4,20 +4,19 @@
 
    This file is part of the GNU Hurd.
 
-   The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+   GNU Hurd is free software: you can redistribute it and/or modify it
+   under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   License along with GNU Hurd.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #define RPC_CONCAT2(a,b) a##b
 #define RPC_CONCAT(a,b) RPC_CONCAT2(a,b)
@@ -41,107 +40,66 @@
 #else
 #define RPC_ID_PREFIX_(name) RPC_CONCAT(RPC_ID_PREFIX,_##name)
 #endif
-
-/* We need to know where to send the IPC.  Either the caller can
-   supply it or it can be implicit.
-
-   If the caller should supply the target, then define
-   RPC_TARGET_NEED_ARG, RPC_TARGET_ARG_TYPE to the type of the
-   argument, and RPC_TARGET to a be a macro that takes a single
-   argument and returns an l4_thread_id_t.
-
-      #define RPC_STUB_PREFIX prefix
-      #define RPC_ID_PREFIX PREFIX
-      #define RPC_TARGET_NEED_ARG
-      #define RPC_TARGET_ARG_TYPE object_t
-      #define RPC_TARGET(x) ((x)->thread_id)
-
-   If the caller need not supply the argument, then the includer
-   should not define RPC_TARGET_NEED_ARG and should define RPC_TARGET
-   to be a macro that takes no arguments and returns an
-   l4_thread_id_t.
-
-      #define RPC_STUB_PREFIX prefix
-      #define RPC_ID_PREFIX PREFIX
-      #undef RPC_TARGET_NEED_ARG
-      #define RPC_TARGET ({ extern l4_thread_id_t foo_server; foo_server; })
-
-    At the end of the include file, be sure to #undef the used
-    preprocessor variables to avoid problems when multiple headers
-    make use of this file.
-
-      #undef RPC_STUB_PREFIX
-      #undef RPC_ID_PREFIX
-      #undef RPC_TARGET_NEED_ARG
-      #undef RPC_TARGET_ARG_TYPE
-      #undef RPC_TARGET
-  */
-#ifndef RPC_TARGET
-#error Did not define RPC_TARGET
-#endif
-
-#undef RPC_TARGET_ARG_
-#undef RPC_TARGET_
-
-#ifdef RPC_TARGET_NEED_ARG
-# ifndef RPC_TARGET_ARG_TYPE
-#  error RPC_TARGET_NEED_ARG define but RPC_TARGET_ARG_TYPE not defined.
-# endif
-
-# define RPC_TARGET_ARG_ RPC_TARGET_ARG_TYPE arg_,
-# define RPC_TARGET_ RPC_TARGET(arg_)
-#else
-
-# define RPC_TARGET_ARG_
-# define RPC_TARGET_ RPC_TARGET
-#endif
-
-#undef RPC_TARGET_NEED_ARG
 
 #ifndef _HURD_RPC_H
 #define _HURD_RPC_H
 
 #include <hurd/stddef.h>
-#include <l4/ipc.h>
-#include <l4/space.h>
+#include <hurd/message.h>
+#include <hurd/ipc.h>
 #include <errno.h>
+
+#ifdef RM_INTERN
+extern struct vg_message *reply_buffer;
+
+/* We can't include messenger.h as it includes hurd/cap.h which in turn
+   includes this file.  */
+struct messenger;
+struct activity;
+extern bool messenger_message_load (struct activity *activity,
+				    struct messenger *target,
+				    struct vg_message *message);
+#else
+# include <hurd/message-buffer.h>
+#endif
+typedef addr_t cap_t;
 
 /* First we define some cpp help macros.  */
-#define CPP_IFTHEN_0(when, whennot) whennot
-#define CPP_IFTHEN_1(when, whennot) when
-#define CPP_IFTHEN_2(when, whennot) when
-#define CPP_IFTHEN_3(when, whennot) when
-#define CPP_IFTHEN_4(when, whennot) when
-#define CPP_IFTHEN_5(when, whennot) when
-#define CPP_IFTHEN_6(when, whennot) when
-#define CPP_IFTHEN_7(when, whennot) when
-#define CPP_IFTHEN_8(when, whennot) when
-#define CPP_IFTHEN_9(when, whennot) when
-#define CPP_IFTHEN_10(when, whennot) when
-#define CPP_IFTHEN_11(when, whennot) when
-#define CPP_IFTHEN_12(when, whennot) when
-#define CPP_IFTHEN_13(when, whennot) when
-#define CPP_IFTHEN_14(when, whennot) when
-#define CPP_IFTHEN_15(when, whennot) when
-#define CPP_IFTHEN_16(when, whennot) when
-#define CPP_IFTHEN_17(when, whennot) when
-#define CPP_IFTHEN_18(when, whennot) when
-#define CPP_IFTHEN_19(when, whennot) when
-#define CPP_IFTHEN_20(when, whennot) when
-#define CPP_IFTHEN_21(when, whennot) when
-#define CPP_IFTHEN_22(when, whennot) when
-#define CPP_IFTHEN_23(when, whennot) when
-#define CPP_IFTHEN_24(when, whennot) when
-#define CPP_IFTHEN_25(when, whennot) when
+#define CPP_IFELSE_0(when, whennot) whennot
+#define CPP_IFELSE_1(when, whennot) when
+#define CPP_IFELSE_2(when, whennot) when
+#define CPP_IFELSE_3(when, whennot) when
+#define CPP_IFELSE_4(when, whennot) when
+#define CPP_IFELSE_5(when, whennot) when
+#define CPP_IFELSE_6(when, whennot) when
+#define CPP_IFELSE_7(when, whennot) when
+#define CPP_IFELSE_8(when, whennot) when
+#define CPP_IFELSE_9(when, whennot) when
+#define CPP_IFELSE_10(when, whennot) when
+#define CPP_IFELSE_11(when, whennot) when
+#define CPP_IFELSE_12(when, whennot) when
+#define CPP_IFELSE_13(when, whennot) when
+#define CPP_IFELSE_14(when, whennot) when
+#define CPP_IFELSE_15(when, whennot) when
+#define CPP_IFELSE_16(when, whennot) when
+#define CPP_IFELSE_17(when, whennot) when
+#define CPP_IFELSE_18(when, whennot) when
+#define CPP_IFELSE_19(when, whennot) when
+#define CPP_IFELSE_20(when, whennot) when
+#define CPP_IFELSE_21(when, whennot) when
+#define CPP_IFELSE_22(when, whennot) when
+#define CPP_IFELSE_23(when, whennot) when
+#define CPP_IFELSE_24(when, whennot) when
+#define CPP_IFELSE_25(when, whennot) when
 
-#define CPP_IFTHEN_(expr, when, whennot)			\
-  CPP_IFTHEN_##expr(when, whennot)
-#define CPP_IFTHEN(expr, when, whennot)			\
-  CPP_IFTHEN_(expr, when, whennot)
-#define CPP_IF(expr, when)	\
-  CPP_IFTHEN(expr, when,)
-#define CPP_IFNOT(expr, whennot) \
-  CPP_IFTHEN(expr, , whennot)
+#define CPP_IFELSE_(expr, when, whennot)	\
+  CPP_IFELSE_##expr(when, whennot)
+#define CPP_IFELSE(expr, when, whennot)		\
+  CPP_IFELSE_(expr, when, whennot)
+#define CPP_IF(expr, when)			\
+  CPP_IFELSE(expr, when,)
+#define CPP_IFNOT(expr, whennot)		\
+  CPP_IFELSE(expr, , whennot)
 
 #define CPP_SUCC_0 1
 #define CPP_SUCC_1 2
@@ -176,11 +134,11 @@
 /* We'd like to define CPP_ADD as:
 
     #define CPP_ADD(x, y) \
-      CPP_IFTHEN(y, CPP_ADD(SUCC(x), SUCC(y)), y)
+      CPP_IFELSE(y, CPP_ADD(SUCC(x), SUCC(y)), y)
 
   This does not work as while a macro is being expanded, it becomes
   ineligible for expansion.  Thus, any references (including indirect
-  references) are not expanded.  Nested applications of a macro are,
+  references) are not expanded.  Repeated applications of a macro are,
   however, allowed, and this is what the CPP_APPLY macro does.  */
 #define CPP_APPLY1(x, y) x(y)
 #define CPP_APPLY2(x, y) x(CPP_APPLY1(x, y))
@@ -209,13 +167,44 @@
 #define CPP_APPLY25(x, y) x(CPP_APPLY24(x, y))
 
 #define CPP_ADD(x, y)				\
-  CPP_IFTHEN(y, CPP_APPLY##y(CPP_SUCC, x), x)
+  CPP_IFELSE(y, CPP_APPLY##y(CPP_SUCC, x), x)
+
+/* Apply a function to each of the first n arguments.
+
+
+     CPP_FOREACH(2, CPP_SAFE_DEREF, NULL, a, b)
+
+   =>
+
+     ((a) ? *(a) : NULL), ((b) ? *(b) : NULL)
+ */
+#define CPP_FOREACH_0(func, cookie, ...)
+#define CPP_FOREACH_1(func, cookie, element, ...) func(cookie, element)
+#define CPP_FOREACH_2(func, cookie, element, ...) func(cookie, element), CPP_FOREACH_1(func, cookie, __VA_ARGS__)
+#define CPP_FOREACH_3(func, cookie, element, ...) func(cookie, element), CPP_FOREACH_2(func, cookie, __VA_ARGS__)
+#define CPP_FOREACH_4(func, cookie, element, ...) func(cookie, element), CPP_FOREACH_3(func, cookie, __VA_ARGS__)
+#define CPP_FOREACH_5(func, cookie, element, ...) func(cookie, element), CPP_FOREACH_4(func, cookie, __VA_ARGS__)
+#define CPP_FOREACH_6(func, cookie, element, ...) func(cookie, element), CPP_FOREACH_5(func, cookie, __VA_ARGS__)
+#define CPP_FOREACH_7(func, cookie, element, ...) func(cookie, element), CPP_FOREACH_6(func, cookie, __VA_ARGS__)
+#define CPP_FOREACH_8(func, cookie, element, ...) func(cookie, element), CPP_FOREACH_7(func, cookie, __VA_ARGS__)
+#define CPP_FOREACH_9(func, cookie, element, ...) func(cookie, element), CPP_FOREACH_8(func, cookie, __VA_ARGS__)
+
+#define CPP_FOREACH_(n, func, cookie, ...)	\
+  CPP_FOREACH_##n(func, cookie, __VA_ARGS__)
+#define CPP_FOREACH(n, func, cookie, ...)	\
+  CPP_FOREACH_(n, func, cookie, __VA_ARGS__)
+
+/* Used in conjunction with CPP_FOREACH.  Generates C code that
+   dereferences ELEMENT if it is not NULL, otherwise, returns
+   COOKIE.  */
+#define CPP_SAFE_DEREF(cookie, element) ((element) ? *(element) : (cookie))
+
 
 /* CPP treats commas specially so we have to be smart about how we
    insert them algorithmically.  For instance, this won't work:
 
    #define COMMA ,
-     CPP_IFTHEN(x, COMMA, )
+     CPP_IFELSE(x, COMMA, )
 
    To optional insert a comma, use this function instead.  When the
    result is need, invoke the result.  For instance:
@@ -224,22 +213,36 @@
  */
 #define RPC_COMMA() ,
 #define RPC_NOCOMMA()
-#define RPC_IF_COMMA(x) CPP_IFTHEN(x, RPC_COMMA, RPC_NOCOMMA)
+#define RPC_IF_COMMA(x) CPP_IFELSE(x, RPC_COMMA, RPC_NOCOMMA)
 
-/* Load the argument ARG, which is of type TYPE into MR IDX.  */
+/* Append the argument __RLA_ARG, whose type is __RLA_TYPE, to the
+   message buffer MSG.  */
 #define RPCLOADARG(__rla_type, __rla_arg)				\
   {									\
-    union								\
-    {									\
-      __rla_type __rla_a;						\
-      l4_word_t __rla_raw[(sizeof (__rla_type) + sizeof (l4_word_t) - 1) \
-		    / sizeof (l4_word_t)];				\
-    } __rla_arg2 = { (__rla_arg) };					\
-    int __rla_i;							\
-    for (__rla_i = 0;							\
-	 __rla_i < sizeof (__rla_arg2) / sizeof (l4_word_t);		\
-	 __rla_i ++)							\
-      l4_msg_append_word (*msg, __rla_arg2.__rla_raw[__rla_i]);		\
+    if (__builtin_strcmp (#__rla_type, "cap_t") == 0)			\
+      {									\
+	union								\
+	{								\
+	  __rla_type __rla_a;						\
+	  RPC_GRAB2 (, 1, RPC_TYPE_SHIFT (1, struct cap *, cap_t, __rla_foo)); \
+	  cap_t __rla_cap;						\
+	} __rla_arg2 = { (__rla_arg) };					\
+	vg_message_append_cap (msg, __rla_arg2.__rla_cap);		\
+      }									\
+    else								\
+      {									\
+	union								\
+	{								\
+	  __rla_type __rla_a;						\
+	  uintptr_t __rla_raw[(sizeof (__rla_type) + sizeof (uintptr_t) - 1) \
+			      / sizeof (uintptr_t)];			\
+	} __rla_arg2 = { (__rla_arg) };					\
+	int __rla_i;							\
+	for (__rla_i = 0;						\
+	     __rla_i < sizeof (__rla_arg2) / sizeof (uintptr_t);	\
+	     __rla_i ++)						\
+	  vg_message_append_word (msg, __rla_arg2.__rla_raw[__rla_i]);	\
+      }									\
   }
 
 #define RPCLOAD0(...)
@@ -271,23 +274,48 @@
 #define RPCLOAD_(__rl_count, ...) RPCLOAD##__rl_count (__VA_ARGS__)
 #define RPCLOAD(__rl_count, ...) RPCLOAD_ (__rl_count, __VA_ARGS__)
 
-/* Store the contents of MR __RSU_IDX+1 into *ARG, which is of type TYPE.
-   NB: __RSU_IDX is thus the return parameter number, not the message
-   register number; MR0 contains the error code.  */
+/* Store the next argument in the message MSG whose type is __RSA_TYPE
+   in *__RSA_ARG.  */
 #define RPCSTOREARG(__rsa_type, __rsa_arg)				\
   {									\
-    union								\
-    {									\
-      __rsa_type __rsa_a;						\
-      l4_word_t __rsa_raw[(sizeof (__rsa_type) + sizeof (l4_word_t) - 1) \
-			  / sizeof (l4_word_t)];			\
-    } __rsa_arg2;							\
-    int __rsa_i;							\
-    for (__rsa_i = 0;							\
-	 __rsa_i < sizeof (__rsa_arg2) / sizeof (l4_word_t);		\
-	 __rsa_i ++)							\
-      __rsa_arg2.__rsa_raw[__rsa_i] = l4_msg_word (*msg, __rsu_idx ++);	\
-    *(__rsa_arg) = __rsa_arg2.__rsa_a;					\
+    if (__builtin_strcmp (#__rsa_type, "cap_t") == 0)			\
+      {									\
+	union								\
+	{								\
+	  __rsa_type *__rsa_a;						\
+	  cap_t *__rsa_cap;						\
+	} __rsa_arg2;							\
+	__rsa_arg2.__rsa_a = __rsa_arg;					\
+	if (vg_message_cap_count (msg) > __rsu_cap_idx)			\
+	  {								\
+	    if (__rsa_arg)						\
+	      *__rsa_arg2.__rsa_cap = vg_message_cap (msg, __rsu_cap_idx); \
+	    __rsu_cap_idx ++;						\
+	  }								\
+	else								\
+	  __rsu_err = EINVAL;						\
+      }									\
+    else								\
+      {									\
+	union								\
+	{								\
+	  __rsa_type __rsa_a;						\
+	  uintptr_t __rsa_raw[(sizeof (__rsa_type) + sizeof (uintptr_t) - 1) \
+			      / sizeof (uintptr_t)];			\
+	} __rsa_arg2;							\
+	int __rsa_i;							\
+	for (__rsa_i = 0;						\
+	     __rsa_i < sizeof (__rsa_arg2) / sizeof (uintptr_t);	\
+	     __rsa_i ++)						\
+	  if (vg_message_data_count (msg) / sizeof (uintptr_t)		\
+	      > __rsu_data_idx)						\
+	    __rsa_arg2.__rsa_raw[__rsa_i]				\
+	      = vg_message_word (msg, __rsu_data_idx ++);		\
+	  else								\
+	    __rsu_err = EINVAL;						\
+	if (! __rsu_err && __rsa_arg)					\
+	  *(__rsa_arg) = __rsa_arg2.__rsa_a;				\
+      }									\
   }
 
 #define RPCSTORE0(...)
@@ -345,35 +373,36 @@
 #define RPCSTORE_(__rs_count, ...) RPCSTORE##__rs_count (__VA_ARGS__)
 #define RPCSTORE(__rs_count, ...) RPCSTORE_ (__rs_count, __VA_ARGS__)
 
-/* Marshal the in-arguments into the provided message buffer.  */
+/* Marshal a request.  */
 #define RPC_SEND_MARSHAL(id, icount, ...)				\
   static inline void							\
+  __attribute__((always_inline))					\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal)			\
-    (l4_msg_t *msg RPC_IF_COMMA (icount) ()				\
-     RPC_GRAB2 (, icount, ##__VA_ARGS__))				\
+    (struct vg_message *msg,						\
+     RPC_GRAB2 (, icount, ##__VA_ARGS__) RPC_IF_COMMA(icount) ()	\
+     cap_t reply_messenger)						\
   {									\
-    l4_msg_tag_t tag;							\
-    									\
-    tag = l4_niltag;							\
-    l4_msg_tag_set_label (&tag, RPC_ID_PREFIX_(id));			\
-    									\
-    l4_msg_clear (*msg);						\
-    l4_msg_set_msg_tag (*msg, tag);					\
-    									\
+    vg_message_clear (msg);						\
+    /* Add the label.  */						\
+    vg_message_append_word (msg, RPC_ID_PREFIX_(id));			\
+    /* Then load the arguments.  */					\
     RPCLOAD (icount, ##__VA_ARGS__);					\
+    /* Finally, add the reply messenger.  */				\
+    vg_message_append_cap (msg, reply_messenger);			\
   }
 
-/* Unmarshal the in-arguments from the provided message buffer.  */
+/* Unmarshal a request.  */
 #define RPC_SEND_UNMARSHAL(id, icount, ...)				\
   static inline error_t							\
+  __attribute__((always_inline))					\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_unmarshal)			\
-    (l4_msg_t *msg RPC_IF_COMMA(icount) ()				\
-     RPC_GRAB2 (*, icount, ##__VA_ARGS__))				\
+    (struct vg_message *msg,						\
+     RPC_GRAB2 (*, icount, ##__VA_ARGS__) RPC_IF_COMMA(icount) ()	\
+     cap_t *reply_messenger)						\
   {									\
-    l4_msg_tag_t tag = l4_msg_msg_tag (*msg);				\
-									\
-    l4_word_t label;							\
-    label = l4_label (tag);						\
+    uintptr_t label = 0;						\
+    if (likely (vg_message_data_count (msg) >= sizeof (uintptr_t)))	\
+      label = vg_message_word (msg, 0);					\
     if (label != RPC_ID_PREFIX_(id))					\
       {									\
 	debug (1, #id " has bad method id, %d, excepted %d",		\
@@ -381,130 +410,175 @@
 	return EINVAL;							\
       }									\
     									\
-    error_t err = 0;							\
-    int __rsu_idx __attribute__ ((unused));				\
-    __rsu_idx = 0;							\
+    int __rsu_data_idx __attribute__ ((unused)) = 1;			\
+    int __rsu_cap_idx __attribute__ ((unused)) = 0;			\
+    error_t __rsu_err = 0;						\
     RPCSTORE (icount, ##__VA_ARGS__);					\
-    if (err == 0 && __rsu_idx != l4_untyped_words (tag))		\
+    if (unlikely (__rsu_err						\
+		  || (__rsu_data_idx * sizeof (uintptr_t)		\
+		      != vg_message_data_count (msg)			\
+		      && __rsu_cap_idx + 1 != vg_message_cap_count (msg)))) \
       {									\
-	debug (1, #id " has wrong number of arguments: %d, expected %d words", \
-	       l4_untyped_words (tag), __rsu_idx);			\
+	debug (1, #id " has wrong number of arguments: "		\
+	       "got %d bytes and %d caps; expected %d/%d",		\
+	       __rsu_data_idx * sizeof (uintptr_t), __rsu_cap_idx + 1,	\
+	       vg_message_data_count (msg),				\
+	       vg_message_cap_count (msg));				\
+	return EINVAL;							\
+      }									\
+									\
+    if (reply_messenger)						\
+      *reply_messenger = vg_message_cap (msg, __rsu_cap_idx);		\
+    return 0;								\
+  }
+
+/* Prepare a receive buffer.  */
+#ifdef RM_INTERN
+#define RPC_RECEIVE_MARSHAL(id, ret_cap_count, ...)
+#else
+#define RPC_RECEIVE_MARSHAL(id, ret_cap_count, ...)			\
+  static inline void							\
+  __attribute__((always_inline))					\
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _receive_marshal)			\
+    (struct vg_message *msg RPC_IF_COMMA(ret_cap_count) ()		\
+     RPC_GRAB2 (, ret_cap_count, ##__VA_ARGS__))			\
+  {									\
+    vg_message_clear (msg);						\
+    /* Load the arguments.  */						\
+    RPCLOAD (ret_cap_count, ##__VA_ARGS__);				\
+    assert (vg_message_data_count (msg) == 0);				\
+    assert (vg_message_cap_count (msg) == ret_cap_count);		\
+  }
+#endif
+
+/* Marshal a reply.  */
+#define RPC_REPLY_MARSHAL(id, out_count, ret_cap_count, ...)		\
+  static inline void							\
+  __attribute__((always_inline))					\
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_marshal)			\
+    (struct vg_message *msg						\
+     RPC_IF_COMMA (out_count) ()					\
+     RPC_GRAB2 (, out_count, ##__VA_ARGS__)				\
+     RPC_IF_COMMA (ret_cap_count) ()					\
+     RPC_GRAB2 (, ret_cap_count,					\
+		RPC_TYPE_SHIFT (ret_cap_count, struct cap *,		\
+				RPC_CHOP2 (out_count, __VA_ARGS__))))	\
+  {									\
+    vg_message_clear (msg);						\
+    									\
+    /* The error code.  */						\
+    vg_message_append_word (msg, 0);					\
+    RPCLOAD (CPP_ADD (out_count, ret_cap_count), ##__VA_ARGS__);	\
+									\
+    assert (vg_message_cap_count (msg) == ret_cap_count);		\
+  }
+
+/* Unmarshal a reply.  */
+#define RPC_REPLY_UNMARSHAL(id, out_count, ret_cap_count, ...)		\
+  static inline error_t							\
+  __attribute__((always_inline))					\
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_unmarshal)			\
+    (struct vg_message *msg						\
+     RPC_IF_COMMA (CPP_ADD (out_count, ret_cap_count)) ()		\
+     RPC_GRAB2(*, CPP_ADD (out_count, ret_cap_count), ##__VA_ARGS__))	\
+  {									\
+    /* The server error code.  */					\
+    error_t __rsu_err = EINVAL;						\
+    if (likely (vg_message_data_count (msg) >= sizeof (uintptr_t)))	\
+      __rsu_err = vg_message_word (msg, 0);				\
+    if (unlikely (__rsu_err))						\
+      return __rsu_err;							\
+    									\
+    int __rsu_data_idx __attribute__ ((unused)) = 1;			\
+    int __rsu_cap_idx __attribute__ ((unused)) = 0;			\
+    RPCSTORE (CPP_ADD (out_count, ret_cap_count), ##__VA_ARGS__);	\
+    if (unlikely (__rsu_err						\
+		  || (__rsu_data_idx * sizeof (uintptr_t)		\
+		      != vg_message_data_count (msg)			\
+		      || __rsu_cap_idx != vg_message_cap_count (msg)))) \
+      {									\
+	debug (1, #id " has wrong number of arguments: "		\
+	       "got %d bytes and %d caps; expected %d/%d",		\
+	       __rsu_data_idx * sizeof (uintptr_t), __rsu_cap_idx,	\
+	       vg_message_data_count (msg),				\
+	       vg_message_cap_count (msg));				\
 	return EINVAL;							\
       }									\
     return 0;								\
   }
 
-/* Marshal the reply.  */
-#define RPC_REPLY_MARSHAL(id, ocount, ...)				\
-  static inline void							\
-  RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_marshal)			\
-    (l4_msg_t *msg RPC_IF_COMMA (ocount) ()				\
-     RPC_GRAB2 (, ocount, ##__VA_ARGS__))				\
-  {									\
-    l4_msg_tag_t tag;							\
-    									\
-    tag = l4_niltag;							\
-    l4_msg_tag_set_label (&tag, RPC_ID_PREFIX_(id));			\
-    									\
-    l4_msg_clear (*msg);						\
-    l4_msg_set_msg_tag (*msg, tag);					\
-									\
-    /* No error.  */							\
-    l4_msg_append_word (*msg, 0);					\
-    									\
-    RPCLOAD (ocount, ##__VA_ARGS__);					\
-  }
-
-/* Unmarshal the reply.  */
-#define RPC_REPLY_UNMARSHAL(id, ocount, ...)				\
-  static inline error_t							\
-  RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_unmarshal)			\
-    (l4_msg_t *msg RPC_IF_COMMA (ocount) ()				\
-     RPC_GRAB2(*, ocount, ##__VA_ARGS__))				\
-  {									\
-    l4_msg_tag_t tag = l4_msg_msg_tag (*msg);				\
-    l4_word_t err = l4_msg_word (*msg, 0);				\
-    									\
-    int __rsu_idx __attribute__ ((unused));				\
-    __rsu_idx = 1;							\
-    RPCSTORE (ocount, ##__VA_ARGS__);					\
-    if (err == 0)							\
-      {									\
-	if (__rsu_idx != l4_untyped_words (tag))			\
-	  {								\
-	    debug (1, "Got %d words, expected %d words",		\
-		   __rsu_idx, l4_untyped_words (tag));			\
-	    return EINVAL;						\
-	  }								\
-      }									\
-    return err;								\
-  }
-
 /* RPC_ARGUMENTS takes a list of types and arguments and returns the first
    COUNT arguments.  (NB: the list may contain more than COUNT
-   arguments!).  */
+   arguments!).  
+
+     RPC_ARGUMENTS(2, &, int, i, int, j, double, d)
+
+   =>
+
+     &i, &j
+*/
 #define RPC_ARGUMENTS0(...)
-#define RPC_ARGUMENTS1(__ra_type, __ra_arg, ...) __ra_arg RPC_ARGUMENTS0(__VA_ARGS__)
-#define RPC_ARGUMENTS2(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS1(__VA_ARGS__)
-#define RPC_ARGUMENTS3(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS2(__VA_ARGS__)
-#define RPC_ARGUMENTS4(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS3(__VA_ARGS__)
-#define RPC_ARGUMENTS5(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS4(__VA_ARGS__)
-#define RPC_ARGUMENTS6(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS5(__VA_ARGS__)
-#define RPC_ARGUMENTS7(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS6(__VA_ARGS__)
-#define RPC_ARGUMENTS8(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS7(__VA_ARGS__)
-#define RPC_ARGUMENTS9(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS8(__VA_ARGS__)
-#define RPC_ARGUMENTS10(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS9(__VA_ARGS__)
-#define RPC_ARGUMENTS11(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS10(__VA_ARGS__)
-#define RPC_ARGUMENTS12(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS11(__VA_ARGS__)
-#define RPC_ARGUMENTS13(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS12(__VA_ARGS__)
-#define RPC_ARGUMENTS14(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS13(__VA_ARGS__)
-#define RPC_ARGUMENTS15(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS14(__VA_ARGS__)
-#define RPC_ARGUMENTS16(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS15(__VA_ARGS__)
-#define RPC_ARGUMENTS17(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS16(__VA_ARGS__)
-#define RPC_ARGUMENTS18(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS17(__VA_ARGS__)
-#define RPC_ARGUMENTS19(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS18(__VA_ARGS__)
-#define RPC_ARGUMENTS20(__ra_type, __ra_arg, ...) __ra_arg, RPC_ARGUMENTS19(__VA_ARGS__)
-#define RPC_ARGUMENTS_(__ra_count, ...) RPC_ARGUMENTS##__ra_count(__VA_ARGS__)
-#define RPC_ARGUMENTS(__ra_count, ...) RPC_ARGUMENTS_(__ra_count, __VA_ARGS__)
+#define RPC_ARGUMENTS1(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg RPC_ARGUMENTS0(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS2(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS1(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS3(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS2(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS4(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS3(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS5(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS4(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS6(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS5(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS7(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS6(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS8(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS7(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS9(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS8(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS10(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS9(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS11(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS10(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS12(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS11(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS13(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS12(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS14(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS13(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS15(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS14(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS16(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS15(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS17(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS16(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS18(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS17(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS19(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS18(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS20(__ra_prefix, __ra_type, __ra_arg, ...) __ra_prefix __ra_arg, RPC_ARGUMENTS19(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS_(__ra_count, __ra_prefix, ...) RPC_ARGUMENTS##__ra_count(__ra_prefix, __VA_ARGS__)
+#define RPC_ARGUMENTS(__ra_count, __ra_prefix, ...) RPC_ARGUMENTS_(__ra_count, __ra_prefix, __VA_ARGS__)
 
 /* Given a list of arguments, returns the arguments minus the first
    COUNT **pairs** of arguments.  For example:
 
-     RPC_CHOP(1, int, i, int, j, double, d)
+     RPC_CHOP2(1, int, i, int, j, double, d)
 
    =>
 
      int, j, double, d
 
   */
-#define RPC_CHOP0(...) __VA_ARGS__
-#define RPC_CHOP1(__rc_a, __rc_b, ...) RPC_CHOP0(__VA_ARGS__)
-#define RPC_CHOP2(__rc_a, __rc_b, ...) RPC_CHOP1(__VA_ARGS__)
-#define RPC_CHOP3(__rc_a, __rc_b, ...) RPC_CHOP2(__VA_ARGS__)
-#define RPC_CHOP4(__rc_a, __rc_b, ...) RPC_CHOP3(__VA_ARGS__)
-#define RPC_CHOP5(__rc_a, __rc_b, ...) RPC_CHOP4(__VA_ARGS__)
-#define RPC_CHOP6(__rc_a, __rc_b, ...) RPC_CHOP5(__VA_ARGS__)
-#define RPC_CHOP7(__rc_a, __rc_b, ...) RPC_CHOP6(__VA_ARGS__)
-#define RPC_CHOP8(__rc_a, __rc_b, ...) RPC_CHOP7(__VA_ARGS__)
-#define RPC_CHOP9(__rc_a, __rc_b, ...) RPC_CHOP8(__VA_ARGS__)
-#define RPC_CHOP10(__rc_a, __rc_b, ...) RPC_CHOP9(__VA_ARGS__)
-#define RPC_CHOP11(__rc_a, __rc_b, ...) RPC_CHOP10(__VA_ARGS__)
-#define RPC_CHOP12(__rc_a, __rc_b, ...) RPC_CHOP11(__VA_ARGS__)
-#define RPC_CHOP13(__rc_a, __rc_b, ...) RPC_CHOP12(__VA_ARGS__)
-#define RPC_CHOP14(__rc_a, __rc_b, ...) RPC_CHOP13(__VA_ARGS__)
-#define RPC_CHOP15(__rc_a, __rc_b, ...) RPC_CHOP14(__VA_ARGS__)
-#define RPC_CHOP16(__rc_a, __rc_b, ...) RPC_CHOP15(__VA_ARGS__)
-#define RPC_CHOP17(__rc_a, __rc_b, ...) RPC_CHOP16(__VA_ARGS__)
-#define RPC_CHOP18(__rc_a, __rc_b, ...) RPC_CHOP17(__VA_ARGS__)
-#define RPC_CHOP19(__rc_a, __rc_b, ...) RPC_CHOP18(__VA_ARGS__)
-#define RPC_CHOP20(__rc_a, __rc_b, ...) RPC_CHOP19(__VA_ARGS__)
-#define RPC_CHOP21(__rc_a, __rc_b, ...) RPC_CHOP20(__VA_ARGS__)
-#define RPC_CHOP22(__rc_a, __rc_b, ...) RPC_CHOP21(__VA_ARGS__)
-#define RPC_CHOP23(__rc_a, __rc_b, ...) RPC_CHOP22(__VA_ARGS__)
-#define RPC_CHOP24(__rc_a, __rc_b, ...) RPC_CHOP23(__VA_ARGS__)
-#define RPC_CHOP25(__rc_a, __rc_b, ...) RPC_CHOP24(__VA_ARGS__)
-#define RPC_CHOP_(__rc_count, ...) RPC_CHOP##__rc_count (__VA_ARGS__)
-#define RPC_CHOP(__rc_count, ...) RPC_CHOP_(__rc_count, __VA_ARGS__)
+#define RPC_CHOP2_0(...) __VA_ARGS__
+#define RPC_CHOP2_1(__rc_a, __rc_b, ...) RPC_CHOP2_0(__VA_ARGS__)
+#define RPC_CHOP2_2(__rc_a, __rc_b, ...) RPC_CHOP2_1(__VA_ARGS__)
+#define RPC_CHOP2_3(__rc_a, __rc_b, ...) RPC_CHOP2_2(__VA_ARGS__)
+#define RPC_CHOP2_4(__rc_a, __rc_b, ...) RPC_CHOP2_3(__VA_ARGS__)
+#define RPC_CHOP2_5(__rc_a, __rc_b, ...) RPC_CHOP2_4(__VA_ARGS__)
+#define RPC_CHOP2_6(__rc_a, __rc_b, ...) RPC_CHOP2_5(__VA_ARGS__)
+#define RPC_CHOP2_7(__rc_a, __rc_b, ...) RPC_CHOP2_6(__VA_ARGS__)
+#define RPC_CHOP2_8(__rc_a, __rc_b, ...) RPC_CHOP2_7(__VA_ARGS__)
+#define RPC_CHOP2_9(__rc_a, __rc_b, ...) RPC_CHOP2_8(__VA_ARGS__)
+#define RPC_CHOP2_10(__rc_a, __rc_b, ...) RPC_CHOP2_9(__VA_ARGS__)
+#define RPC_CHOP2_11(__rc_a, __rc_b, ...) RPC_CHOP2_10(__VA_ARGS__)
+#define RPC_CHOP2_12(__rc_a, __rc_b, ...) RPC_CHOP2_11(__VA_ARGS__)
+#define RPC_CHOP2_13(__rc_a, __rc_b, ...) RPC_CHOP2_12(__VA_ARGS__)
+#define RPC_CHOP2_14(__rc_a, __rc_b, ...) RPC_CHOP2_13(__VA_ARGS__)
+#define RPC_CHOP2_15(__rc_a, __rc_b, ...) RPC_CHOP2_14(__VA_ARGS__)
+#define RPC_CHOP2_16(__rc_a, __rc_b, ...) RPC_CHOP2_15(__VA_ARGS__)
+#define RPC_CHOP2_17(__rc_a, __rc_b, ...) RPC_CHOP2_16(__VA_ARGS__)
+#define RPC_CHOP2_18(__rc_a, __rc_b, ...) RPC_CHOP2_17(__VA_ARGS__)
+#define RPC_CHOP2_19(__rc_a, __rc_b, ...) RPC_CHOP2_18(__VA_ARGS__)
+#define RPC_CHOP2_20(__rc_a, __rc_b, ...) RPC_CHOP2_19(__VA_ARGS__)
+#define RPC_CHOP2_21(__rc_a, __rc_b, ...) RPC_CHOP2_20(__VA_ARGS__)
+#define RPC_CHOP2_22(__rc_a, __rc_b, ...) RPC_CHOP2_21(__VA_ARGS__)
+#define RPC_CHOP2_23(__rc_a, __rc_b, ...) RPC_CHOP2_22(__VA_ARGS__)
+#define RPC_CHOP2_24(__rc_a, __rc_b, ...) RPC_CHOP2_23(__VA_ARGS__)
+#define RPC_CHOP2_25(__rc_a, __rc_b, ...) RPC_CHOP2_24(__VA_ARGS__)
+#define RPC_CHOP2_(__rc_count, ...) RPC_CHOP2_##__rc_count (__VA_ARGS__)
+#define RPC_CHOP2(__rc_count, ...) RPC_CHOP2_(__rc_count, __VA_ARGS__)
 
 /* Given a list of arguments, returns the first COUNT **pairs** of
    arguments, the elements of each pair separated by SEP and each pair
@@ -576,182 +650,405 @@
 #define RPC_GRAB_(__rg_count, ...) RPC_GRAB_##__rg_count (__VA_ARGS__)
 #define RPC_GRAB(__rg_count, ...) RPC_GRAB_(__rg_count, __VA_ARGS__)
 
+#define RPC_TYPE_SHIFT_0(...)
+#define RPC_TYPE_SHIFT_1(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg RPC_TYPE_SHIFT_0(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_2(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_1(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_3(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_2(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_4(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_3(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_5(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_4(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_6(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_5(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_7(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_6(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_8(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_7(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_9(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_8(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_10(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_9(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_11(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_10(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_12(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_11(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_13(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_12(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_14(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_13(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_15(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_14(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_16(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_15(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_17(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_16(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_18(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_17(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_19(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_18(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_20(__ra_new_type, __ra_type, __ra_arg, ...) __ra_new_type, __ra_arg, RPC_TYPE_SHIFT_19(__ra_new_type, __VA_ARGS__)
+#define RPC_TYPE_SHIFT_(__ra_count, __ra_new_type, ...) RPC_TYPE_SHIFT_##__ra_count(__ra_new_type, __VA_ARGS__)
+#ifdef RM_INTERN
+# define RPC_TYPE_SHIFT(__ra_count, __ra_new_type, ...) RPC_TYPE_SHIFT_(__ra_count, __ra_new_type, __VA_ARGS__)
+#else
+# define RPC_TYPE_SHIFT(__ra_count, __ra_new_type, ...) __VA_ARGS__
+#endif
+
 /* Ensure that there are X pairs of arguments.  */
 #define RPC_INVALID_NUMBER_OF_ARGUMENTS_
 #define RPC_EMPTY_LIST_(x) RPC_INVALID_NUMBER_OF_ARGUMENTS_##x
 #define RPC_EMPTY_LIST(x) RPC_EMPTY_LIST_(x)
 #define RPC_ENSURE_ARGS(count, ...) \
-  RPC_EMPTY_LIST (RPC_CHOP (count, __VA_ARGS__))
+  RPC_EMPTY_LIST (RPC_CHOP2 (count, __VA_ARGS__))
 
-#define RPC_MARSHAL_GEN_(id, icount, ocount, ...)			\
-  RPC_ENSURE_ARGS(CPP_ADD (icount, ocount), ##__VA_ARGS__)			\
-									\
-  RPC_SEND_MARSHAL(id, icount, ##__VA_ARGS__)				\
-  RPC_SEND_UNMARSHAL(id, icount, ##__VA_ARGS__)				\
-  RPC_REPLY_MARSHAL(id, ocount, RPC_CHOP (icount, ##__VA_ARGS__))	\
-  RPC_REPLY_UNMARSHAL(id, ocount, RPC_CHOP (icount, ##__VA_ARGS__))
+#define RPC_SEND_MARSHAL_GEN_(id, in_count, out_count, ret_cap_count, ...) \
+  RPC_SEND_MARSHAL(id, in_count, ##__VA_ARGS__)				\
+  RPC_SEND_UNMARSHAL(id, in_count, ##__VA_ARGS__)
 
-#define RPC_SIMPLE_(postfix, id, icount, ocount, ...)			\
-  /* Send, but do not wait for a reply.  */				\
+#define RPC_RECEIVE_MARSHAL_GEN_(id, in_count, out_count, ret_cap_count, ...) \
+  RPC_RECEIVE_MARSHAL(id, ret_cap_count,				\
+		      RPC_CHOP2 (CPP_ADD (in_count, out_count),		\
+				 ##__VA_ARGS__))
+
+#define RPC_REPLY_MARSHAL_GEN_(id, in_count, out_count, ret_cap_count, ...) \
+  RPC_REPLY_MARSHAL(id, out_count, ret_cap_count,			\
+		    RPC_CHOP2 (in_count, ##__VA_ARGS__))		\
+  RPC_REPLY_UNMARSHAL(id, out_count, ret_cap_count,			\
+		      RPC_CHOP2 (in_count, ##__VA_ARGS__))
+
+#define RPC_MARSHAL_GEN_(id, in_count, out_count, ret_cap_count, ...)	\
+  RPC_ENSURE_ARGS(CPP_ADD (CPP_ADD (in_count, out_count),		\
+			   ret_cap_count),				\
+		  ##__VA_ARGS__)					\
+  RPC_SEND_MARSHAL_GEN_(id, in_count, out_count, ret_cap_count,		\
+			##__VA_ARGS__)					\
+  RPC_RECEIVE_MARSHAL_GEN_(id, in_count, out_count, ret_cap_count,	\
+			   ##__VA_ARGS__)				\
+  RPC_REPLY_MARSHAL_GEN_(id, in_count, out_count, ret_cap_count,	\
+			 ##__VA_ARGS__)
+
+/* Send a message.  __RPC_REPY_MESSENGER designates the messenger that
+   should receive the reply.  (Its buffer should have already been
+   prepared using, e.g., the corresponding receive_marshal
+   function.)  */
+#ifndef RM_INTERN
+#define RPC_SEND_(postfix, id, in_count, out_count, ret_cap_count, ...) \
   static inline error_t							\
   __attribute__((always_inline))					\
   RPC_CONCAT(RPC_STUB_PREFIX_(id), postfix)				\
-    (RPC_TARGET_ARG_ RPC_GRAB2 (, icount, __VA_ARGS__))			\
+    (cap_t __rpc_activity, cap_t __rpc_object				\
+     RPC_IF_COMMA (in_count) ()						\
+     RPC_GRAB2 (, in_count, __VA_ARGS__),				\
+     cap_t __rpc_reply_messenger)					\
   {									\
-    l4_msg_tag_t tag;							\
-    l4_msg_t msg;							\
+    struct hurd_message_buffer *mb = hurd_message_buffer_alloc ();	\
+    mb->just_free = true;						\
 									\
     RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal)			\
-      CPP_IFTHEN (icount,						\
-		  (&msg, RPC_ARGUMENTS(icount, __VA_ARGS__)),		\
-		  (&msg));						\
+      (mb->request							\
+       RPC_IF_COMMA (in_count) () RPC_ARGUMENTS(in_count,, __VA_ARGS__), \
+       __rpc_reply_messenger);						\
 									\
-    l4_msg_load (msg);							\
-    l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);				\
+    error_t err = vg_send (VG_IPC_SEND_SET_THREAD_TO_CALLER		\
+			   | VG_IPC_SEND_SET_ASROOT_TO_CALLERS,		\
+			   __rpc_activity, __rpc_object,		\
+			   mb->sender, ADDR_VOID);			\
 									\
-    for (;;)								\
-      {									\
-	tag = l4_send (RPC_TARGET_);					\
-	if (unlikely (l4_ipc_failed (tag)))				\
-	  {								\
-	    if (((l4_error_code () >> 1) & 0x7) == 3)			\
-	      /* IPC was interrupted.  */				\
-	      /* XXX: We need to somehow consider the signal state and	\
-		 return EINTR if appropriate.  */			\
-	      continue;							\
-	    return EHOSTDOWN;						\
-	  }								\
-	break;								\
-      }									\
-									\
-    return 0;								\
+    return err;								\
   }
+#else
+#define RPC_SEND_(postfix, id, in_count, out_count, ret_cap_count, ...)
+#endif
 
-#define RPC_(postfix, id, icount, ocount, ...)				\
+/* Send a message.  Abort if the target is not ready.  */
+#ifndef RM_INTERN
+#define RPC_SEND_NONBLOCKING_(postfix, id, in_count, out_count, ret_cap_count, ...) \
+  static inline error_t							\
+  __attribute__((always_inline))					\
+  RPC_CONCAT(RPC_STUB_PREFIX_(id), postfix)				\
+    (cap_t __rpc_activity, cap_t __rpc_object				\
+     RPC_IF_COMMA (in_count) ()						\
+     RPC_GRAB2 (, in_count, __VA_ARGS__),				\
+     cap_t __rpc_reply_messenger)					\
+  {									\
+    struct hurd_message_buffer *mb = hurd_message_buffer_alloc ();	\
+									\
+    RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal)			\
+      (mb->request							\
+       RPC_IF_COMMA (in_count) () RPC_ARGUMENTS(in_count,, __VA_ARGS__), \
+       __rpc_reply_messenger);						\
+									\
+    error_t err = vg_reply (VG_IPC_SEND_SET_THREAD_TO_CALLER		\
+			    | VG_IPC_SEND_SET_ASROOT_TO_CALLERS,	\
+			    __rpc_activity, __rpc_object,		\
+			    mb->sender, ADDR_VOID);			\
+									\
+    hurd_message_buffer_free (mb);					\
+									\
+    return err;								\
+  }
+#else
+#define RPC_SEND_NONBLOCKING_(postfix, id, in_count, out_count, ret_cap_count, ...)
+#endif
+
+/* Send a message and wait for a reply.  */
+#ifndef RM_INTERN
+#define RPC_(postfix, id, in_count, out_count, ret_cap_count, ...)	\
+  static inline error_t							\
+  __attribute__((always_inline))					\
+  RPC_CONCAT (RPC_CONCAT (RPC_STUB_PREFIX_(id), _using), postfix)	\
+    (struct hurd_message_buffer *mb,					\
+     addr_t __rpc_activity,						\
+     addr_t __rpc_object						\
+     /* In arguments.  */						\
+     RPC_IF_COMMA (in_count) ()						\
+     RPC_GRAB2 (, in_count, __VA_ARGS__)				\
+     /* Out arguments (data and caps).  */				\
+     RPC_IF_COMMA (CPP_ADD (out_count, ret_cap_count)) ()		\
+     RPC_GRAB2 (*, CPP_ADD (out_count, ret_cap_count),			\
+		RPC_CHOP2 (in_count, __VA_ARGS__)))			\
+  {									\
+    /* Prepare the reply buffer.  */					\
+    RPC_CONCAT (RPC_STUB_PREFIX_(id), _receive_marshal)			\
+      (mb->reply							\
+       RPC_IF_COMMA (ret_cap_count) ()					\
+       CPP_FOREACH(ret_cap_count, CPP_SAFE_DEREF, ADDR_VOID,		\
+		   RPC_ARGUMENTS (ret_cap_count, ,			\
+				  RPC_CHOP2 (CPP_ADD (in_count, out_count), \
+					     __VA_ARGS__))));		\
+									\
+    /* Then the send buffer.  */					\
+    RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal)			\
+      (mb->request							\
+       RPC_IF_COMMA (in_count) ()					\
+       RPC_ARGUMENTS (in_count,, __VA_ARGS__),				\
+       mb->receiver);							\
+									\
+    hurd_activation_message_register (mb);				\
+									\
+    /* We will be resumed via an activation.  */			\
+    error_t err = vg_ipc (VG_IPC_RECEIVE | VG_IPC_SEND			\
+			  | VG_IPC_RECEIVE_ACTIVATE			\
+			  | VG_IPC_SEND_SET_THREAD_TO_CALLER		\
+			  | VG_IPC_SEND_SET_ASROOT_TO_CALLERS		\
+			  | VG_IPC_RECEIVE_SET_THREAD_TO_CALLER		\
+			  | VG_IPC_RECEIVE_SET_ASROOT_TO_CALLERS,	\
+			  __rpc_activity,				\
+			  mb->receiver_strong, ADDR_VOID,		\
+			  __rpc_activity, __rpc_object,			\
+			  mb->sender, ADDR_VOID);			\
+    if (err)								\
+      /* Error sending the IPC.  */					\
+      hurd_activation_message_unregister (mb);				\
+    else								\
+      err = RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_unmarshal)		\
+	(mb->reply							\
+	 RPC_IF_COMMA (CPP_ADD (out_count, ret_cap_count)) ()		\
+	 RPC_ARGUMENTS (CPP_ADD (out_count, ret_cap_count),,		\
+			RPC_CHOP2 (in_count, ##__VA_ARGS__)));		\
+									\
+    return err;								\
+  }									\
+									\
   static inline error_t							\
   __attribute__((always_inline))					\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), postfix)				\
-    (RPC_TARGET_ARG_							\
-     RPC_GRAB (CPP_ADD(icount, ocount),					\
-	       RPC_GRAB2 (, icount, __VA_ARGS__) RPC_IF_COMMA(icount) () \
-	       RPC_GRAB2 (*, ocount, RPC_CHOP (icount, __VA_ARGS__))))	\
+    (addr_t __rpc_activity,						\
+     addr_t __rpc_object						\
+     /* In arguments.  */						\
+     RPC_IF_COMMA (in_count) ()						\
+     RPC_GRAB2 (, in_count, __VA_ARGS__)				\
+     /* Out arguments (data and caps).  */				\
+     RPC_IF_COMMA (CPP_ADD (out_count, ret_cap_count)) ()		\
+     RPC_GRAB2 (*, CPP_ADD (out_count, ret_cap_count),			\
+		RPC_CHOP2 (in_count, __VA_ARGS__)))			\
   {									\
-    l4_msg_tag_t tag;							\
-    l4_msg_t msg;							\
+    struct hurd_message_buffer *mb = hurd_message_buffer_alloc ();	\
 									\
-    RPC_CONCAT (RPC_STUB_PREFIX_(id), _send_marshal)			\
-      CPP_IFTHEN (icount,						\
-		  (&msg, RPC_ARGUMENTS(icount, __VA_ARGS__)),		\
-		  (&msg));						\
+    error_t err;							\
+    err = RPC_CONCAT (RPC_CONCAT (RPC_STUB_PREFIX_(id), _using), postfix) \
+      (mb, __rpc_activity, __rpc_object					\
+       RPC_IF_COMMA (CPP_ADD (CPP_ADD (in_count, out_count),		\
+			      ret_cap_count)) ()			\
+       RPC_ARGUMENTS (CPP_ADD (CPP_ADD (in_count, out_count),		\
+			       ret_cap_count),, __VA_ARGS__));		\
 									\
-    l4_msg_load (msg);							\
-    l4_accept (l4_map_grant_items (L4_COMPLETE_ADDRESS_SPACE));		\
+    hurd_message_buffer_free (mb);					\
 									\
-    bool call = true;							\
-    for (;;)								\
-      {									\
-	if (call)							\
-	  tag = l4_call (RPC_TARGET_);					\
-	else								\
-	  tag = l4_receive (RPC_TARGET_);				\
-	if (unlikely (l4_ipc_failed (tag)))				\
-	  {								\
-	    if (((l4_error_code () >> 1) & 0x7) == 3)			\
-	      /* IPC was interrupted.  */				\
-	      /* XXX: We need to somehow consider the signal state and	\
-		 return EINTR if appropriate.  */			\
-	      {								\
-		if ((l4_error_code () & 1))				\
-		  /* Error occurred during receive phase.  */		\
-		  call = false;						\
-									\
-		continue;						\
-	      }								\
-	    return EHOSTDOWN;						\
-	  }								\
-	break;								\
-      }									\
-									\
-    l4_msg_store (tag, msg);						\
-    return RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_unmarshal)		\
-      CPP_IFTHEN (ocount,						\
-		  (&msg, RPC_ARGUMENTS (ocount,				\
-					RPC_CHOP (icount, ##__VA_ARGS__))), \
-		  (&msg));						\
-  }									\
+    return err;								\
+  }
+#else
+# define RPC_(postfix, id, in_count, out_count, ret_cap_count, ...)
+#endif
 
-/* Generate stubs for marshalling a reply and sending it (without
-   blocking).  */
-#define RPC_REPLY_(id, icount, ocount, ...)				\
+/* Send a reply to __RPC_TARGET.  If __RPC_TARGET does not accept the
+   message immediately, abort sending.  */
+#ifndef RM_INTERN
+#define RPC_REPLY_(id, in_count, out_count, ret_cap_count, ...)		\
   static inline error_t							\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply)				\
-    (l4_thread_id_t tid RPC_IF_COMMA (ocount) ()			\
-     RPC_GRAB2 (, ocount, RPC_CHOP (icount, ##__VA_ARGS__)))		\
+    (addr_t __rpc_activity,						\
+     addr_t __rpc_target						\
+     /* Out data.  */							\
+     RPC_IF_COMMA (out_count) ()					\
+     RPC_GRAB2 (, out_count, RPC_CHOP2 (in_count, ##__VA_ARGS__))	\
+     /* Return capabilities.  */					\
+     RPC_IF_COMMA (ret_cap_count) ()					\
+     RPC_GRAB2 (, ret_cap_count,					\
+		RPC_CHOP2 (CPP_ADD (in_count, out_count),		\
+			   ##__VA_ARGS__)))				\
   {									\
-    l4_msg_tag_t tag;							\
-    l4_msg_t msg;							\
+    struct hurd_message_buffer *mb = hurd_message_buffer_alloc ();	\
 									\
     RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_marshal)			\
-      (&msg RPC_IF_COMMA (ocount) ()					\
-       RPC_ARGUMENTS(ocount, RPC_CHOP (icount, __VA_ARGS__)));		\
+      (mb->request							\
+       /* Out data.  */							\
+       RPC_IF_COMMA (out_count) ()					\
+       RPC_ARGUMENTS(out_count,, RPC_CHOP2 (in_count, __VA_ARGS__))	\
+       /* Out capabilities.  */						\
+       RPC_IF_COMMA (ret_cap_count) ()					\
+       RPC_ARGUMENTS(ret_cap_count,,					\
+		     RPC_CHOP2 (CPP_ADD (in_count, out_count),		\
+				__VA_ARGS__)));				\
 									\
-    l4_msg_load (msg);							\
-    l4_accept (L4_UNTYPED_WORDS_ACCEPTOR);				\
+    error_t err = vg_reply (VG_IPC_SEND_SET_THREAD_TO_CALLER		\
+			    | VG_IPC_SEND_SET_ASROOT_TO_CALLERS,	\
+			    __rpc_activity, __rpc_target,		\
+			    mb->sender, ADDR_VOID);			\
 									\
-    tag = l4_reply (tid);						\
-    if (l4_ipc_failed (tag))						\
-      return EHOSTDOWN;							\
-    return 0;								\
+    hurd_message_buffer_free (mb);					\
+									\
+    return err;								\
   }
+#else
+#define RPC_REPLY_(id, in_count, out_count, ret_cap_count, ...)		\
+  static inline error_t							\
+  __attribute__((always_inline))					\
+  RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply)				\
+    (struct activity *__rpc_activity,					\
+     struct messenger *__rpc_target					\
+     /* Out data.  */							\
+     RPC_IF_COMMA (out_count) ()					\
+     RPC_GRAB2 (, out_count, RPC_CHOP2 (in_count, ##__VA_ARGS__))	\
+     /* Return capabilities.  */					\
+     RPC_IF_COMMA (ret_cap_count) ()					\
+     RPC_GRAB2 (, ret_cap_count,					\
+		RPC_TYPE_SHIFT (ret_cap_count, struct cap,		\
+				RPC_CHOP2 (CPP_ADD (in_count, out_count), \
+					   ##__VA_ARGS__))))		\
+  {									\
+    RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply_marshal)			\
+      (reply_buffer							\
+       /* Out data.  */							\
+       RPC_IF_COMMA (out_count) ()					\
+       RPC_ARGUMENTS(out_count,, RPC_CHOP2 (in_count, ##__VA_ARGS__))	\
+       /* Out capabilities.  */						\
+       RPC_IF_COMMA (ret_cap_count) ()					\
+       RPC_ARGUMENTS (ret_cap_count, &,					\
+		      RPC_CHOP2 (CPP_ADD (in_count, out_count),		\
+				 ##__VA_ARGS__)));			\
+									\
+    bool ret = messenger_message_load (__rpc_activity,			\
+				       __rpc_target, reply_buffer);	\
+									\
+    return ret ? 0 : EWOULDBLOCK;					\
+  }
+#endif
 
-/* RPC template.  ID is the method name, ARGS is the list of arguments
-   as normally passed to a function, LOADER is code to load the in
-   parameters, and STORER is code to load the out parameters.  The
-   code assumes that the first MR contains the error code and returns
-   this as the function return value.  If the IPC fails, EHOSTDOWN is
-   returned.  */
+/* RPC template.  ID is the method name.  IN_COUNT is the number of
+   arguments.  OUT_COUNT is the number of out arguments.
+   RET_CAP_COUNT is the number of capabilities that are returned.  The
+   remaining arguments correspond to pairs of types and argument
+   names.
 
-#define RPC_SIMPLE(id, icount, ocount, ...)		\
-  RPC_MARSHAL_GEN_(id, icount, ocount, ##__VA_ARGS__)	\
-  							\
-  RPC_SIMPLE_(, id, icount, ocount, ##__VA_ARGS__)	\
-  RPC_SIMPLE_(_send, id, icount, ocount, ##__VA_ARGS__)	\
-  RPC_(_call, id, icount, ocount, ##__VA_ARGS__)	\
-							\
-  RPC_REPLY_(id, icount, ocount, ##__VA_ARGS__)
+   Consider:
 
-#define RPC(id, icount, ocount, ...)			\
-  RPC_MARSHAL_GEN_(id, icount, ocount, ##__VA_ARGS__)	\
-  							\
-  RPC_(, id, icount, ocount, ##__VA_ARGS__)		\
-  RPC_SIMPLE_(_send, id, icount, ocount, ##__VA_ARGS__)	\
-  RPC_(_call, id, icount, ocount, ##__VA_ARGS__)	\
-							\
-  RPC_REPLY_(id, icount, ocount, ##__VA_ARGS__)
+     RPC(method, 2, 1, 1,
+         // In (data and capability) parameters
+         int, foo, cap_t, bar,
+	 // Out data parameters
+         int bam,
+	 // Out capabilities
+	 cap_t xyzzy)
+
+   This will generate marshalling and unmarshalling functions as well
+   as send, reply and call functions.  For instance, the signature for
+   the correspond send marshal function is:
+
+     error_t method_send_marshal (struct vg_message *message,
+                                  int foo, cap_t bar, cap_t reply)
+
+   that of the send unmarshal function is:
+     
+     error_t method_send_unmarshal (struct vg_message *message,
+                                    int *foo, cap_t *bar, cap_t *reply)
+
+   that of the receive marshal function is:
+
+     error_t method_receive_marshal (struct vg_message *message,
+                                     cap_t xyzzy)
+
+
+   that of the reply marshal function is:
+
+     error_t method_reply_marshal (struct vg_message *message,
+                                   int bam, cap_t xyzzy)
+
+   that of the reply unmarshal function is:
+
+     error_t method_reply_unmarshal (struct vg_message *message,
+                                     int *bam, cap_t *xyzzy)
+
+   Functions to send requests and replies as well as to produce calls
+   are also generated.
+
+     error_t method_call (cap_t activity, cap_t object,
+                          int foo, cap_t bar, int *bam, cap_t *xyzzy)
+
+   Note that *XYZZY must be initialize with the location of a
+   capability slot to store the returned capability.  *XYZZY is set to
+   ADDR_VOID if the sender did not provide a capability.
+
+   To send a message and not wait for a reply, a function with the
+   following prototype is generated:
+
+     error_t method_send (cap_t activity, cap_t object,
+                          int foo, cap_t bar,
+			  cap_t reply_messenger)
+
+   To reply to a request, a function with the following prototype is
+   generated:
+
+     error_t method_reply (cap_t activity, cap_t reply_messenger,
+                           int bam, cap_t xyzzy)
+*/
+
+#define RPC(id, in_count, out_count, ret_cap_count, ...)		\
+  RPC_MARSHAL_GEN_(id, in_count, out_count, ret_cap_count, ##__VA_ARGS__) \
+									\
+  RPC_(, id, in_count, out_count, ret_cap_count, ##__VA_ARGS__)		\
+  RPC_SEND_(_send, id, in_count, out_count, ret_cap_count,		\
+	    ##__VA_ARGS__)						\
+  RPC_SEND_NONBLOCKING_(_send_nonblocking,				\
+			id, in_count, out_count, ret_cap_count,		\
+			##__VA_ARGS__)					\
+  RPC_REPLY_(id, in_count, out_count, ret_cap_count, ##__VA_ARGS__)
 
 /* Marshal a reply consisting of the error code ERR in *MSG.  */
 static inline void
-rpc_error_reply_marshal (l4_msg_t *msg, error_t err)
+__attribute__((always_inline))
+rpc_error_reply_marshal (struct vg_message *msg, error_t err)
 {
-  l4_msg_clear (*msg);
-  l4_msg_put_word (*msg, 0, err);
-  l4_msg_set_untyped_words (*msg, 1);
+  vg_message_clear (msg);
+  vg_message_append_word (msg, err);
 }
 
-/* Reply to the thread THREAD with error code ERROR.  */
+/* Reply to the target TARGET with error code ERROR.  */
+#ifdef RM_INTERN
 static inline error_t
-rpc_error_reply (l4_thread_id_t thread, error_t err)
+__attribute__((always_inline))
+rpc_error_reply (struct activity *activity, struct messenger *target,
+		 error_t err)
 {
-  l4_msg_t msg;
-
-  rpc_error_reply_marshal (&msg, err);
-  l4_msg_load (msg);
-
-  l4_msg_tag_t tag;
-  tag = l4_reply (thread);
-  if (l4_ipc_failed (tag))
-    return EHOSTDOWN;
-  return 0;
+  rpc_error_reply_marshal (reply_buffer, err);
+  bool ret = messenger_message_load (activity, target, reply_buffer);
+  return ret ? 0 : EWOULDBLOCK;
 }
+#else
+static inline error_t
+__attribute__((always_inline))
+rpc_error_reply (cap_t activity, cap_t target, error_t err)
+{
+  return vg_ipc_short (VG_IPC_SEND_NONBLOCKING | VG_IPC_SEND_INLINE
+		       | VG_IPC_SEND_INLINE_WORD1,
+		       ADDR_VOID, ADDR_VOID, ADDR_VOID,
+		       ADDR_VOID, target,
+		       ADDR_VOID, err, 0, ADDR_VOID);
+}
+#endif
 
 #endif

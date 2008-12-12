@@ -23,6 +23,7 @@
 #include <hurd/as.h>
 #include <hurd/stddef.h>
 #include <assert.h>
+#include <backtrace.h>
 
 #ifdef RM_INTERN
 #include <md5.h>
@@ -171,6 +172,29 @@ do_walk (activity_t activity, int index,
 	do_walk (activity, i, root,
 		 addr_extend (addr, i, FOLIO_OBJECTS_LOG2),
 		 indent + 1, false, output_prefix);
+
+      return;
+
+    case cap_thread:
+      if (addr_depth (addr) + THREAD_SLOTS_LOG2 > ADDR_BITS)
+	return;
+
+      for (i = 0; i < THREAD_SLOTS; i ++)
+	do_walk (activity, i, root,
+		 addr_extend (addr, i, THREAD_SLOTS_LOG2),
+		 indent + 1, true, output_prefix);
+
+      return;
+
+    case cap_messenger:
+      /* rmessenger's don't expose their capability slots.  */
+      if (addr_depth (addr) + VG_MESSENGER_SLOTS_LOG2 > ADDR_BITS)
+	return;
+
+      for (i = 0; i < VG_MESSENGER_SLOTS; i ++)
+	do_walk (activity, i, root,
+		 addr_extend (addr, i, VG_MESSENGER_SLOTS_LOG2),
+		 indent + 1, true, output_prefix);
 
       return;
 

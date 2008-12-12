@@ -1,3 +1,14 @@
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	Update according to new RPC interfaces.
+	* activity-distribution.c (main): Update use of rm_activity_policy
+	and rm_activity_info to be consistent with the new interface.
+	Replace use of `struct exception_info' with `struct
+	activation_fault_info'.
+	* cache.c (helper): Update use of rm_activity_policy and
+	rm_activity_info to be consistent with the new interface.
+	* shared-memory-distribution.c (main): Likewise.
+
 2008-11-18  Neal H. Walfield  <neal@gnu.org>
 
 	* cache.c: New file.

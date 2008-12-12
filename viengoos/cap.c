@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <hurd/stddef.h>
+#include <hurd/messenger.h>
 
 #include "cap.h"
 #include "object.h"
@@ -141,6 +142,42 @@ cap_shootdown (struct activity *activity, struct cap *root)
 	      doit (&object->caps[i], remaining);
 
 	  return;
+
+	case cap_messenger:
+	case cap_rmessenger:
+	  if (remaining < VG_MESSENGER_SLOTS_LOG2 + PAGESIZE_LOG2)
+	    return;
+
+	  object = cap_to_object (activity, cap);
+	  if (! object)
+	    return;
+
+	  remaining -= VG_MESSENGER_SLOTS_LOG2;
+
+	  for (i = 0; i < VG_MESSENGER_SLOTS_LOG2; i ++)
+	    if (root->oid != object->caps[i].oid)
+	      doit (&object->caps[i], remaining);
+
+	  return;
+
+	case cap_thread:
+	  if (remaining < THREAD_SLOTS_LOG2 + PAGESIZE_LOG2)
+	    return;
+
+	  object = cap_to_object (activity, cap);
+	  if (! object)
+	    return;
+
+	  remaining -= THREAD_SLOTS_LOG2;
+
+	  for (i = 0; i < THREAD_SLOTS_LOG2; i ++)
+	    if (root->oid != object->caps[i].oid)
+	      doit (&object->caps[i],
+		    remaining
+		    + (i == THREAD_ASPACE_SLOT ? THREAD_SLOTS_LOG2 : 0));
+
+	  return;
+
 
 	case cap_folio:
 	  if (remaining < FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2)

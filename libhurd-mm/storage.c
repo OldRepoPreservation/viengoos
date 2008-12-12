@@ -28,6 +28,7 @@
 #include <hurd/startup.h>
 #include <hurd/rm.h>
 #include <hurd/mutex.h>
+#include <backtrace.h>
 
 #ifndef NDEBUG
 struct ss_lock_trace ss_lock_trace[SS_LOCK_TRACE_COUNT];
@@ -255,7 +256,7 @@ shadow_setup (struct cap *cap, struct storage_desc *desc)
       error_t err = rm_folio_object_alloc (meta_data_activity,
 					   desc->folio, idx, cap_page,
 					   OBJECT_POLICY_DEFAULT, 0,
-					   ADDR_VOID, ADDR_VOID);
+					   NULL, NULL);
       assert (err == 0);
       shadow = ADDR_TO_PTR (addr_extend (addr_extend (desc->folio,
 						      idx, FOLIO_OBJECTS_LOG2),
@@ -331,7 +332,7 @@ static bool storage_init_done;
    soon have a problem.  In this case, we serialize access to the pool
    of available pages to allow some thread that is able to allocate
    more pages the chance to do so.  */
-#define FREE_PAGES_SERIALIZE 16
+#define FREE_PAGES_SERIALIZE 32
 
 static pthread_mutex_t storage_low_mutex
   = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -453,8 +454,11 @@ storage_check_reserve_internal (bool force_allocate,
     }
 
   /* And then the folio.  */
-  error_t err = rm_folio_alloc (activity, addr, FOLIO_POLICY_DEFAULT);
+  addr_t a = addr;
+  error_t err = rm_folio_alloc (activity, activity, FOLIO_POLICY_DEFAULT,
+				&a);
   assert (! err);
+  assert (ADDR_EQ (addr, a));
 
   /* Allocate and fill a descriptor.  */
   struct storage_desc *s = storage_desc_alloc ();
@@ -524,10 +528,18 @@ storage_alloc (addr_t activity,
 
   struct storage_desc *desc;
   bool do_allocate = false;
+  int tries = 0;
   do
     {
-      storage_check_reserve_internal (do_allocate, activity, expectancy,
-				      true);
+      if (tries ++ == 5)
+	{
+	  backtrace_print ();
+	  debug (0, "Failing to get storage (free count: %d).  Live lock?",
+		 free_count);
+	}
+
+      storage_check_reserve_internal (do_allocate, meta_data_activity,
+				      expectancy, true);
 
       /* Find an appropriate storage area.  */
       struct storage_desc *pluck (struct storage_desc *list)
@@ -594,9 +606,10 @@ storage_alloc (addr_t activity,
   addr_t folio = desc->folio;
   addr_t object = addr_extend (folio, idx, FOLIO_OBJECTS_LOG2);
 
-  debug (5, "Allocating object %d from " ADDR_FMT " (" ADDR_FMT ") "
-	 "(%d left), copying to " ADDR_FMT,
-	 idx, ADDR_PRINTF (folio), ADDR_PRINTF (object),
+  debug (5, "Allocating object %d as %s from " ADDR_FMT " (" ADDR_FMT ") "
+	 "(%d left), installing at " ADDR_FMT,
+	 idx, cap_type_string (type),
+	 ADDR_PRINTF (folio), ADDR_PRINTF (object),
 	 desc->free, ADDR_PRINTF (addr));
 
   atomic_decrement (&free_count);
@@ -621,13 +634,13 @@ storage_alloc (addr_t activity,
       ss_mutex_unlock (&storage_descs_lock);
     }
 
-  error_t err = rm_folio_object_alloc (activity,
-				       folio, idx, type,
-				       policy, 0,
-				       addr, ADDR_VOID);
+  addr_t a = addr;
+  error_t err = rm_folio_object_alloc (activity, folio, idx, type, policy, 0,
+				       &a, NULL);
   assertx (! err,
 	   "Allocating object %d from " ADDR_FMT " at " ADDR_FMT ": %d!",
 	   idx, ADDR_PRINTF (folio), ADDR_PRINTF (addr), err);
+  assert (ADDR_EQ (a, addr));
 
   struct object *shadow = desc->shadow;
   struct cap *cap = NULL;
@@ -686,6 +699,8 @@ storage_alloc (addr_t activity,
 void
 storage_free_ (addr_t object, bool unmap_now)
 {
+  debug (5, DEBUG_BOLD ("Freeing " ADDR_FMT), ADDR_PRINTF (object));
+
   addr_t folio = addr_chop (object, FOLIO_OBJECTS_LOG2);
 
   atomic_increment (&free_count);
@@ -697,7 +712,7 @@ storage_free_ (addr_t object, bool unmap_now)
   storage = hurd_btree_storage_desc_find (&storage_descs, &folio);
   assertx (storage,
 	   "No storage associated with " ADDR_FMT " "
-	   "(did you pass the storage address?",
+	   "(did you pass the storage address?)",
 	   ADDR_PRINTF (object));
 
   ss_mutex_lock (&storage->lock);
@@ -784,7 +799,7 @@ storage_free_ (addr_t object, bool unmap_now)
   error_t err = rm_folio_object_alloc (meta_data_activity,
 				       folio, idx, cap_void,
 				       OBJECT_POLICY_DEFAULT, 0,
-				       ADDR_VOID, ADDR_VOID);
+				       NULL, NULL);
   assert (err == 0);
 
   if (likely (!! shadow))
@@ -884,7 +899,7 @@ storage_init (void)
   ss_mutex_unlock (&storage_descs_lock);
 
   debug (1, "%d folios, %d objects used, %d free objects",
-	 folio_count, __hurd_startup_data->desc_count, free_count);
+	 folio_count, __hurd_startup_data->desc_count, (int) free_count);
 
   storage_init_done = true;
 

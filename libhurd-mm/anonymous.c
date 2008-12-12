@@ -31,6 +31,7 @@
 #include <hurd/rm.h>
 
 #include <profile.h>
+#include <backtrace.h>
 
 #include "anonymous.h"
 #include "pager.h"
@@ -132,18 +133,23 @@ static struct hurd_slab_space anonymous_pager_slab
 
 static bool
 fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
-       uintptr_t fault_addr, uintptr_t ip, struct exception_info info)
+       uintptr_t fault_addr, uintptr_t ip, struct activation_fault_info info)
 {
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+  assert (anon->magic == ANONYMOUS_MAGIC);
 
-  debug (5, "Fault at %p, %d pages (%d kb); pager at " ADDR_FMT "+%d",
-	 fault_addr, count, count * PAGESIZE / 1024,
-	 ADDR_PRINTF (anon->map_area), offset);
+  debug (5, "%p: fault at %p, spans %d pg (%d kb); "
+	 "pager: %p-%p (%d pages; %d kb), offset: %x",
+	 anon, (void *) fault_addr, count, count * PAGESIZE / 1024,
+	 (void *) (uintptr_t) addr_prefix (anon->map_area),
+	 (void *) (uintptr_t) addr_prefix (anon->map_area) + anon->pager.length,
+	 anon->pager.length / PAGESIZE, anon->pager.length / 1024,
+	 offset);
 
   ss_mutex_lock (&anon->lock);
 
   bool recursive = false;
-  void *pages[count];
+  void **pages;
 
   profile_region (count > 1 ? ">1" : "=1");
 
@@ -204,16 +210,19 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 
       fault_addr -= left;
       offset -= left;
-      count += (left + right) / PAGESIZE;
+      count = (left + PAGESIZE + right) / PAGESIZE;
 
       assertx (offset + count * PAGESIZE <= pager->length,
 	       "%x + %d pages <= %x",
 	       offset, count, pager->length);
 
-      debug (5, "Fault at %p, %d pages (%d kb); pager at " ADDR_FMT "+%d",
-	     fault_addr, count, count * PAGESIZE / 1024,
+      debug (5, "Faulting %p - %p (%d pages; %d kb); pager at " ADDR_FMT "+%d",
+	     (void *) fault_addr, (void *) fault_addr + count * PAGE_SIZE,
+	     count, count * PAGESIZE / 1024,
 	     ADDR_PRINTF (anon->map_area), offset);
     }
+
+  pages = __builtin_alloca (sizeof (void *) * count);
 
   if (! (anon->flags & ANONYMOUS_NO_ALLOC))
     {
@@ -244,7 +253,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		 storage address as object_discarded_clear also
 		 returns a mapping and we are likely to access the
 		 data at the fault address.  */
-	      err = rm_object_discarded_clear (ADDR_VOID,
+	      err = rm_object_discarded_clear (ADDR_VOID, ADDR_VOID,
 					       storage_desc->storage);
 	      assertx (err == 0, "%d", err);
 
@@ -326,6 +335,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 #endif
     }
 
+  assert (anon->magic == ANONYMOUS_MAGIC);
   ss_mutex_unlock (&anon->lock);
 
   profile_region_end ();
@@ -367,6 +377,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 
   debug (5, "Fault at %x resolved", fault_addr);
 
+  assert (anon->magic == ANONYMOUS_MAGIC);
+
   return r;
 }
 
@@ -374,6 +386,7 @@ static void
 mdestroy (struct map *map)
 {
   struct anonymous_pager *anon = (struct anonymous_pager *) map->pager;
+  assert (anon->magic == ANONYMOUS_MAGIC);
 
   /* XXX: We assume that every byte is mapped by at most one mapping.
      We may have to reexamine this assumption if we allow multiple
@@ -468,6 +481,7 @@ destroy (struct pager *pager)
   assert (! pager->maps);
 
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+  assert (anon->magic == ANONYMOUS_MAGIC);
 
   /* Wait any fill function returns.  */
   ss_mutex_lock (&anon->fill_lock);
@@ -498,6 +512,7 @@ advise (struct pager *pager,
 	uintptr_t start, uintptr_t length, uintptr_t advice)
 {
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
+  assert (anon->magic == ANONYMOUS_MAGIC);
   
   switch (advice)
     {
@@ -541,7 +556,7 @@ advise (struct pager *pager,
 
     case pager_advice_normal:
       {
-	struct exception_info info;
+	struct activation_fault_info info;
 	info.discarded = anon->policy.discardable;
 	info.type = cap_page;
 	/* XXX: What should we set info.access to?  */
@@ -584,6 +599,8 @@ anonymous_pager_alloc (addr_t activity,
 
   struct anonymous_pager *anon = buffer;
   memset (anon, 0, sizeof (*anon));
+
+  anon->magic = ANONYMOUS_MAGIC;
 
   anon->pager.length = length;
   anon->pager.fault = fault;
@@ -650,7 +667,7 @@ anonymous_pager_alloc (addr_t activity,
 	{
 	  if ((flags & ANONYMOUS_FIXED))
 	    {
-	      debug (0, "(%x, %x (%x)): Specified range " ADDR_FMT "+%d "
+	      debug (0, "(%p, %x (%p)): Specified range " ADDR_FMT "+%d "
 		     "in use and ANONYMOUS_FIXED specified",
 		     hint, length, hint + length - 1,
 		     ADDR_PRINTF (anon->map_area), count);
@@ -668,7 +685,7 @@ anonymous_pager_alloc (addr_t activity,
       anon->map_area = as_alloc (width, count, true);
       if (ADDR_IS_VOID (anon->map_area))
 	{
-	  debug (0, "(%x, %x (%x)): No VA available",
+	  debug (0, "(%p, %x (%p)): No VA available",
 		 hint, length, hint + length - 1);
 	  goto error_with_buffer;
 	}
@@ -699,7 +716,7 @@ anonymous_pager_alloc (addr_t activity,
     panic ("Memory exhausted.");
 
 
-  debug (5, "Installed pager at %x spanning %d pages",
+  debug (5, "Installed pager at %p spanning %d pages",
 	 *addr_out, length / PAGESIZE);
 
   return anon;

@@ -185,6 +185,7 @@ static struct hurd_ihash cache;
 #include <hurd/activity.h>
 #include <pthread.h>
 #include <hurd/anonymous.h>
+#include <hurd/as.h>
 #include <string.h>
 
 addr_t main_activity;
@@ -210,7 +211,7 @@ helper (void *arg)
     /* First the main thread.  */
     error_t err;
 
-    err = rm_activity_info (main_activity, activity_info_stats,
+    err = rm_activity_info (ADDR_VOID, main_activity, activity_info_stats,
 			    stat_count == 0
 			    ? 0 : stats[stat_count - 1].period + 1,
 			    &info);
@@ -226,7 +227,7 @@ helper (void *arg)
     stats[stat_count].period = info.stats.stats[0].period;
 
     /* Then, the hog.  */
-    err = rm_activity_info (hog_activity, activity_info_stats,
+    err = rm_activity_info (ADDR_VOID, hog_activity, activity_info_stats,
 			    stat_count == 0
 			    ? 0 : stats[stat_count - 1].period + 1,
 			    &info);
@@ -418,15 +419,15 @@ helper_fork (void)
   in.child_rel.priority = 2;
   in.child_rel.weight = 20;
 
-  err = rm_activity_policy (ADDR_VOID,
+  err = rm_activity_policy (ADDR_VOID, meta_data_activity,
 			    ACTIVITY_POLICY_CHILD_REL_SET, in, &out);
   assert (err == 0);
 
-  err = rm_activity_policy (hog_activity,
+  err = rm_activity_policy (ADDR_VOID, hog_activity,
 			    ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
   assert (err == 0);
 
-  err = rm_activity_policy (main_activity,
+  err = rm_activity_policy (ADDR_VOID, main_activity,
 			    ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
   assert (err == 0);
 

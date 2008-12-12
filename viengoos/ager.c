@@ -32,6 +32,7 @@
 #include "zalloc.h"
 #include "thread.h"
 #include "pager.h"
+#include "messenger.h"
 
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
@@ -401,14 +402,14 @@ update_stats (void)
 	    0, sizeof (*ACTIVITY_STATS (activity)));
 
     /* Wake anyone waiting for this statistic.  */
-    struct thread *thread;
+    struct messenger *messenger;
     object_wait_queue_for_each (activity, (struct object *) activity,
-				thread)
-      if (thread->wait_reason == THREAD_WAIT_ACTIVITY_INFO
-	  && (thread->wait_reason_arg & activity_info_stats)
-	  && thread->wait_reason_arg2 <= period / FREQ)
+				messenger)
+      if (messenger->wait_reason == MESSENGER_WAIT_ACTIVITY_INFO
+	  && (messenger->wait_reason_arg & activity_info_stats)
+	  && messenger->wait_reason_arg2 <= period / FREQ)
 	{
-	  object_wait_queue_dequeue (activity, thread);
+	  object_wait_queue_unlink (activity, messenger);
 
 	  /* XXX: Only return valid stat buffers.  */
 	  struct activity_info info;
@@ -426,20 +427,7 @@ update_stats (void)
 
 	  info.stats.count = ACTIVITY_STATS_PERIODS;
 
-	  l4_msg_t msg;
-	  rm_activity_info_reply_marshal (&msg, info);
-	  l4_msg_tag_t msg_tag = l4_msg_msg_tag (msg);
-	  l4_set_propagation (&msg_tag);
-	  l4_msg_set_msg_tag (msg, msg_tag);
-	  l4_set_virtual_sender (viengoos_tid);
-	  l4_msg_load (msg);
-	  msg_tag = l4_reply (thread->tid);
-
-	  if (l4_ipc_failed (msg_tag))
-	    debug (0, "%s %x failed: %u", 
-		   l4_error_code () & 1 ? "Receiving from" : "Sending to",
-		   l4_error_code () & 1 ? l4_myself () : thread->tid,
-		   (l4_error_code () >> 1) & 0x7);
+	  rm_activity_info_reply (root_activity, messenger, info);
 	}
   }
 

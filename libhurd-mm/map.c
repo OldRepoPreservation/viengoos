@@ -126,7 +126,7 @@ map_install (struct map *map)
   assert ((map->access & ~MAP_ACCESS_ALL) == 0);
 
 
-  debug (5, "Installing %c%c map at %x+%x(%x) referencing %x starting at %x",
+  debug (5, "Installing %c%c map at %x+%x(%x) referencing %p starting at %x",
 	 map->access & MAP_ACCESS_READ ? 'r' : '~',
 	 map->access & MAP_ACCESS_WRITE ? 'w' : '~',
 	 map->region.start, map->region.start + map->region.length,
@@ -314,7 +314,7 @@ map_join (struct map *first, struct map *second)
 }
 
 bool
-map_fault (addr_t fault_addr, uintptr_t ip, struct exception_info info)
+map_fault (addr_t fault_addr, uintptr_t ip, struct activation_fault_info info)
 {
   /* Find the map.  */
   struct region region;
@@ -332,9 +332,9 @@ map_fault (addr_t fault_addr, uintptr_t ip, struct exception_info info)
     {
       do_debug (5)
 	{
-	  debug (0, "No map covers " ADDR_FMT "(" EXCEPTION_INFO_FMT ")",
+	  debug (0, "No map covers " ADDR_FMT "(" ACTIVATION_FAULT_INFO_FMT ")",
 		 ADDR_PRINTF (fault_addr),
-		 EXCEPTION_INFO_PRINTF (info));
+		 ACTIVATION_FAULT_INFO_PRINTF (info));
 	  for (map = hurd_btree_map_first (&maps);
 	       map;
 	       map = hurd_btree_map_next (map))

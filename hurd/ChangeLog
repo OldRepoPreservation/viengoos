@@ -1,3 +1,239 @@
+2008-12-11  Neal H. Walfield  <neal@gnu.org>
+
+	Adapt RPC interfaces according to changes in IPC semantics.
+	
+	* messenger.h: New file.
+	* message.h: New file.
+	* ipc.h: New file.
+	* headers.m4: Link sysroot/include/hurd/message.h to
+	hurd/message.h, sysroot/include/hurd/messenger.h to
+	hurd/messenger.h, and sysroot/include/hurd/ipc.h to hurd/ipc.h.
+	* cap.h: Include <hurd/addr.h> and <stdbool.h>.
+	(enum cap_type): Define cap_messenger, cap_rmessenger and
+	cap_type_count.
+	(cap_type_string): Handle cap_messenger and cap_rmessenger.
+	(cap_types_compatible): Likewise.
+	(cap_type_weak_p): Likewise.
+	(cap_type_weaken): Likewise.
+	(cap_type_strengthen): Likewise.
+	(oid_t): Replace L4 type with standard type.
+	(CAP_VOID): Define.
+
+	* rpc.h [! RPC_TARGET]: Don't error out if not defined.
+	[RPC_TARGET_ARG_]: Don't define or undefine.
+	[RPC_TARGET_]: Likewise.
+	[RPC_TARGET_NEED_ARG]: Ignore.
+	Don't include <l4/ipc.h> or <l4/space.h>.  Include
+	<hurd/message.h> and <hurd/ipc.h>.
+	(reply_buffer) [RM_INTERN]: Declare.
+	(messenger_message_load) [RM_INTERN]: Likewise.
+	[! RM_INTERN] Include <hurd/message-buffer.h>.
+	(cap_t): Define.
+	(CPP_FOREACH): Define.
+	(CPP_SAFE_DEREF): Likewise.
+	(RPC_ARGUMENTS): Take additional argument prefix.  Use it.  Update
+	users.
+	(RPC_CHOP): Rename from this...
+	(RPC_CHOP2): ... to this.  Update users.
+	(RPC_TYPE_SHIFT): New define.
+	(RPCLOADARG): Rewrite according to new marshalling semantics.
+	(RPCSTOREARG): Likewise.
+	(RPC_SEND_MARSHAL): Likewise.
+	(RPC_SEND_UNMARSHAL): Likewise.
+	(RPC_REPLY_MARSHAL): Likewise.
+	(RPC_REPLY_UNMARSHAL): Likewise.
+	(RPC_RECEIVE_MARSHAL): New define.
+	(RPC_MARSHAL_GEN_): Break this into...
+	(RPC_SEND_MARSHAL_GEN_): ... this...
+	(RPC_RECEIVE_MARSHAL_GEN_): ... this...
+	(RPC_REPLY_MARSHAL_GEN_): ... and this.  Update users.
+	(RPC_MARSHAL_GEN_): Redefine in terms of the new macros.
+	(RPC_SEND_): Rewrite according to new marshalling and IPC
+	semantics.
+	(RPC_SEND_NONBLOCKING_): Define.
+	(RPC_): Rewrite according to new marshalling and IPC
+	semantics.
+	(RPC_REPLY_): Likewise.
+	(RPC_SIMPLE_): Don't define.
+	(RPC_SIMPLE): Don't define.
+	(RPC): Take additional argument ret_cap_count.  Update users.
+	(rpc_error_reply_marshal): Rewrite according to new marshalling
+	and IPC semantics.
+	(rpc_error_reply): Likewise.
+	* t-rpc.c (RPC_TARGET_NEED_ARG): Don't define.
+	(RPC_TARGET): Define.
+	(RPC_noargs): Set to a large interger.
+	(RPC_caps): New define.
+	(noargs): Update interface specification according to new IDL
+	interface.  Update users.
+	(onein): Likewise.
+	(oneout): Likewise.
+	(onlyin): Likewise.
+	(onlyout): Likewise.
+	(mix): Likewise.
+	(noargs): Likewise.
+	(onein): Likewise.
+	(oneout): Likewise.
+	(onlyin): Likewise.
+	(onlyout): Likewise.
+	(mix): New interface.
+	(RPC_TARGET): Don't undefine.
+	(main): Update to use the new RPC marshalling interface.  Write a
+	test using the new `mix' interface.
+	* activity.h (RPC_TARGET_NEED_ARG): Don't undefine.
+	(RPC_TARGET): Don't define.
+	(activity_policy): Update interface specification according to new
+	IDL interface.  Update users.
+	(activity_info): Likewise.
+	* cap.h: (RPC_TARGET_NEED_ARG): Don't undefine.
+	(RPC_TARGET): Don't define.
+	(RM_object_slot_copy_out): Don't define.
+	(RM_object_slot_copy_in): Likewise.
+	(RM_object_slot_read): Likewise.
+	(RM_object_reply_on_destruction): Define.
+	(cap_copy): Update interface specification according to new
+	IDL interface.  Update users.
+	(cap_rubout): Likewise.
+	(cap_read): Likewise.
+	(object_discarded_clear): Likewise.
+	(object_discard): Likewise.
+	(object_status): Likewise.
+	(object_name): Likewise.
+	(object_reply_on_destruction): New interface replacing
+	thread_wait_destroy.
+	(object_slot_copy_out): Remove interface.
+	(object_slot_copy_in): Likewise.
+	(object_slot_read): Likewise.
+	(RPC_TARGET): Don't undefine.
+	* exceptions.h: Don't include <l4/thread.h>.  Include
+	<l4/space.h>.
+	(RPC_STUB_PREFIX): Redefine to `activation'.
+	(RPC_ID_PREFIX EXCEPTION): Redefine to `ACTIVATION'.
+	(RPC_TARGET_NEED_ARG): Don't define.
+	(RPC_TARGET_ARG_TYPE): Likewise.
+	(RPC_TARGET): Likewise.
+	(EXCEPTION_fault): Rename from this...
+	(ACTIVATION_fault): ... to this.  Update users.
+	(exception_method_id_string): Rename from this...
+	(activation_method_id_string): ... to this.
+	(struct exception_info): Rename from this...
+	(struct activation_fault_info): ... to this.  Update users.
+	(EXCEPTION_INFO_FMT): Rename from this...
+	(ACTIVATION_FAULT_INFO_FMT): ... to this.  Update users.
+	(EXCEPTION_INFO_PRINTF): Rename from this...
+	(ACTIVATION_FAULT_INFO_PRINTF): ... to this.  Update users.
+	(fault): Update interface specification according to new IDL
+	interface.  Update users.
+	* folio.h (RPC_TARGET_NEED_ARG): Don't undefine.
+	(RPC_TARGET): Don't define.
+	(folio_alloc): Update interface specification according to new IDL
+	interface.  Update users.
+	(folio_free): Likewise.
+	(folio_object_alloc): Likewise.
+	(folio_policy): Likewise.
+	(RPC_TARGET): Don't undefine.
+	* futex.h (RPC_TARGET_NEED_ARG): Don't undefine.
+	(RPC_TARGET): Don't define.
+	(futex): Update interface specification according to new IDL
+	interface.  Update users.
+	(RPC_TARGET): Don't undefine.
+	(futex_using): New function.
+	(futex): Implement in terms of it.
+	(futex_wait_using): New function.
+	(futex_wait): Implement in terms of it.
+	(futex_wake_using): New function.
+	(futex_wake): Implement in terms of it.
+	* thread.h (RM_thread_wait_object_destroyed): Don't define.
+	(RM_thread_raise_exception): Rename from this...
+	(RM_thread_activation_collect): ... to this.
+	(RM_thread_id): Define.
+	(RPC_TARGET_NEED_ARG): Don't undefine.
+	(RPC_TARGET): Don't define.
+	(struct hurd_thread_exregs_in): Remove fields aspace, activity,
+	exception_page, aspace_out, activity_out and exception_page_out.
+	(thread_exregs): Update interface specification according to new
+	IDL interface.  Add additional parameters exception_messenger and
+	exception_messenger_out.  Update users.
+	(thread_wait_object_destroyed): Remove interface.
+	(struct exception_buffer): Don't define.
+	(thread_raise_exception): Remove interface.
+	(thread_id): New interface.
+	(thread_activation_collect): Likewise.
+	(RPC_TARGET): Don't undefine.
+	* RPC: Update.
+
+	* exceptions.h (hurd_activation_handler_init_early): New
+	declaration.
+	(hurd_activation_handler_init): Likewise.
+	(hurd_utcb): Likewise.
+	(EXCEPTION_STACK_SIZE_LOG2): Don't define.
+	(EXCEPTION_STACK_SIZE): Likewise.
+	(hurd_activation_state_alloc): New declaration.
+	(exception_page_cleanup): Rename from this...
+	(hurd_activation_state_free): ... to this.  Update users.
+	(exception_handler_activated): Rename from this...
+	(hurd_activation_handler_activated): ... to this.
+	(exception_handler_normal): Rename from this...
+	(hurd_activation_handler_normal): ... to this.  Update users.
+	Take additional parameter utcb.
+	(exception_handler_entry): Rename from this...
+	(hurd_activation_handler_entry): ... to this.
+	(exception_handler_end): Rename from this...
+	(hurd_activation_handler_end): ... to this.
+	(hurd_activation_message_register): New declaration.
+	(hurd_activation_message_unregister): Likewise.
+	(hurd_activation_stack_dump): Likewise.
+	* thread.h [! __have_vg_thread_id_t] (__have_vg_thread_id_t):
+	Define.
+	[! __have_vg_thread_id_t && USE_L4]: Include <l4.h>.
+	[! __have_vg_thread_id_t && !USE_L4]: Include <stdint.h>.
+	[! __have_vg_thread_id_t] (vg_thread_id_t): Define.
+	[! __have_vg_thread_id_t] (vg_niltid): Define.
+	[! __have_vg_thread_id_t] (VG_THREAD_ID_FMT): Define.
+	[! __have_activation_frame] (__have_activation_frame): Define.
+	[! __have_activation_frame && USE_L4]: Include <l4/ipc.h>.
+	[! __have_activation_frame] (struct hurd_message_buffer): Declare.
+	[! __have_activation_frame] (struct activation_frame): Define in
+	this case.  Add fields normal_mode_stack and canary.
+	[! __have_activation_frame && i386] (struct activation_frame):
+	Change regs to have 10 elements.  Add fields eax, ecx, edx,
+	eflags, eip, ebx, edi, esi, ebp and esp.
+	[! __have_activation_frame && !USE_L4] (struct activation_frame):
+	Remove fields saved_sender, saved_receiver, saved_timeout,
+	saved_error_code, saved_flags, and saved_br0 in this case.
+	[__need_vg_thread_id_t || __need_activation_frame]
+	(__need_vg_thread_id_t): Undefine.
+	[__need_vg_thread_id_t || __need_activation_frame]
+	(__need_activation_frame): Likewise.
+	[!__need_vg_thread_id_t && !__need_activation_frame]: Include the
+	rest of the file in this case.  Include <stdint.h>,
+	<hurd/types.h>, <hurd/addr.h>, <hurd/addr-trans.h>, <hurd/cap.h>,
+	<hurd/messenger.h> and <setjmp.h>.
+	(hurd_activation_frame_longjmp): New declaration.
+	(struct hurd_fault_catcher): New definition.
+	(hurd_fault_catcher_register): New declaration.
+	(hurd_fault_catcher_unregister): Likewise.
+	(struct exception_page): Rename from this...
+	(struct vg_utcb): ... to this.  Update users.  Remove field
+	exception.  Add fields protected_payload, messenger_id,
+	inline_words, inline_caps, inline_word_count, inline_cap_count,
+	inline_data, exception_buffer, extant_messages, catchers,
+	alternate_stack, alternate_stack_inuse, canary0, canary1.
+	(UTCB_CANARY0): Define.
+	(UTCB_CANARY1): Likewise.
+	(THREAD_EXCEPTION_PAGE_SLOT): Rename from this...
+	(THREAD_UTCB): ... to this.
+	(THREAD_EXCEPTION_MESSENGER): Define.
+	(THREAD_SLOTS): Likewise.
+	(THREAD_SLOTS_LOG2): Likewise.
+	(HURD_EXREGS_SET_EXCEPTION_PAGE): Rename from this...
+	(HURD_EXREGS_SET_UTCB): ... to this.  Update users.
+	(HURD_EXREGS_SET_EXCEPTION_MESSENGER): Define.
+	(HURD_EXREGS_SET_REGS): Add HURD_EXREGS_SET_EXCEPTION_MESSENGER.
+	(vg_myself): New function.
+
+	* startup.h (struct hurd_startup_data): Add field messengers.
+
 2008-12-10  Neal H. Walfield  <neal@gnu.org>
 
 	* stddef.h: When checking if compiling for i386, check if i386 is

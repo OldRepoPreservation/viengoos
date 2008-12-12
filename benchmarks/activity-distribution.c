@@ -47,7 +47,7 @@ main (int argc, char *argv[])
       in.sibling_rel.priority = i == 0 ? 2 : 1;
       in.sibling_rel.weight = i + 1;
       struct activity_policy out;
-      err = rm_activity_policy (activities[i],
+      err = rm_activity_policy (activity, activities[i],
 				ACTIVITY_POLICY_SIBLING_REL_SET, in,
 				&out);
       assert (err == 0);
@@ -62,7 +62,7 @@ main (int argc, char *argv[])
   {
     struct activity_info info;
 
-    err = rm_activity_info (activity, activity_info_stats, 1, &info);
+    err = rm_activity_info (activity, activity, activity_info_stats, 1, &info);
     assert (err == 0);
     assert (info.event == activity_info_stats);
     assert (info.stats.count >= 1);
@@ -74,7 +74,7 @@ main (int argc, char *argv[])
   bool my_fill (struct anonymous_pager *anon,
 		uintptr_t offset, uintptr_t count,
 		void *pages[],
-		struct exception_info info)
+		struct activation_fault_info info)
   {
     uintptr_t *p = pages[0];
     p[0] = offset;
@@ -159,7 +159,7 @@ main (int argc, char *argv[])
 
       struct activity_info info;
 
-      rm_activity_info (activity, activity_info_stats,
+      rm_activity_info (activity, activity, activity_info_stats,
 			next_period, &info);
       assert (info.event == activity_info_stats);
       assert (info.stats.count > 0);
@@ -173,7 +173,7 @@ main (int argc, char *argv[])
       int j;
       for (j = 0; j < THREADS; j ++)
 	{
-	  rm_activity_info (activity, activity_info_stats,
+	  rm_activity_info (activity, activity, activity_info_stats,
 			    next_period, &info);
 	  assert (info.event == activity_info_stats);
 	  assert (info.stats.count > 0);

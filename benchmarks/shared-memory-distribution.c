@@ -110,7 +110,8 @@ main (int argc, char *argv[])
 
       struct activity_info info;
 
-      rm_activity_info (activity, activity_info_stats, next_period, &info);
+      rm_activity_info (activity, activity,
+			activity_info_stats, next_period, &info);
       assert (info.event == activity_info_stats);
       assert (info.stats.count > 0);
       if (i != 0)
@@ -123,8 +124,8 @@ main (int argc, char *argv[])
       int j;
       for (j = 0; j < THREADS; j ++)
 	{
-	  rm_activity_info (activity, activity_info_stats, next_period,
-			    &info);
+	  rm_activity_info (activity, activity,
+			    activity_info_stats, next_period, &info);
 	  assert (info.event == activity_info_stats);
 	  assert (info.stats.count > 0);
 	  stats[i][1 + j] = info.stats.stats[0];

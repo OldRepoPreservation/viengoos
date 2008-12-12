@@ -1,4 +1,4 @@
-/* ruth.c - Test server.
+/* ruth.c - Test suite.
    Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <setjmp.h>
 
 #include <l4.h>
 
@@ -117,8 +118,10 @@ main (int argc, char *argv[])
 
     addr_t folio = capalloc ();
     assert (! ADDR_IS_VOID (folio));
-    error_t err = rm_folio_alloc (activity, folio, FOLIO_POLICY_DEFAULT);
+    error_t err = rm_folio_alloc (activity, activity, FOLIO_POLICY_DEFAULT,
+				  &folio);
     assert (! err);
+    assert (! ADDR_IS_VOID (folio));
 
     int i;
     for (i = -10; i < 129; i ++)
@@ -129,8 +132,9 @@ main (int argc, char *argv[])
 
 	err = rm_folio_object_alloc (activity, folio, i, cap_page,
 				     OBJECT_POLICY_DEFAULT, 0,
-				     addr, ADDR_VOID);
+				     &addr, NULL);
 	assert ((err == 0) == (0 <= i && i < FOLIO_OBJECTS));
+	assert (! ADDR_IS_VOID (addr));
 
 	if (0 <= i && i < FOLIO_OBJECTS)
 	  {
@@ -176,8 +180,10 @@ main (int argc, char *argv[])
 			 cap_set_shadow (slot, shadow);
 		       }));
 
-	error_t err = rm_folio_alloc (activity, f, FOLIO_POLICY_DEFAULT);
+	error_t err = rm_folio_alloc (activity, activity,
+				      FOLIO_POLICY_DEFAULT, &f);
 	assert (! err);
+	assert (! ADDR_IS_VOID (f));
 
 	int j;
 	for (j = 0; j <= i; j ++)
@@ -303,6 +309,9 @@ main (int argc, char *argv[])
   {
     static volatile int done;
     char stack[0x1000];
+    /* Fault it in.  */
+    stack[0] = 0;
+    stack[sizeof (stack)] = 0;
 
     void start (void)
     {
@@ -328,11 +337,8 @@ main (int argc, char *argv[])
 
     struct hurd_thread_exregs_in in;
 
-    in.aspace = ADDR (0, 0);
     in.aspace_cap_properties = CAP_PROPERTIES_DEFAULT;
     in.aspace_cap_properties_flags = CAP_COPY_COPY_SOURCE_GUARD;
-
-    in.activity = activity;
 
     in.sp = (l4_word_t) ((void *) stack + sizeof (stack));
     in.ip = (l4_word_t) &start;
@@ -343,7 +349,8 @@ main (int argc, char *argv[])
 		      HURD_EXREGS_SET_ASPACE | HURD_EXREGS_SET_ACTIVITY
 		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START
 		      | HURD_EXREGS_ABORT_IPC,
-		      in, &out);
+		      in, ADDR (0, 0), activity, ADDR_VOID, ADDR_VOID,
+		      &out, NULL, NULL, NULL, NULL);
 
     debug (5, "Waiting for thread");
     while (done == 0)
@@ -431,6 +438,7 @@ main (int argc, char *argv[])
 
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    bool ready_to_go;
 
     const int count = 18;
 
@@ -472,16 +480,19 @@ main (int argc, char *argv[])
 	  if (sigaction (SIGUSR1, &act, NULL) < 0)
 	    panic ("Failed to install signal handler: %s", strerror (errno));
 
-	  debug (5, "Installed signal handler, waking main thread");
+	  debug (5, "Installed signal handler, waking main thread (%d)", j);
 
 	  /* Wait until the main thread unlocks MUTEX.  */
 	  pthread_mutex_lock (&mutex);
 	  pthread_mutex_unlock (&mutex);
 
-	  debug (5, "Signaling main thread");
+	  debug (5, "Signaling main thread (%d)", j);
+
 
 	  /* Signal the main thread that we are ready.  */
+	  ready_to_go = true;
 	  pthread_cond_signal (&cond);
+
 
 	  /* Block.  */
 	  while (i != 1)
@@ -605,7 +616,9 @@ main (int argc, char *argv[])
     for (i = 0; i < count; i ++)
       {
 	/* Wait for the thread to install the signal handler.  */
-	pthread_cond_wait (&cond, &mutex);
+	while (!ready_to_go)
+	  pthread_cond_wait (&cond, &mutex);
+	ready_to_go = false;
 	pthread_mutex_unlock (&mutex);
 
 	err = pthread_kill (thread, SIGUSR1);
@@ -647,19 +660,23 @@ main (int argc, char *argv[])
 	  err = rm_folio_object_alloc (activity, folio, obj ++,
 				       cap_activity_control,
 				       OBJECT_POLICY_DEFAULT, 0,
-				       a[i].child, ADDR_VOID);
+				       &a[i].child, NULL);
 	  assert (err == 0);
+	  assert (! ADDR_IS_VOID (a[i].child));
 
 	  /* Allocate a folio against the activity and use it.  */
 	  a[i].folio = capalloc ();
-	  err = rm_folio_alloc (a[i].child, a[i].folio, FOLIO_POLICY_DEFAULT);
+	  err = rm_folio_alloc (activity, a[i].child, FOLIO_POLICY_DEFAULT,
+				&a[i].folio);
 	  assert (err == 0);
+	  assert (! ADDR_IS_VOID (a[i].folio));
 
 	  a[i].page = capalloc ();
 	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 0, cap_page,
 				       OBJECT_POLICY_DEFAULT, 0,
-				       a[i].page, ADDR_VOID);
+				       &a[i].page, NULL);
 	  assert (err == 0);
+	  assert (! ADDR_IS_VOID (a[i].page));
 
 	  l4_word_t type;
 	  struct cap_properties properties;
@@ -676,11 +693,12 @@ main (int argc, char *argv[])
 	  test (a[i].child, a[i].folio, depth - 1);
 
       /* We destroy the first N / 2 activities.  The caller will
-	 destroy the rest.  */
+	 implicitly destroy the rest.  */
       for (i = 0; i < N / 2; i ++)
 	{
 	  /* Destroy the activity.  */
-	  rm_folio_free (activity, a[i].folio);
+          err = rm_folio_free (activity, a[i].folio);
+	  assert (! err);
 
 	  /* To determine if the folio has been destroyed, we cannot simply
 	     read the capability: this returns the type stored in the
@@ -690,7 +708,7 @@ main (int argc, char *argv[])
 	     destroyed.  */
 	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 1, cap_page,
 				       OBJECT_POLICY_DEFAULT, 0,
-				       a[i].page, ADDR_VOID);
+				       &a[i].page, NULL);
 	  assert (err);
 
 	  capfree (a[i].page);
@@ -701,8 +719,9 @@ main (int argc, char *argv[])
 
     error_t err;
     addr_t folio = capalloc ();
-    err = rm_folio_alloc (activity, folio, FOLIO_POLICY_DEFAULT);
+    err = rm_folio_alloc (activity, activity, FOLIO_POLICY_DEFAULT, &folio);
     assert (err == 0);
+    assert (! ADDR_IS_VOID (folio));
 
     test (activity, folio, 2);
 
@@ -733,14 +752,14 @@ main (int argc, char *argv[])
     in.child_rel = ACTIVITY_MEMORY_POLICY_VOID;
     in.folios = 10000;
 
-    err = rm_activity_policy (a,
+    err = rm_activity_policy (a, a,
 			      ACTIVITY_POLICY_SIBLING_REL_SET
 			      | ACTIVITY_POLICY_STORAGE_SET,
 			      in,
 			      &out);
     assert (err == 0);
 			    
-    err = rm_activity_policy (a,
+    err = rm_activity_policy (a, a,
 			      0, ACTIVITY_POLICY_VOID,
 			      &out);
     assert (err == 0);
@@ -752,7 +771,7 @@ main (int argc, char *argv[])
     in.sibling_rel.priority = 4;
     in.sibling_rel.weight = 5;
     in.folios = 10001;
-    err = rm_activity_policy (a,
+    err = rm_activity_policy (a, a,
 			      ACTIVITY_POLICY_SIBLING_REL_SET
 			      | ACTIVITY_POLICY_STORAGE_SET,
 			      in, &out);
@@ -763,13 +782,13 @@ main (int argc, char *argv[])
     assert (out.sibling_rel.weight == 3);
     assert (out.folios == 10000);
 
-    err = rm_activity_policy (weak,
+    err = rm_activity_policy (a, weak,
 			      ACTIVITY_POLICY_SIBLING_REL_SET
 			      | ACTIVITY_POLICY_STORAGE_SET,
 			      in, &out);
-    assert (err == EPERM);
+    assertx (err == EPERM, "%d", err);
 
-    err = rm_activity_policy (weak, 0, in, &out);
+    err = rm_activity_policy (a, weak, 0, in, &out);
     assert (err == 0);
 
     assert (out.sibling_rel.priority == 4);
@@ -860,7 +879,7 @@ main (int argc, char *argv[])
   }
 
   {
-    printf ("Checking thread_wait_object_destroy... ");
+    printf ("Checking object_reply_on_destruction... ");
 
     struct storage storage = storage_alloc (activity, cap_page,
 					    STORAGE_MEDIUM_LIVED,
@@ -872,8 +891,8 @@ main (int argc, char *argv[])
     {
       uintptr_t ret = 0;
       error_t err;
-      err = rm_thread_wait_object_destroyed (ADDR_VOID, storage.addr, &ret);
-      debug (5, "object destroy returned: err: %d, ret: %d", err, ret);
+      err = rm_object_reply_on_destruction (ADDR_VOID, storage.addr, &ret);
+      debug (5, "object_reply_on_destruction: err: %d, ret: %d", err, ret);
       assert (err == 0);
       assert (ret == 10);
       return 0;
@@ -893,7 +912,7 @@ main (int argc, char *argv[])
 			   addr_chop (storage.addr, FOLIO_OBJECTS_LOG2),
 			   addr_extract (storage.addr, FOLIO_OBJECTS_LOG2),
 			   cap_void,
-			   OBJECT_POLICY_VOID, 10, ADDR_VOID, ADDR_VOID);
+			   OBJECT_POLICY_VOID, 10, NULL, NULL);
     /* Release the memory.  */
     storage_free (storage.addr, true);
 
@@ -913,7 +932,7 @@ main (int argc, char *argv[])
     bool fill (struct anonymous_pager *anon,
 	       uintptr_t offset, uintptr_t count,
 	       void *pages[],
-	       struct exception_info info)
+	       struct activation_fault_info info)
     {
       assert (count == 1);
 
@@ -946,7 +965,7 @@ main (int argc, char *argv[])
     bool fill (struct anonymous_pager *anon,
 	       uintptr_t offset, uintptr_t count,
 	       void *pages[],
-	       struct exception_info info)
+	       struct activation_fault_info info)
     {
       assert (count == 1);
 
@@ -962,8 +981,8 @@ main (int argc, char *argv[])
     do
       {
 	struct activity_info info;
-	error_t err = rm_activity_info (ADDR_VOID, activity_info_stats, 1,
-					&info);
+	error_t err = rm_activity_info (ADDR_VOID, activity,
+					activity_info_stats, 1, &info);
 	assert_perror (err);
 	assert (info.stats.count >= 1);
 
@@ -971,12 +990,12 @@ main (int argc, char *argv[])
       }
     while (frames == 0);
 
-    debug (0, "%d frames available", frames);
+    debug (0, "%d frames available", (int) frames);
     uint32_t goal = frames * 2;
     /* Limit to at most 1GB of memory.  */
     if (goal > ((uint32_t) -1) / PAGESIZE / 4)
       goal = ((uint32_t) -1) / PAGESIZE / 4;
-    debug (0, "Allocating %d frames", goal);
+    debug (0, "Allocating %d frames", (int) goal);
 
     void *addr;
     struct anonymous_pager *pager
@@ -1002,7 +1021,7 @@ main (int argc, char *argv[])
   }
 
   {
-    printf ("Checking read-only pages... ");
+    printf ("Checking deallocation... ");
  
     addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
     assert (! ADDR_IS_VOID (addr));
@@ -1015,16 +1034,43 @@ main (int argc, char *argv[])
 				    addr).addr;
     assert (! ADDR_IS_VOID (storage));
 
-
-    debug (1, "Writing before dealloc...");
     int *buffer = ADDR_TO_PTR (addr_extend (addr, 0, PAGESIZE_LOG2));
+
+    debug (5, "Writing before dealloc...");
     *buffer = 0;
 
     storage_free (storage, true);
 
-    debug (1, "Writing after dealloc (should sigsegv)...");
-    *buffer = 0;
+    debug (5, "Writing after dealloc...");
+
+    jmp_buf jmpbuf;
+    struct hurd_fault_catcher catcher;
+
+    bool faulted = false;
+    bool callback (struct activation_frame *activation_frame,
+		   uintptr_t fault)
+    {
+      faulted = true;
+
+      hurd_fault_catcher_unregister (&catcher);
+      hurd_activation_frame_longjmp (activation_frame, jmpbuf, true, 1);
+      return true;
+    }
+
+    catcher.start = (uintptr_t) buffer;
+    catcher.len = PAGESIZE;
+    catcher.callback = callback;
+    hurd_fault_catcher_register (&catcher);
+
+    if (setjmp (jmpbuf) == 0)
+      {
+	*buffer = 0;
+	assert (! "Didn't fault!?");
+      }
+    assert (faulted);
   }
+
+  debug (1, DEBUG_BOLD ("\n\nAll tests ran successfully to completion!\n\n"));
 
   debug (1, "Shutting down...");
   while (1)

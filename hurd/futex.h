@@ -3,17 +3,17 @@
    Written by Neal H. Walfield <neal@gnu.org>.
 
    GNU Hurd is free software: you can redistribute it and/or modify it
-   under the terms of the GNU Lesser General Public License as
-   published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
+   under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
    GNU Hurd is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+   General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with GNU Hurd.  If not, see
+   You should have received a copy of the GNU General Public License
+   along with GNU Hurd.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
 #ifndef _HURD_FUTEX_H
@@ -38,12 +38,6 @@ enum
 
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
-#undef RPC_TARGET_NEED_ARG
-#define RPC_TARGET \
-  ({ \
-    extern struct hurd_startup_data *__hurd_startup_data; \
-    __hurd_startup_data->rm; \
-  })
 
 #include <hurd/rpc.h>
 
@@ -103,8 +97,8 @@ union futex_val3
 #define FUTEX_OP_CLEAR_WAKE_IF_GT_ONE \
   (union futex_val3) { { 1, 0, FUTEX_OP_CMP_GT, FUTEX_OP_SET } }
 
-RPC (futex, 8, 1,
-     addr_t, principal,
+RPC (futex, 7, 1, 0,
+     /* cap_t principal, cap_t thread, */
      void *, addr1, int, op, int, val1,
      bool, timeout, union futex_val2, val2,
      void *, addr2, union futex_val3, val3,
@@ -113,7 +107,6 @@ RPC (futex, 8, 1,
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
-#undef RPC_TARGET
 
 #ifndef RM_INTERN
 #include <errno.h>
@@ -124,11 +117,11 @@ struct futex_return
   long ret;
 };
 
-/* Standard futex signatures.  See futex documentation, e.g., Futexes
-   are Tricky by Ulrich Drepper.  */
 static inline struct futex_return
-futex (void *addr1, int op, int val1, struct timespec *timespec,
-       void *addr2, int val3)
+__attribute__((always_inline))
+futex_using (struct hurd_message_buffer *mb,
+	     void *addr1, int op, int val1, struct timespec *timespec,
+	     void *addr2, int val3)
 {
   union futex_val2 val2;
   if (timespec)
@@ -138,18 +131,36 @@ futex (void *addr1, int op, int val1, struct timespec *timespec,
 
   error_t err;
   long ret = 0; /* Elide gcc warning.  */
-  err = rm_futex (ADDR_VOID,
-		  addr1, op, val1, !! timespec, val2, addr2,
-		  (union futex_val3) val3, &ret);
+  if (mb)
+    err = rm_futex_using (mb,
+			  ADDR_VOID, ADDR_VOID,
+			  addr1, op, val1, !! timespec, val2, addr2,
+			  (union futex_val3) val3, &ret);
+  else
+    err = rm_futex (ADDR_VOID, ADDR_VOID,
+		    addr1, op, val1, !! timespec, val2, addr2,
+		    (union futex_val3) val3, &ret);
   return (struct futex_return) { err, ret };
 }
 
+/* Standard futex signatures.  See futex documentation, e.g., Futexes
+   are Tricky by Ulrich Drepper.  */
+static inline struct futex_return
+__attribute__((always_inline))
+futex (void *addr1, int op, int val1, struct timespec *timespec,
+       void *addr2, int val3)
+{
+  return futex_using (NULL, addr1, op, val1, timespec, addr2, val3);
+}
+
+
 /* If *F is VAL, wait until woken.  */
 static inline long
-futex_wait (int *f, int val)
+__attribute__((always_inline))
+futex_wait_using (struct hurd_message_buffer *mb, int *f, int val)
 {
   struct futex_return ret;
-  ret = futex (f, FUTEX_WAIT, val, NULL, 0, 0);
+  ret = futex_using (mb, f, FUTEX_WAIT, val, NULL, 0, 0);
   if (ret.err)
     {
       errno = ret.err;
@@ -158,8 +169,17 @@ futex_wait (int *f, int val)
   return ret.ret;
 }
 
+static inline long
+__attribute__((always_inline))
+futex_wait (int *f, int val)
+{
+  return futex_wait_using (NULL, f, val);
+}
+
+
 /* If *F is VAL, wait until woken.  */
 static inline long
+__attribute__((always_inline))
 futex_timed_wait (int *f, int val, struct timespec *timespec)
 {
   struct futex_return ret;
@@ -172,18 +192,27 @@ futex_timed_wait (int *f, int val, struct timespec *timespec)
   return ret.ret;
 }
 
+
 /* Signal NWAKE waiters waiting on futex F.  */
 static inline long
-futex_wake (int *f, int nwake)
+__attribute__((always_inline))
+futex_wake_using (struct hurd_message_buffer *mb, int *f, int nwake)
 {
   struct futex_return ret;
-  ret = futex (f, FUTEX_WAKE, nwake, NULL, 0, 0);
+  ret = futex_using (mb, f, FUTEX_WAKE, nwake, NULL, 0, 0);
   if (ret.err)
     {
       errno = ret.err;
       return -1;
     }
   return ret.ret;
+}
+
+static inline long
+__attribute__((always_inline))
+futex_wake (int *f, int nwake)
+{
+  return futex_wake_using (NULL, f, nwake);
 }
 #endif /* !RM_INTERN */
 

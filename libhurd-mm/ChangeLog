@@ -1,3 +1,120 @@
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	Update to new RPC interface and IPC semantics.  Support messengers.
+
+	* message-buffer.h: New file.
+	* message-buffer.c: Likewise.
+	* Makefile.am (libhurd_mm_a_SOURCES): Add message-buffer.h and
+	message-buffer.c.
+	* headers.m4: Link sysroot/include/hurd/message-buffer.h to
+	libhurd-mm/message-buffer.h.
+	* exceptions.c: Include <hurd/mm.h>, <hurd/rm.h> and
+	<backtrace.h>.
+	(hurd_fault_catcher_register): New function.
+	(hurd_fault_catcher_unregister): Likewise.
+	(hurd_activation_frame_longjmp): Likewise.
+	(utcb_state_save): Rename from this...
+	(l4_utcb_state_save): ... to this.  Take a `struct
+	activation_frame *', not a `struct exception_frame *'.
+	(utcb_state_restore): Rename from this...
+	(l4_utcb_state_restore): ... to this.  Take a `struct
+	activation_frame *', not a `struct exception_frame *'.
+	(exception_fetch_exception): Rename from this...
+	(hurd_activation_fetch): ... to this.
+	(hurd_activation_message_register): New function.
+	(hurd_activation_frame_longjmp): Likewise.
+	(exception_frame_slab): Rename from this...
+	(activation_frame_slab): ... to this.  Use a static initializer.
+	(exception_frame_slab_alloc): Rename from this...
+	(activation_frame_slab_alloc): ... to this.  Don't preserve the L4
+	utcb.
+	(exception_frame_slab_dealloc): Rename from this...
+	(activation_frame_slab_dealloc): ... to this.
+	(exception_frame_alloc): Rename from this...
+	(activation_frame_alloc): ... to this.  If there are no
+	preallocated frames, panic.  Move the hard allocation code to...
+	(check_activation_frame_reserve): ... this new function.
+	(hurd_activation_stack_dump): New function.
+	(hurd_activation_handler_normal): Take an additional parameter,
+	the utcb.  Add consistency checks.  Handle IPC and closures.
+	Update fault handling code to use the new fault interface.  If
+	unable to resolve the fault via the pager mechanism, see if a
+	fault catcher in installed.  Check the UTCB's canary.  If running
+	on the alternate stack, clear UTCB->ALTERNATE_STACK_INUSE on exit.
+	(hurd_activation_handler_activated): Take a `struct vg_utcb *',
+	not a `struct exception_page *'.  Handle IPC and closures.
+	Improve test to determine if the fault was a stack fault.  If so,
+	return to normal mode to handle the fault and use an alternate
+	stack.
+	(activation_handler_area0): New local variable.
+	(activation_handler_msg): Likewise.
+	(initial_utcb): Likewise.
+	(simple_utcb_fetcher): New function.
+	(hurd_utcb): New variable.
+	(hurd_activation_handler_init_early): New function.
+	(hurd_activation_handler_init): Likewise.
+	(exception_handler_init): Remove function.
+	(ACTIVATION_AREA_SIZE_LOG2): Define.
+	(ACTIVATION_AREA_SIZE): Likewise.
+	(hurd_activation_state_alloc): New function.
+	(exception_page_cleanup): Rename from this...
+	(hurd_activation_state_free): ... to this.  Rewrite.
+	* ia32-exception-entry.S (_hurd_activation_handler_entry): Save
+	the eflags before executing a sub instruction.  Don't try to
+	smartly calculate the location of the UTCB.  Instead, just reload
+	it.
+	(activation_frame_run): Use an alternate stack, if requested.
+	Save ebx and ebi.  Pass the utcb to the callback.
+	* mm-init.c [i386]: Include <hurd/pager.h>.
+	Include <backtrace.h>.
+	(mm_init): Call hurd_activation_handler_init_early and
+	hurd_activation_handler_init.  Don't call exception_handler_init.
+	(mm_init) [! NDEBUG && i386]: Test the activation code.
+	
+	* as-build.c (do_index): Handle indexing a cap_thread or a
+	cap_messenger.
+	(as_build): Likewise.
+	* as-dump.c (do_walk): Handle indexing a cap_thread or a
+	cap_messenger.
+	* as-lookup.c (as_lookup_rel_internal): Likewise.
+	* as.c (as_walk): Likewise.
+
+	* storage.c: Include <backtrace.h>.
+	(shadow_setup): Update use of rm_folio_object_alloc according to
+	its new interface.
+	(storage_check_reserve_internal): Likewise.
+	(storage_free_): Likewise.
+	(FREE_PAGES_SERIALIZE): Bump to 32.
+	(storage_alloc): If we try to get storage more than 5 lives, print
+	a warning that we may be experiencing live lock.
+
+	* pager.h (pager_fault_t): Change info's type from `struct
+	exception_info' to `struct activation_fault_info'.
+	(PAGER_VOID): Define.
+	* map.h: Don't include <hurd/exceptions.h>.  Include <hurd/as.h>.
+	(maps_lock_lock): Don't use EXCEPTION_STACK_SIZE but
+	AS_STACK_SPACE.
+	(map_fault): Change info's type from `struct exception_info' to
+	`struct activation_fault_info'.
+	* map.c (map_fault): Change info's type from `struct
+	exception_info' to `struct activation_fault_info'.
+
+	* as.h (AS_STACK_SPACE): Define.
+	(as_lock): Use AS_STACK_SPACE instead of EXCEPTION_STACK_SIZE.
+	(as_lock_readonly): Likewise.
+
+	* as.h (AS_CHECK_SHADOW): Only check the address translator for
+	capabilities that designate cappages.
+
+	* anonymous.h (ANONYMOUS_MAGIC): Define.
+	(struct anonymous_pager): Add field magic.
+	* anonymous.c (fault): Assert that ANON->MAGIC has the expected
+	value.  Correctly size PAGES.
+	(mdestroy): Assert that ANON->MAGIC has the expected value.
+	(destroy): Likewise.
+	(advise): Likewise.
+	(anonymous_pager_alloc): Initialize ANON->MAGIC.
+
 2008-12-04  Neal H. Walfield  <neal@gnu.org>
 
 	* mmap.c (mmap): Use correct format conversions.

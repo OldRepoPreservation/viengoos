@@ -50,6 +50,7 @@ libhurd_mm_a_SOURCES = mm.h			\
 	mmap.c sbrk.c				\
 	mprotect.c				\
 	madvise.c				\
+	message-buffer.h message-buffer.c	\
 	$(ARCH_SOURCES)
 
 libas_kernel_a_CPPFLAGS = $(KERNEL_CPPFLAGS)

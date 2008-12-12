@@ -1,3 +1,11 @@
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	Update according to new RPC interfaces.
+	* hieronymus.c (activity_alloc): Update use of rm_activity_policy,
+	rm_activity_info and rm_folio_object_alloc to be consistent with
+	new interface.  Replace use of rm_thread_wait_object_destroyed
+	with rm_object_reply_on_destruction.
+
 2008-07-08  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (modules.h): Generate an array of arguments from

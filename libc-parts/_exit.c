@@ -72,7 +72,7 @@ _exit (int ret)
 	      err = rm_folio_object_alloc (ADDR_VOID, folio, index,
 					   cap_void, OBJECT_POLICY_VOID,
 					   (uintptr_t) ret,
-					   ADDR_VOID, ADDR_VOID);
+					   NULL, NULL);
 	      if (err)
 		debug (0, "deallocating object: %d", err);
 	    }

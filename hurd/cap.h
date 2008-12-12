@@ -23,10 +23,12 @@
 
 #include <hurd/types.h>
 #include <hurd/stddef.h>
+#include <hurd/addr.h>
 #include <hurd/addr-trans.h>
 #include <hurd/startup.h>
 #include <hurd/error.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /* Capabilities.
 
@@ -47,7 +49,10 @@ enum cap_type
     cap_activity,
     cap_activity_control,
     cap_thread,
-#define CAP_TYPE_MAX cap_thread
+    cap_messenger,
+    cap_rmessenger,
+    cap_type_count,
+#define CAP_TYPE_MAX (cap_type_count - 1)
   };
 
 static inline const char *
@@ -73,6 +78,10 @@ cap_type_string (enum cap_type type)
       return "activity_control";
     case cap_thread:
       return "thread";
+    case cap_messenger:
+      return "messenger";
+    case cap_rmessenger:
+      return "rmessenger";
     default:
       return "unknown cap type";
   };
@@ -101,6 +110,11 @@ cap_types_compatible (enum cap_type a, enum cap_type b)
   if (a == cap_activity_control && b == cap_activity)
     return true;
 
+  if (a == cap_messenger && b == cap_rmessenger)
+    return true;
+  if (a == cap_rmessenger && b == cap_messenger)
+    return true;
+
   return false;
 }
 
@@ -113,6 +127,7 @@ cap_type_weak_p (enum cap_type type)
     case cap_rpage:
     case cap_rcappage:
     case cap_activity:
+    case cap_rmessenger:
       return true;
 
     default:
@@ -139,6 +154,10 @@ cap_type_weaken (enum cap_type type)
     case cap_activity:
       return cap_activity;
 
+    case cap_messenger:
+    case cap_rmessenger:
+      return cap_rmessenger;
+
     default:
       return cap_void;
     }
@@ -162,6 +181,10 @@ cap_type_strengthen (enum cap_type type)
     case cap_activity_control:
     case cap_activity:
       return cap_activity_control;
+
+    case cap_messenger:
+    case cap_rmessenger:
+      return cap_messenger;
 
     default:
       return type;
@@ -229,7 +252,7 @@ struct cap_properties
 #ifdef RM_INTERN
 /* An OID corresponds to a page on a volume.  Only the least 54 bits
    are significant.  */
-typedef l4_uint64_t oid_t;
+typedef uint64_t oid_t;
 #define OID_FMT "0x%llx"
 #define OID_PRINTF(__op_oid) ((oid_t) (__op_oid))
 #endif
@@ -272,6 +295,8 @@ struct cap
   struct cap_addr_trans addr_trans;
 #endif
 };
+
+#define CAP_VOID ((struct cap) { .type = cap_void })
 
 /* Return CAP's policy.  */
 #define CAP_POLICY_GET(__cpg_cap)				\
@@ -356,12 +381,6 @@ struct cap
 
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
-#undef RPC_TARGET_NEED_ARG
-#define RPC_TARGET \
-  ({ \
-    extern struct hurd_startup_data *__hurd_startup_data; \
-    __hurd_startup_data->rm; \
-  })
 
 #include <hurd/rpc.h>
 
@@ -371,12 +390,10 @@ enum
     RM_cap_rubout,
     RM_cap_read,
 
-    RM_object_slot_copy_out = 400,
-    RM_object_slot_copy_in,
-    RM_object_slot_read,
-    RM_object_discarded_clear,
+    RM_object_discarded_clear = 400,
     RM_object_discard,
     RM_object_status,
+    RM_object_reply_on_destruction,
     RM_object_name,
   };
 
@@ -400,14 +417,9 @@ enum
   CAP_COPY_PRIORITY_SET = 1 << 5,
 };
 
-/* Copy the capability in capability slot SOURCE in the address space
-   rooted at SOURCE_ADDRESS_SPACE to the slot TARGET in the address
-   space rooted at TARGET_ADDRESS_SPACE.  The address space is
-   resolved in the context of the caller.  If the address space
-   identifies a thread, its address space root is used.  If it is
-   ADDR_VOID, then the calling thread's address space route is used.
-   (PRINCIPAL and the address spaces are looked up in the context of
-   the caller.)
+/* Copy the capability in capability slot SOURCE to the slot at ADDR
+   in the object OBJECT.  If OBJECT is ADDR_VOID, then the calling
+   thread's address space root is used.
 
    By default, preserves SOURCE's subpage specification and copies
    TARGET's guard and policy.
@@ -419,9 +431,8 @@ enum
    If CAP_COPY_COPY_SOURCE_GUARD is set, uses the guard description in
    source.  Otherwise, preserves the guard in TARGET.
 
-   If CAP_COPY_WEAKEN is set, saves a weakened version of SOURCE in
-   *TARGET (e.g., if SOURCE's type is cap_page, *TARGET's type is set
-   to cap_rpage).
+   If CAP_COPY_WEAKEN is set, saves a weakened version of SOURCE
+   (e.g., if SOURCE's type is cap_page, a cap_rpage is saved).
 
    If CAP_COPY_DISCARDABLE_SET is set, then sets the discardable bit
    based on the value in PROPERTIES.  Otherwise, copies SOURCE's
@@ -429,55 +440,33 @@ enum
 
    If CAP_COPY_PRIORITY_SET is set, then sets the priority based on
    the value in properties.  Otherwise, copies SOURCE's value.  */
-RPC(cap_copy, 7, 0, addr_t, principal,
-    addr_t, target_address_space, addr_t, target,
-    addr_t, source_address_space, addr_t, source,
-    l4_word_t, flags, struct cap_properties, properties)
+RPC(cap_copy, 5, 0, 0,
+    /* cap_t activity, cap_t object, */ addr_t, addr,
+    cap_t, source_object, addr_t, source_addr,
+    uintptr_t, flags, struct cap_properties, properties)
 
-/* Overwrite the capability slot TARGET in address space
-   TARGET_ADDRESS_SPACE with a void capability.  */
-RPC(cap_rubout, 3, 0, addr_t, principal,
-    addr_t, target_address_space, addr_t, target)
+/* Overwrite the capability slot at ADDR in the object OBJECT with a
+   void capability.  */
+RPC(cap_rubout, 1, 0, 0,
+    /* cap_t activity, cap_t object, */ addr_t, addr)
 
-/* Returns the public bits of the capability CAP in TYPE and
-   CAP_PROPERTIES.  */
-RPC(cap_read, 3, 2, addr_t, principal, addr_t, address_space, addr_t, cap,
-    /* Out: */
-    l4_word_t, type, struct cap_properties, properties)
-
-/* Copy the capability from slot SLOT of the object OBJECT (relative
-   to the start of the object's subpage) to slot TARGET.  PROPERTIES
-   are interpreted as per cap_copy.  */
-RPC(object_slot_copy_out, 8, 0, addr_t, principal,
-    addr_t, object_address_space, addr_t, object, l4_word_t, slot,
-    addr_t, target_address_space, addr_t, target,
-    l4_word_t, flags, struct cap_properties, properties)
-
-/* Copy the capability from slot SOURCE to slot INDEX of the object
-   OBJECT (relative to the start of the object's subpage).  PROPERTIES
-   are interpreted as per cap_copy.  */
-RPC(object_slot_copy_in, 8, 0, addr_t, principal,
-    addr_t, object_address_space, addr_t, object, l4_word_t, index,
-    addr_t, source_address_space, addr_t, source,
-    l4_word_t, flags, struct cap_properties, properties)
-
-/* Store the public bits of the capability slot SLOT of object OBJECT
+/* Returns the public bits of the capability at address ADDR in OBJECT
    in TYPE and CAP_PROPERTIES.  */
-RPC(object_slot_read, 4, 2, addr_t, principal, addr_t, address_space,
-    addr_t, object, l4_word_t, slot,
+RPC(cap_read, 1, 2, 0,
+    /* cap_t activity, cap_t object, */ addr_t, addr,
     /* Out: */
-    l4_word_t, type, struct cap_properties, properties)
+    uintptr_t, type, struct cap_properties, properties)
 
-/* Clear the discarded bit.  */
-RPC(object_discarded_clear, 2, 0,
-    addr_t, principal, addr_t, object)
+/* Clear the discarded bit of the object at ADDR in object OBJECT.  */
+RPC(object_discarded_clear, 1, 0, 0,
+    /* cap_t activity, cap_t object, */ addr_t, addr)
 
 /* If the object designated by OBJECT is in memory, discard it.
    OBJECT must have write authority.  This does not set the object's
    discarded bit and thus does not result in a fault.  Instead, the
-   next access will see zero-filled memory.  */
-RPC(object_discard, 2, 0,
-    addr_t, principal, addr_t, object)
+   next access will see, e.g., zero-filled memory.  */
+RPC(object_discard, 0, 0, 0
+    /* cap_t activity, cap_t object, */)
 
 enum
 {
@@ -490,8 +479,16 @@ enum
    (Note: this is not the state of a frame but an indication of
    whether the object has been modified since the last time it the
    dirty bit was cleared.)  */
-RPC (object_status, 3, 1, addr_t, principal, addr_t, object, bool, clear,
+RPC (object_status, 1, 1, 0,
+     /* addr_t activity, addr_t object, */ bool, clear,
      uintptr_t, status)
+
+/* Returns the object's return code in RETURN_CODE on object
+   destruction.  */
+RPC (object_reply_on_destruction, 0, 1, 0,
+    /* cap_t principal, cap_t object, */
+    /* Out: */
+    uintptr_t, return_code);
 
 struct object_name
 {
@@ -501,13 +498,12 @@ struct object_name
 /* Give object OBJECT a name.  This is only used for debugging
    purposes and is only supported by some objects, in particular,
    activities and threads.  */
-RPC (object_name, 3, 0, addr_t, principal,
-     addr_t, object, struct object_name, name);
+RPC (object_name, 1, 0, 0,
+     /* cap_t activity, cap_t object, */ struct object_name, name);
      
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
-#undef RPC_TARGET
 
 /* An object.  */
 

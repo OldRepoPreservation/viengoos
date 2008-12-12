@@ -26,12 +26,14 @@
 #include <hurd/exceptions.h>
 #include <hurd/thread.h>
 #include <bit-array.h>
+#include <backtrace.h>
 
 #include "cap.h"
 #include "object.h"
 #include "thread.h"
 #include "activity.h"
 #include "zalloc.h"
+#include "messenger.h"
 #include <hurd/trace.h>
 
 #define THREAD_VERSION 2
@@ -89,7 +91,7 @@ thread_init (struct thread *thread)
       size_t size = PAGESIZE * 10;
       void *buffer = (void *) zalloc (size);
       if (! buffer)
-	panic ("Failed to allocate memory for thread has.");
+	panic ("Failed to allocate memory for thread hash.");
 
       hurd_ihash_init_with_buffer (&tid_to_thread, false, HURD_IHASH_NO_LOCP,
 				   buffer, size);
@@ -131,10 +133,6 @@ thread_deinit (struct activity *activity, struct thread *thread)
 
   if (thread->commissioned)
     thread_decommission (thread);
-
-  if (thread->wait_queue_p)
-    /* THREAD is attached to a wait queue.  Detach it.  */
-    object_wait_queue_dequeue (activity, thread);
 
   /* Free the thread id.  */
   bit_dealloc (thread_ids,
@@ -254,15 +252,14 @@ control_to_string (l4_word_t control, char string[33])
 
 error_t
 thread_exregs (struct activity *principal,
-	       struct thread *thread, l4_word_t control,
-	       struct cap *aspace,
-	       l4_word_t flags, struct cap_properties properties,
-	       struct cap *activity,
-	       struct cap *exception_page,
-	       l4_word_t *sp, l4_word_t *ip,
-	       l4_word_t *eflags, l4_word_t *user_handle,
-	       struct cap *aspace_out, struct cap *activity_out,
-	       struct cap *exception_page_out)
+	       struct thread *thread, uintptr_t control,
+	       struct cap aspace,
+	       uintptr_t flags, struct cap_properties properties,
+	       struct cap activity,
+	       struct cap utcb,
+	       struct cap exception_messenger,
+	       uintptr_t *sp, uintptr_t *ip,
+	       uintptr_t *eflags, uintptr_t *user_handle)
 {
   if ((control & ~(HURD_EXREGS_SET_REGS
 		   | HURD_EXREGS_GET_REGS
@@ -274,36 +271,26 @@ thread_exregs (struct activity *principal,
       return EINVAL;
     }
 
-  if ((control & HURD_EXREGS_GET_REGS) && aspace_out)
-    cap_copy (principal,
-	      ADDR_VOID, aspace_out, ADDR_VOID,
-	      ADDR_VOID, thread->aspace, ADDR_VOID);
-
   if ((control & HURD_EXREGS_SET_ASPACE))
     cap_copy_x (principal,
 		ADDR_VOID, &thread->aspace, ADDR_VOID,
-		ADDR_VOID, *aspace, ADDR_VOID,
+		ADDR_VOID, aspace, ADDR_VOID,
 		flags, properties);
-
-  if ((control & HURD_EXREGS_GET_REGS) && activity_out)
-    cap_copy (principal,
-	      ADDR_VOID, activity_out, ADDR_VOID,
-	      ADDR_VOID, thread->activity, ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_ACTIVITY))
     cap_copy (principal,
 	      ADDR_VOID, &thread->activity, ADDR_VOID,
-	      ADDR_VOID, *activity, ADDR_VOID);
+	      ADDR_VOID, activity, ADDR_VOID);
 
-  if ((control & HURD_EXREGS_GET_REGS) && exception_page_out)
+  if ((control & HURD_EXREGS_SET_UTCB))
     cap_copy (principal,
-	      ADDR_VOID, exception_page_out, ADDR_VOID,
-	      ADDR_VOID, thread->exception_page, ADDR_VOID);
+	      ADDR_VOID, &thread->utcb, ADDR_VOID,
+	      ADDR_VOID, utcb, ADDR_VOID);
 
-  if ((control & HURD_EXREGS_SET_EXCEPTION_PAGE))
+  if ((control & HURD_EXREGS_SET_EXCEPTION_MESSENGER))
     cap_copy (principal,
-	      ADDR_VOID, &thread->exception_page, ADDR_VOID,
-	      ADDR_VOID, *exception_page, ADDR_VOID);
+	      ADDR_VOID, &thread->exception_messenger, ADDR_VOID,
+	      ADDR_VOID, exception_messenger, ADDR_VOID);
 
   if (thread->commissioned)
     {
@@ -443,23 +430,29 @@ thread_exregs (struct activity *principal,
   return 0;
 }
 
-void
-thread_raise_exception (struct activity *activity,
-			struct thread *thread,
-			l4_msg_t *msg)
+bool
+thread_activate (struct activity *activity,
+		 struct thread *thread,
+		 struct messenger *messenger,
+		 bool may_block)
 {
-  l4_word_t ip = 0;
-  l4_word_t sp = 0;
+  assert (messenger);
+  assert (object_type ((struct object *) messenger) == cap_messenger);
+
+
+  uintptr_t ip = 0;
+  uintptr_t sp = 0;
   {
-    l4_word_t c = _L4_XCHG_REGS_DELIVER;
+    uintptr_t c = _L4_XCHG_REGS_DELIVER;
     l4_thread_id_t targ = thread->tid;
-    l4_word_t dummy = 0;
+    uintptr_t dummy = 0;
     _L4_exchange_registers (&targ, &c,
 			    &sp, &ip, &dummy, &dummy, &dummy);
   }
 
-  struct object *page = cap_to_object (activity, &thread->exception_page);
-  if (! page)
+  struct vg_utcb *utcb
+    = (struct vg_utcb *) cap_to_object (activity, &thread->utcb);
+  if (! utcb)
     {
 #ifndef NDEBUG
       extern struct trace_buffer rpc_trace;
@@ -468,36 +461,50 @@ thread_raise_exception (struct activity *activity,
 
       do_debug (4)
 	as_dump_from (activity, &thread->aspace, "");
-      debug (0, "Malformed thread (%x): no exception page (ip: %x, sp: %x)",
+      debug (0, "Malformed thread (%x): no utcb (ip: %x, sp: %x)",
 	     thread->tid, ip, sp);
-      return;
+      return false;
     }
 
-  if (object_type (page) != cap_page)
+  if (object_type ((struct object *) utcb) != cap_page)
     {
-      debug (0, "Malformed thread: exception page slot contains a %s, "
-	     "not a cap_page",
-	     cap_type_string (object_type (page)));
-      return;
+      debug (0, "Malformed thread: utcb slot contains a %s, not a page",
+	     cap_type_string (object_type ((struct object *) utcb)));
+      return false;
     }
 
-  struct exception_page *exception_page = (struct exception_page *) page;
-
-  if (exception_page->activated_mode)
+  if (utcb->activated_mode)
     {
       debug (0, "Deferring exception delivery: thread in activated mode!"
 	     "(sp: %x, ip: %x)", sp, ip);
 
-      /* XXX: Sure, we could note that an exception is pending but we
-	 need to queue the event.  */
-      // exception_page->pending_message = 1;
+      if (! may_block)
+	return false;
 
-      return;
+      object_wait_queue_enqueue (activity,
+				 (struct object *) thread, messenger);
+      messenger->wait_reason = MESSENGER_WAIT_TRANSFER_MESSAGE;
+
+      utcb->pending_message = 1;
+
+      return true;
     }
 
-  /* Copy the message.  */
-  memcpy (&exception_page->exception, msg,
-	  (1 + l4_untyped_words (l4_msg_msg_tag (*msg))) * sizeof (l4_word_t));
+  debug (5, "Activating %x (ip: %p; sp: %p)",
+	 thread->tid, ip, sp);
+
+  utcb->protected_payload = messenger->protected_payload;
+  utcb->messenger_id = messenger->id;
+
+  if (! messenger->out_of_band)
+    {
+      memcpy (utcb->inline_words, messenger->inline_words,
+	      messenger->inline_word_count * sizeof (uintptr_t));
+      memcpy (utcb->inline_caps, messenger->inline_caps,
+	      messenger->inline_cap_count * sizeof (addr_t));
+      utcb->inline_word_count = messenger->inline_word_count;
+      utcb->inline_cap_count = messenger->inline_cap_count;
+    }
 
   l4_word_t c = HURD_EXREGS_STOP | _L4_XCHG_REGS_DELIVER
     | _L4_XCHG_REGS_CANCEL_SEND | _L4_XCHG_REGS_CANCEL_RECV;
@@ -521,7 +528,7 @@ thread_raise_exception (struct activity *activity,
       int err = l4_error_code ();
       debug (0, "Failed to exregs %x: %s (%d)",
 	     thread->tid, l4_strerror (err), err);
-      return;
+      return false;
     }
   do_debug (4)
     {
@@ -531,28 +538,28 @@ thread_raise_exception (struct activity *activity,
 	     thread->tid, string, c);
     }
 
-  exception_page->saved_thread_state = c;
+  utcb->saved_thread_state = c;
 
-  exception_page->activated_mode = 1;
+  utcb->activated_mode = 1;
 
-  if (exception_page->exception_handler_ip <= ip
-      && ip < exception_page->exception_handler_end)
+  if (utcb->activation_handler_ip <= ip
+      && ip < utcb->activation_handler_end)
     /* Thread is transitioning.  Don't save sp and ip.  */
     {
-      debug (4, "Fault while interrupt in transition (ip: %x)!",
+      debug (0, "Fault while interrupt in transition (ip: %x)!",
 	     ip);
-      exception_page->interrupt_in_transition = 1;
+      utcb->interrupt_in_transition = 1;
     }
   else
     {
-      exception_page->interrupt_in_transition = 0;
-      exception_page->saved_sp = sp;
-      exception_page->saved_ip = ip;
+      utcb->interrupt_in_transition = 0;
+      utcb->saved_sp = sp;
+      utcb->saved_ip = ip;
     }
 
   c = HURD_EXREGS_START | _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP;
-  sp = exception_page->exception_handler_sp;
-  ip = exception_page->exception_handler_ip;
+  sp = utcb->activation_handler_sp;
+  ip = utcb->activation_handler_ip;
   targ = thread->tid;
   do_debug (4)
     {
@@ -571,7 +578,7 @@ thread_raise_exception (struct activity *activity,
       int err = l4_error_code ();
       debug (0, "Failed to exregs %x: %s (%d)",
 	     thread->tid, l4_strerror (err), err);
-      return;
+      return false;
     }
   do_debug (4)
     {
@@ -580,4 +587,73 @@ thread_raise_exception (struct activity *activity,
       debug (0, "exregs on %x returned control: %s (%x)",
 	     thread->tid, string, c);
     }
+
+  return true;
+}
+
+void
+thread_raise_exception (struct activity *activity,
+			struct thread *thread,
+			struct vg_message *message)
+{
+  struct messenger *handler
+    = (struct messenger *) cap_to_object (activity,
+					  &thread->exception_messenger);
+  if (! handler)
+    {
+      backtrace_print ();
+      debug (0, "Thread %x has no exception handler.", thread->tid);
+    }
+  else if (object_type ((struct object *) handler) != cap_messenger)
+    debug (0, "%s is not a valid exception handler.",
+	   cap_type_string (object_type ((struct object *) handler)));
+  else
+    {
+      if (! messenger_message_load (activity, handler, message))
+	debug (0, "Failed to deliver exception to thread's exception handler.");
+      return;
+    }
+}
+
+void
+thread_deliver_pending (struct activity *activity,
+			struct thread *thread)
+{
+  struct vg_utcb *utcb
+    = (struct vg_utcb *) cap_to_object (activity, &thread->utcb);
+  if (! utcb)
+    {
+      debug (0, "Malformed thread (%x): no utcb",
+	     thread->tid);
+      return;
+    }
+
+  if (object_type ((struct object *) utcb) != cap_page)
+    {
+      debug (0, "Malformed thread: utcb slot contains a %s, not a page",
+	     cap_type_string (object_type ((struct object *) utcb)));
+      return;
+    }
+
+  if (utcb->activated_mode)
+    {
+      debug (0, "Deferring exception delivery: thread in activated mode!");
+      return;
+    }
+
+
+  struct messenger *m;
+  object_wait_queue_for_each (activity, (struct object *) thread, m)
+    if (m->wait_reason == MESSENGER_WAIT_TRANSFER_MESSAGE)
+      {
+	object_wait_queue_unlink (activity, m);
+	m->wait_reason = MESSENGER_WAIT_TRANSFER_MESSAGE;
+
+	bool ret = thread_activate (activity, thread, m, false);
+	assert (ret);
+
+	return;
+      }
+
+  utcb->pending_message = 0;
 }

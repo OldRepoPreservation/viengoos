@@ -1,5 +1,28 @@
 2008-12-11  Neal H. Walfield  <neal@gnu.org>
 
+	Update to new RPC interfaces.
+
+	* _exit.c (_exit): Update use of rm_folio_object_alloc to be
+	consistent with the new interface.
+
+	* backtrace.c (RA) [!RM_INTERN]: Set up a fault catch handler to
+	avoid gratuitously faulting.
+	(backtrace) [!RM_INTERN]: Set up a jump buffer.  Jump to it on a
+	fault.
+	(backtrace_print): Use s_printf, not printf.
+
+	* ia32-crt0.S (STACK_SIZE): Increase to 128 kb.
+
+	* process-spawn.c (process_spawn): Don't use a capability slot to
+	identify the root of the new thread's address space, allocate a
+	thread object.  Allocate messengers for the new thread and save
+	them in STARTUP_DATA->MESSENGERS.
+
+	* s_printf.c (io_buffer_flush): Use the debug output interface.
+	(s_putchar): Don't call rm_write but use io_buffer_flush.
+
+2008-12-11  Neal H. Walfield  <neal@gnu.org>
+
 	* ia32-cmain.c: Include <hurd/storage.h>.
 	(finish): If the thread is not using the initial stack, free it.
 	(_pthread_init_routine): Add the weak attribute to the

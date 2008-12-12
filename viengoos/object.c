@@ -24,6 +24,7 @@
 #include <hurd/ihash.h>
 #include <hurd/folio.h>
 #include <hurd/thread.h>
+#include <hurd/messenger.h>
 #include <bit-array.h>
 #include <assert.h>
 
@@ -31,6 +32,7 @@
 #include "activity.h"
 #include "thread.h"
 #include "zalloc.h"
+#include "messenger.h"
 
 /* For lack of a better place.  */
 ss_mutex_t kernel_lock;
@@ -527,7 +529,8 @@ folio_object_alloc (struct activity *activity,
   /* Deallocate any existing object.  */
 
   if (folio_object_type (folio, idx) == cap_activity_control
-      || folio_object_type (folio, idx) == cap_thread)
+      || folio_object_type (folio, idx) == cap_thread
+      || folio_object_type (folio, idx) == cap_messenger)
     /* These object types have state that needs to be explicitly
        destroyed.  */
     {
@@ -547,6 +550,10 @@ folio_object_alloc (struct activity *activity,
 	  debug (4, "Destroying thread object at %llx", oid);
 	  thread_deinit (activity, (struct thread *) object);
 	  break;
+	case cap_messenger:
+	  debug (4, "Destroying messenger object at %llx", oid);
+	  messenger_destroy (activity, (struct messenger *) object);
+	  break;
 	default:
 	  assert (!"Object desc type does not match folio type.");
 	  break;
@@ -555,14 +562,15 @@ folio_object_alloc (struct activity *activity,
 
   /* Wake any threads waiting on this object.  We wake them even if
      they are not waiting for this object's death.  */
-  struct thread *thread;
-  folio_object_wait_queue_for_each (activity, folio, idx, thread)
+  struct messenger *messenger;
+  folio_object_wait_queue_for_each (activity, folio, idx, messenger)
     {
-      object_wait_queue_dequeue (activity, thread);
-      if (thread->wait_reason == THREAD_WAIT_DESTROY)
-	rm_thread_wait_object_destroyed_reply (thread->tid, return_code);
+      object_wait_queue_unlink (activity, messenger);
+      if (messenger->wait_reason == MESSENGER_WAIT_DESTROY)
+	rm_object_reply_on_destruction_reply (activity,
+					      messenger, return_code);
       else
-	rpc_error_reply (thread->tid, EFAULT);
+	rpc_error_reply (activity, messenger, EFAULT);
     }
 
   struct object_desc *odesc;
@@ -959,7 +967,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 }
 
 /* Return the first waiter queued on object OBJECT.  */
-struct thread *
+struct messenger *
 object_wait_queue_head (struct activity *activity, struct object *object)
 {
   struct folio *folio = objects_folio (activity, object);
@@ -971,18 +979,18 @@ object_wait_queue_head (struct activity *activity, struct object *object)
   oid_t h = folio_object_wait_queue (folio, i);
   struct object *head = object_find (activity, h, OBJECT_POLICY_DEFAULT);
   assert (head);
-  assert (object_type (head) == cap_thread);
-  assert (((struct thread *) head)->wait_queue_p);
-  assert (((struct thread *) head)->wait_queue_head);
+  assert (object_type (head) == cap_messenger);
+  assert (((struct messenger *) head)->wait_queue_p);
+  assert (((struct messenger *) head)->wait_queue_head);
 
-  return (struct thread *) head;
+  return (struct messenger *) head;
 }
 
 /* Return the last waiter queued on object OBJECT.  */
-struct thread *
+struct messenger *
 object_wait_queue_tail (struct activity *activity, struct object *object)
 {
-  struct thread *head = object_wait_queue_head (activity, object);
+  struct messenger *head = object_wait_queue_head (activity, object);
   if (! head)
     return NULL;
 
@@ -990,47 +998,47 @@ object_wait_queue_tail (struct activity *activity, struct object *object)
     /* HEAD is also the list's tail.  */
     return head;
 
-  struct thread *tail;
-  tail = (struct thread *) object_find (activity, head->wait_queue.prev,
-					OBJECT_POLICY_DEFAULT);
+  struct messenger *tail;
+  tail = (struct messenger *) object_find (activity, head->wait_queue.prev,
+					   OBJECT_POLICY_DEFAULT);
   assert (tail);
-  assert (object_type ((struct object *) tail) == cap_thread);
+  assert (object_type ((struct object *) tail) == cap_messenger);
   assert (tail->wait_queue_p);
   assert (tail->wait_queue_tail);
 
   return tail;
 }
 
-/* Return the waiter following THREAD.  */
-struct thread *
-object_wait_queue_next (struct activity *activity, struct thread *t)
+/* Return the waiter following M.  */
+struct messenger *
+object_wait_queue_next (struct activity *activity, struct messenger *m)
 {
-  if (t->wait_queue_tail)
+  if (m->wait_queue_tail)
     return NULL;
 
-  struct thread *next;
-  next = (struct thread *) object_find (activity, t->wait_queue.next,
-					OBJECT_POLICY_DEFAULT);
+  struct messenger *next;
+  next = (struct messenger *) object_find (activity, m->wait_queue.next,
+					   OBJECT_POLICY_DEFAULT);
   assert (next);
-  assert (object_type ((struct object *) next) == cap_thread);
+  assert (object_type ((struct object *) next) == cap_messenger);
   assert (next->wait_queue_p);
   assert (! next->wait_queue_head);
 
   return next;
 }
 
-/* Return the waiter preceding THREAD.  */
-struct thread *
-object_wait_queue_prev (struct activity *activity, struct thread *t)
+/* Return the waiter preceding M.  */
+struct messenger *
+object_wait_queue_prev (struct activity *activity, struct messenger *m)
 {
-  if (t->wait_queue_head)
+  if (m->wait_queue_head)
     return NULL;
 
-  struct thread *prev;
-  prev = (struct thread *) object_find (activity, t->wait_queue.prev,
-					OBJECT_POLICY_DEFAULT);
+  struct messenger *prev;
+  prev = (struct messenger *) object_find (activity, m->wait_queue.prev,
+					   OBJECT_POLICY_DEFAULT);
   assert (prev);
-  assert (object_type ((struct object *) prev) == cap_thread);
+  assert (object_type ((struct object *) prev) == cap_messenger);
   assert (prev->wait_queue_p);
   assert (! prev->wait_queue_tail);
 
@@ -1038,29 +1046,29 @@ object_wait_queue_prev (struct activity *activity, struct thread *t)
 }
 
 static void
-object_wait_queue_check (struct activity *activity, struct thread *thread)
+object_wait_queue_check (struct activity *activity, struct messenger *messenger)
 {
 #ifndef NDEBUG
-  if (! thread->wait_queue_p)
+  if (! messenger->wait_queue_p)
     return;
 
-  struct thread *last = thread;
-  struct thread *t;
+  struct messenger *last = messenger;
+  struct messenger *m;
   for (;;)
     {
       if (last->wait_queue_tail)
 	break;
 
-      t = (struct thread *) object_find (activity, last->wait_queue.next,
-					 OBJECT_POLICY_DEFAULT);
-      assert (t);
-      assert (t->wait_queue_p);
-      assert (! t->wait_queue_head);
-      struct object *p = object_find (activity, t->wait_queue.prev,
+      m = (struct messenger *) object_find (activity, last->wait_queue.next,
+					    OBJECT_POLICY_DEFAULT);
+      assert (m);
+      assert (m->wait_queue_p);
+      assert (! m->wait_queue_head);
+      struct object *p = object_find (activity, m->wait_queue.prev,
 					OBJECT_POLICY_DEFAULT);
       assert (p == (struct object *) last);
       
-      last = t;
+      last = m;
     }
 
   assert (last->wait_queue_tail);
@@ -1071,68 +1079,67 @@ object_wait_queue_check (struct activity *activity, struct thread *thread)
   assert (folio_object_wait_queue_p (objects_folio (activity, o),
 				     objects_folio_offset (o)));
 
-  struct thread *head = object_wait_queue_head (activity, o);
+  struct messenger *head = object_wait_queue_head (activity, o);
   if (! head)
     return;
   assert (head->wait_queue_head);
 
-  struct thread *tail;
-  tail = (struct thread *) object_find (activity, head->wait_queue.prev,
-					OBJECT_POLICY_DEFAULT);
+  struct messenger *tail;
+  tail = (struct messenger *) object_find (activity, head->wait_queue.prev,
+					   OBJECT_POLICY_DEFAULT);
   assert (tail);
   assert (tail->wait_queue_tail);
 
   assert (last == tail);
 
   last = head;
-  while (last != thread)
+  while (last != messenger)
     {
       assert (! last->wait_queue_tail);
 
-      t = (struct thread *) object_find (activity, last->wait_queue.next,
-					 OBJECT_POLICY_DEFAULT);
-      assert (t);
-      assert (t->wait_queue_p);
-      assert (! t->wait_queue_head);
+      m = (struct messenger *) object_find (activity, last->wait_queue.next,
+					    OBJECT_POLICY_DEFAULT);
+      assert (m);
+      assert (m->wait_queue_p);
+      assert (! m->wait_queue_head);
 
-      struct object *p = object_find (activity, t->wait_queue.prev,
+      struct object *p = object_find (activity, m->wait_queue.prev,
 				      OBJECT_POLICY_DEFAULT);
       assert (p == (struct object *) last);
       
-      last = t;
+      last = m;
     }
 #endif /* !NDEBUG */
 }
 
-/* Enqueue the thread THREAD on object OBJECT's wait queue.  */
 void
-object_wait_queue_enqueue (struct activity *activity,
-			   struct object *object, struct thread *thread)
+object_wait_queue_push (struct activity *activity,
+			struct object *object, struct messenger *messenger)
 {
-  debug (5, "Adding " OID_FMT " to %p",
-	 OID_PRINTF (object_to_object_desc ((struct object *) thread)->oid),
+  debug (5, "Pushing " OID_FMT " onto %p",
+	 OID_PRINTF (object_to_object_desc ((struct object *) messenger)->oid),
 	 object);
 
-  object_wait_queue_check (activity, thread);
+  object_wait_queue_check (activity, messenger);
 
-  assert (! thread->wait_queue_p);
+  assert (! messenger->wait_queue_p);
 
-  struct thread *oldhead = object_wait_queue_head (activity, object);
+  struct messenger *oldhead = object_wait_queue_head (activity, object);
   if (oldhead)
     {
       assert (oldhead->wait_queue_head);
 
-      /* THREAD->PREV = TAIL.  */
-      thread->wait_queue.prev = oldhead->wait_queue.prev;
+      /* MESSENGER->PREV = TAIL.  */
+      messenger->wait_queue.prev = oldhead->wait_queue.prev;
 
-      /* OLDHEAD->PREV = THREAD.  */
+      /* OLDHEAD->PREV = MESSENGER.  */
       oldhead->wait_queue_head = 0;
-      oldhead->wait_queue.prev = object_oid ((struct object *) thread);
+      oldhead->wait_queue.prev = object_oid ((struct object *) messenger);
 
-      /* THREAD->NEXT = OLDHEAD.  */
-      thread->wait_queue.next = object_oid ((struct object *) oldhead);
+      /* MESSENGER->NEXT = OLDHEAD.  */
+      messenger->wait_queue.next = object_oid ((struct object *) oldhead);
 
-      thread->wait_queue_tail = 0;
+      messenger->wait_queue_tail = 0;
     }
   else
     /* Empty list.  */
@@ -1141,133 +1148,194 @@ object_wait_queue_enqueue (struct activity *activity,
 				     objects_folio_offset (object),
 				     true);
 
-      /* THREAD->PREV = THREAD.  */
-      thread->wait_queue.prev = object_oid ((struct object *) thread);
+      /* MESSENGER->PREV = MESSENGER.  */
+      messenger->wait_queue.prev = object_oid ((struct object *) messenger);
 
-      /* THREAD->NEXT = OBJECT.  */
-      thread->wait_queue_tail = 1;
-      thread->wait_queue.next = object_oid (object);
+      /* MESSENGER->NEXT = OBJECT.  */
+      messenger->wait_queue_tail = 1;
+      messenger->wait_queue.next = object_oid (object);
     }
 
-  thread->wait_queue_p = true;
+  messenger->wait_queue_p = true;
 
-  /* WAIT_QUEUE = THREAD.  */
-  thread->wait_queue_head = 1;
+  /* WAIT_QUEUE = MESSENGER.  */
+  messenger->wait_queue_head = 1;
   folio_object_wait_queue_set (objects_folio (activity, object),
 			       objects_folio_offset (object),
-			       object_oid ((struct object *) thread));
+			       object_oid ((struct object *) messenger));
 
-  object_wait_queue_check (activity, thread);
+  object_wait_queue_check (activity, messenger);
 }
 
-/* Dequeue thread THREAD from its wait queue.  */
 void
-object_wait_queue_dequeue (struct activity *activity, struct thread *thread)
+object_wait_queue_enqueue (struct activity *activity,
+			   struct object *object, struct messenger *messenger)
+{
+  debug (5, "Enqueueing " OID_FMT " on %p",
+	 OID_PRINTF (object_to_object_desc ((struct object *) messenger)->oid),
+	 object);
+
+  object_wait_queue_check (activity, messenger);
+
+  assert (! messenger->wait_queue_p);
+
+  struct messenger *oldtail = object_wait_queue_tail (activity, object);
+  if (oldtail)
+    {
+      /* HEAD->PREV = MESSENGER.  */
+      struct messenger *head = object_wait_queue_head (activity, object);
+      head->wait_queue.prev = object_oid ((struct object *) messenger);
+
+      assert (oldtail->wait_queue_tail);
+
+      /* MESSENGER->PREV = OLDTAIL.  */
+      messenger->wait_queue.prev = object_oid ((struct object *) oldtail);
+
+      /* OLDTAIL->NEXT = MESSENGER.  */
+      oldtail->wait_queue_tail = 0;
+      oldtail->wait_queue.next = object_oid ((struct object *) messenger);
+
+      /* MESSENGER->NEXT = OBJECT.  */
+      messenger->wait_queue.next = object_oid (object);
+
+      messenger->wait_queue_head = 0;
+      messenger->wait_queue_tail = 1;
+    }
+  else
+    /* Empty list.  */
+    {
+      folio_object_wait_queue_p_set (objects_folio (activity, object),
+				     objects_folio_offset (object),
+				     true);
+
+      /* MESSENGER->PREV = MESSENGER.  */
+      messenger->wait_queue.prev = object_oid ((struct object *) messenger);
+
+      /* MESSENGER->NEXT = OBJECT.  */
+      messenger->wait_queue_tail = 1;
+      messenger->wait_queue.next = object_oid (object);
+
+      /* WAIT_QUEUE = MESSENGER.  */
+      messenger->wait_queue_head = 1;
+      folio_object_wait_queue_set (objects_folio (activity, object),
+				   objects_folio_offset (object),
+				   object_oid ((struct object *) messenger));
+    }
+
+  messenger->wait_queue_p = true;
+
+  object_wait_queue_check (activity, messenger);
+}
+
+/* Unlink messenger MESSENGER from its wait queue.  */
+void
+object_wait_queue_unlink (struct activity *activity,
+			  struct messenger *messenger)
 {
   debug (5, "Removing " OID_FMT,
-	 OID_PRINTF (object_to_object_desc ((struct object *) thread)->oid));
+	 OID_PRINTF (object_to_object_desc ((struct object *) messenger)->oid));
 
-  assert (thread->wait_queue_p);
+  assert (messenger->wait_queue_p);
 
-  object_wait_queue_check (activity, thread);
+  object_wait_queue_check (activity, messenger);
 
-  if (thread->wait_queue_tail)
-    /* THREAD is the tail.  THREAD->NEXT must be the object on which
+  if (messenger->wait_queue_tail)
+    /* MESSENGER is the tail.  MESSENGER->NEXT must be the object on which
        we are queued.  */
     {
       struct object *object;
-      object = object_find (activity, thread->wait_queue.next,
+      object = object_find (activity, messenger->wait_queue.next,
 			    OBJECT_POLICY_DEFAULT);
       assert (object);
       assert (folio_object_wait_queue_p (objects_folio (activity, object),
 					 objects_folio_offset (object)));
-      assert (object_wait_queue_tail (activity, object) == thread);
+      assert (object_wait_queue_tail (activity, object) == messenger);
 
-      if (thread->wait_queue_head)      
-	/* THREAD is also the head and thus the only item on the
+      if (messenger->wait_queue_head)      
+	/* MESSENGER is also the head and thus the only item on the
 	   list.  */
 	{
-	  assert (object_find (activity, thread->wait_queue.prev,
+	  assert (object_find (activity, messenger->wait_queue.prev,
 			       OBJECT_POLICY_DEFAULT)
-		  == (struct object *) thread);
+		  == (struct object *) messenger);
 
 	  folio_object_wait_queue_p_set (objects_folio (activity, object),
 					 objects_folio_offset (object),
 					 false);
 	}
       else
-	/* THREAD is not also the head.  */
+	/* MESSENGER is not also the head.  */
 	{
-	  struct thread *head = object_wait_queue_head (activity, object);
+	  struct messenger *head = object_wait_queue_head (activity, object);
 
 	  /* HEAD->PREV == TAIL.  */
 	  assert (object_find (activity, head->wait_queue.prev,
 			       OBJECT_POLICY_DEFAULT)
-		  == (struct object *) thread);
+		  == (struct object *) messenger);
 
 	  /* HEAD->PREV = TAIL->PREV.  */
-	  head->wait_queue.prev = thread->wait_queue.prev;
+	  head->wait_queue.prev = messenger->wait_queue.prev;
 
 	  /* TAIL->PREV->NEXT = OBJECT.  */
-	  struct thread *prev;
-	  prev = (struct thread *) object_find (activity,
-						thread->wait_queue.prev,
+	  struct messenger *prev;
+	  prev = (struct messenger *) object_find (activity,
+						messenger->wait_queue.prev,
 						OBJECT_POLICY_DEFAULT);
 	  assert (prev);
-	  assert (object_type ((struct object *) prev) == cap_thread);
+	  assert (object_type ((struct object *) prev) == cap_messenger);
 
 	  prev->wait_queue_tail = 1;
-	  prev->wait_queue.next = thread->wait_queue.next;
+	  prev->wait_queue.next = messenger->wait_queue.next;
 	}
     }
   else
-    /* THREAD is not the tail.  */
+    /* MESSENGER is not the tail.  */
     {
-      struct thread *next = object_wait_queue_next (activity, thread);
+      struct messenger *next = object_wait_queue_next (activity, messenger);
       assert (next);
 
-      struct object *p = object_find (activity, thread->wait_queue.prev,
+      struct object *p = object_find (activity, messenger->wait_queue.prev,
 				      OBJECT_POLICY_DEFAULT);
       assert (p);
-      assert (object_type (p) == cap_thread);
-      struct thread *prev = (struct thread *) p;
+      assert (object_type (p) == cap_messenger);
+      struct messenger *prev = (struct messenger *) p;
 
-      if (thread->wait_queue_head)
-	/* THREAD is the head.  */
+      if (messenger->wait_queue_head)
+	/* MESSENGER is the head.  */
 	{
-	  /* THREAD->PREV is the tail, TAIL->NEXT the object.  */
-	  struct thread *tail = prev;
+	  /* MESSENGER->PREV is the tail, TAIL->NEXT the object.  */
+	  struct messenger *tail = prev;
 
 	  struct object *object = object_find (activity, tail->wait_queue.next,
 					       OBJECT_POLICY_DEFAULT);
 	  assert (object);
-	  assert (object_wait_queue_head (activity, object) == thread);
+	  assert (object_wait_queue_head (activity, object) == messenger);
 
 
-	  /* OBJECT->WAIT_QUEUE = THREAD->NEXT.  */
+	  /* OBJECT->WAIT_QUEUE = MESSENGER->NEXT.  */
 	  next->wait_queue_head = 1;
 
 	  folio_object_wait_queue_set (objects_folio (activity, object),
 				       objects_folio_offset (object),
-				       thread->wait_queue.next);
+				       messenger->wait_queue.next);
 	}
       else
-	/* THREAD is neither the head nor the tail.  */
+	/* MESSENGER is neither the head nor the tail.  */
 	{
-	  /* THREAD->PREV->NEXT = THREAD->NEXT.  */
-	  prev->wait_queue.next = thread->wait_queue.next;
+	  /* MESSENGER->PREV->NEXT = MESSENGER->NEXT.  */
+	  prev->wait_queue.next = messenger->wait_queue.next;
 	}
 
-      /* THREAD->NEXT->PREV = THREAD->PREV.  */
-      next->wait_queue.prev = thread->wait_queue.prev;
+      /* MESSENGER->NEXT->PREV = MESSENGER->PREV.  */
+      next->wait_queue.prev = messenger->wait_queue.prev;
     }
 
-  thread->wait_queue_p = false;
+  messenger->wait_queue_p = false;
 
 #ifndef NDEBUG
-  if (thread->wait_reason == THREAD_WAIT_FUTEX)
-    futex_waiter_list_unlink (&futex_waiters, thread);
+  if (messenger->wait_reason == MESSENGER_WAIT_FUTEX)
+    futex_waiter_list_unlink (&futex_waiters, messenger);
 #endif
 
-  object_wait_queue_check (activity, thread);
+  object_wait_queue_check (activity, messenger);
 }

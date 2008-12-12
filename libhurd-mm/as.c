@@ -20,6 +20,7 @@
 
 #include "as.h"
 #include "storage.h"
+#include <hurd/rm.h>
 
 #include <pthread.h>
 #include <hurd/folio.h>
@@ -506,10 +507,12 @@ as_init (void)
       err = rm_cap_read (meta_data_activity, ADDR_VOID, addr,
 			 &type, &properties);
       assert (! err);
+      if (! cap_types_compatible (type, desc->type))
+	rm_as_dump (ADDR_VOID, ADDR_VOID);
       assertx (cap_types_compatible (type, desc->type),
-	       "%s != %s",
-	       cap_type_string (type),
-	       cap_type_string (desc->type));
+	       "Object at " ADDR_FMT ": %s != %s",
+	       ADDR_PRINTF (addr),
+	       cap_type_string (type), cap_type_string (desc->type));
 
       int gbits = CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans);
       addr_t slot_addr = addr_chop (addr, gbits);
@@ -796,6 +799,12 @@ as_walk (int (*visit) (addr_t addr,
 	      break;
 	    case cap_folio:
 	      slots_log2 = FOLIO_OBJECTS_LOG2;
+	      break;
+	    case cap_thread:
+	      slots_log2 = THREAD_SLOTS_LOG2;
+	      break;
+	    case cap_messenger:
+	      slots_log2 = VG_MESSENGER_SLOTS_LOG2;
 	      break;
 	    default:
 	      assert (0 == 1);

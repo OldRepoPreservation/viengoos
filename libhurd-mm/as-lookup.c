@@ -62,6 +62,8 @@ as_lookup_rel_internal (activity_t activity,
 			enum as_lookup_mode mode, union as_lookup_ret *rt,
 			bool dump)
 {
+  assert (root);
+
   struct cap *start = root;
 
 #ifndef NDEBUG
@@ -99,7 +101,10 @@ as_lookup_rel_internal (activity_t activity,
 				       remaining - CAP_GUARD_BITS (root))),
 	       remaining);
 
-      assert (CAP_TYPE_MIN <= root->type && root->type <= CAP_TYPE_MAX);
+      assertx (CAP_TYPE_MIN <= root->type && root->type <= CAP_TYPE_MAX,
+	       "Cap at " ADDR_FMT " has type %d?! (" ADDR_FMT ")",
+	       ADDR_PRINTF (addr_chop (address, remaining)), root->type,
+	       ADDR_PRINTF (address));
 
       if (root->type == cap_rcappage)
 	/* The page directory is read-only.  Note the weakened access
@@ -239,6 +244,59 @@ as_lookup_rel_internal (activity_t activity,
 		   i, FOLIO_OBJECTS_LOG2, remaining);
 
 	  break;
+
+	case cap_thread:
+	case cap_messenger:
+	  /* Note: rmessengers don't expose their capability slots.  */
+	  {
+	    /* Index the object.  */
+	    int bits;
+	    switch (root->type)
+	      {
+	      case cap_thread:
+		bits = THREAD_SLOTS_LOG2;
+		break;
+
+	      case cap_messenger:
+		bits = VG_MESSENGER_SLOTS_LOG2;
+		break;
+	      }
+
+	    if (remaining < bits)
+	      {
+		debug (1, "Translating " ADDR_FMT "; not enough bits (%d) "
+		       "to index %d-bit %s at " ADDR_FMT,
+		       ADDR_PRINTF (address), remaining, bits,
+		       cap_type_string (root->type),
+		       ADDR_PRINTF (addr_chop (address, remaining)));
+		DUMP_OR_RET (false);
+	      }
+
+	    struct object *object = cap_to_object (activity, root);
+	    if (! object)
+	      {
+#ifdef RM_INTERN
+		debug (1, "Failed to get object with OID " OID_FMT,
+		       OID_PRINTF (root->oid));
+		DUMP_OR_RET (false);
+#endif
+		return false;
+	      }
+#ifdef RM_INTERN
+	    assert (object_type (object) == root->type);
+#endif
+
+	    int offset = extract_bits64_inv (addr, remaining - 1, bits);
+	    assert (0 <= offset && offset < (1 << bits));
+	    remaining -= bits;
+
+	    if (dump_path)
+	      debug (0, "Indexing %s: %d/%d (%d)",
+		     cap_type_string (root->type), offset, bits, remaining);
+
+	    root = &object->caps[offset];
+	    break;
+	  }
 
 	default:
 	  /* We designate a non-address bit translating object but we

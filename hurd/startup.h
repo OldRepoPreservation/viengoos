@@ -23,10 +23,12 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include <l4/types.h>
-
 #include <hurd/types.h>
 #include <hurd/addr.h>
+
+#ifdef USE_L4
+# include <l4/types.h>
+#endif
 
 /* The version of the startup data defined by this header file.  */
 #define HURD_STARTUP_VERSION_MAJOR UINT16_C (0)
@@ -59,10 +61,15 @@ struct hurd_startup_data
   unsigned short version_minor;
 
   /* Startup flags.  */
-  l4_word_t flags;
+  uintptr_t flags;
 
+#ifdef USE_L4
   /* The UTCB area of this task.  */
   l4_fpage_t utcb_area;
+
+  /* Thread id of Viengoos.  */
+  l4_thread_id_t rm;
+#endif
 
   /* The argument vector.  */
   char *argz;
@@ -74,9 +81,6 @@ struct hurd_startup_data
   /* Absolute address in the data space.  */
   size_t envz_len;
 
-  /* Thread id of the resource manager.  */
-  l4_thread_id_t rm;
-
   /* Slot in which a capability designating the task's primary
      activity is stored.  */
   addr_t activity;
@@ -84,6 +88,11 @@ struct hurd_startup_data
   /* Slot in which a capability designating the task's first thread is
      stored.  */
   addr_t thread;
+
+  /* To allow a task to boot strap itself, it needs a couple of
+     messengers (one to send and another to receive).  Here they
+     are.  */
+  addr_t messengers[2];
 
   struct hurd_object_desc *descs;
   int desc_count;

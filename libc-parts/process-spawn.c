@@ -40,6 +40,7 @@
 #ifndef RM_INTERN
 #include <hurd/ihash.h>
 #include <hurd/capalloc.h>
+#include <hurd/storage.h>
 #endif
 
 #ifdef RM_INTERN
@@ -290,6 +291,14 @@ process_spawn (addr_t activity,
 #else
   addr_t as_root = capalloc ();
   struct cap *as_root_cap = add_shadow (ADDR (0, 0));
+
+  /* This is sort of a hack.  To copy a capability, we need to invoke
+     the source object that contains the capability.  A capability
+     slot is not an object.  Finding the object corresponding to
+     AS_ROOT is possible, but iterposing a thread is just easier.  */
+  struct storage thread_root
+    = storage_alloc (ADDR_VOID, cap_thread, STORAGE_EPHEMERAL,
+		     OBJECT_POLICY_DEFAULT, as_root);
 #endif
 
   /* Allocation support.  */
@@ -336,7 +345,7 @@ process_spawn (addr_t activity,
 	    folio_task_addr = ADDR (addr_prefix (folio_task_addr) + (1ULL << w),
 				    ADDR_BITS - w);
 
-	  debug (5, "allocating folio at " ADDR_FMT,
+	  debug (5, "Allocating folio at " ADDR_FMT,
 		 ADDR_PRINTF (folio_task_addr));
 
 #ifdef RM_INTERN
@@ -358,10 +367,12 @@ process_spawn (addr_t activity,
 
 	  as_ensure (folio_local_addr);
 
-	  error_t err = rm_folio_alloc (activity, folio_local_addr,
-					FOLIO_POLICY_DEFAULT);
+	  error_t err = rm_folio_alloc (activity, activity,
+					FOLIO_POLICY_DEFAULT,
+					&folio_local_addr);
 	  if (err)
 	    panic ("Failed to allocate folio");
+	  assert (! ADDR_IS_VOID (folio_local_addr));
 
 	  as_slot_lookup_use (folio_local_addr,
 			      ({
@@ -398,6 +409,12 @@ process_spawn (addr_t activity,
       memset (&rt, 0, sizeof (rt));
 
       int index = folio_index ++;
+
+      debug (5, "Allocating " ADDR_FMT " (%s)",
+	     ADDR_PRINTF (addr_extend (folio_task_addr,
+				       index, FOLIO_OBJECTS_LOG2)),
+	     cap_type_string (type));
+
 #ifdef RM_INTERN
       rt.cap = folio_object_alloc (root_activity,
 				   folio_local_addr, index,
@@ -407,7 +424,7 @@ process_spawn (addr_t activity,
       rm_folio_object_alloc (ADDR_VOID,
 			     folio_local_addr, index,
 			     cap_type_strengthen (type),
-			     OBJECT_POLICY_VOID, 0, ADDR_VOID, ADDR_VOID);
+			     OBJECT_POLICY_VOID, 0, NULL, NULL);
       rt.cap.type = cap_type_strengthen (type);
       CAP_PROPERTIES_SET (&rt.cap, CAP_PROPERTIES_VOID);
 
@@ -617,6 +634,17 @@ process_spawn (addr_t activity,
 #endif
   }
 
+  /* Allocate some messengers.  */
+  int i;
+  for (i = 0; i < 2; i ++)
+    {
+      rt = allocate_object (cap_messenger, ADDR_VOID);
+      assert (descs[startup_data->desc_count - 1].type == cap_messenger);
+      startup_data->messengers[i] = descs[startup_data->desc_count - 1].object;
+      debug (5, "Messenger %d: " ADDR_FMT,
+	     i, ADDR_PRINTF (startup_data->messengers[i]));
+    }
+
   /* We need to 1) insert the folios in the address space, 2) fix up
      their descriptors (recall: we are abusing desc->storage to hold
      the local name for the storge), and 3) copy the startup data.  We
@@ -677,7 +705,6 @@ process_spawn (addr_t activity,
     }
 
   /* Copy the staging area in place.  */
-  int i;
   for (i = 0; i < page; i ++)
     memcpy (pages[i], (void *) startup_data + i * PAGESIZE, PAGESIZE);
 
@@ -726,31 +753,31 @@ process_spawn (addr_t activity,
 		       HURD_EXREGS_SET_SP_IP
 		       | (make_runnable ? HURD_EXREGS_START : 0)
 		       | HURD_EXREGS_ABORT_IPC,
-		       NULL, 0, CAP_PROPERTIES_VOID,
-		       NULL, NULL,
-		       &sp, &ip,
-		       NULL, NULL, NULL, NULL, NULL);
+		       CAP_VOID, 0, CAP_PROPERTIES_VOID,
+		       CAP_VOID, CAP_VOID, CAP_VOID,
+		       &sp, &ip, NULL, NULL);
 #else
   /* Start thread.  */
   struct hurd_thread_exregs_in in;
   /* Per the API (cf. <hurd/startup.h>).  */
   in.sp = STARTUP_DATA_ADDR;
   in.ip = ip;
-  in.aspace = as_root;
   in.aspace_cap_properties = CAP_PROPERTIES_VOID;
   in.aspace_cap_properties_flags = CAP_COPY_COPY_SOURCE_GUARD;
-  /* XXX: Weaken.  */
-  in.activity = activity;
 
   error_t err;
   struct hurd_thread_exregs_out out;
+  /* XXX: Use a weakened activity.  */
   err = rm_thread_exregs (ADDR_VOID, thread,
 			  HURD_EXREGS_SET_SP_IP
 			  | HURD_EXREGS_SET_ASPACE
 			  | HURD_EXREGS_SET_ACTIVITY
 			  | (make_runnable ? HURD_EXREGS_START : 0)
 			  | HURD_EXREGS_ABORT_IPC,
-			  in, &out);
+			  in, addr_extend (as_root, THREAD_ASPACE_SLOT,
+					   THREAD_SLOTS_LOG2),
+			  activity, ADDR_VOID, ADDR_VOID,
+			  &out, NULL, NULL, NULL, NULL);
 #endif
   if (err)
     panic ("Failed to start thread: %d", err);
@@ -758,11 +785,7 @@ process_spawn (addr_t activity,
   /* Free the remaining locally allocated resources.  */
 
 #ifndef RM_INTERN
-  as_slot_lookup_use (as_root,
-		      ({
-			rm_cap_rubout (ADDR_VOID, ADDR_VOID, as_root);
-			memset (slot, 0, sizeof (*slot));
-		      }));
+  storage_free (thread_root.addr, false);
   capfree (as_root);
 #endif
 

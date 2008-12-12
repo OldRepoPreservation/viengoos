@@ -2,36 +2,109 @@
    Copyright (C) 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
-   This file is part of the GNU Hurd.
-
    The GNU Hurd is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; either version 3 of the
+   License, or (at your option) any later version.
 
-   The GNU Hurd is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   The GNU Hurd is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+   General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see
+   <http://www.gnu.org/licenses/>.  */
 
-#define RA(level)							\
+#include <s-printf.h>
+#include <l4.h>
+
+#ifdef RM_INTERN
+# define RA(level)							\
   if (level < size && __builtin_frame_address ((level) + 1))		\
     {									\
       array[level] = __builtin_return_address ((level) + 1);		\
       if (array[level] == 0)						\
-	return (level) + 1;						\
+	return count;							\
+      count ++;								\
     }									\
   else									\
-    return level;
+    return count;
+
+#else
+# include <hurd/exceptions.h>
+# include <setjmp.h>
+
+# define RA(level)						\
+  if (count >= size)						\
+    return count;						\
+								\
+  {								\
+    void *fa = __builtin_frame_address ((level) + 1);		\
+    if (fa)							\
+      {								\
+	if (utcb)						\
+	  {							\
+	    catcher.start = (uintptr_t) fa + displacement;	\
+	    catcher.len = sizeof (uintptr_t);			\
+	    catcher.callback = get_me_outda_here;		\
+								\
+	    hurd_fault_catcher_register (&catcher);		\
+	  }							\
+								\
+	array[count] = __builtin_return_address ((level) + 1);	\
+								\
+	if (utcb)						\
+	  hurd_fault_catcher_unregister (&catcher);		\
+								\
+	if (array[count] == 0)					\
+	  return count;						\
+	count ++;						\
+      }								\
+    else							\
+      return count;						\
+  }
+#endif
+
 
 int
 backtrace (void **array, int size)
 {
+  /* Without the volatile, count ends up either optimized away or in a
+     caller saved register before the setjmp.  In either case, if we
+     fault, we'll end up returning 0 even if we get some of the
+     backtrace.  volatile seems to prevent this.  */
+  volatile int count = 0;
+
+#ifndef RM_INTERN
+  /* The location of the return address relative to the start of a
+     frame.  */
+  intptr_t displacement = sizeof (uintptr_t);
+# ifndef i386
+#  warning Not ported to this architecture... guessing
+# endif
+
+  jmp_buf jmpbuf;
+
+  /* If we don't yet have a utcb then don't set up a fault catcher.  */
+  struct vg_utcb *utcb = hurd_utcb ();
+
+  if (utcb)
+    {
+      if (setjmp (jmpbuf))
+	return count;
+    }
+
+  struct hurd_fault_catcher catcher;
+
+  bool get_me_outda_here (struct activation_frame *af, uintptr_t fault)
+  {
+    hurd_fault_catcher_unregister (&catcher);
+    hurd_activation_frame_longjmp (af, jmpbuf, true, 1);
+    return true;
+  }
+#endif
+
   RA(0);
   RA(1);
   RA(2);
@@ -52,17 +125,18 @@ backtrace (void **array, int size)
   RA(18);
   RA(19);
   RA(20);
-  return 21;
+  return count;
 }
 
-int
+void
 backtrace_print (void)
 {
   void *bt[20];
   int count = backtrace (bt, sizeof (bt) / sizeof (bt[0]));
 
+  s_printf ("Backtrace for %x: ", l4_myself ());
   int i;
   for (i = 0; i < count; i ++)
-    printf ("%p ", bt[i]);
-  printf ("\n");
+    s_printf ("%p ", bt[i]);
+  s_printf ("\n");
 }

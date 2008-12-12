@@ -373,12 +373,6 @@ folio_object_cap (struct folio *folio, int object)
 
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
-#undef RPC_TARGET_NEED_ARG
-#define RPC_TARGET \
-  ({ \
-    extern struct hurd_startup_data *__hurd_startup_data; \
-    __hurd_startup_data->rm; \
-  })
 
 #include <hurd/rpc.h>
 
@@ -390,14 +384,16 @@ enum
     RM_folio_policy
   };
 
-/* Allocate a folio against PRINCIPAL.  Store a capability in the
+/* Allocate a folio against ACTIVITY.  Return a capability in the
    caller's cspace in slot FOLIO.  POLICY specifies the storage
    policy.  */
-RPC(folio_alloc, 3, 0, addr_t, principal, addr_t, folio,
-    struct folio_policy, policy)
+RPC(folio_alloc, 1, 0, 1,
+    /* cap_t, principal, cap_t, activity, */
+    struct folio_policy, policy, cap_t, folio)
   
-/* Free the folio designated by FOLIO.  PRINCIPAL pays.  */
-RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
+/* Free the folio designated by FOLIO.  */
+RPC(folio_free, 0, 0, 0
+    /* cap_t, principal, cap_t, folio */)
 
 /* Destroys the INDEXth object in folio FOLIO and allocate in its
    place an object of tye TYPE.  If TYPE is CAP_VOID, any existing
@@ -406,15 +402,14 @@ RPC(folio_free, 2, 0, addr_t, principal, addr_t, folio)
    folio.  If an object is destroyed and there are waiters, they are
    passed the return code RETURN_CODE.
 
-   If OBJECT_SLOT is not ADDR_VOID, then stores a capability to the
-   allocated object in OBJECT_SLOT.  If OBJECT_WEAK_SLOT is not
-   ADDR_VOID, stores a weaken reference to the created object.  If an
-   object is destroyed and there are waiters, they are passed the
-   return code RETURN_CODE.  */
-RPC(folio_object_alloc, 8, 0, addr_t, principal,
-    addr_t, folio, uintptr_t, index, uintptr_t, type,
+   Returns a capability to the allocated object in OBJECT.  Returns a
+   weak capability to the object in OBJECT_WEAK.  */
+RPC(folio_object_alloc, 4, 0, 2,
+    /* cap_t, principal, cap_t, folio, */
+    uintptr_t, index, uintptr_t, type,
     struct object_policy, policy, uintptr_t, return_code,
-    addr_t, object_slot, addr_t, object_weak_slot)
+    /* Out: */
+    cap_t, object, cap_t, object_weak)
 
 /* Flags for folio_policy.  */
 enum
@@ -433,16 +428,15 @@ enum
 /* Get and set the management policy for folio FOLIO.
 
    If FOLIO_POLICY_DELIVER is set in FLAGS, then return FOLIO's
-   current paging policy in VALUE.  Then, if any of the set flags are
+   current paging policy in OLD.  Then, if any of the set flags are
    set, set the corresponding values based on the value of POLICY.  */
-RPC(folio_policy, 4, 1,
-    addr_t, principal, addr_t, folio,
+RPC(folio_policy, 2, 1, 0,
+    /* cap_t, principal, cap_t, folio, */
     uintptr_t, flags, struct folio_policy, policy,
     /* Out: */
-    struct folio_policy, value)
+    struct folio_policy, old)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
-#undef RPC_TARGET
 
 #endif

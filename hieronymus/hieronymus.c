@@ -72,7 +72,7 @@ activity_alloc (struct activity_policy policy)
     panic ("Failed to allocate storage.");
 
   struct activity_policy out;
-  error_t err = rm_activity_policy (storage.addr,
+  error_t err = rm_activity_policy (ADDR_VOID, storage.addr,
 				    ACTIVITY_POLICY_STORAGE_SET
 				    | ACTIVITY_POLICY_CHILD_REL_SET
 				    | ACTIVITY_POLICY_SIBLING_REL_SET,
@@ -137,8 +137,8 @@ do_gather_stats (void *arg)
       for (i = 0; i < module_count; i ++, stat ++)
 	{
 	  error_t err;
-	  err = rm_activity_info (activities[i], activity_info_stats,
-				   period, &info);
+	  err = rm_activity_info (ADDR_VOID, activities[i], activity_info_stats,
+				  period, &info);
 	  assert_perror (err);
 	  assert (info.event == activity_info_stats);
 	  assert (info.stats.count > 0);
@@ -336,8 +336,8 @@ main (int argc, char *argv[])
   for (i = 0; i < module_count; i ++)
     {
       uintptr_t rt = -1;
-      rm_thread_wait_object_destroyed (root_activity,
-				       thread[i], &rt);
+      rm_object_reply_on_destruction (root_activity,
+				      thread[i], &rt);
 
       addr_t folio = addr_chop (activities[i], FOLIO_OBJECTS_LOG2);
       int index = addr_extract (activities[i], FOLIO_OBJECTS_LOG2);
@@ -346,7 +346,7 @@ main (int argc, char *argv[])
       err = rm_folio_object_alloc (ADDR_VOID, folio, index,
 				   cap_void, OBJECT_POLICY_VOID,
 				   (uintptr_t) rt,
-				   ADDR_VOID, ADDR_VOID);
+				   NULL, NULL);
       if (err)
 	debug (0, "deallocating object: %d", err);
 
