@@ -1,3 +1,5 @@
+#define RM_INTERN
+
 #include "setjmp.h"
 
 #include <assert.h>

@@ -1,3 +1,7 @@
+2008-12-12  Neal H. Walfield  <neal@gnu.org>
+
+	* t-setjmp.c (RM_INTERN): Define.
+
 2008-12-11  Neal H. Walfield  <neal@gnu.org>
 
 	Update to new RPC interfaces.
