@@ -9,6 +9,9 @@
 \algblockx[foreach]{Foreach}{EndForeach}
   [1]{\textbf{foreach} #1}
   [0]{\textbf{end foreach}}
+\algblockx[atomic]{Atomic}{EndAtomic}
+  [1]{\textbf{atomic} #1}
+  [0]{\textbf{end atomic}}
 \newcommand{\BigComment}[1]{\State $\triangleright$ #1}
 \newcommand{\plusequals}{\mbox{~+=~}}
 \newcommand{\minusequals}{\mbox{~-=~}}
@@ -51,7 +54,7 @@
 % Wrapper for the \bitbox macro that also displays the bit field's
 % length.
 \newcommand{\bits}[2]{\bitbox{#1}{\small{#2}\tiny{$_{(#1)}$}}}
-% Name as above but the second argument is the label to use for
+% Same as above but the second argument is the label to use for
 % displaying the bits.
 \newcommand{\bitsl}[3]{\bitbox{#1}{\small{#3}\tiny{$_{(#2)}$}}}
 % Wrapper for the \bitbox macro that also displays the bit field's
@@ -67,8 +70,8 @@
 \usepackage{listings}
 \lstloadlanguages{C}
 \lstset{language={C}, columns=fullflexible}
-\lstset{morekeywords={uint32_t, int32_t, uint16_t, int16_t,
-    uintptr_t, intptr_t, bool, errot_t}}
+\lstset{morekeywords={uint64_t, int64_t, uint32_t, int32_t, uint16_t, int16_t,
+    uintptr_t, intptr_t, bool, errot_t, cap_t, in, out}}
 \lstset{morekeywords={addr_t, addr_trans, object_policy, cap_properties}}
 
 % Some convenience macros.
@@ -88,6 +91,9 @@
 \title{Viengoos Developer Reference}
 \author{Neal H. Walfield}
 \date{January 2008}
+
+% Use compact lists.
+\setlength{\itemsep}{0pt}\setlength{\topsep}{0pt}
 
 \begin{document}
 

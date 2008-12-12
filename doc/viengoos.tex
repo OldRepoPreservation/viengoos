@@ -534,6 +534,349 @@ frames have the same priority, they are released in a random order
 unless the priority is 0, in which case, the frames are released in
 approximately LRU order.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Threads}
+
+A thread encapsulates an execution context.  This consists of a
+register file, a name space, and a resource principal.
+
+Viengoos does not implement a first-class task abstraction, which
+encapsulates multiple threads running in a single address space.  It
+is possible to achieve this on Viengoos by specifying the same address
+space root for multiple thread objects.
+
+In Viengoos, unlike in traditional kernels, threads are not blocking
+entities.  Blocking is instead done by messengers, which hold and
+transfer messages (see chapter~\ref{messengers} for a description of
+messengers).  By separating messengers from threads, it is possible to
+reliably wait for multiple events while the thread continues to
+execute and to do so in a manner that does not require the kernel or a
+server to block on the thread.
+
+\section{Thread State}
+
+A thread consists of four user-accessible capability slots: the
+address space root, the current activity the exception messenger and
+the user-thread control block (UTCB).
+
+A thread object also contains space to save its CPU state, which it
+contains when the thread is not executing on a CPU.
+
+\subsection{Address Space Root}
+
+The address space root capability slot determines the root of a
+thread's address space.  This address space is used in two situations.
+First, when a thread performs an IPC, the arguments are identified by
+addresses, which are resolved in this address space.  Second, this
+naming context determines the hardware address space.  That is, it is
+the context in which the memory addresses to all hardware load and
+store instructions are resolved.
+
+\subsection{Activity}
+
+A thread's activity slot determines the thread's current activity.
+This is used to schedule the thread and to account resources that are
+allocated or consumed when resolving a page fault.
+
+If the activity slot does not contain a capability designating an
+activity, the thread is not scheduled.
+
+\subsection{Exception Messenger}
+
+When a thread generates an exception, for instance, when it attempts
+to access a memory location for which there is no valid translation,
+the thread is suspended, and an exception message is generated and
+delivered to the thread's exception messenger.  The kernel delivers
+execptions in non-blocking mode meaning if the exeception messenger is
+not ready to receive a message, the message is dropped.
+
+\subsection{User-Thread Control Block}
+
+\begin{lstlisting}[float,caption=The user-thread control block structure.,frame=single,captionpos=b]
+struct utcb {
+  union {
+    struct {
+      uintptr_t activated_mode : 1;
+      uintptr_t pending_message : 1;
+      uintptr_t interrupt_in_transition : 1;
+    };
+    uint64_t status;
+  };
+
+  uintptr_t saved_ip;
+  uintptr_t saved_sp;
+
+  uintptr_t activation_handler_sp;
+  uintptr_t activation_handler_ip;
+  uintptr_t activation_handler_end;
+
+  uint64_t protected_payload;
+  uint64_t messenger_id;
+
+  /* Inline data.  */
+  struct {
+    uintptr_t inline_word_count : 2;
+    uintptr_t inline_cap_count : 1;
+  };
+  uintptr_t inline_words[2];
+  addr_t inline_caps[1];
+};
+\end{lstlisting}
+
+The user-thread control block (UTCB) is a normal data page.  It
+provides a conduit for the user and kernel to communicate and
+coordinate action.  This is primarily used for managing activations
+and in message delivery.
+
+\begin{description}
+
+\item[activated mode]
+
+The \var{activated mode} bit indicates whether the thread is in
+activated mode.  An activation is only delivered if this bit is clear.
+Before a thread is activated, this bit is checked.  If it is set, the
+activation is either delayed or dropped.  In the former case, the
+messenger causing the activatation blocks on the thread.  A blocked
+messenger may be unblocked either by a future activation or if
+\func{thread\_activation\_collect} is called.  If the messenger is
+destroyed or the delivery aborted, the activation will not be
+delivered.
+
+\item[pending message]
+
+The kernel sets the \var{pending message} bit when a messenger
+attempts to deliver a message to the thread, however, the thread is in
+activated mode.
+
+\item[interrupt in transition]
+
+The \var{interrupt in transition} bit is set by the kernel when
+activating a thread to indicate whether the thread was activated while
+the instruction pointer was in the so-called \emph{activation
+  transition range} (see \var{activation handler start} and
+\var{activation handler end} below).
+
+\item[saved ip \textmd{and} saved sp]
+
+When delivering an activation, the kernel interrupts the thread, sets
+the \var{saved ip} and \var{saved sp} variables to the instruction
+pointer and the stack pointer, sets the thread's sp and ip to
+\var{activation handler sp} and \var{activation handler ip},
+respecitve, and then resumes the thread.
+
+\item[activation handler sp \textmd{and} activation handler ip]
+
+When the kernel activates a thread, it sets its SP and IP to these
+values, respectively.
+
+\item[activation handler ip \textmd{and} activation handler end]
+
+These variables determine the so-called \emph{activation transition
+  range}.
+
+If the kernel activates a thread and its in the activation transition
+range (between \var{activation handler ip} inclusive and
+\var{activation handler end} exclusive, the kernel does not save the
+current IP and SP in \var{saved ip} and \var{saved sp} but sets the
+\var{interrupt in transition} bit.  Using this mechanism, on many
+architectures, it is possible to atomically, with respect to
+activation delivery, clear \var{activated mode} and restore the
+interrupted stack pointer and instruction pointer without entering the
+kernel
+
+\item[protected payload]
+
+When delivering a messenger's message, the \var{protected payload}
+variable is set to the protected payload of the capability that was
+used to invoke the messenger to send the message.
+
+\item[messenger id]
+
+When delivering a messenger's message, the \var{messenger id} is set
+to the messenger's \var{message id}.
+
+\item[inline word count, inline cap count, inline words \textmd{and}
+  inline caps]
+
+When a messenger delivers a message inline, \var{inline word count} is
+set to the number of words (not bytes) that were transferred and
+\var{inline cap count} to the number of capabilities transferred.  The
+\var{inline words} variable is filled with any data.  If the message
+includes capabilities, they are saved sequentially in the slots
+specified at invocation time and the address is copied to \var{inline
+  capability}.  If an error occurs while transferring a capability,
+the corresponding elemeent in \var{inline capabilities} is set to
+\const{ADDR\_VOID}.
+
+\end{description}
+
+\section{Activations}
+
+A thread may be activated if a messenger associated with the thread
+transfers or receives a message.  Threads are only activated by
+messengers and scheduling events.  In the case of scheduling events, a
+kernel-provided messenger whose \var{message id} variable is set to
+\const{\~0ULL} is used and delivery is done in a non-blocking manner.
+
+Activating a thread proceeds as follows:
+
+\begin{itemize}
+\item Atomically, with respect to the thread's execution:
+  \begin{itemize}
+  \item If the thread is activated (\var{activated mode} is non-zero):
+    \begin{itemize}
+    \item If delivery is non-blocking, return.
+    \item Otherwise:
+      \begin{itemize}
+      \item Block the messenger on the thread, and
+      \item Set \var{pending message} to $1$.
+      \end{itemize}
+    \end{itemize}
+  \end{itemize}
+
+\item Suspend the thread's execution.
+
+\item Set \var{protected payload} to that saved in the messenger.
+\item Set \var{messenger id} to the messenger's messenger id.
+
+\item If the activation is the result of a message receipt:
+  \begin{itemize}
+  \item If the message is inline:
+    \begin{itemize}
+    \item Copy the messenger's data to \var{inline words} and
+      \var{inline caps}
+    \item Update \var{inline word count} and \var{inline cap count}.
+    \end{itemize}
+  \end{itemize}
+
+\item Set \var{activated mode} to $1$.
+
+\item If the thread's IP is between \var{activation handler ip}
+  (inclusive) and \var{activation handler end} (exclusive):
+  \begin{itemize}
+  \item Set \var{interrupt in transition} to $1$.
+  \end{itemize}
+\item Otherwise:
+  \begin{itemize}
+  \item Set \var{interrupt in transition} to $0$,
+  \item Set \var{saved sp} to the thread's stack pointer, and
+  \item Set \var{saved ip} to the thread's instruction pointer.
+  \end{itemize}
+
+\item Set the thread's stack pointer to \var{activation handler sp}.
+\item Set the thread's instruction pointer to \var{activation handler
+  ip}.
+
+\item Resume the thread.
+
+\end{itemize}
+
+\section{Exceptions}
+
+Exceptions are synthesized by the kernel in response to a thread
+action.  There is one type of exception, a fault exception.
+
+The following actions result in the generation of a fault exception:
+
+\begin{description}
+\item[page fault] A hardware load or store attempts to dereference an
+  address for which there is no valid translation.
+\item[access fault] A hardware load or store attempts to accesses an
+  object in an unauthorized manner.
+\item[discarded] A hardware load or store attempts to access an object
+  that has been discarded.
+\end{description}
+
+When a thread generates an exception, the thread is suspended and a
+fault message is delivered to its exception messenger.  If this would
+block, the message is discarded.
+
+A fault message takes four parameters: the address of the fault (using
+Viengoos address encoding), the value of the stack pointer, the value
+of the instruction pointer and a fault information structure, which
+includes the type of access and whether the object has been discarded:
+
+\begin{center}
+  \begin{bytefield}{32}
+    \tiny{63}\hspace{\stretch{1}}\tiny{0}\\
+    \bitsx{28}{58}{$\sim$} & \bits{3}{rwx} & \bit{d}
+  \end{bytefield}
+\end{center}
+
+\noindent
+The fault message does not include a reply messenger.
+
+\section{Methods}
+
+\begin{lstlisting}
+thread_exregs(cap_t activity, cap_t thread,
+             uintptr_t flags,
+             in out cap_t aspace, in out cap_t activity,
+             in out cap_t utcb, in out cap_t exception_messenger,
+             in out uintptr_t sp, in out uintptr_t ip)
+\end{lstlisting}
+
+\var{flags} is a bit-wise or of the following
+
+\begin{lstlisting}
+  THREAD_EXREGS_SET_UTCB = 64
+  THREAD_EXREGS_SET_EXCEPTION_MESSENGER = 32
+  THREAD_EXREGS_SET_ASPACE = 16
+  THREAD_EXREGS_SET_ACTIVITY = 8
+  THREAD_EXREGS_SET_SP = 4
+  THREAD_EXREGS_SET_IP = 2
+  THREAD_EXREGS_GET_REGS = 1
+\end{lstlisting}
+
+If \const{THREAD\_EXREGS\_GET\_REGS} is set, the current value of the
+address space root, activity, utcb, exception messenger, sp and ip are
+returned.  Otherwise, the values are undefined.
+
+If \const{THREAD\_EXREGS\_SET\_IP} is set, the thread's instruction
+pointer is set according to \var{ip}.
+
+If \const{THREAD\_EXREGS\_SET\_SP} is set, the thread's stack pointer
+is set according to \var{sp}.
+
+If \const{THREAD\_EXREGS\_SET\_ACTIVITY} is set, the thread's activity
+is set according to \var{activity}.
+
+If \const{THREAD\_EXREGS\_SET\_ASPACE} is set, the thread's address
+space root is set according to \var{aspace}.
+
+If \const{THREAD\_EXREGS\_SET\_EXCEPTION\_MESSENGER} is set, the
+thread's exception messenger is set according to
+\var{exception\_messenger}.
+
+If \const{THREAD\_EXREGS\_SET\_UTCB} is set, the thread's UTCB is set
+according to \var{utcb}.
+
+\begin{lstlisting}
+thread_id (cap_t activity, cap_t thread, out uint64_t id)
+\end{lstlisting}
+
+Return the thread's unique identifier.
+
+\begin{lstlisting}
+thread_activation_collect (cap_t activity, cap_t thread)
+\end{lstlisting}
+
+Cause a blocked messenger, if any, to attempt to send an activation.
+
+\chapter{IPC}
+
+IPC in Viengoos is asynchronous with respect to thread execution.
+This is achieved by separating message buffers from threads.  To send
+an IPC, a program allocates a so-called messenger, loads a payload and
+then enqueues that messenger on a second messenger.  When the second
+messenger accepts the message from the first messenger, the message is
+copied and the threads associated with the two messengers are notified
+of what has occured by way of an activation.
+
+As messengers must be explicitly allocated like any other kernel
+object, the required storage can be correctly accounted.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Primordial Objects}
@@ -566,39 +909,45 @@ All objects are derived from the generic base object \type{object}.
 Each object has a number (possibly zero) of user-accessible capability
 slots.
 
-\subsection{Methods}
-
 \begin{lstlisting}
-object_slot_copy_out (addr_t principal,
-    addr_t object_address_space, addr_t object, uint32_t slot,
-    addr_t target_address_space, addr_t target,
-    uint32_t flags, struct cap_properties properties)
+cap_copy (addr_t principal, addr_t object, addr_t target,
+          addr_t source_address_space, addr_t source,
+          uint32_t flags, struct cap_properties properties)
 \end{lstlisting}
 
-Copy the capability in slot \var{slot} of \var{object} (relative to
-the start of the object's subpage) to slot TARGET.  PROPERTIES are
-interpreted as per cap\_copy.
+Copy the capability in the capability slot \var{source} in the address
+space rooted at \var{source\_address\_space} to \var{object}'s slot at
+address \var{target}.
+
+By default, preserves \var{source}'s subpage specification and
+\var{target}'s guard.
+
+If CAP\_COPY\_COPY\_SUBPAGE is set, then uses the subpage
+specification in CAP\_PROPERTIES.  If CAP\_COPY\_COPY\_ADDR\_TRANS\_GUARD
+is set, uses the guard description in CAP\_PROPERTIES.
+
+If CAP\_COPY\_COPY\_SOURCE\_GUARD is set, uses the guard description in
+source.  Otherwise, preserves the guard in TARGET.
+
+If CAP\_COPY\_WEAKEN is set, saves a weakened version of SOURCE in
+*TARGET (e.g., if SOURCE's type is cap\_page, *TARGET's type is set
+to cap\_rpage).
+
+If CAP\_COPY\_DISCARDABLE\_SET is set, then sets the discardable bit
+based on the value in PROPERTIES.  Otherwise, copies SOURCE's
+value.
+
+If CAP\_COPY\_PRIORITY\_SET is set, then sets the priority based on
+the value in properties.  Otherwise, copies SOURCE's value.
+
 
 \begin{lstlisting}
-object_slot_copy_in (addr_t principal,
-    addr_t object_address_space, addr_t object, uint32_t index,
-    addr_t source_address_space, addr_t source,
-    uint32_t flags, struct cap_properties properties)
+cap_read (addr_t, principal, addr_t, address_space, addr_t, cap,
+l4_word_t, type, struct cap_properties, properties)
 \end{lstlisting}
 
-Copy the capability from slot SOURCE to slot INDEX of the object
-OBJECT (relative to the start of the object's subpage).  PROPERTIES
-are interpreted as per cap\_copy.
-
-\begin{lstlisting}
-object_slot_read (addr_t principal, addr_t address_space,
-    addr_t object, uint32_t slot,
-    struct cap_properties properties)
-\end{lstlisting}
-
-Store the public bits of the capability slot \var{slot} of object
-\var{object} in *\var{cap\_properties}.  Capability slots are numbered
-starting from 0.
+Returns the public bits of the capability CAP in TYPE and
+CAP\_PROPERTIES.
 
 \clearpage
 \section{Folios}
@@ -645,59 +994,10 @@ Data pages and capabilities pages.
 
 \subsection{Methods}
 
-\subsection{Methods}
-
-\begin{lstlisting}
-cap_copy (addr_t principal,
-          addr_t target_address_space, addr_t target,
-          addr_t source_address_space, addr_t source,
-          uint32_t flags, struct cap_properties properties)
-\end{lstlisting}
-
-Copy the capability in the capability slot \var{source} in the address
-space rooted at \var{source\_address\_space} to the slot \var{target}
-in the address space rooted at \var{target\_address\_space}.
-\var{source\_address\_space} and \var{target\_address\_space} are
-resolved in the context of the caller.  If the address space
-identifies a thread object, its address space root is used.
-(\var{principal}, \var{target\_address\_space} and
-\var{source\_address\_space} are resolved in the context of the
-calling thread's address space.)
-
-By default, preserves \var{source}'s subpage specification and
-\var{target}'s guard.
-
-If CAP\_COPY\_COPY\_SUBPAGE is set, then uses the subpage
-specification in CAP\_PROPERTIES.  If CAP\_COPY\_COPY\_ADDR\_TRANS\_GUARD
-is set, uses the guard description in CAP\_PROPERTIES.
-
-If CAP\_COPY\_COPY\_SOURCE\_GUARD is set, uses the guard description in
-source.  Otherwise, preserves the guard in TARGET.
-
-If CAP\_COPY\_WEAKEN is set, saves a weakened version of SOURCE in
-*TARGET (e.g., if SOURCE's type is cap\_page, *TARGET's type is set
-to cap\_rpage).
-
-If CAP\_COPY\_DISCARDABLE\_SET is set, then sets the discardable bit
-based on the value in PROPERTIES.  Otherwise, copies SOURCE's
-value.
-
-If CAP\_COPY\_PRIORITY\_SET is set, then sets the priority based on
-the value in properties.  Otherwise, copies SOURCE's value.
-
-
-\begin{lstlisting}
-cap_read (addr_t, principal, addr_t, address_space, addr_t, cap,
-l4_word_t, type, struct cap_properties, properties)
-\end{lstlisting}
-
-Returns the public bits of the capability CAP in TYPE and
-CAP\_PROPERTIES.
-
 \subsection{Convenience Functions}
 
 \clearpage
-\section{Message Buffers}
+\section{Messengers}
 
 \subsection{Methods}
 
@@ -705,9 +1005,6 @@ CAP\_PROPERTIES.
 
 \clearpage
 \section{Endpoints}
-
-Endpoints are where message transfer occurs.  When a thread queues a
-message buffer on an end point, 
 
 \subsection{Methods}
 
