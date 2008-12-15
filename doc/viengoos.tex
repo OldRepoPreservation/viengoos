@@ -506,37 +506,9 @@ are exposed to the user.
 \var{D} is the discardability predicate.  \var{W} is the weak
 predicate.
 
-\chapter{Resource Management}
-\label{chapter:resource-management}
-
-\section{Object Policy}
-
-When an object is accessed, if the object is
-claimed,\footnote{Claiming is discussed in \ref{object-claiming}.} the
-policy in the designating object is applied to the object.
-
-The discardability property is a hint that Viengoos may, instead of
-flushing changes to disk, simply discard a frame's content.  If a
-capability has the weak predicate set, this hint is ignored.  If
-content discarded, the next access to the object will raise a
-discarded event.  If an activity is discarded, all objects allocated
-against the activity are destroyed.
-
-The priority property allows an activity to control the order in which
-the frames, which it has claimed, are released.  If the content is
-dirty and has not been marked as discardable, the content is written
-to backing store.  Otherwise, the frame is made eligible for immediate
-reuse.
-
-The lower the numric value of the priority field, the lower the
-frame's priority.  Frames are released in priority order.  If multiple
-frames have the same priority, they are released in a random order
-unless the priority is 0, in which case, the frames are released in
-approximately LRU order.
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\chapter{Threads}
+\chapter{Threads and Activations}
 
 A thread encapsulates an execution context.  This consists of a
 register file, a name space, and a resource principal.
@@ -864,18 +836,395 @@ thread_activation_collect (cap_t activity, cap_t thread)
 
 Cause a blocked messenger, if any, to attempt to send an activation.
 
-\chapter{IPC}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Messengers and IPC}
 
 IPC in Viengoos is asynchronous with respect to thread execution.
-This is achieved by separating message buffers from threads.  To send
-an IPC, a program allocates a so-called messenger, loads a payload and
-then enqueues that messenger on a second messenger.  When the second
-messenger accepts the message from the first messenger, the message is
-copied and the threads associated with the two messengers are notified
-of what has occured by way of an activation.
+This is achieved by separating the messaging functionality from
+threads.  To send an IPC, a program allocates a so-called messenger,
+loads a payload and then enqueues the messenger on a receiving
+messenger.  When the receiving messenger accepts the message from the
+sending messenger, the message is copied and the threads associated
+with the two messengers are optionally notified of what has occurred by
+way of an activation.
 
 As messengers must be explicitly allocated like any other kernel
 object, the required storage can be correctly accounted.
+
+\section{Messages}
+
+Messages can carry both data and capabilities.  A message is stored in
+a normal data page.  To send a message, the page containing the
+message is associated with a messenger, which is then enqueued on the
+target object.  When the target accepts the message, the source
+messenger's message is copied to the target messenger's message
+buffer.
+
+\subsection{Format}
+
+The kernel interprets a message buffer according to the following
+format.  The first 32-bits of the buffer contain the message header.
+This consists of a 16-bit capability address count followed by a
+16-bit data count.  Immediately following the header is the array of
+capability addresses, followed by the array of bytes.
+
+\begin{lstlisting}[float,caption=Message format.,frame=single,captionpos=b]
+struct message {
+  uint16_t cap_count;
+  uint16_t data_count;
+
+  addr_t caps[cap_count];
+  char data[data_count];
+};
+\end{lstlisting}
+
+When used to send a message, the capability addresses are interpreted
+as the location of the capabilities to send.  When used to receive a
+message, the capability addresses are interpreted as the slots in
+which the received capabilities should be stored.
+
+\subsection{Canonical Form}
+
+Kernel objects interpret and format messages according to the
+following convention.
+
+For received message, the first word of a message is interpreted as
+the method to invoke on the object.  The remaining bytes are the
+methods arguments.  The last capability is interpreted as the
+messenger to reply to.
+
+When sending a reply, the first data word is the negation of the
+method identifier.  The second word contains the error code.  If no
+error occurred, the error code is set to 0.
+
+When marshalling and unmarshalling arguments, the size of each
+argument is rounded up to be a multiple of the word size and zero
+filled; the sign bit is not extended.
+
+\section{Messengers}
+
+Messengers are first-class kernel objects, which are responsible for
+receiving and transferring messages.
+
+A messenger references a message buffer and a thread.  It can either
+transfer its contents to another messenger or its can wait for another
+messenger to send it a message.  After sending or receiving a message,
+a messenger optionally notifies its associated thread by way of an
+activation.  This is depicted in figure~\ref{fig:sending-a-message}.
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}[text width=2cm, text centered,font=\small]
+    \node (thread1) at (0, 0) {Sending Thread};
+    \node (messenger1) at (3.5, 0) {Sending Messenger};
+    \node (messenger2) at (7, 0) {Receiving Messenger};
+    \node (thread2) at (10.5, 0) {Receiving Thread};
+    \node (buffer1) at (1.75, -2) {Buffer};
+    \node (buffer2) at (8.75, -2) {Buffer};
+
+    \draw[<->] (thread1) -- (messenger1);
+    \draw[->] (messenger1) -- (messenger2);
+    \draw[<->] (messenger2) -- (thread2);
+
+    \draw[->] (thread1) -- (buffer1);
+    \draw[->] (messenger1) -- (buffer1);
+    \draw[->] (thread2) -- (buffer2);
+    \draw[->] (messenger2) -- (buffer2);
+
+    \draw[->,dashed] (buffer1) -- node[anchor=north] {\footnotesize{Copy}} (buffer2);
+  \end{tikzpicture}
+
+  \caption{To send or receive a message, a thread associates itself
+    and a buffer with a messenger.  To send a message, it enqueues the
+    prepared messenger on some other messenger.  When the latter
+    messenger accepts the former's message, the contents of the
+    sending messenger's message buffer is copied to the receiving
+    messenger's message buffer.  The associated threads are then
+    optionally activated.}
+  \label{fig:sending-a-message}
+\end{figure}
+
+To send a message, a messenger is enqueued on another messenger.  The
+messenger's payload is only transferred to the target messenger once
+the messenger is unblocked.
+
+To prevent unprocessed messages from being overwritten, messengers are
+blocked on message delivery.  A further message is only delivered once
+the messenger is explicitly unblocked.
+
+Message payload may be stored either in a message buffer or inline.
+This is specified in the IPC interface.
+
+\subsection{State}
+
+A messenger has four capability slots: a thread slot, an address space
+root slot, a message buffer slot and an activity slot.  A messenger
+also contains a so-called \emph{messenger id} field, and a blocking
+status.
+
+\subsubsection{Thread}
+
+The thread slot specifies the thread to optionally activate when the
+messenger transfers its message or receives a message.  This is
+controlled via the IPC system call.
+
+\subsubsection{Address Space Root}
+
+The address space root specifies the address space in which to
+interpret the capability addresses in the message buffer.
+
+\subsubsection{Message Buffer}
+
+The message buffer slot identifies the message buffer.
+
+\subsubsection{Activity}
+
+The activity identifies the activity used to send the message.
+
+\subsubsection{Messenger ID}
+
+The messenger ID is a 64-bit user-settable variable that is delivered
+to the thread (in its UTCB) on activation.  This can be used to
+identify a user-buffer associated with a messenger.  This variable can
+only be read or modified by way of a strong capability.
+
+\subsubsection{Blocking Status}
+
+A messenger is either block, in which case any attempts to deliver a
+message to it will block, or it is unblocked, in which an attempt to
+deliver a message to it will succeed immediately.
+
+\subsection{Message Transfer}
+
+\label{message-transfer}
+
+Messages are transfered between two messengers, a source messenger and
+a target messenger.  A message transfer only occurs when the target
+messenger is not blocked.  If a message transfer is attempted and the
+target messenger is blocked, then the transfer is either aborted (if
+the transfer is executed in non-blocking mode), or the source
+messenger is enqueued on the target messenger (otherwise).
+
+Message transfer proceeds as follows:
+
+\begin{itemize}
+\item The target messenger is blocked.
+
+\item The capabilities in the source message are matched with the
+  capability slots in the target message.
+
+  For each pair of capability address and capability slot address, the
+  capability and slot are looked up relative to their respective
+  messenger's address space root.  If there is a valid, writable
+  capability slot, the source capability is copied to it.  If there is
+  no source capability, a void capability is used.  The target
+  capability slot's address translator and policy are preserved.  If
+  the capability slot address does not resolve to a capability slot,
+  or, the capability slot is not writable, the capability address in
+  the target message is overwritten with \const{ADDR\_VOID}.
+
+  If there are more capability slot addresses then there are
+  capability addresses, each of the remaining capability slot
+  addresses is overwritten with \const{ADDR\_VOID}.
+
+\item The data is byte copied from the source to the destination.
+
+\item If the target messenger is set to activate its associated thread
+  on receive, this is scheduled.  Likewise, if the source messenger is
+  set to activate its associated thread on delivery, this is
+  scheduled.
+\end{itemize}
+
+\section{IPC}
+
+IPC consists of three phases: the receive phase, the send phase and
+the return phase.  All three phases are optional.  Each phase is
+executed after the previous phase has completed.  If a phase does not
+complete successfully, the phase is aborted and the remaining phases
+are not executed.
+
+The IPC interface has the following signature:
+
+\begin{lstlisting}
+error_t
+ipc (uintptr_t flags,
+    cap_t recv_activity, cap_t recv_messenger, cap_t recv_buf,
+    cap_t recv_inline_cap,
+    cap_t send_activity, cap_t target_messenger,
+    cap_t send_messenger, cap_t send_buf,
+    uintptr_t send_inline_word1, uintptr_t send_inline_word2,
+    cap_t send_inline_cap)
+\end{lstlisting}
+
+The flags parameter selects which phases are executes and controls
+their execution.  It has the following format:
+
+\begin{struct}{32}
+\bits{15}{$\sim$} & 
+\bit{R} & \bit{N} & \bit{A} & \bit{T} & \bit{S} & \bit{I} & \bit{C} &
+\bit{S} & \bit{n} & \bit{a} & \bit{t} & \bit{s} & \bit{i} & \bits{2}{W}
+  & \bit{c} &
+\bit{r}
+\end{struct}
+
+The receive flags are:
+
+\begin{description}
+\item[R - receive phase] The IPC includes a receive phase.
+\item[N - non-blocking] The receive phase is non-blocking.
+\item[A - activate] On message receipt, the receiving messenger activates its
+  associated thread.
+\item[T - set thread] Associate the receiving messenger with the calling thread.
+\item[S - set address space root] Set the receiving messenger's
+  address space root to the caller's address space root.
+\item[I - receive inline] The receiving messenger should receive the
+  message inline.
+\item[C - inline capability] Ignored if \textbf{I} is not set.  The
+  inline message includes a capability slot at \var{recv inline cap}.
+\end{description}
+
+The send flags are:
+
+\begin{description}
+\item[S - send phase] The IPC includes a send phase.
+\item[n - non-blocking] The send phase is non-blocking.
+\item[a - activate] On message delivery, the receiving messenger
+  activates its associated thread.
+\item[t - set thread] Associate the sending messenger with the calling
+  thread.
+\item[s - set address space root] Set the sending messenger's address
+  space root to the caller's address space root.
+\item[i - send inline] The sending messenger should receive the message inline.
+\item[W - inline words] Ignored if \textbf{i} is not set.  The number
+  of inline words to transfer.  Valid values are 0, 1 and 2.
+\item[c - inline capability] Ignored if \textbf{i} is not set.  The
+  number of inline capabilities to transfer.  Valid values are 0 and
+  1.
+\end{description}
+
+The return flags are:
+
+\begin{description}
+\item[r - return phase] The IPC includes a return phase.
+\end{description}
+
+The remaining parameters are described below.  The capability
+addresses are resolved in the context of the caller's address space.
+
+\subsection{Receive Phase}
+
+The receive phase proceeds as follows:
+
+\begin{itemize}
+
+\item \var{recv messenger} is looked up.  If it does not designate a
+  messenger or the designation is not strong, the IPC is aborted and
+  \const{EINVAL} is returned.
+
+\item If the message is not inline and \var{recv buf} is not
+  \const{ADDR\_VOID}, the messenger's message buffer capability slot
+  is set to the capability designated by \var{recv buf}.
+
+\item If the set associated thread flag is set, the messenger's thread
+  capability slot is set to a capability designating the caller's
+  thread object.
+
+\item If the set address space root flag is set, the messenger's
+  address space root capability slot is set to the calling thread's
+  address space root.  The thread's address space root's address
+  translator and policy are copied.
+
+\item If one or more messengers are blocked on \var{recv messenger}
+  trying to delivery a message, the messenger which has blocked
+  longest is selected and its payload is transferred to \var{recv
+    messenger}.  See section~\ref{message-transfer} for details.
+
+\item If there are no messengers blocked on \var{recv messenger}
+  trying to delivery a message and the non-blocking flag is set,
+  \const{EWOULDBLOCK} is returned.  Otherwise, \var{recv messenger} is
+  unblocked.
+
+\end{itemize}
+
+\subsection{Send Phase}
+
+The send phase proceeds as follows:
+
+\begin{itemize}
+
+\item \var{send messenger} is looked up.  If it does not designate a
+  messenger or the designation is not strong, the IPC is aborted and
+  \const{EINVAL} is returned.
+
+\item If the message is not inline and \var{send buf} is not
+  \const{ADDR\_VOID}, the messenger's message buffer capability slot
+  is set to the capability designated by \var{send buf}.
+
+\item If the set associated thread flag is set, the messenger's thread
+  capability slot is set to a capability designating the caller's
+  thread object.
+
+\item If the set address space root flag is set, the messenger's
+  address space root capability slot is set to the calling thread's
+  address space root.  The thread's address space root's address
+  translator and policy are copied.
+
+\item \var{target messenger} is looked up.  If it does not designate a
+  messenger, the IPC is aborted and \const{EINVAL} is returned.
+
+\item An attempt to deliver \var{send messenger}'s message to
+  \var{target messenger} is made.  If \var{target messenger} is
+  blocked and delivery is non-blocking, delivery is aborted and
+  \const{ETIMEDOUT} is returned.  Otherwise, if \var{target messenger}
+  is blocked, \var{send messenger} is blocked on it.  Otherwise the
+  message is delivered.  See section~\ref{message-transfer} for
+  message delivery details.
+
+\end{itemize}
+
+\subsection{Return Phase}
+
+The return phase proceeds as follows:
+
+\begin{itemize}
+\item Control is returned to the calling thread to just after the IPC
+  call.  Note that control is not returned by way of an activation.
+\end{itemize}
+
+If the IPC does not include a return phase, then thread blocks until
+it is next activated by an event other than a CPU available event.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Resource Management}
+\label{chapter:resource-management}
+
+\section{Object Policy}
+
+When an object is accessed, if the object is
+claimed,\footnote{Claiming is discussed in \ref{object-claiming}.} the
+policy in the designating object is applied to the object.
+
+The discardability property is a hint that Viengoos may, instead of
+flushing changes to disk, simply discard a frame's content.  If a
+capability has the weak predicate set, this hint is ignored.  If
+content discarded, the next access to the object will raise a
+discarded event.  If an activity is discarded, all objects allocated
+against the activity are destroyed.
+
+The priority property allows an activity to control the order in which
+the frames, which it has claimed, are released.  If the content is
+dirty and has not been marked as discardable, the content is written
+to backing store.  Otherwise, the frame is made eligible for immediate
+reuse.
+
+The lower the numric value of the priority field, the lower the
+frame's priority.  Frames are released in priority order.  If multiple
+frames have the same priority, they are released in a random order
+unless the priority is 0, in which case, the frames are released in
+approximately LRU order.
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

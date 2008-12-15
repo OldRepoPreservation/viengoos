@@ -1,8 +1,14 @@
+2008-12-15  Neal H. Walfield  <neal@gnu.org>
+
+	* reference-guide.tex: Don't fix the date.
+	
+	* viengoos.tex: Add chapter on Messengers and IPC.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* reference-guide.tex: Add more C identifiers.
 
-	* viengoos.tex (section{Methods}): Add chapter on thread objects.
+	* viengoos.tex: Add chapter on thread objects.
 
 2008-11-20  Neal H. Walfield  <neal@gnu.org>
 
