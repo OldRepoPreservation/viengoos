@@ -1,5 +1,12 @@
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (num_threads): New function.
+	(FREE_PAGES_LOW_WATER): Make it a function of the number of
+	threads.
+	(FREE_PAGES_SERIALIZE): Likewise.
+
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (struct storage_desc) [!NDEBUG]: Add field owner.
 	(shadow_setup): Set DESC->OWNER appropriately.
 	(storage_alloc): Likewise.
