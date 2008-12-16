@@ -31,7 +31,7 @@ fig_files =
 eps_files=$(patsubst %.fig,%.eps,${fig_files})
 eps_cleanfiles=${eps_files}
 
-svg_files = gpt.svg
+svg_files = 
 
 pdf_files = $(patsubst %.svg,%.pdf,${svg_files})
 

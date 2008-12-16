@@ -1,3 +1,7 @@
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (svg_files): Remove gpt.svg.
+
 2008-12-15  Neal H. Walfield  <neal@gnu.org>
 
 	* reference-guide.tex: Don't fix the date.
