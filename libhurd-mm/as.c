@@ -59,8 +59,8 @@ l4_thread_id_t as_rwlock_owner;
    O(number of allocated regions).  */
 struct region
 {
-  l4_uint64_t start;
-  l4_uint64_t end;
+  uint64_t start;
+  uint64_t end;
 };
   
 struct free_space
@@ -135,7 +135,7 @@ free_space_desc_free (struct free_space *free_space)
    END is completely covered by the free region F.  Carve it out of
    F.  */
 static void
-free_space_split (struct free_space *f, l4_uint64_t start, l4_uint64_t end)
+free_space_split (struct free_space *f, uint64_t start, uint64_t end)
 {
   assert (! ss_mutex_trylock (&free_spaces_lock));
 
@@ -172,12 +172,12 @@ free_space_split (struct free_space *f, l4_uint64_t start, l4_uint64_t end)
 }
 
 addr_t
-as_alloc (int width, l4_uint64_t count, bool data_mappable)
+as_alloc (int width, uint64_t count, bool data_mappable)
 {
   assert (as_init_done);
   assert (count);
 
-  int shift = l4_lsb64 (count) - 1;
+  int shift = vg_lsb64 (count) - 1;
   int w = width + shift;
   count >>= shift;
   if (! data_mappable)
@@ -195,8 +195,8 @@ as_alloc (int width, l4_uint64_t count, bool data_mappable)
 	      - ((w - PAGESIZE_LOG2) % CAPPAGE_SLOTS_LOG2));
     }
 
-  l4_uint64_t align = 1ULL << w;
-  l4_uint64_t length = align * count;
+  uint64_t align = 1ULL << w;
+  uint64_t length = align * count;
 
   ss_mutex_lock (&free_spaces_lock);
 
@@ -207,7 +207,7 @@ as_alloc (int width, l4_uint64_t count, bool data_mappable)
        free_space;
        free_space = hurd_btree_free_space_next (free_space))
     {
-      l4_uint64_t start;
+      uint64_t start;
       start = (free_space->region.start + align - 1) & ~(align - 1);
 
       if (start < free_space->region.end
@@ -234,11 +234,11 @@ as_alloc (int width, l4_uint64_t count, bool data_mappable)
 }
 
 bool
-as_alloc_at (addr_t addr, l4_uint64_t count)
+as_alloc_at (addr_t addr, uint64_t count)
 {
-  l4_uint64_t start = addr_prefix (addr);
-  l4_uint64_t length = (1ULL << (ADDR_BITS - addr_depth (addr))) * count;
-  l4_uint64_t end = start + length - 1;
+  uint64_t start = addr_prefix (addr);
+  uint64_t length = (1ULL << (ADDR_BITS - addr_depth (addr))) * count;
+  uint64_t end = start + length - 1;
 
   struct region region = { start, end };
   struct free_space *f;
@@ -259,11 +259,11 @@ as_alloc_at (addr_t addr, l4_uint64_t count)
 }
 
 void
-as_free (addr_t addr, l4_uint64_t count)
+as_free (addr_t addr, uint64_t count)
 {
-  l4_uint64_t start = addr_prefix (addr);
-  l4_uint64_t length = (1ULL << (ADDR_BITS - addr_depth (addr))) * count;
-  l4_uint64_t end = start + length - 1;
+  uint64_t start = addr_prefix (addr);
+  uint64_t length = (1ULL << (ADDR_BITS - addr_depth (addr))) * count;
+  uint64_t end = start + length - 1;
 
   struct free_space *space = free_space_desc_alloc ();
   /* We prefer to coalesce regions where possible.  This ensures that
@@ -377,7 +377,7 @@ as_alloc_slow (int width)
   addr_t slot = ADDR_VOID;
 
   int find_free_slot (addr_t addr,
-		      l4_word_t type, struct cap_properties properties,
+		      uintptr_t type, struct cap_properties properties,
 		      bool writable,
 		      void *cookie)
   {
@@ -393,8 +393,8 @@ as_alloc_slow (int width)
     if (! writable)
       return 0;
 
-    l4_uint64_t start = addr_prefix (addr);
-    l4_uint64_t end = start + (1 << width) - 1;
+    uint64_t start = addr_prefix (addr);
+    uint64_t end = start + (1 << width) - 1;
 
     if (end >= DATA_ADDR_MAX)
       return 0;
@@ -445,7 +445,7 @@ as_alloc_slow (int width)
   slot = addr_extend (slot, 0, gbits);
 
   /* Fill in a descriptor.  */
-  assertx ((((l4_word_t) &desc_additional[0]) & (PAGESIZE - 1)) == 0,
+  assertx ((((uintptr_t) &desc_additional[0]) & (PAGESIZE - 1)) == 0,
 	   "%p", &desc_additional[0]);
 
   debug (5, "Allocating space for " ADDR_FMT
@@ -502,7 +502,7 @@ as_init (void)
       debug (5, "Adding object " ADDR_FMT " (%s)",
 	     ADDR_PRINTF (addr), cap_type_string (desc->type));
 
-      l4_word_t type;
+      uintptr_t type;
       struct cap_properties properties;
       err = rm_cap_read (meta_data_activity, ADDR_VOID, addr,
 			 &type, &properties);
@@ -585,7 +585,7 @@ as_init (void)
      shadowed AS.  */
 
   /* Which depths have objects.  */
-  l4_uint64_t depths = 0;
+  uint64_t depths = 0;
 
   struct hurd_object_desc *desc;
   int i;
@@ -599,7 +599,7 @@ as_init (void)
 
   while (depths)
     {
-      int depth = l4_lsb64 (depths) - 1;
+      int depth = vg_lsb64 (depths) - 1;
       depths &= ~(1ULL << depth);
 
       for (i = 0, desc = &__hurd_startup_data->descs[0];
@@ -646,7 +646,7 @@ as_init (void)
   /* Walk the address space the hard way and make sure that we've got
      everything.  */
   int visit (addr_t addr,
-	     l4_word_t type, struct cap_properties properties,
+	     uintptr_t type, struct cap_properties properties,
 	     bool writable, void *cookie)
     {
       debug (5, "Checking that " ADDR_FMT " is a %s",
@@ -727,7 +727,7 @@ as_alloced_dump (const char *prefix)
    value is returned.  If the walk is not aborted, 0 is returned.  */
 int
 as_walk (int (*visit) (addr_t addr,
-		       l4_word_t type, struct cap_properties properties,
+		       uintptr_t type, struct cap_properties properties,
 		       bool writable,
 		       void *cookie),
 	 int types,
@@ -750,12 +750,12 @@ as_walk (int (*visit) (addr_t addr,
 
       error_t err;
       struct cap_properties properties;
-      l4_word_t type;
+      uintptr_t type;
 
       /* Just caching the root capability cuts the number of RPCs by
 	 about 25%.  */
       struct cap_properties root_properties;
-      l4_word_t root_type;
+      uintptr_t root_type;
 
       err = rm_cap_read (meta_data_activity, ADDR_VOID,
 			 ADDR (0, 0), &root_type, &root_properties);
@@ -930,7 +930,7 @@ as_walk (int (*visit) (addr_t addr,
   /* We have the shadow page tables and presumably a normal stack.  */
   int do_walk (struct cap *cap, addr_t addr, bool writable)
     {
-      l4_word_t type;
+      uintptr_t type;
       struct cap_properties cap_properties;
 
       type = cap->type;

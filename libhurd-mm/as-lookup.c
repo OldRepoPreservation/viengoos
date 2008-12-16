@@ -74,8 +74,8 @@ as_lookup_rel_internal (activity_t activity,
 #endif
   root = start;
 
-  l4_uint64_t addr = addr_prefix (address);
-  l4_word_t remaining = addr_depth (address);
+  uint64_t addr = addr_prefix (address);
+  uintptr_t remaining = addr_depth (address);
   /* The code below assumes that the REMAINING significant bits are in the
      lower bits, not upper.  */
   addr >>= (ADDR_BITS - remaining);

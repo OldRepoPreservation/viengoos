@@ -39,7 +39,7 @@
    ensures that the leaves of each subtree are mappable in the region
    accessible to data instructions.  On success returns the address of
    the first subtree.  Otherwise, returns ADDR_VOID.  */
-extern addr_t as_alloc (int width, l4_uint64_t count,
+extern addr_t as_alloc (int width, uint64_t count,
 			bool data_mappable);
 
 /* Like as_alloc but may be called before as_init is called.  Address
@@ -49,14 +49,14 @@ extern struct hurd_object_desc *as_alloc_slow (int width);
 
 /* Allocate the COUNT contiguous addresses strating at address ADDR.
    Returns true on success, false otherwise.  */
-extern bool as_alloc_at (addr_t addr, l4_uint64_t count);
+extern bool as_alloc_at (addr_t addr, uint64_t count);
 
 /* Free the COUNT contiguous addresses starting at ADDR.  Each ADDR
    must have been previously returned by a call to as_chunk_alloc or
    as_region_alloc.  All address returned by a call to as_chunk_alloc
    or as_region_alloc need not be freed by a single call to
    as_free.  */
-extern void as_free (addr_t addr, l4_uint64_t count);
+extern void as_free (addr_t addr, uint64_t count);
 
 /* Whether as_init has completed.  */
 extern bool as_init_done;
@@ -200,7 +200,7 @@ extern struct cap shadow_root;
 			__acs_code)					\
   do									\
     {									\
-      l4_word_t __acs_type = -1;					\
+      uintptr_t __acs_type = -1;					\
       struct cap_properties __acs_p;					\
       error_t __acs_err;						\
 									\
@@ -656,7 +656,7 @@ as_dump_path (addr_t addr)
    returns a non-zero value, the walk is aborted and that value is
    returned.  If the walk is not aborted, 0 is returned.  */
 extern int as_walk (int (*visit) (addr_t cap,
-				  l4_word_t type,
+				  uintptr_t type,
 				  struct cap_properties properties,
 				  bool writable,
 				  void *cookie),

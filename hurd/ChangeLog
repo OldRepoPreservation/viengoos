@@ -1,3 +1,17 @@
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
+	* addr-trans.h: Don't include <l4/types.h>.  Include <stdint.h>
+	and <hurd/math.h>.
+	(struct cap_addr_trans): Replace l4 types with standard types.
+	(CAP_ADDR_TRANS_GUARD): Likewise.
+	(CAP_ADDR_TRANS_SET_GUARD_SUBPAGE): Use vg_msb, not l4_msb.
+	(CAP_ADDR_TRANS_VALID): Replace l4 types with standard types.  Use
+	vg_msb, not l4_msb.
+	* t-addr.c (main): Replace use of l4_msb64 with vg_msg64 and
+	l4_lsb64 with vg_lsg64.
+
+	* types.h: Don't include <l4/types.h>.
+
 2008-12-11  Neal H. Walfield  <neal@gnu.org>
 
 	Adapt RPC interfaces according to changes in IPC semantics.

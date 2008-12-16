@@ -33,13 +33,13 @@
 #endif
 
 static void
-print_nr (int width, l4_int64_t nr, bool hex)
+print_nr (int width, int64_t nr, bool hex)
 {
   int base = 10;
   if (hex)
     base = 16;
 
-  l4_int64_t v = nr;
+  int64_t v = nr;
   int w = 0;
   if (v < 0)
     {
