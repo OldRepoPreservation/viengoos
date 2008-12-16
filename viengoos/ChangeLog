@@ -1,3 +1,8 @@
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): Only set SOURCE->BUFFER if the message
+	is not inline.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): Fix the activity_policy implementation

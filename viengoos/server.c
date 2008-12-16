@@ -832,7 +832,8 @@ server_loop (void)
 	  REPLY (ENOENT);
 	}
 
-      if (unlikely (! ADDR_IS_VOID (send_buf)))
+      if (! (flags & VG_IPC_SEND_INLINE)
+	  && unlikely (! ADDR_IS_VOID (send_buf)))
 	source->buffer = CAP (&thread->aspace, send_buf, cap_page, true);
 
       if (unlikely ((flags & VG_IPC_SEND_SET_THREAD_TO_CALLER)))
