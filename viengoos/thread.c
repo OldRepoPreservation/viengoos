@@ -646,11 +646,8 @@ thread_deliver_pending (struct activity *activity,
   object_wait_queue_for_each (activity, (struct object *) thread, m)
     if (m->wait_reason == MESSENGER_WAIT_TRANSFER_MESSAGE)
       {
-	object_wait_queue_unlink (activity, m);
-	m->wait_reason = MESSENGER_WAIT_TRANSFER_MESSAGE;
-
-	bool ret = thread_activate (activity, thread, m, false);
-	assert (ret);
+	if (thread_activate (activity, thread, m, false))
+	  object_wait_queue_unlink (activity, m);
 
 	return;
       }
