@@ -1,5 +1,16 @@
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 
+	* storage.c (struct storage_desc) [!NDEBUG]: Add field owner.
+	(shadow_setup): Set DESC->OWNER appropriately.
+	(storage_alloc): Likewise.
+	(storage_free_): Likewise.
+	(storage_init): Likewise.
+	
+	(storage_alloc): Move code that updates DESC to before we call
+	rm_folio_object_alloc.  Unlock DESC->LOCK before calling it.
+
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.c (anonymous_pager_alloc): Replace use of l4_msb with
 	vg_msb.
 	* as-build.c (as_build): Replace use of l4_msb64 with vg_msb64.

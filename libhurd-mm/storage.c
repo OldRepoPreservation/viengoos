@@ -72,9 +72,7 @@ struct storage_desc
   /* Protects all members above here.  This lock may be taken if
      STORAGE_DESCS_LOCK is held.  */
   ss_mutex_t lock;
-#ifndef NDEBUG
-  l4_thread_id_t owner;
-#endif
+
 
   /* Each storage area is stored in a btree keyed by the address of
      the folio.  Protected by STORAGE_DESCS_LOCK.  */
@@ -271,19 +269,12 @@ shadow_setup (struct cap *cap, struct storage_desc *desc)
 
 	  ss_mutex_lock (&storage_descs_lock);
 	  ss_mutex_lock (&desc->lock);
-#ifndef NDEBUG
-	  assert (desc->owner == l4_nilthread);
-	  desc->owner = l4_myself ();
-#endif
 
 	  /* DESC->FREE may be zero if someone came along and deallocated
 	     a page between our dropping and retaking the lock.  */
 	  if (desc->free == 0)
 	    list_unlink (desc);
 
-#ifndef NDEBUG
-	  desc->owner = l4_nilthread;
-#endif
 	  ss_mutex_unlock (&desc->lock);
 	  ss_mutex_unlock (&storage_descs_lock);
 	}
@@ -334,25 +325,14 @@ storage_shadow_setup (struct cap *cap, addr_t folio)
 
 static bool storage_init_done;
 
-static int
-num_threads (void)
-{
-  extern int __pthread_num_threads __attribute__ ((weak));
-
-  if (&__pthread_num_threads)
-    return __pthread_num_threads;
-  else
-    return 1;
-}
-
 /* The minimum number of pages that should be available.  This should
    probably be per-thread (or at least per-CPU).  */
-#define FREE_PAGES_LOW_WATER (32 + 16 * num_threads ())
+#define FREE_PAGES_LOW_WATER 64
 /* If the number of free pages drops below this amount, the we might
    soon have a problem.  In this case, we serialize access to the pool
    of available pages to allow some thread that is able to allocate
    more pages the chance to do so.  */
-#define FREE_PAGES_SERIALIZE (16 + 8 * num_threads ())
+#define FREE_PAGES_SERIALIZE 32
 
 static pthread_mutex_t storage_low_mutex
   = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -551,13 +531,11 @@ storage_alloc (addr_t activity,
   int tries = 0;
   do
     {
-      if (++ tries == 5)
+      if (tries ++ == 5)
 	{
 	  backtrace_print ();
-	  debug (0, "Failing to get storage (free count: %d). Live lock? "
-		 "(%p; %p; %p)",
-		 free_count,
-		 short_lived, long_lived_allocing, long_lived_freeing);
+	  debug (0, "Failing to get storage (free count: %d).  Live lock?",
+		 free_count);
 	}
 
       storage_check_reserve_internal (do_allocate, meta_data_activity,
@@ -573,17 +551,7 @@ storage_alloc (addr_t activity,
 	       lead to allocating additional storage areas, however, this
 	       should be proportional to the contention.  */
 	    if (ss_mutex_trylock (&list->lock))
-	      {
-#ifndef NDEBUG
-		assert (list->owner == l4_nilthread);
-		list->owner = l4_myself ();
-#endif
-		return list;
-	      }
-
-	    if (tries == 5)
-	      debug (0, ADDR_FMT " locked by %x; contains %d free objects",
-		     ADDR_PRINTF (list->folio), list->owner, list->free);
+	      return list;
 
 	    list = list->next;
 	  }
@@ -666,6 +634,14 @@ storage_alloc (addr_t activity,
       ss_mutex_unlock (&storage_descs_lock);
     }
 
+  addr_t a = addr;
+  error_t err = rm_folio_object_alloc (activity, folio, idx, type, policy, 0,
+				       &a, NULL);
+  assertx (! err,
+	   "Allocating object %d from " ADDR_FMT " at " ADDR_FMT ": %d!",
+	   idx, ADDR_PRINTF (folio), ADDR_PRINTF (addr), err);
+  assert (ADDR_EQ (a, addr));
+
   struct object *shadow = desc->shadow;
   struct cap *cap = NULL;
   if (likely (!! shadow))
@@ -678,19 +654,7 @@ storage_alloc (addr_t activity,
     assert (! as_init_done);
 
   /* We drop DESC->LOCK.  */
-#ifndef NDEBUG
-  assert (desc->owner == l4_myself ());
-  desc->owner = l4_nilthread;
-#endif
   ss_mutex_unlock (&desc->lock);
-
-  addr_t a = addr;
-  error_t err = rm_folio_object_alloc (activity, folio, idx, type, policy, 0,
-				       &a, NULL);
-  assertx (! err,
-	   "Allocating object %d from " ADDR_FMT " at " ADDR_FMT ": %d!",
-	   idx, ADDR_PRINTF (folio), ADDR_PRINTF (addr), err);
-  assert (ADDR_EQ (a, addr));
 
   if (! ADDR_IS_VOID (addr))
     /* We also have to update the shadow for ADDR.  Unfortunately, we
@@ -752,10 +716,6 @@ storage_free_ (addr_t object, bool unmap_now)
 	   ADDR_PRINTF (object));
 
   ss_mutex_lock (&storage->lock);
-#ifndef NDEBUG
-  assert (storage->owner == l4_nilthread);
-  storage->owner = l4_myself ();
-#endif
 
   storage->free ++;
 
@@ -853,10 +813,6 @@ storage_free_ (addr_t object, bool unmap_now)
   else
     assert (! as_init_done);
 
-#ifndef NDEBUG
-  assert (storage->owner == l4_myself ());
-  storage->owner = l4_nilthread;
-#endif
   ss_mutex_unlock (&storage->lock);
 }
 
@@ -905,9 +861,6 @@ storage_init (void)
 
 	  sdesc = storage_desc_alloc ();
 	  sdesc->lock = (ss_mutex_t) 0;
-#ifndef NDEBUG
-	  sdesc->owner = l4_nilthread;
-#endif
 	  sdesc->folio = folio;
 	  sdesc->free = FOLIO_OBJECTS;
 	  sdesc->mode = LONG_LIVED_ALLOCING;
