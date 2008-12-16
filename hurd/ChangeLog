@@ -1,5 +1,9 @@
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (struct vg_utcb): Remove field saved_thread_state.
+
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
 	* addr-trans.h: Don't include <l4/types.h>.  Include <stdint.h>
 	and <hurd/math.h>.
 	(struct cap_addr_trans): Replace l4 types with standard types.

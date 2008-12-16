@@ -1,5 +1,10 @@
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 
+	* ia32-exception-entry.S (UTCB_SAVED_THREAD_STATE): Don't define.
+	(UTCB_ACTIVATION_FRAME_STACK): Adjust to new structure layout.
+
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (num_threads): New function.
 	(FREE_PAGES_LOW_WATER): Make it a function of the number of
 	threads.

@@ -175,8 +175,6 @@ struct vg_utcb
       /* The value of the IP and SP when the thread was running.  */
       uintptr_t saved_ip;
       uintptr_t saved_sp;
-      /* The state of the thread (as returned by _L4_exchange_regs)  */
-      uintptr_t saved_thread_state;
 
       /* Top of the activation frame stack (i.e., the active
 	 activation).  */

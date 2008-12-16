@@ -538,8 +538,6 @@ thread_activate (struct activity *activity,
 	     thread->tid, string, c);
     }
 
-  utcb->saved_thread_state = c;
-
   utcb->activated_mode = 1;
 
   if (utcb->activation_handler_ip <= ip

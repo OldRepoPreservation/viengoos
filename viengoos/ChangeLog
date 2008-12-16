@@ -1,5 +1,10 @@
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.c (thread_activate): Don't update
+	UTCB->SAVED_THREAD_STATE.
+
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.c (thread_deliver_pending): Only unlink M if it
 	successfully activates its associated thread.
 
