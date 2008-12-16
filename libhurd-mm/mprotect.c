@@ -34,7 +34,7 @@ mprotect (void *addr, size_t length, int prot)
   uintptr_t start = (uintptr_t) addr;
   uintptr_t end = start + length - 1;
 
-  debug (5, "(%p, %x (%p),%s%s)", addr, length, end,
+  debug (5, "(%p, %x (%p),%s%s)", addr, length, (void *) end,
 	 prot == 0 ? " PROT_NONE" : (prot & PROT_READ ? " PROT_READ" : ""),
 	 prot & PROT_WRITE ? " PROT_WRITE" : "");
 

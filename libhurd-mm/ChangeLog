@@ -1,3 +1,28 @@
+2008-12-16  Neal H. Walfield  <neal@gnu.org>
+
+	* anonymous.c (anonymous_pager_alloc): Replace use of l4_msb with
+	vg_msb.
+	* as-build.c (as_build): Replace use of l4_msb64 with vg_msb64.
+	* as-dump.c (print_nr): Replace use of l4_int64_t with int64_t.
+	* as-lookup.c (as_lookup_rel_internal): Replace use of l4_word_t
+	with uintptr_t and l4_uint64_t with uint64_t.
+	* as.h (as_alloc): Replace use of l4_uint64_t with uint64_t.
+	(as_alloc_at): Likewise.
+	(as_free): Likewise.
+	(AS_CHECK_SHADOW): Replace use of l4_word_t with uintptr_t.
+	(as_walk): Likewise.
+	* as.c (struct region): Replace use of l4_uint64_t with uint64_t.
+	(free_space_split): Likewise.
+	(as_alloc): Likewise.
+	(as_alloc_at): Likewise.
+	(as_free): Likewise.
+	(as_init): Likewise.
+	(as_alloc_slow): Replace use of l4_word_t with uintptr_t.
+	(as_init): Likewise.
+	(as_walk): Likewise.
+	(as_alloc): Replace use of l4_lsb64 with vg_lsb64.
+	(as_init): Likewise.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	Update to new RPC interface and IPC semantics.  Support messengers.

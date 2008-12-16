@@ -356,7 +356,7 @@ ID (as_build) (activity_t activity,
 	  if (! need_pivot)
 	    /* The slot is available.  */
 	    {
-	      int space = l4_msb64 (extract_bits64 (prefix, 0, remaining));
+	      int space = vg_msb64 (extract_bits64 (prefix, 0, remaining));
 	      if (space <= CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS)
 		/* The remaining bits to translate fit in the
 		   guard, we are done.  */
@@ -377,14 +377,14 @@ ID (as_build) (activity_t activity,
 	      if (remaining < pte_gbits)
 		a >>= pte_gbits - remaining;
 
-	      gbits = max - l4_msb64 (a ^ b);
+	      gbits = max - vg_msb64 (a ^ b);
 
 	      tilobject = pte_gbits;
 	    }
 
 	  /* Make sure that the guard to use fits in the guard
 	     area.  */
-	  int firstset = l4_msb64 (extract_bits64_inv (prefix,
+	  int firstset = vg_msb64 (extract_bits64_inv (prefix,
 						       remaining - 1, gbits));
 	  if (firstset > CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS)
 	    /* FIRSTSET is the first (most significant) non-zero guard

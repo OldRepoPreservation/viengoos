@@ -206,7 +206,7 @@ map_find (struct region region)
   struct map *map = hurd_btree_map_find (&maps, &region);
   if (! map)
     {
-      debug (3, "No map covers %x-%x",
+      debug (5, "No map covers %x-%x",
 	     region.start, region.start + region.length - 1);
       return NULL;
     }

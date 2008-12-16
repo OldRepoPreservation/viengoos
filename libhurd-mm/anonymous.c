@@ -632,8 +632,8 @@ anonymous_pager_alloc (addr_t activity,
       assert (fill);
 
       count = 1;
-      /* e.g., l4_msb (4k * 2 - 1) - 1 = 12.  */
-      width = l4_msb (length * 2 - 1) - 1;
+      /* e.g., vg_msb (4k * 2 - 1) - 1 = 12.  */
+      width = vg_msb (length * 2 - 1) - 1;
 
       if (hint)
 	/* We will allocate a region whose size is 1 << WIDTH.  This

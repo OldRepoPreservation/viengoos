@@ -22,8 +22,6 @@
 #ifndef _HURD_TYPES_H
 #define _HURD_TYPES_H	1
 
-#include <l4/types.h>
-
 #include <hurd/addr.h>
 
 #endif	/* _HURD_TYPES_H */
