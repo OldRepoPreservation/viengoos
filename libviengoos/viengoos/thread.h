@@ -88,7 +88,7 @@ struct vg_utcb
 	uint64_t messenger_id;
 
 	uintptr_t inline_words[VG_MESSENGER_INLINE_WORDS];
-	addr_t inline_caps[VG_MESSENGER_INLINE_CAPS];
+	vg_addr_t inline_caps[VG_MESSENGER_INLINE_CAPS];
 
 	union
 	{
@@ -123,19 +123,19 @@ struct vg_utcb
 enum
   {
     /* Root of the address space.  */
-    THREAD_ASPACE_SLOT = 0,
+    VG_THREAD_ASPACE_SLOT = 0,
     /* The activity the thread is bound to.  */
-    THREAD_ACTIVITY_SLOT = 1,
+    VG_THREAD_ACTIVITY_SLOT = 1,
     /* The messenger to post exceptions to.  */
-    THREAD_EXCEPTION_MESSENGER = 2,
-    /* The user thread control block.  Must be a cap_page.  */
-    THREAD_UTCB = 3,
+    VG_THREAD_EXCEPTION_MESSENGER = 2,
+    /* The user thread control block.  Must be a vg_cap_page.  */
+    VG_THREAD_UTCB = 3,
 
     /* Total number of capability slots in a thread object.  This must
        be a power of 2.  */
-    THREAD_SLOTS = 4,
+    VG_THREAD_SLOTS = 4,
   };
-#define THREAD_SLOTS_LOG2 2
+#define VG_THREAD_SLOTS_LOG2 2
 
 enum
 {
@@ -176,9 +176,9 @@ enum
 
 #ifdef RM_INTERN
 struct thread;
-typedef struct thread *thread_t;
+typedef struct thread *vg_thread_t;
 #else
-typedef addr_t thread_t;
+typedef vg_addr_t vg_thread_t;
 #endif
 
 #define RPC_STUB_PREFIX rm
@@ -189,7 +189,7 @@ typedef addr_t thread_t;
 struct hurd_thread_exregs_in
 {
   uintptr_t aspace_cap_properties_flags;
-  struct cap_properties aspace_cap_properties;
+  struct vg_cap_properties aspace_cap_properties;
 
   uintptr_t sp;
   uintptr_t ip;
@@ -216,19 +216,19 @@ RPC (thread_exregs, 6, 1, 4,
      cap_t, exception_messenger_out)
 
 static inline error_t
-thread_start (addr_t thread)
+vg_thread_start (vg_addr_t thread)
 {
   struct hurd_thread_exregs_in in;
   struct hurd_thread_exregs_out out;
 
-  return rm_thread_exregs (ADDR_VOID, thread,
+  return rm_thread_exregs (VG_ADDR_VOID, thread,
 			   HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC,
-			   in, ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID,
+			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
 			   &out, NULL, NULL, NULL, NULL);
 }
 
 static inline error_t
-thread_start_sp_ip (addr_t thread, uintptr_t sp, uintptr_t ip)
+vg_thread_start_sp_ip (vg_addr_t thread, uintptr_t sp, uintptr_t ip)
 {
   struct hurd_thread_exregs_in in;
   struct hurd_thread_exregs_out out;
@@ -236,22 +236,22 @@ thread_start_sp_ip (addr_t thread, uintptr_t sp, uintptr_t ip)
   in.sp = sp;
   in.ip = ip;
 
-  return rm_thread_exregs (ADDR_VOID, thread,
+  return rm_thread_exregs (VG_ADDR_VOID, thread,
 			   HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC
 			   | HURD_EXREGS_SET_SP_IP,
-			   in, ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID,
+			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
 			   &out, NULL, NULL, NULL, NULL);
 }
 
 static inline error_t
-thread_stop (addr_t thread)
+vg_thread_stop (vg_addr_t thread)
 {
   struct hurd_thread_exregs_in in;
   struct hurd_thread_exregs_out out;
 
-  return rm_thread_exregs (ADDR_VOID, thread,
+  return rm_thread_exregs (VG_ADDR_VOID, thread,
 			   HURD_EXREGS_STOP | HURD_EXREGS_ABORT_IPC,
-			   in, ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID,
+			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
 			   &out, NULL, NULL, NULL, NULL);
 }
 
@@ -271,7 +271,7 @@ static inline vg_thread_id_t
 vg_myself (void)
 {
   vg_thread_id_t tid;
-  error_t err = rm_thread_id (ADDR_VOID, ADDR_VOID, &tid);
+  error_t err = rm_thread_id (VG_ADDR_VOID, VG_ADDR_VOID, &tid);
   if (err)
     return vg_niltid;
   return tid;
@@ -289,7 +289,7 @@ enum
 
 /* Return a string corresponding to a message id.  */
 static inline const char *
-activation_method_id_string (uintptr_t id)
+vg_activation_method_id_string (uintptr_t id)
 {
   switch (id)
     {
@@ -300,7 +300,7 @@ activation_method_id_string (uintptr_t id)
     }
 }
 
-struct activation_fault_info
+struct vg_activation_fault_info
 {
   union
   {
@@ -309,7 +309,7 @@ struct activation_fault_info
       /* Type of access.  */
       uintptr_t access: 3;
       /* Type of object that was attempting to be accessed.  */
-      uintptr_t type : CAP_TYPE_BITS;
+      uintptr_t type : VG_CAP_TYPE_BITS;
       /* Whether the page was discarded.  */
       uintptr_t discarded : 1;
     };
@@ -317,20 +317,20 @@ struct activation_fault_info
   };
 };
 
-#define ACTIVATION_FAULT_INFO_FMT "%c%c%c %s%s"
-#define ACTIVATION_FAULT_INFO_PRINTF(info)		\
+#define VG_ACTIVATION_FAULT_INFO_FMT "%c%c%c %s%s"
+#define VG_ACTIVATION_FAULT_INFO_PRINTF(info)		\
   ((info).access & L4_FPAGE_READABLE ? 'r' : '~'),	\
   ((info).access & L4_FPAGE_WRITABLE ? 'w' : '~'),	\
   ((info).access & L4_FPAGE_EXECUTABLE ? 'x' : '~'),	\
-  cap_type_string ((info).type),			\
+  vg_cap_type_string ((info).type),			\
   (info.discarded) ? " discarded" : ""
 
 /* Raise a fault at address FAULT_ADDRESS.  If IP is not 0, then IP is
    the value of the IP of the faulting thread at the time of the fault
    and SP the value of the stack pointer at the time of the fault.  */
 RPC (fault, 4, 0, 0,
-     addr_t, fault_address, uintptr_t, sp, uintptr_t, ip,
-     struct activation_fault_info, activation_fault_info)
+     vg_addr_t, fault_address, uintptr_t, sp, uintptr_t, ip,
+     struct vg_activation_fault_info, vg_activation_fault_info)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

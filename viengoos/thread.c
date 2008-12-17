@@ -252,11 +252,11 @@ control_to_string (l4_word_t control, char string[33])
 error_t
 thread_exregs (struct activity *principal,
 	       struct thread *thread, uintptr_t control,
-	       struct cap aspace,
-	       uintptr_t flags, struct cap_properties properties,
-	       struct cap activity,
-	       struct cap utcb,
-	       struct cap exception_messenger,
+	       struct vg_cap aspace,
+	       uintptr_t flags, struct vg_cap_properties properties,
+	       struct vg_cap activity,
+	       struct vg_cap utcb,
+	       struct vg_cap exception_messenger,
 	       uintptr_t *sp, uintptr_t *ip,
 	       uintptr_t *eflags, uintptr_t *user_handle)
 {
@@ -271,25 +271,25 @@ thread_exregs (struct activity *principal,
     }
 
   if ((control & HURD_EXREGS_SET_ASPACE))
-    cap_copy_x (principal,
-		ADDR_VOID, &thread->aspace, ADDR_VOID,
-		ADDR_VOID, aspace, ADDR_VOID,
+    vg_cap_copy_x (principal,
+		VG_ADDR_VOID, &thread->aspace, VG_ADDR_VOID,
+		VG_ADDR_VOID, aspace, VG_ADDR_VOID,
 		flags, properties);
 
   if ((control & HURD_EXREGS_SET_ACTIVITY))
-    cap_copy (principal,
-	      ADDR_VOID, &thread->activity, ADDR_VOID,
-	      ADDR_VOID, activity, ADDR_VOID);
+    vg_cap_copy (principal,
+	      VG_ADDR_VOID, &thread->activity, VG_ADDR_VOID,
+	      VG_ADDR_VOID, activity, VG_ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_UTCB))
-    cap_copy (principal,
-	      ADDR_VOID, &thread->utcb, ADDR_VOID,
-	      ADDR_VOID, utcb, ADDR_VOID);
+    vg_cap_copy (principal,
+	      VG_ADDR_VOID, &thread->utcb, VG_ADDR_VOID,
+	      VG_ADDR_VOID, utcb, VG_ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_EXCEPTION_MESSENGER))
-    cap_copy (principal,
-	      ADDR_VOID, &thread->exception_messenger, ADDR_VOID,
-	      ADDR_VOID, exception_messenger, ADDR_VOID);
+    vg_cap_copy (principal,
+	      VG_ADDR_VOID, &thread->exception_messenger, VG_ADDR_VOID,
+	      VG_ADDR_VOID, exception_messenger, VG_ADDR_VOID);
 
   if (thread->commissioned)
     {
@@ -357,7 +357,7 @@ thread_exregs (struct activity *principal,
 
       if ((control & HURD_EXREGS_START) == HURD_EXREGS_START)
 	{
-	  struct object *a = cap_to_object (principal, &thread->activity);
+	  struct object *a = vg_cap_to_object (principal, &thread->activity);
 	  if (! a)
 	    {
 	      debug (0, "Thread not schedulable: no activity");
@@ -365,10 +365,10 @@ thread_exregs (struct activity *principal,
 	    }
 
 	  struct object_desc *desc = object_to_object_desc (a);
-	  if (! cap_types_compatible (desc->type, cap_activity))
+	  if (! vg_cap_types_compatible (desc->type, vg_cap_activity))
 	    {
 	      debug (0, "Thread not schedulable: activity slot contains a %s",
-		     cap_type_string (desc->type));
+		     vg_cap_type_string (desc->type));
 	      return 0;
 	    }
 
@@ -436,7 +436,7 @@ thread_activate (struct activity *activity,
 		 bool may_block)
 {
   assert (messenger);
-  assert (object_type ((struct object *) messenger) == cap_messenger);
+  assert (object_type ((struct object *) messenger) == vg_cap_messenger);
 
 
   uintptr_t ip = 0;
@@ -450,7 +450,7 @@ thread_activate (struct activity *activity,
   }
 
   struct vg_utcb *utcb
-    = (struct vg_utcb *) cap_to_object (activity, &thread->utcb);
+    = (struct vg_utcb *) vg_cap_to_object (activity, &thread->utcb);
   if (! utcb)
     {
 #ifndef NDEBUG
@@ -465,10 +465,10 @@ thread_activate (struct activity *activity,
       return false;
     }
 
-  if (object_type ((struct object *) utcb) != cap_page)
+  if (object_type ((struct object *) utcb) != vg_cap_page)
     {
       debug (0, "Malformed thread: utcb slot contains a %s, not a page",
-	     cap_type_string (object_type ((struct object *) utcb)));
+	     vg_cap_type_string (object_type ((struct object *) utcb)));
       return false;
     }
 
@@ -490,7 +490,7 @@ thread_activate (struct activity *activity,
     }
 
   debug (5, "Activating %x (ip: %p; sp: %p)",
-	 thread->tid, ip, sp);
+	 thread->tid, (void *) ip, (void *) sp);
 
   utcb->protected_payload = messenger->protected_payload;
   utcb->messenger_id = messenger->id;
@@ -500,7 +500,7 @@ thread_activate (struct activity *activity,
       memcpy (utcb->inline_words, messenger->inline_words,
 	      messenger->inline_word_count * sizeof (uintptr_t));
       memcpy (utcb->inline_caps, messenger->inline_caps,
-	      messenger->inline_cap_count * sizeof (addr_t));
+	      messenger->inline_cap_count * sizeof (vg_addr_t));
       utcb->inline_word_count = messenger->inline_word_count;
       utcb->inline_cap_count = messenger->inline_cap_count;
     }
@@ -594,16 +594,16 @@ thread_raise_exception (struct activity *activity,
 			struct vg_message *message)
 {
   struct messenger *handler
-    = (struct messenger *) cap_to_object (activity,
+    = (struct messenger *) vg_cap_to_object (activity,
 					  &thread->exception_messenger);
   if (! handler)
     {
       backtrace_print ();
       debug (0, "Thread %x has no exception handler.", thread->tid);
     }
-  else if (object_type ((struct object *) handler) != cap_messenger)
+  else if (object_type ((struct object *) handler) != vg_cap_messenger)
     debug (0, "%s is not a valid exception handler.",
-	   cap_type_string (object_type ((struct object *) handler)));
+	   vg_cap_type_string (object_type ((struct object *) handler)));
   else
     {
       if (! messenger_message_load (activity, handler, message))
@@ -617,7 +617,7 @@ thread_deliver_pending (struct activity *activity,
 			struct thread *thread)
 {
   struct vg_utcb *utcb
-    = (struct vg_utcb *) cap_to_object (activity, &thread->utcb);
+    = (struct vg_utcb *) vg_cap_to_object (activity, &thread->utcb);
   if (! utcb)
     {
       debug (0, "Malformed thread (%x): no utcb",
@@ -625,10 +625,10 @@ thread_deliver_pending (struct activity *activity,
       return;
     }
 
-  if (object_type ((struct object *) utcb) != cap_page)
+  if (object_type ((struct object *) utcb) != vg_cap_page)
     {
       debug (0, "Malformed thread: utcb slot contains a %s, not a page",
-	     cap_type_string (object_type ((struct object *) utcb)));
+	     vg_cap_type_string (object_type ((struct object *) utcb)));
       return;
     }
 

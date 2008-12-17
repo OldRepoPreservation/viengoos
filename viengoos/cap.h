@@ -30,23 +30,25 @@ extern const int cap_type_num_slots[];
 /* Set's the capability TARGET to point to the same object as the
    capability SOURCE, however, preserves the guard in TARGET.  */
 static inline bool
-cap_set (struct activity *activity, struct cap *target, struct cap source)
+cap_set (struct activity *activity, struct vg_cap *target, struct vg_cap source)
 {
   /* This is kosher as we know the implementation of CAP_COPY.  */
-  return cap_copy (activity,
-		   ADDR_VOID, target, ADDR_VOID,
-		   ADDR_VOID, source, ADDR_VOID);
+  return vg_cap_copy (activity,
+		   VG_ADDR_VOID, target, VG_ADDR_VOID,
+		   VG_ADDR_VOID, source, VG_ADDR_VOID);
 }
 
 /* Invalidate all mappings that may depend on this object.  */
-extern void cap_shootdown (struct activity *activity, struct cap *cap);
+extern void cap_shootdown (struct activity *activity, struct vg_cap *cap);
 
 /* Return the object designated by CAP, if any.  */
-struct object *cap_to_object (struct activity *activity, struct cap *cap);
+struct object *vg_cap_to_object (struct activity *activity,
+				 struct vg_cap *cap);
 
-/* Like cap_to_object but only returns the object if it is in
+/* Like vg_cap_to_object but only returns the object if it is in
    memory.  */
-struct object *cap_to_object_soft (struct activity *activity, struct cap *cap);
+struct object *cap_to_object_soft (struct activity *activity,
+				   struct vg_cap *cap);
 
 
 

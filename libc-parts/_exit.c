@@ -40,7 +40,7 @@ _exit (int ret)
 
   /* We try to kill the activity and, if that fails, the main
      thread.  */
-  addr_t objs[] = { __hurd_startup_data->activity,
+  vg_addr_t objs[] = { __hurd_startup_data->activity,
 		    __hurd_startup_data->thread };
 
   int o;
@@ -50,19 +50,19 @@ _exit (int ret)
       for (i = 0; i < __hurd_startup_data->desc_count; i ++)
 	{
 	  struct hurd_object_desc *desc = &__hurd_startup_data->descs[i];
-	  if (ADDR_EQ (desc->object, objs[o]))
+	  if (VG_ADDR_EQ (desc->object, objs[o]))
 	    {
-	      if (ADDR_IS_VOID (desc->storage))
+	      if (VG_ADDR_IS_VOID (desc->storage))
 		/* We don't own the storage and thus can't deallocate
 		   the object.  */
 		continue;
 
-	      addr_t folio = addr_chop (desc->storage, FOLIO_OBJECTS_LOG2);
-	      int index = addr_extract (desc->storage, FOLIO_OBJECTS_LOG2);
+	      vg_addr_t folio = vg_addr_chop (desc->storage, VG_FOLIO_OBJECTS_LOG2);
+	      int index = vg_addr_extract (desc->storage, VG_FOLIO_OBJECTS_LOG2);
 
 	      error_t err;
-	      err = rm_folio_object_alloc (ADDR_VOID, folio, index,
-					   cap_void, OBJECT_POLICY_VOID,
+	      err = rm_folio_object_alloc (VG_ADDR_VOID, folio, index,
+					   vg_cap_void, VG_OBJECT_POLICY_VOID,
 					   (uintptr_t) ret,
 					   NULL, NULL);
 	      if (err)

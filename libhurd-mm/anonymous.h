@@ -80,7 +80,7 @@ enum
 typedef bool (*anonymous_pager_fill_t) (struct anonymous_pager *anon,
 					uintptr_t offset, uintptr_t count,
 					void *pages[],
-					struct activation_fault_info info);
+					struct vg_activation_fault_info info);
 
 #define ANONYMOUS_MAGIC 0xa707a707
 
@@ -103,7 +103,7 @@ struct anonymous_pager
 
 
   /* The user's window onto the pager.  */
-  addr_t map_area;
+  vg_addr_t map_area;
   int map_area_count;
 
   ss_mutex_t lock;
@@ -115,7 +115,7 @@ struct anonymous_pager
 
 
   /* Activity against which storage should be allocated.  */
-  addr_t activity;
+  vg_addr_t activity;
 
   /* The policy to use when allocating memory.  */
   struct object_policy policy;
@@ -137,7 +137,7 @@ struct anonymous_pager
    ADDR_HINT indicates the preferred starting address.  Unless
    ANONYMOUS_FIXED is included in FLAGS, the implementation may choose
    another address.  (The region will be allocated using as_alloc.)
-   Both ADDR and LENGTH must be a multiple of the base page size.  If
+   Both ADDR_HINT and LENGTH must be a multiple of the base page size.  If
    the specified region overlaps with an existing pager, EEXIST is
    returned.  The chosen start address is returned in *ADDR_OUT.
 
@@ -164,7 +164,7 @@ struct anonymous_pager
    up.  When the fill function is invoked, access to the main region
    is disabled; any access is blocked until the fill function
    returns.  */
-extern struct anonymous_pager *anonymous_pager_alloc (addr_t activity,
+extern struct anonymous_pager *anonymous_pager_alloc (vg_addr_t activity,
 						      void *addr_hint,
 						      uintptr_t length,
 						      enum map_access access,

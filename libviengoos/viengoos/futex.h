@@ -1,4 +1,4 @@
-/* futex.h - Futex definitions.
+/* vg_futex.h - Futex definitions.
    Copyright (C) 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
@@ -111,17 +111,17 @@ RPC (futex, 7, 1, 0,
 #ifndef RM_INTERN
 #include <errno.h>
 
-struct futex_return
+struct vg_futex_return
 {
   error_t err;
   long ret;
 };
 
-static inline struct futex_return
+static inline struct vg_futex_return
 __attribute__((always_inline))
-futex_using (struct hurd_message_buffer *mb,
-	     void *addr1, int op, int val1, struct timespec *timespec,
-	     void *addr2, int val3)
+vg_futex_using (struct hurd_message_buffer *mb,
+		void *addr1, int op, int val1, struct timespec *timespec,
+		void *addr2, int val3)
 {
   union futex_val2 val2;
   if (timespec)
@@ -133,34 +133,34 @@ futex_using (struct hurd_message_buffer *mb,
   long ret = 0; /* Elide gcc warning.  */
   if (mb)
     err = rm_futex_using (mb,
-			  ADDR_VOID, ADDR_VOID,
+			  VG_ADDR_VOID, VG_ADDR_VOID,
 			  addr1, op, val1, !! timespec, val2, addr2,
 			  (union futex_val3) val3, &ret);
   else
-    err = rm_futex (ADDR_VOID, ADDR_VOID,
+    err = rm_futex (VG_ADDR_VOID, VG_ADDR_VOID,
 		    addr1, op, val1, !! timespec, val2, addr2,
 		    (union futex_val3) val3, &ret);
-  return (struct futex_return) { err, ret };
+  return (struct vg_futex_return) { err, ret };
 }
 
-/* Standard futex signatures.  See futex documentation, e.g., Futexes
+/* Standard vg_futex signatures.  See vg_futex documentation, e.g., Futexes
    are Tricky by Ulrich Drepper.  */
-static inline struct futex_return
+static inline struct vg_futex_return
 __attribute__((always_inline))
-futex (void *addr1, int op, int val1, struct timespec *timespec,
+vg_futex (void *addr1, int op, int val1, struct timespec *timespec,
        void *addr2, int val3)
 {
-  return futex_using (NULL, addr1, op, val1, timespec, addr2, val3);
+  return vg_futex_using (NULL, addr1, op, val1, timespec, addr2, val3);
 }
 
 
 /* If *F is VAL, wait until woken.  */
 static inline long
 __attribute__((always_inline))
-futex_wait_using (struct hurd_message_buffer *mb, int *f, int val)
+vg_futex_wait_using (struct hurd_message_buffer *mb, int *f, int val)
 {
-  struct futex_return ret;
-  ret = futex_using (mb, f, FUTEX_WAIT, val, NULL, 0, 0);
+  struct vg_futex_return ret;
+  ret = vg_futex_using (mb, f, FUTEX_WAIT, val, NULL, 0, 0);
   if (ret.err)
     {
       errno = ret.err;
@@ -173,7 +173,7 @@ static inline long
 __attribute__((always_inline))
 futex_wait (int *f, int val)
 {
-  return futex_wait_using (NULL, f, val);
+  return vg_futex_wait_using (NULL, f, val);
 }
 
 
@@ -182,8 +182,8 @@ static inline long
 __attribute__((always_inline))
 futex_timed_wait (int *f, int val, struct timespec *timespec)
 {
-  struct futex_return ret;
-  ret = futex (f, FUTEX_WAIT, val, timespec, 0, 0);
+  struct vg_futex_return ret;
+  ret = vg_futex (f, FUTEX_WAIT, val, timespec, 0, 0);
   if (ret.err)
     {
       errno = ret.err;
@@ -193,13 +193,13 @@ futex_timed_wait (int *f, int val, struct timespec *timespec)
 }
 
 
-/* Signal NWAKE waiters waiting on futex F.  */
+/* Signal NWAKE waiters waiting on vg_futex F.  */
 static inline long
 __attribute__((always_inline))
-futex_wake_using (struct hurd_message_buffer *mb, int *f, int nwake)
+vg_futex_wake_using (struct hurd_message_buffer *mb, int *f, int nwake)
 {
-  struct futex_return ret;
-  ret = futex_using (mb, f, FUTEX_WAKE, nwake, NULL, 0, 0);
+  struct vg_futex_return ret;
+  ret = vg_futex_using (mb, f, FUTEX_WAKE, nwake, NULL, 0, 0);
   if (ret.err)
     {
       errno = ret.err;
@@ -212,7 +212,7 @@ static inline long
 __attribute__((always_inline))
 futex_wake (int *f, int nwake)
 {
-  return futex_wake_using (NULL, f, nwake);
+  return vg_futex_wake_using (NULL, f, nwake);
 }
 #endif /* !RM_INTERN */
 

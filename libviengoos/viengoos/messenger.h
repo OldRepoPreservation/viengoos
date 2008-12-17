@@ -42,7 +42,7 @@
 struct messenger;
 typedef struct messenger *vg_messenger_t;
 #else
-typedef addr_t vg_messenger_t;
+typedef vg_addr_t vg_messenger_t;
 #endif
 
 #define VG_MESSENGER_INLINE_WORDS 2

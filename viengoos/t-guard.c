@@ -18,17 +18,17 @@ test (void)
   assert (gc.gbits == 8);
   assert (gc.cappage_width == 2);
 
-  /* Inserting a folio at /ADDR_BITS-19.  */
+  /* Inserting a folio at /VG_ADDR_BITS-19.  */
   gc = as_compute_gbits_cappage (30, 11, 10);
   assert (gc.gbits == 3);
   assert (gc.cappage_width == 8);
 
-  /* Inserting a page at /ADDR_BITS-12.  */
+  /* Inserting a page at /VG_ADDR_BITS-12.  */
   gc = as_compute_gbits_cappage (30, 18, 10);
   assert (gc.gbits == 3);
   assert (gc.cappage_width == 8);
 
-  /* Inserting a page at /ADDR_BITS-12.  */
+  /* Inserting a page at /VG_ADDR_BITS-12.  */
   gc = as_compute_gbits_cappage (30, 18, 17);
   assert (gc.gbits == 11);
   assert (gc.cappage_width == 7);

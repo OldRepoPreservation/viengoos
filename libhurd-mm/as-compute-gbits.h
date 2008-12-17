@@ -35,9 +35,9 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
   /* Our strategy is as follows: we want to avoid 1) having to move
      page tables around, and 2) small cappages.  We know that folios
      will be mapped such that their data pages are visible in the data
-     address space of the process, i.e., at /ADDR_BITS-7-12.  Thus, we
-     try to ensure that we have 7-bit cappages at /ADDR_BITS-7-12 and
-     then 8-bit cappage at /ADDR_BITS-7-12-i*8, i > 0, i.e., /44, /36,
+     address space of the process, i.e., at /VG_ADDR_BITS-7-12.  Thus, we
+     try to ensure that we have 7-bit cappages at /VG_ADDR_BITS-7-12 and
+     then 8-bit cappage at /VG_ADDR_BITS-7-12-i*8, i > 0, i.e., /44, /36,
      etc.  */
 
   assertx (untranslated_bits > 0 && to_translate > 0 && gbits >= 0
@@ -51,7 +51,7 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
     ;
 
   /* There could be less than PAGESIZE_LOG2 untranslated bits.  Place
-     a cappage at /ADDR_BITS-PAGESIZE_LOG2.
+     a cappage at /VG_ADDR_BITS-PAGESIZE_LOG2.
 
       UNTRANSLATED_BITS
      |--------------------|
@@ -65,9 +65,9 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
   else if (untranslated_bits - gbits <= PAGESIZE_LOG2)
     gbits = untranslated_bits - PAGESIZE_LOG2;
 
-  /* There could be less than FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2
+  /* There could be less than VG_FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2
      untranslated bits.  Place a cappage at
-     /ADDR_BITS-FOLIO_OBJECTS_LOG2-PAGESIZE_LOG2.
+     /VG_ADDR_BITS-VG_FOLIO_OBJECTS_LOG2-PAGESIZE_LOG2.
 
       UNTRANSLATED_BITS
      |--------------------|
@@ -75,12 +75,12 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
       GBITS
            |------|-------|
            |       PAGESIZE_LOG2
-           `FOLIO_OBJECTS_LOG2
+           `VG_FOLIO_OBJECTS_LOG2
 
 	   ^ 
   */
-  else if (untranslated_bits - gbits <= FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2)
-    gbits = untranslated_bits - FOLIO_OBJECTS_LOG2 - PAGESIZE_LOG2;
+  else if (untranslated_bits - gbits <= VG_FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2)
+    gbits = untranslated_bits - VG_FOLIO_OBJECTS_LOG2 - PAGESIZE_LOG2;
 
   /* 
            UNTRANSLATED_BITS
@@ -88,20 +88,20 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
 
      |----------|-------|----|-----|
      |          |       |     PAGESIZE_LOG2
-     |          |       `FOLIO_OBJECTS_LOG2
+     |          |       `VG_FOLIO_OBJECTS_LOG2
      `GBITS     `REMAINDER
 
      Shrink GBITS such that REMAINDER becomes a multiple of
-     CAPPAGE_SLOTS_LOG2.
+     VG_CAPPAGE_SLOTS_LOG2.
    */
   else
     {
       int remainder = untranslated_bits - gbits
-	- FOLIO_OBJECTS_LOG2 - PAGESIZE_LOG2;
+	- VG_FOLIO_OBJECTS_LOG2 - PAGESIZE_LOG2;
 
       /* Amount to remove from GBITS such that REMAINDER + TO_REMOVE is a
-	 multiple of CAPPAGE_SLOTS_LOG2.  */
-      int to_remove = CAPPAGE_SLOTS_LOG2 - (remainder % CAPPAGE_SLOTS_LOG2);
+	 multiple of VG_CAPPAGE_SLOTS_LOG2.  */
+      int to_remove = VG_CAPPAGE_SLOTS_LOG2 - (remainder % VG_CAPPAGE_SLOTS_LOG2);
 
       if (to_remove < gbits)
 	gbits -= to_remove;
@@ -112,10 +112,10 @@ as_compute_gbits_cappage (int untranslated_bits, int to_translate,
   assert (gbits >= 0);
 
   struct as_guard_cappage gc;
-  if (untranslated_bits - gbits == FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2)
-    gc.cappage_width = FOLIO_OBJECTS_LOG2;
+  if (untranslated_bits - gbits == VG_FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2)
+    gc.cappage_width = VG_FOLIO_OBJECTS_LOG2;
   else
-    gc.cappage_width = CAPPAGE_SLOTS_LOG2;
+    gc.cappage_width = VG_CAPPAGE_SLOTS_LOG2;
 
   if (gbits + gc.cappage_width > to_translate)
     gc.cappage_width = to_translate - gbits;

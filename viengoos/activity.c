@@ -35,11 +35,11 @@ void
 activity_create (struct activity *parent,
 		 struct activity *child)
 {
-  struct object *old_parent = cap_to_object (parent, &child->parent_cap);
+  struct object *old_parent = vg_cap_to_object (parent, &child->parent_cap);
   if (old_parent)
     /* CHILD is live.  Destroy it first.  */
     {
-      assert (object_type (old_parent) == cap_activity_control);
+      assert (object_type (old_parent) == vg_cap_activity_control);
       activity_destroy (parent, child);
     }
 
@@ -54,15 +54,15 @@ activity_create (struct activity *parent,
 
   /* Connect to PARENT's activity list.  */
   child->sibling_next_cap = parent->children_cap;
-  child->sibling_prev_cap.type = cap_void;
+  child->sibling_prev_cap.type = vg_cap_void;
   parent->children_cap = object_to_cap ((struct object *) child);
 
-  struct object *old_head = cap_to_object (parent, &child->sibling_next_cap);
+  struct object *old_head = vg_cap_to_object (parent, &child->sibling_next_cap);
   if (old_head)
     {
-      assert (object_type (old_head) == cap_activity_control);
+      assert (object_type (old_head) == vg_cap_activity_control);
       /* The old head's previous pointer should be NULL.  */
-      assert (! cap_to_object
+      assert (! vg_cap_to_object
 	      (parent, &((struct activity *) old_head)->sibling_prev_cap));
 
       ((struct activity *) old_head)->sibling_prev_cap
@@ -78,8 +78,8 @@ activity_destroy (struct activity *activity, struct activity *victim)
   debug (0, "Destroying activity " OBJECT_NAME_FMT,
 	 OBJECT_NAME_PRINTF ((struct object *) victim));
 
-  assert (object_type ((struct object *) activity) == cap_activity_control);
-  assert (object_type ((struct object *) victim) == cap_activity_control);
+  assert (object_type ((struct object *) activity) == vg_cap_activity_control);
+  assert (object_type ((struct object *) victim) == vg_cap_activity_control);
 
   profile_stats_dump ();
 
@@ -109,28 +109,28 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
   /* Destroy all folios allocated to this activity.  */
   struct object *o;
-  while ((o = cap_to_object (activity, &victim->folios)))
+  while ((o = vg_cap_to_object (activity, &victim->folios)))
     {
       /* If O was destroyed, it should have been removed from its
 	 respective activity's allocation list.  */
       assert (o);
 
       struct object_desc *desc = object_to_object_desc (o);
-      assert (desc->type == cap_folio);
+      assert (desc->type == vg_cap_folio);
 
       folio_free (activity, (struct folio *) o);
     }
 
   /* Activities that are sub-activities of ACTIVITY are not
      necessarily allocated out of storage allocated to ACTIVITY.  */
-  while ((o = cap_to_object (activity, &victim->children_cap)))
+  while ((o = vg_cap_to_object (activity, &victim->children_cap)))
     {
       /* If O was destroyed, it should have been removed from its
 	 respective activity's allocation list.  */
       assert (o);
 
       struct object_desc *desc = object_to_object_desc (o);
-      assert (desc->type == cap_activity_control);
+      assert (desc->type == vg_cap_activity_control);
 
       object_free (activity, o);
     }
@@ -142,7 +142,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
     /* Make ACTIVE objects inactive.  */
     int i;
-    for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+    for (i = VG_OBJECT_PRIORITY_MIN; i <= VG_OBJECT_PRIORITY_MAX; i ++)
       {
 	for (desc = activity_list_head (&victim->frames[i].active);
 	     desc; desc = activity_list_next (desc))
@@ -154,19 +154,19 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	    assert (desc->policy.priority == i);
 
 	    desc->age = 0;
-	    desc->policy.priority = OBJECT_PRIORITY_MIN;
+	    desc->policy.priority = VG_OBJECT_PRIORITY_MIN;
 	    desc->activity = victim->parent;
 	    count ++;
 	  }
 	activity_list_join
-	  (&victim->parent->frames[OBJECT_PRIORITY_MIN].inactive,
+	  (&victim->parent->frames[VG_OBJECT_PRIORITY_MIN].inactive,
 	   &victim->frames[i].active);
       }
 
     /* Move inactive objects to the head of VICTIM->PARENT's appropriate
        inactive list (thereby making them the first eviction
        candidates).  */
-    for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+    for (i = VG_OBJECT_PRIORITY_MIN; i <= VG_OBJECT_PRIORITY_MAX; i ++)
       {
 	for (desc = activity_list_head (&victim->frames[i].inactive);
 	     desc; desc = activity_list_next (desc))
@@ -178,11 +178,11 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	    assert (desc->policy.priority == i);
 
 	    desc->activity = victim->parent;
-	    desc->policy.priority = OBJECT_PRIORITY_MIN;
+	    desc->policy.priority = VG_OBJECT_PRIORITY_MIN;
 	    count ++;
 	  }
 	activity_list_join
-	  (&victim->parent->frames[OBJECT_PRIORITY_MIN].inactive,
+	  (&victim->parent->frames[VG_OBJECT_PRIORITY_MIN].inactive,
 	   &victim->frames[i].inactive);
       }
 
@@ -212,8 +212,8 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	vdesc = object_to_object_desc ((struct object *) victim);
 
 	assertx (desc->activity == victim,
-		 OID_FMT " != " OID_FMT,
-		 OID_PRINTF (adesc->oid), OID_PRINTF (vdesc->oid));
+		 VG_OID_FMT " != " VG_OID_FMT,
+		 VG_OID_PRINTF (adesc->oid), VG_OID_PRINTF (vdesc->oid));
 #endif
 	assert (list_node_attached (&desc->laundry_node));
 	assert (desc->dirty && !desc->policy.discardable);
@@ -243,18 +243,18 @@ activity_destroy (struct activity *activity, struct activity *victim)
   /* Remove from parent's activity list.  */
   struct activity *parent = victim->parent;
   assert ((struct object *) parent
-	  == cap_to_object (activity, &victim->parent_cap));
+	  == vg_cap_to_object (activity, &victim->parent_cap));
 
-  struct object *prev_object = cap_to_object (activity,
+  struct object *prev_object = vg_cap_to_object (activity,
 					      &victim->sibling_prev_cap);
   assert (! prev_object
-	  || object_to_object_desc (prev_object)->type == cap_activity_control);
+	  || object_to_object_desc (prev_object)->type == vg_cap_activity_control);
   struct activity *prev = (struct activity *) prev_object;
 
-  struct object *next_object = cap_to_object (activity,
+  struct object *next_object = vg_cap_to_object (activity,
 					      &victim->sibling_next_cap);
   assert (! next_object
-	  || object_to_object_desc (next_object)->type == cap_activity_control);
+	  || object_to_object_desc (next_object)->type == vg_cap_activity_control);
   struct activity *next = (struct activity *) next_object;
 
   if (prev)
@@ -262,7 +262,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
   else
     /* VICTIM is the head of PARENT's child list.  */
     {
-      assert (cap_to_object (activity, &parent->children_cap)
+      assert (vg_cap_to_object (activity, &parent->children_cap)
 	      == (struct object *) victim);
       parent->children_cap = victim->sibling_next_cap;
     }
@@ -270,15 +270,15 @@ activity_destroy (struct activity *activity, struct activity *victim)
   if (next)
     next->sibling_prev_cap = victim->sibling_prev_cap;
 
-  victim->sibling_next_cap.type = cap_void;
-  victim->sibling_prev_cap.type = cap_void;
+  victim->sibling_next_cap.type = vg_cap_void;
+  victim->sibling_prev_cap.type = vg_cap_void;
 }
 
 void
 activity_prepare (struct activity *principal, struct activity *activity)
 {
   /* Lookup parent.  */
-  activity->parent = (struct activity *) cap_to_object (principal,
+  activity->parent = (struct activity *) vg_cap_to_object (principal,
 							&activity->parent_cap);
   assert (activity->parent);
 
@@ -309,7 +309,7 @@ activity_prepare (struct activity *principal, struct activity *activity)
 #ifndef NDEBUG
   activity_children_list_init (&activity->children, "activity->children");
 
-  static const char *names[OBJECT_PRIORITY_LEVELS]
+  static const char *names[VG_OBJECT_PRIORITY_LEVELS]
     = { "inactive-64", "inactive-63", "inactive-62", "inactive-61",
 	"inactive-60", "inactive-59", "inactive-58", "inactive-57",
 	"inactive-56", "inactive-55", "inactive-54", "inactive-53",
@@ -344,12 +344,12 @@ activity_prepare (struct activity *principal, struct activity *activity)
 	"inactive60", "inactive61", "inactive62", "inactive63" };
  
   int i;
-  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+  for (i = VG_OBJECT_PRIORITY_MIN; i <= VG_OBJECT_PRIORITY_MAX; i ++)
     {
       activity_list_init (&activity->frames[i].active,
-			  &names[i - OBJECT_PRIORITY_MIN][2]);
+			  &names[i - VG_OBJECT_PRIORITY_MIN][2]);
       activity_list_init (&activity->frames[i].inactive,
-			  names[i - OBJECT_PRIORITY_MIN]);
+			  names[i - VG_OBJECT_PRIORITY_MIN]);
     }
   eviction_list_init (&activity->eviction_clean, "evict clean");
   eviction_list_init (&activity->eviction_dirty, "evict dirty");
@@ -363,7 +363,7 @@ activity_deprepare (struct activity *principal, struct activity *victim)
      paged out.  */
   assert (! activity_children_list_head (&victim->children));
   int i;
-  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+  for (i = VG_OBJECT_PRIORITY_MIN; i <= VG_OBJECT_PRIORITY_MAX; i ++)
     {
       assert (! activity_list_count (&victim->frames[i].active));
       assert (! activity_list_count (&victim->frames[i].inactive));
@@ -441,7 +441,7 @@ do_activity_dump (struct activity *activity, int indent)
   int inactive = 0;
 
   int i;
-  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+  for (i = VG_OBJECT_PRIORITY_MIN; i <= VG_OBJECT_PRIORITY_MAX; i ++)
     {
       active += activity_list_count (&activity->frames[i].active);
       inactive += activity_list_count (&activity->frames[i].inactive);

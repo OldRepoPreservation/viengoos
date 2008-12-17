@@ -228,9 +228,9 @@ extern struct map *map_split (struct map *map, uintptr_t offset);
    This function takes and releases MAP->PAGER->LOCK.  */
 extern bool map_join (struct map *first, struct map *second);
 
-/* Raise a fault at address ADDR.  Returns true if the fault was
+/* Raise a fault at address VG_ADDR.  Returns true if the fault was
    handled, false otherwise.  */
-extern bool map_fault (addr_t addr,
-		       uintptr_t ip, struct activation_fault_info info);
+extern bool map_fault (vg_addr_t addr,
+		       uintptr_t ip, struct vg_activation_fault_info info);
 
 #endif

@@ -47,12 +47,12 @@ slab_alloc (void *hook, size_t size, void **ptr)
       return 0;
     }
 
-  struct storage storage = storage_alloc (meta_data_activity, cap_page,
+  struct storage storage = storage_alloc (meta_data_activity, vg_cap_page,
 					  STORAGE_LONG_LIVED,
-					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
-  if (ADDR_IS_VOID (storage.addr))
+					  VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+  if (VG_ADDR_IS_VOID (storage.addr))
     panic ("Out of space.");
-  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+  *ptr = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -62,7 +62,7 @@ slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
-  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;
@@ -91,10 +91,10 @@ slab_destructor (void *hook, void *object)
     }
 
   storage_free (mb->sender, false);
-  storage_free (addr_chop (PTR_TO_ADDR (mb->request), PAGESIZE_LOG2),
+  storage_free (vg_addr_chop (VG_PTR_TO_ADDR (mb->request), PAGESIZE_LOG2),
 		false);
   storage_free (mb->receiver, false);
-  storage_free (addr_chop (PTR_TO_ADDR (mb->reply), PAGESIZE_LOG2),
+  storage_free (vg_addr_chop (VG_PTR_TO_ADDR (mb->reply), PAGESIZE_LOG2),
 		false);
 }
 
@@ -129,10 +129,10 @@ hurd_message_buffer_alloc_hard (void)
     mb->sender = __hurd_startup_data->messengers[initial_messenger ++];
   else
     {
-      storage = storage_alloc (meta_data_activity, cap_messenger,
+      storage = storage_alloc (meta_data_activity, vg_cap_messenger,
 			       STORAGE_LONG_LIVED,
-			       OBJECT_POLICY_DEFAULT, ADDR_VOID);
-      if (ADDR_IS_VOID (storage.addr))
+			       VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+      if (VG_ADDR_IS_VOID (storage.addr))
 	panic ("Out of space.");
 
       mb->sender = storage.addr;
@@ -143,10 +143,10 @@ hurd_message_buffer_alloc_hard (void)
     mb->receiver_strong = __hurd_startup_data->messengers[initial_messenger ++];
   else
     {
-      storage = storage_alloc (meta_data_activity, cap_messenger,
+      storage = storage_alloc (meta_data_activity, vg_cap_messenger,
 			       STORAGE_LONG_LIVED,
-			       OBJECT_POLICY_DEFAULT, ADDR_VOID);
-      if (ADDR_IS_VOID (storage.addr))
+			       VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+      if (VG_ADDR_IS_VOID (storage.addr))
 	panic ("Out of space.");
 
       mb->receiver_strong = storage.addr;
@@ -155,17 +155,17 @@ hurd_message_buffer_alloc_hard (void)
   /* Weaken it.  */
 #if 0
   mb->receiver = capalloc ();
-  struct cap receiver_cap = as_cap_lookup (mb->receiver_strong, cap_messenger,
+  struct vg_cap receiver_cap = as_cap_lookup (mb->receiver_strong, vg_cap_messenger,
 					   NULL);
-  assert (receiver_cap.type == cap_messenger);
+  assert (receiver_cap.type == vg_cap_messenger);
   as_slot_lookup_use
     (mb->receiver,
      ({
-       bool ret = cap_copy_x (ADDR_VOID,
-			      ADDR_VOID, slot, mb->receiver,
-			      ADDR_VOID, receiver_cap, mb->receiver_strong,
-			      CAP_COPY_WEAKEN,
-			      CAP_PROPERTIES_VOID);
+       bool ret = vg_cap_copy_x (VG_ADDR_VOID,
+			      VG_ADDR_VOID, slot, mb->receiver,
+			      VG_ADDR_VOID, receiver_cap, mb->receiver_strong,
+			      VG_CAP_COPY_WEAKEN,
+			      VG_CAP_PROPERTIES_VOID);
        assert (ret);
      }));
 #endif
@@ -176,13 +176,13 @@ hurd_message_buffer_alloc_hard (void)
     mb->request = (void *) &initial_pages[initial_page ++][0];
   else
     {
-      storage = storage_alloc (meta_data_activity, cap_page,
+      storage = storage_alloc (meta_data_activity, vg_cap_page,
 			       STORAGE_LONG_LIVED,
-			       OBJECT_POLICY_DEFAULT, ADDR_VOID);
-      if (ADDR_IS_VOID (storage.addr))
+			       VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+      if (VG_ADDR_IS_VOID (storage.addr))
 	panic ("Out of space.");
 
-      mb->request = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+      mb->request = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
     }
 
   /* And the receive buffer.  */
@@ -190,13 +190,13 @@ hurd_message_buffer_alloc_hard (void)
     mb->reply = (void *) &initial_pages[initial_page ++][0];
   else
     {
-      storage = storage_alloc (meta_data_activity, cap_page,
+      storage = storage_alloc (meta_data_activity, vg_cap_page,
 			       STORAGE_LONG_LIVED,
-			       OBJECT_POLICY_DEFAULT, ADDR_VOID);
-      if (ADDR_IS_VOID (storage.addr))
+			       VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+      if (VG_ADDR_IS_VOID (storage.addr))
 	panic ("Out of space.");
 
-      mb->reply = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+      mb->reply = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
     }
 
 
@@ -213,11 +213,11 @@ hurd_message_buffer_alloc_hard (void)
   err = vg_ipc_full (VG_IPC_RECEIVE | VG_IPC_SEND | VG_IPC_RECEIVE_ACTIVATE
 		     | VG_IPC_RECEIVE_SET_THREAD_TO_CALLER
 		     | VG_IPC_SEND_SET_THREAD_TO_CALLER,
-		     ADDR_VOID, mb->receiver, PTR_TO_PAGE (mb->reply),
-		     ADDR_VOID,
-		     ADDR_VOID, mb->receiver,
-		     mb->sender, PTR_TO_PAGE (mb->request),
-		     0, 0, ADDR_VOID);
+		     VG_ADDR_VOID, mb->receiver, VG_PTR_TO_PAGE (mb->reply),
+		     VG_ADDR_VOID,
+		     VG_ADDR_VOID, mb->receiver,
+		     mb->sender, VG_PTR_TO_PAGE (mb->request),
+		     0, 0, VG_ADDR_VOID);
   if (err)
     panic ("Failed to set receiver's id");
 
@@ -227,11 +227,11 @@ hurd_message_buffer_alloc_hard (void)
 
   hurd_activation_message_register (mb);
   err = vg_ipc_full (VG_IPC_RECEIVE | VG_IPC_SEND | VG_IPC_RECEIVE_ACTIVATE,
-		     ADDR_VOID, mb->receiver, PTR_TO_PAGE (mb->reply),
-		     ADDR_VOID,
-		     ADDR_VOID, mb->sender,
-		     mb->sender, PTR_TO_PAGE (mb->request),
-		     0, 0, ADDR_VOID);
+		     VG_ADDR_VOID, mb->receiver, VG_PTR_TO_PAGE (mb->reply),
+		     VG_ADDR_VOID,
+		     VG_ADDR_VOID, mb->sender,
+		     mb->sender, VG_PTR_TO_PAGE (mb->request),
+		     0, 0, VG_ADDR_VOID);
   if (err)
     panic ("Failed to set sender's id");
   

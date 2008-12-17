@@ -94,8 +94,8 @@ static int iter;
 #include <hurd/anonymous.h>
 #include <string.h>
 
-addr_t gc_activity;
-addr_t hog_activity;
+vg_addr_t gc_activity;
+vg_addr_t hog_activity;
 
 bool have_a_hog = false;
 
@@ -176,7 +176,7 @@ helper (void *arg)
 	{
 	  pagers[c]
 	    = anonymous_pager_alloc (hog_activity, NULL, s, MAP_ACCESS_ALL,
-				     OBJECT_POLICY (false, OBJECT_PRIORITY_DEFAULT), 0,
+				     VG_OBJECT_POLICY (false, VG_OBJECT_PRIORITY_DEFAULT), 0,
 				     NULL, &buffers[c]);
 	  assert (pagers[c]);
 	  assert (buffers[c]);
@@ -238,24 +238,24 @@ helper_fork (void)
   int err;
 
 #ifdef __gnu_hurd_viengoos__
-  gc_activity = storage_alloc (ADDR_VOID,
-			       cap_activity_control, STORAGE_LONG_LIVED,
-			       OBJECT_POLICY_DEFAULT, ADDR_VOID).addr;
-  if (ADDR_IS_VOID (gc_activity))
+  gc_activity = storage_alloc (VG_ADDR_VOID,
+			       vg_cap_activity_control, STORAGE_LONG_LIVED,
+			       VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID).addr;
+  if (VG_ADDR_IS_VOID (gc_activity))
     panic ("Failed to allocate main activity");
 
   struct object_name name;
   snprintf (&name.name[0], sizeof (name.name), "gc.%x", l4_myself ());
-  rm_object_name (ADDR_VOID, gc_activity, name);
+  rm_object_name (VG_ADDR_VOID, gc_activity, name);
 
-  hog_activity = storage_alloc (ADDR_VOID,
-				cap_activity_control, STORAGE_LONG_LIVED,
-				OBJECT_POLICY_DEFAULT, ADDR_VOID).addr;
-  if (ADDR_IS_VOID (hog_activity))
+  hog_activity = storage_alloc (VG_ADDR_VOID,
+				vg_cap_activity_control, STORAGE_LONG_LIVED,
+				VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID).addr;
+  if (VG_ADDR_IS_VOID (hog_activity))
     panic ("Failed to allocate hog activity");
 
   snprintf (&name.name[0], sizeof (name.name), "hog.%x", l4_myself ());
-  rm_object_name (ADDR_VOID, hog_activity, name);
+  rm_object_name (VG_ADDR_VOID, hog_activity, name);
 
   /* We give the main thread and the hog the same priority and
      weight.  */  
@@ -267,16 +267,16 @@ helper_fork (void)
   in.child_rel.priority = 2;
   in.child_rel.weight = 20;
 
-  err = rm_activity_policy (ADDR_VOID,
-			    ACTIVITY_POLICY_CHILD_REL_SET, in, &out);
+  err = rm_activity_policy (VG_ADDR_VOID,
+			    VG_ACTIVITY_POLICY_CHILD_REL_SET, in, &out);
   assert (err == 0);
 
   err = rm_activity_policy (hog_activity,
-			    ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
+			    VG_ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
   assert (err == 0);
 
   err = rm_activity_policy (gc_activity,
-			    ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
+			    VG_ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
   assert (err == 0);
 
 

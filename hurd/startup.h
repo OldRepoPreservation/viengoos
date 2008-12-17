@@ -39,13 +39,13 @@
 struct hurd_object_desc
 {
   /* The object.  */
-  addr_t object;
+  vg_addr_t object;
 
   /* If the object is not a folio, then:  */
 
-  /* The location of the storage.  (addr_chop (STORAGE,
-     FOLIO_OBJECTS_LOG2) => the folio.)  */
-  addr_t storage;
+  /* The location of the storage.  (vg_addr_chop (STORAGE,
+     VG_FOLIO_OBJECTS_LOG2) => the folio.)  */
+  vg_addr_t storage;
 
   /* The type of the object (for convenience).  */
   unsigned char type;
@@ -83,16 +83,16 @@ struct hurd_startup_data
 
   /* Slot in which a capability designating the task's primary
      activity is stored.  */
-  addr_t activity;
+  vg_addr_t activity;
 
   /* Slot in which a capability designating the task's first thread is
      stored.  */
-  addr_t thread;
+  vg_addr_t thread;
 
   /* To allow a task to boot strap itself, it needs a couple of
      messengers (one to send and another to receive).  Here they
      are.  */
-  addr_t messengers[2];
+  vg_addr_t messengers[2];
 
   struct hurd_object_desc *descs;
   int desc_count;

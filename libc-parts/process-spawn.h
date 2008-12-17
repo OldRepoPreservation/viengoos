@@ -25,8 +25,8 @@
    slot is allocated with capalloc.  If MAKE_RUNNABLE is true, makes
    the process' thread runnable.  Otherwise, the thread remains
    suspended and may be started with thread_start.  */
-extern thread_t process_spawn (addr_t activity,
-			       void *start, void *end,
-			       const char *const argv[],
-			       const char *const env[],
-			       bool make_runnable);
+extern vg_thread_t process_spawn (vg_addr_t activity,
+				  void *start, void *end,
+				  const char *const argv[],
+				  const char *const env[],
+				  bool make_runnable);

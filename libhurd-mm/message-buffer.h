@@ -38,13 +38,13 @@ struct hurd_message_buffer
 
   /* A messenger associated REQUEST.  The messenger's identifier is
      set to the data structure's address.  */
-  addr_t sender;
+  vg_addr_t sender;
   struct vg_message *request;
   /* A messenger associated with REPLY.  The messenger's identifier is
      set to the data structure's address.  */
-  addr_t receiver_strong;
+  vg_addr_t receiver_strong;
   /* A weakened version.  */
-  addr_t receiver;
+  vg_addr_t receiver;
   struct vg_message *reply;
 
   /* If not NULL, then this routine is called.  */

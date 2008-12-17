@@ -42,16 +42,16 @@ enum storage_expectancy
 
 struct storage
 {
-  struct cap *cap;
-  addr_t addr;
+  struct vg_cap *cap;
+  vg_addr_t addr;
 };
 
 /* Allocate an object of type TYPE.  The object has a life expectancy
-   of EXPECTANCY.  If ADDR is not ADDR_VOID, a capability to the
+   of EXPECTANCY.  If ADDR is not VG_ADDR_VOID, a capability to the
    storage will be saved at ADDR (and the shadow object updated
    appropriately).  On success, the shadow capability slot for the
    storage is returned (useful for setting up a shadow object) and the
-   address of the storage object.  Otherwise, NULL and ADDR_VOID,
+   address of the storage object.  Otherwise, NULL and VG_ADDR_VOID,
    respectively, are returned.  ACTIVITY is the activity to use to
    account the storage.
 
@@ -61,11 +61,11 @@ struct storage
    caller wants to use the allocated object for address translation,
    the caller must allocate the shadow object.  If not, functions
    including the cap_lookup family will fail.  */
-extern struct storage storage_alloc (addr_t activity,
-				     enum cap_type type,
+extern struct storage storage_alloc (vg_addr_t activity,
+				     enum vg_cap_type type,
 				     enum storage_expectancy expectancy,
 				     struct object_policy policy,
-				     addr_t addr);
+				     vg_addr_t addr);
 #define storage_alloc(__sa_activity, __sa_type, __sa_expectancy,	\
 		      __sa_policy, __sa_addr)				\
   ({									\
@@ -73,9 +73,9 @@ extern struct storage storage_alloc (addr_t activity,
     __sa_storage = storage_alloc (__sa_activity, __sa_type,		\
 				  __sa_expectancy, __sa_policy,		\
 				  __sa_addr);				\
-    debug (5, "storage_alloc (%s, " ADDR_FMT ") -> " ADDR_FMT,		\
-	   cap_type_string (__sa_type), ADDR_PRINTF (__sa_addr),	\
-	   ADDR_PRINTF (__sa_storage.addr));				\
+    debug (5, "storage_alloc (%s, " VG_ADDR_FMT ") -> " VG_ADDR_FMT,		\
+	   vg_cap_type_string (__sa_type), VG_ADDR_PRINTF (__sa_addr),	\
+	   VG_ADDR_PRINTF (__sa_storage.addr));				\
     __sa_storage;							\
   })
 
@@ -83,10 +83,10 @@ extern struct storage storage_alloc (addr_t activity,
 /* Frees the storage at STORAGE.  STORAGE must be the address returned
    by storage_alloc (NOT the address provided to storage_alloc).  If
    UNMAP_NOW is not true, revoking the storage may be delayed.  */
-extern void storage_free_ (addr_t storage, bool unmap_now);
+extern void storage_free_ (vg_addr_t storage, bool unmap_now);
 #define storage_free(__sf_storage, __sf_unmap_now)			\
   ({									\
-    debug (5, "storage_free (" ADDR_FMT ")", ADDR_PRINTF (__sf_storage)); \
+    debug (5, "storage_free (" VG_ADDR_FMT ")", VG_ADDR_PRINTF (__sf_storage)); \
     storage_free_ (__sf_storage, __sf_unmap_now);			\
   })
 
@@ -94,7 +94,7 @@ extern void storage_free_ (addr_t storage, bool unmap_now);
 extern void storage_init (void);
 
 /* Used by as_init to initialize a folio's shadow object.  */
-extern void storage_shadow_setup (struct cap *cap, addr_t folio);
+extern void storage_shadow_setup (struct vg_cap *cap, vg_addr_t folio);
 
 /* Return whether there is sufficient reserve storage.  */
 extern bool storage_have_reserve (void);

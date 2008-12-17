@@ -30,41 +30,41 @@ int output_debug = 0;
 int
 main (int argc, char *argv[])
 {
-  addr_t addr;
+  vg_addr_t addr;
   int i, j;
 
-  printf ("Checking ADDR... ");
-  for (i = 0; i < ADDR_BITS; i ++)
+  printf ("Checking VG_ADDR... ");
+  for (i = 0; i < VG_ADDR_BITS; i ++)
     {
-      addr = ADDR (1ULL << i, ADDR_BITS - i);
+      addr = VG_ADDR (1ULL << i, VG_ADDR_BITS - i);
       debug (1, "%llx/%d =? %llx/%d\n",
-	     1ULL << i, ADDR_BITS - i,
-	     addr_prefix (addr), addr_depth (addr));
-      assert (addr_depth (addr) == ADDR_BITS - i);
-      assert (addr_prefix (addr) == 1ull << i);
+	     1ULL << i, VG_ADDR_BITS - i,
+	     vg_addr_prefix (addr), vg_addr_depth (addr));
+      assert (vg_addr_depth (addr) == VG_ADDR_BITS - i);
+      assert (vg_addr_prefix (addr) == 1ull << i);
     }
   printf ("ok.\n");
 
-  printf ("Checking addr_extend... ");
-  addr = ADDR (0, 0);
-  for (i = 1; i < ADDR_BITS; i ++)
+  printf ("Checking vg_addr_extend... ");
+  addr = VG_ADDR (0, 0);
+  for (i = 1; i < VG_ADDR_BITS; i ++)
     {
-      addr = addr_extend (addr, 1, 1);
-      assert (addr_depth (addr) == i);
-      assert (vg_msb64 (addr_prefix (addr)) == ADDR_BITS);
-      assert (vg_lsb64 (addr_prefix (addr)) == ADDR_BITS - i + 1);
+      addr = vg_addr_extend (addr, 1, 1);
+      assert (vg_addr_depth (addr) == i);
+      assert (vg_msb64 (vg_addr_prefix (addr)) == VG_ADDR_BITS);
+      assert (vg_lsb64 (vg_addr_prefix (addr)) == VG_ADDR_BITS - i + 1);
     }
   printf ("ok.\n");
 
-  printf ("Checking addr_extract... ");
-  addr = ADDR (0, 0);
-  for (i = 0; i < ADDR_BITS; i ++)
+  printf ("Checking vg_addr_extract... ");
+  addr = VG_ADDR (0, 0);
+  for (i = 0; i < VG_ADDR_BITS; i ++)
     {
-      addr = ADDR (((1ULL << i) - 1) << (ADDR_BITS - i), i);
+      addr = VG_ADDR (((1ULL << i) - 1) << (VG_ADDR_BITS - i), i);
 
       for (j = 0; j <= i; j ++)
 	{
-	  l4_uint64_t idx = addr_extract (addr, j);
+	  l4_uint64_t idx = vg_addr_extract (addr, j);
 	  assert (idx == (1ULL << j) - 1);
 	}
     }

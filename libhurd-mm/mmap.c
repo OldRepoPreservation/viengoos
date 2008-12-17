@@ -77,8 +77,8 @@ mmap (void *addr, size_t length, int protect, int flags,
     debug (5, "Trying to allocate memory %p-%p", addr, addr + length);
 
   struct anonymous_pager *pager;
-  pager = anonymous_pager_alloc (ADDR_VOID, addr, length, access,
-				 OBJECT_POLICY_DEFAULT,
+  pager = anonymous_pager_alloc (VG_ADDR_VOID, addr, length, access,
+				 VG_OBJECT_POLICY_DEFAULT,
 				 (flags & MAP_FIXED) ? ANONYMOUS_FIXED: 0,
 				 NULL, &addr);
   if (! pager)

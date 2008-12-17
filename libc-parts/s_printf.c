@@ -40,7 +40,7 @@ io_buffer_flush (struct io_buffer *buffer)
   if (buffer->len == 0)
     return;
 
-  // rm_write_send_nonblocking (ADDR_VOID, ADDR_VOID, *buffer, ADDR_VOID);
+  // rm_write_send_nonblocking (VG_ADDR_VOID, VG_ADDR_VOID, *buffer, VG_ADDR_VOID);
   l4_msg_tag_t tag = l4_niltag;
   l4_msg_tag_set_label (&tag, 2132);
 

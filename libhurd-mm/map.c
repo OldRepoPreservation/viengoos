@@ -35,12 +35,12 @@
 static error_t
 slab_alloc (void *hook, size_t size, void **ptr)
 {
-  struct storage storage = storage_alloc (meta_data_activity, cap_page,
+  struct storage storage = storage_alloc (meta_data_activity, vg_cap_page,
 					  STORAGE_LONG_LIVED,
-					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
-  if (ADDR_IS_VOID (storage.addr))
+					  VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+  if (VG_ADDR_IS_VOID (storage.addr))
     panic ("Out of space.");
-  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+  *ptr = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -50,7 +50,7 @@ slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
-  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;
@@ -314,15 +314,15 @@ map_join (struct map *first, struct map *second)
 }
 
 bool
-map_fault (addr_t fault_addr, uintptr_t ip, struct activation_fault_info info)
+map_fault (vg_addr_t fault_addr, uintptr_t ip, struct vg_activation_fault_info info)
 {
   /* Find the map.  */
   struct region region;
 
-  if (addr_depth (fault_addr) == ADDR_BITS - PAGESIZE_LOG2)
-    fault_addr = addr_extend (fault_addr, 0, PAGESIZE_LOG2);
+  if (vg_addr_depth (fault_addr) == VG_ADDR_BITS - PAGESIZE_LOG2)
+    fault_addr = vg_addr_extend (fault_addr, 0, PAGESIZE_LOG2);
 
-  region.start = (uintptr_t) ADDR_TO_PTR (fault_addr);
+  region.start = (uintptr_t) VG_ADDR_TO_PTR (fault_addr);
   region.length = 1;
 
   maps_lock_lock ();
@@ -332,9 +332,9 @@ map_fault (addr_t fault_addr, uintptr_t ip, struct activation_fault_info info)
     {
       do_debug (5)
 	{
-	  debug (0, "No map covers " ADDR_FMT "(" ACTIVATION_FAULT_INFO_FMT ")",
-		 ADDR_PRINTF (fault_addr),
-		 ACTIVATION_FAULT_INFO_PRINTF (info));
+	  debug (0, "No map covers " VG_ADDR_FMT "(" VG_ACTIVATION_FAULT_INFO_FMT ")",
+		 VG_ADDR_PRINTF (fault_addr),
+		 VG_ACTIVATION_FAULT_INFO_PRINTF (info));
 	  for (map = hurd_btree_map_first (&maps);
 	       map;
 	       map = hurd_btree_map_next (map))
@@ -349,9 +349,9 @@ map_fault (addr_t fault_addr, uintptr_t ip, struct activation_fault_info info)
   if (((info.access & L4_FPAGE_WRITABLE) && ! (map->access & MAP_ACCESS_WRITE))
       || ! map->access)
     {
-      debug (0, "Invalid %s access at " ADDR_FMT ": " MAP_FMT,
+      debug (0, "Invalid %s access at " VG_ADDR_FMT ": " MAP_FMT,
 	     info.access & L4_FPAGE_WRITABLE ? "write" : "read",
-	     ADDR_PRINTF (fault_addr), MAP_PRINTF (map));
+	     VG_ADDR_PRINTF (fault_addr), MAP_PRINTF (map));
 
       maps_lock_unlock ();
       return false;
@@ -365,10 +365,10 @@ map_fault (addr_t fault_addr, uintptr_t ip, struct activation_fault_info info)
 
   /* Propagate the fault.  */
   bool r = pager->fault (pager, offset, 1, ro,
-			 (uintptr_t) ADDR_TO_PTR (fault_addr), ip, info);
+			 (uintptr_t) VG_ADDR_TO_PTR (fault_addr), ip, info);
   if (! r)
-    debug (5, "Map did not resolve fault at " ADDR_FMT,
-	   ADDR_PRINTF (fault_addr));
+    debug (5, "Map did not resolve fault at " VG_ADDR_FMT,
+	   VG_ADDR_PRINTF (fault_addr));
 
   return r;
 }

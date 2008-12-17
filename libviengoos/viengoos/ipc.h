@@ -69,7 +69,7 @@ enum
     VG_IPC_SEND_INLINE = 1 << 12,
 
     /* Which inline data to transfer when sending a message.  Inline
-       data is ignored if the send buffer is not ADDR_VOID.  */
+       data is ignored if the send buffer is not VG_ADDR_VOID.  */
     VG_IPC_SEND_INLINE_WORD1 = 1 << 13,
     VG_IPC_SEND_INLINE_WORD2 = 1 << 14,
     VG_IPC_SEND_INLINE_CAP1 = 1 << 15,
@@ -92,7 +92,7 @@ enum
 
    If FLAGS contains VG_IPC_RECEIVE, the IPC includes a receive phase.
 
-   If RECV_BUF is not ADDR_VOID, associates RECV_BUF with
+   If RECV_BUF is not VG_ADDR_VOID, associates RECV_BUF with
    RECV_MESSENGER.
 
    If FLAGS contains VG_IPC_RECEIVE_NONBLOCKING:
@@ -115,10 +115,10 @@ enum
 
    If FLAGS contains VG_IPC_SEND, the IPC includes a send phase.
 
-   If SEND_MESSENGER is ADDR_VOID, an implicit messenger is allocated
+   If SEND_MESSENGER is VG_ADDR_VOID, an implicit messenger is allocated
    and VG_IPC_SEND_NONBLOCKING is assumed to be on.
 
-   If SEND_BUF is not ADDR_VOID, assocaiates SEND_BUF with
+   If SEND_BUF is not VG_ADDR_VOID, assocaiates SEND_BUF with
    SEND_MESSENGER.  Otherwise, associates inline data (INLINE_WORD1,
    INLINE_WORD2 and INLINE_CAP) according to the inline flags with
    SEND_MESSENGER.
@@ -148,12 +148,12 @@ enum
    calling thread is suspended until it is next activated.  */
 static inline error_t
 vg_ipc_full (uintptr_t flags,
-	     addr_t recv_activity, addr_t recv_messenger, addr_t recv_buf,
-	     addr_t recv_inline_cap,
-	     addr_t send_activity, addr_t target_messenger,
-	     addr_t send_messenger, addr_t send_buf,
+	     vg_addr_t recv_activity, vg_addr_t recv_messenger, vg_addr_t recv_buf,
+	     vg_addr_t recv_inline_cap,
+	     vg_addr_t send_activity, vg_addr_t target_messenger,
+	     vg_addr_t send_messenger, vg_addr_t send_buf,
 	     uintptr_t send_inline_word1, uintptr_t send_inline_word2,
-	     addr_t send_inline_cap)
+	     vg_addr_t send_inline_cap)
 {
   error_t err = 0;
 
@@ -165,10 +165,10 @@ vg_ipc_full (uintptr_t flags,
   l4_msg_clear (msg);
   l4_msg_set_msg_tag (msg, tag);
 
-  void msg_append_addr (addr_t addr)
+  void msg_append_addr (vg_addr_t addr)
   {
     int i;
-    for (i = 0; i < sizeof (addr_t) / sizeof (uintptr_t); i ++)
+    for (i = 0; i < sizeof (vg_addr_t) / sizeof (uintptr_t); i ++)
       l4_msg_append_word (msg, ((uintptr_t *) &addr)[i]);
   }
 
@@ -235,51 +235,51 @@ vg_ipc_full (uintptr_t flags,
 
 static inline error_t
 vg_ipc (uintptr_t flags,
-	addr_t recv_activity, addr_t recv_messenger, addr_t recv_buf,
-	addr_t send_activity, addr_t target_messenger,
-	addr_t send_messenger, addr_t send_buf)
+	vg_addr_t recv_activity, vg_addr_t recv_messenger, vg_addr_t recv_buf,
+	vg_addr_t send_activity, vg_addr_t target_messenger,
+	vg_addr_t send_messenger, vg_addr_t send_buf)
 {
   return vg_ipc_full (flags,
-		      recv_activity, recv_messenger, recv_buf, ADDR_VOID,
+		      recv_activity, recv_messenger, recv_buf, VG_ADDR_VOID,
 		      send_activity, target_messenger,
 		      send_messenger, send_buf,
-		      0, 0, ADDR_VOID);
+		      0, 0, VG_ADDR_VOID);
 }
 
 static inline error_t
 vg_ipc_short (uintptr_t flags,
-	      addr_t recv_activity, addr_t recv_messenger, addr_t recv_cap,
-	      addr_t send_activity, addr_t target_messenger,
-	      addr_t send_messenger,
+	      vg_addr_t recv_activity, vg_addr_t recv_messenger, vg_addr_t recv_cap,
+	      vg_addr_t send_activity, vg_addr_t target_messenger,
+	      vg_addr_t send_messenger,
 	      uintptr_t inline_word1, uintptr_t inline_word2,
-	      addr_t inline_cap)
+	      vg_addr_t inline_cap)
 {
   return vg_ipc_full (flags, 
-		      recv_activity, recv_messenger, ADDR_VOID, recv_cap,
+		      recv_activity, recv_messenger, VG_ADDR_VOID, recv_cap,
 		      send_activity, target_messenger,
-		      send_messenger, ADDR_VOID,
+		      send_messenger, VG_ADDR_VOID,
 		      inline_word1, inline_word2, inline_cap);
 }
 
 static inline error_t
-vg_send (uintptr_t flags, addr_t send_activity, addr_t target_messenger,
-	 addr_t send_messenger, addr_t send_buf)
+vg_send (uintptr_t flags, vg_addr_t send_activity, vg_addr_t target_messenger,
+	 vg_addr_t send_messenger, vg_addr_t send_buf)
 {
   return vg_ipc_full (flags | VG_IPC_SEND | VG_IPC_SEND_ACTIVATE,
-		      ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID,
+		      VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
 		      send_activity, target_messenger,
 		      send_messenger, send_buf,
-		      0, 0, ADDR_VOID);
+		      0, 0, VG_ADDR_VOID);
 }
 
 static inline error_t
-vg_reply (uintptr_t flags, addr_t send_activity, addr_t target_messenger,
-	  addr_t send_messenger, addr_t send_buf)
+vg_reply (uintptr_t flags, vg_addr_t send_activity, vg_addr_t target_messenger,
+	  vg_addr_t send_messenger, vg_addr_t send_buf)
 {
   return vg_ipc_full (flags | VG_IPC_SEND | VG_IPC_SEND_NONBLOCKING,
-		      ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID,
+		      VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
 		      send_activity, target_messenger, send_messenger, send_buf,
-		      0, 0, ADDR_VOID);
+		      0, 0, VG_ADDR_VOID);
 }
 
 /* Suspend the caller until the next activation.  */
@@ -287,9 +287,9 @@ static inline error_t
 vg_suspend (void)
 {
   return vg_ipc_full (0,
-		      ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID,
-		      ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID,
-		      0, 0, ADDR_VOID);
+		      VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
+		      VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
+		      0, 0, VG_ADDR_VOID);
 }
 
 #endif

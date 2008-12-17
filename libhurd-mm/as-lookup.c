@@ -57,14 +57,14 @@
 
 static bool
 as_lookup_rel_internal (activity_t activity,
-			struct cap *root, addr_t address,
-			enum cap_type type, bool *writable,
+			struct vg_cap *root, vg_addr_t address,
+			enum vg_cap_type type, bool *writable,
 			enum as_lookup_mode mode, union as_lookup_ret *rt,
 			bool dump)
 {
   assert (root);
 
-  struct cap *start = root;
+  struct vg_cap *start = root;
 
 #ifndef NDEBUG
   bool dump_path = dump;
@@ -74,49 +74,49 @@ as_lookup_rel_internal (activity_t activity,
 #endif
   root = start;
 
-  uint64_t addr = addr_prefix (address);
-  uintptr_t remaining = addr_depth (address);
+  uint64_t addr = vg_addr_prefix (address);
+  uintptr_t remaining = vg_addr_depth (address);
   /* The code below assumes that the REMAINING significant bits are in the
      lower bits, not upper.  */
-  addr >>= (ADDR_BITS - remaining);
+  addr >>= (VG_ADDR_BITS - remaining);
 
-  struct cap fake_slot;
+  struct vg_cap fake_slot;
 
   /* Assume the object is writable until proven otherwise.  */
   int w = true;
 
   if (dump_path)
-    debug (0, "Looking up %s at " ADDR_FMT,
-	   mode == as_lookup_want_cap ? "cap"
+    debug (0, "Looking up %s at " VG_ADDR_FMT,
+	   mode == as_lookup_want_cap ? "vg_cap"
 	   : (mode == as_lookup_want_slot ? "slot" : "object"),
-	   ADDR_PRINTF (address));
+	   VG_ADDR_PRINTF (address));
 
   while (remaining > 0)
     {
       if (dump_path)
-	debug (0, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%d)",
-	       ADDR_PRINTF (addr_chop (address, remaining)),
-	       CAP_PRINTF (root),
-	       ADDR_PRINTF (addr_chop (address,
-				       remaining - CAP_GUARD_BITS (root))),
+	debug (0, "Cap at " VG_ADDR_FMT ": " VG_CAP_FMT " -> " VG_ADDR_FMT " (%d)",
+	       VG_ADDR_PRINTF (vg_addr_chop (address, remaining)),
+	       VG_CAP_PRINTF (root),
+	       VG_ADDR_PRINTF (vg_addr_chop (address,
+				       remaining - VG_CAP_GUARD_BITS (root))),
 	       remaining);
 
-      assertx (CAP_TYPE_MIN <= root->type && root->type <= CAP_TYPE_MAX,
-	       "Cap at " ADDR_FMT " has type %d?! (" ADDR_FMT ")",
-	       ADDR_PRINTF (addr_chop (address, remaining)), root->type,
-	       ADDR_PRINTF (address));
+      assertx (VG_CAP_TYPE_MIN <= root->type && root->type <= VG_CAP_TYPE_MAX,
+	       "Cap at " VG_ADDR_FMT " has type %d?! (" VG_ADDR_FMT ")",
+	       VG_ADDR_PRINTF (vg_addr_chop (address, remaining)), root->type,
+	       VG_ADDR_PRINTF (address));
 
-      if (root->type == cap_rcappage)
+      if (root->type == vg_cap_rcappage)
 	/* The page directory is read-only.  Note the weakened access
 	   appropriately.  */
 	{
-	  if (type != -1 && ! cap_type_weak_p (type))
+	  if (type != -1 && ! vg_cap_type_weak_p (type))
 	    {
 	      debug (1, "Read-only cappage at %llx/%d but %s requires "
 		     "write access",
-		     addr_prefix (addr_chop (address, remaining)),
-		     addr_depth (address) - remaining,
-		     cap_type_string (type));
+		     vg_addr_prefix (vg_addr_chop (address, remaining)),
+		     vg_addr_depth (address) - remaining,
+		     vg_cap_type_string (type));
 		     
 	      /* Translating this capability does not provide write
 		 access.  The requested type is strong, bail.  */
@@ -126,29 +126,29 @@ as_lookup_rel_internal (activity_t activity,
 	  w = false;
 	}
 
-      if (CAP_GUARD_BITS (root))
-	/* Check that ADDR contains the guard.  */
+      if (VG_CAP_GUARD_BITS (root))
+	/* Check that VG_ADDR contains the guard.  */
 	{
-	  int gdepth = CAP_GUARD_BITS (root);
+	  int gdepth = VG_CAP_GUARD_BITS (root);
 
 	  if (gdepth > remaining)
 	    {
 	      debug (1, "Translating %llx/%d; not enough bits (%d) to "
 		     "translate %d-bit guard at /%d",
-		     addr_prefix (address), addr_depth (address),
-		     remaining, gdepth, ADDR_BITS - remaining);
+		     vg_addr_prefix (address), vg_addr_depth (address),
+		     remaining, gdepth, VG_ADDR_BITS - remaining);
 
 	      DUMP_OR_RET (false);
 	    }
 
 	  int guard = extract_bits64_inv (addr, remaining - 1, gdepth);
-	  if (CAP_GUARD (root) != guard)
+	  if (VG_CAP_GUARD (root) != guard)
 	    {
 	      debug (dump_path ? 0 : 5,
-		     "Translating " ADDR_FMT ": guard 0x%llx/%d does "
+		     "Translating " VG_ADDR_FMT ": guard 0x%llx/%d does "
 		     "not match 0x%llx's bits %d-%d => 0x%x",
-		     ADDR_PRINTF (address),
-		     CAP_GUARD (root), CAP_GUARD_BITS (root), addr,
+		     VG_ADDR_PRINTF (address),
+		     VG_CAP_GUARD (root), VG_CAP_GUARD_BITS (root), addr,
 		     remaining - gdepth, remaining - 1, guard);
 	      return false;
 	    }
@@ -169,34 +169,34 @@ as_lookup_rel_internal (activity_t activity,
 
       switch (root->type)
 	{
-	case cap_cappage:
-	case cap_rcappage:
+	case vg_cap_cappage:
+	case vg_cap_rcappage:
 	  {
 	    /* Index the page table.  */
-	    int bits = CAP_SUBPAGE_SIZE_LOG2 (root);
+	    int bits = VG_CAP_SUBPAGE_SIZE_LOG2 (root);
 	    if (remaining < bits)
 	      {
-		debug (1, "Translating " ADDR_FMT "; not enough bits (%d) "
-		       "to index %d-bit cappage at " ADDR_FMT,
-		       ADDR_PRINTF (address), remaining, bits,
-		       ADDR_PRINTF (addr_chop (address, remaining)));
+		debug (1, "Translating " VG_ADDR_FMT "; not enough bits (%d) "
+		       "to index %d-bit cappage at " VG_ADDR_FMT,
+		       VG_ADDR_PRINTF (address), remaining, bits,
+		       VG_ADDR_PRINTF (vg_addr_chop (address, remaining)));
 		DUMP_OR_RET (false);
 	      }
 
-	    struct object *object = cap_to_object (activity, root);
+	    struct object *object = vg_cap_to_object (activity, root);
 	    if (! object)
 	      {
 #ifdef RM_INTERN
-		debug (1, "Failed to get object with OID " OID_FMT,
-		       OID_PRINTF (root->oid));
+		debug (1, "Failed to get object with OID " VG_OID_FMT,
+		       VG_OID_PRINTF (root->oid));
 		DUMP_OR_RET (false);
 #endif
 		return false;
 	      }
 
-	    int offset = CAP_SUBPAGE_OFFSET (root)
+	    int offset = VG_CAP_SUBPAGE_OFFSET (root)
 	      + extract_bits64_inv (addr, remaining - 1, bits);
-	    assert (0 <= offset && offset < CAPPAGE_SLOTS);
+	    assert (0 <= offset && offset < VG_CAPPAGE_SLOTS);
 	    remaining -= bits;
 
 	    if (dump_path)
@@ -207,77 +207,77 @@ as_lookup_rel_internal (activity_t activity,
 	    break;
 	  }
 
-	case cap_folio:
-	  if (remaining < FOLIO_OBJECTS_LOG2)
+	case vg_cap_folio:
+	  if (remaining < VG_FOLIO_OBJECTS_LOG2)
 	    {
-	      debug (1, "Translating " ADDR_FMT "; not enough bits (%d) "
-		     "to index folio at " ADDR_FMT,
-		     ADDR_PRINTF (address), remaining,
-		     ADDR_PRINTF (addr_chop (address, remaining)));
+	      debug (1, "Translating " VG_ADDR_FMT "; not enough bits (%d) "
+		     "to index folio at " VG_ADDR_FMT,
+		     VG_ADDR_PRINTF (address), remaining,
+		     VG_ADDR_PRINTF (vg_addr_chop (address, remaining)));
 	      DUMP_OR_RET (false);
 	    }
 
-	  struct object *object = cap_to_object (activity, root);
+	  struct object *object = vg_cap_to_object (activity, root);
 	  if (! object)
 	      {
 #ifdef RM_INTERN
-		debug (1, "Failed to get object with OID " OID_FMT,
-		       OID_PRINTF (root->oid));
+		debug (1, "Failed to get object with OID " VG_OID_FMT,
+		       VG_OID_PRINTF (root->oid));
 #endif
 		DUMP_OR_RET (false);
 	      }
 
 	  struct folio *folio = (struct folio *) object;
 
-	  int i = extract_bits64_inv (addr, remaining - 1, FOLIO_OBJECTS_LOG2);
+	  int i = extract_bits64_inv (addr, remaining - 1, VG_FOLIO_OBJECTS_LOG2);
 #ifdef RM_INTERN
 	  root = &fake_slot;
-	  *root = folio_object_cap (folio, i);
+	  *root = vg_folio_object_cap (folio, i);
 #else
 	  root = &folio->objects[i];
 #endif
 
-	  remaining -= FOLIO_OBJECTS_LOG2;
+	  remaining -= VG_FOLIO_OBJECTS_LOG2;
 
 	  if (dump_path)
 	    debug (0, "Indexing folio: %d/%d (%d)",
-		   i, FOLIO_OBJECTS_LOG2, remaining);
+		   i, VG_FOLIO_OBJECTS_LOG2, remaining);
 
 	  break;
 
-	case cap_thread:
-	case cap_messenger:
+	case vg_cap_thread:
+	case vg_cap_messenger:
 	  /* Note: rmessengers don't expose their capability slots.  */
 	  {
 	    /* Index the object.  */
 	    int bits;
 	    switch (root->type)
 	      {
-	      case cap_thread:
-		bits = THREAD_SLOTS_LOG2;
+	      case vg_cap_thread:
+		bits = VG_THREAD_SLOTS_LOG2;
 		break;
 
-	      case cap_messenger:
+	      case vg_cap_messenger:
 		bits = VG_MESSENGER_SLOTS_LOG2;
 		break;
 	      }
 
 	    if (remaining < bits)
 	      {
-		debug (1, "Translating " ADDR_FMT "; not enough bits (%d) "
-		       "to index %d-bit %s at " ADDR_FMT,
-		       ADDR_PRINTF (address), remaining, bits,
-		       cap_type_string (root->type),
-		       ADDR_PRINTF (addr_chop (address, remaining)));
+		debug (1, "Translating " VG_ADDR_FMT "; not enough bits (%d) "
+		       "to index %d-bit %s at " VG_ADDR_FMT,
+		       VG_ADDR_PRINTF (address), remaining, bits,
+		       vg_cap_type_string (root->type),
+		       VG_ADDR_PRINTF (vg_addr_chop (address, remaining)));
 		DUMP_OR_RET (false);
 	      }
 
-	    struct object *object = cap_to_object (activity, root);
+	    struct object *object = vg_cap_to_object (activity, root);
 	    if (! object)
 	      {
 #ifdef RM_INTERN
-		debug (1, "Failed to get object with OID " OID_FMT,
-		       OID_PRINTF (root->oid));
+		debug (1, "Failed to get object with OID " VG_OID_FMT,
+		       VG_OID_PRINTF (root->oid));
 		DUMP_OR_RET (false);
 #endif
 		return false;
@@ -292,7 +292,7 @@ as_lookup_rel_internal (activity_t activity,
 
 	    if (dump_path)
 	      debug (0, "Indexing %s: %d/%d (%d)",
-		     cap_type_string (root->type), offset, bits, remaining);
+		     vg_cap_type_string (root->type), offset, bits, remaining);
 
 	    root = &object->caps[offset];
 	    break;
@@ -306,11 +306,11 @@ as_lookup_rel_internal (activity_t activity,
 	  do_debug (4)
 	    as_dump_from (activity, start, NULL);
 	  debug (dump_path ? 0 : 5,
-		 "Translating " ADDR_FMT ", encountered a %s at "
-		 ADDR_FMT " but expected a cappage or a folio",
-		 ADDR_PRINTF (address),
-		 cap_type_string (root->type),
-		 ADDR_PRINTF (addr_chop (address, remaining)));
+		 "Translating " VG_ADDR_FMT ", encountered a %s at "
+		 VG_ADDR_FMT " but expected a cappage or a folio",
+		 VG_ADDR_PRINTF (address),
+		 vg_cap_type_string (root->type),
+		 VG_ADDR_PRINTF (vg_addr_chop (address, remaining)));
 	  return false;
 	}
 
@@ -318,16 +318,16 @@ as_lookup_rel_internal (activity_t activity,
 	/* We've indexed the object and have no bits remaining to
 	   translate.  */
 	{
-	  if (CAP_GUARD_BITS (root) && mode == as_lookup_want_object)
+	  if (VG_CAP_GUARD_BITS (root) && mode == as_lookup_want_object)
 	    /* The caller wants an object but we haven't translated
 	       the slot's guard.  */
 	    {
 	      debug (dump_path ? 0 : 4,
 		     "Found slot at %llx/%d but referenced object "
 		     "(%s) has an untranslated guard of %lld/%d!",
-		     addr_prefix (address), addr_depth (address),
-		     cap_type_string (root->type), CAP_GUARD (root),
-		     CAP_GUARD_BITS (root));
+		     vg_addr_prefix (address), vg_addr_depth (address),
+		     vg_cap_type_string (root->type), VG_CAP_GUARD (root),
+		     VG_CAP_GUARD_BITS (root));
 	      return false;
 	    }
 
@@ -337,17 +337,17 @@ as_lookup_rel_internal (activity_t activity,
   assert (remaining == 0);
 
   if (dump_path)
-    debug (0, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%d)",
-	   ADDR_PRINTF (addr_chop (address, remaining)),
-	   CAP_PRINTF (root),
-	   ADDR_PRINTF (addr_chop (address,
-				   remaining - CAP_GUARD_BITS (root))),
+    debug (0, "Cap at " VG_ADDR_FMT ": " VG_CAP_FMT " -> " VG_ADDR_FMT " (%d)",
+	   VG_ADDR_PRINTF (vg_addr_chop (address, remaining)),
+	   VG_CAP_PRINTF (root),
+	   VG_ADDR_PRINTF (vg_addr_chop (address,
+				   remaining - VG_CAP_GUARD_BITS (root))),
 	   remaining);
 
   if (type != -1 && type != root->type)
     /* Types don't match.  */
     {
-      if (cap_type_strengthen (type) == root->type)
+      if (vg_cap_type_strengthen (type) == root->type)
 	/* The capability just provides more strength than
 	   requested.  That's fine.  */
 	;
@@ -357,14 +357,14 @@ as_lookup_rel_internal (activity_t activity,
 	  do_debug (4)
 	    as_dump_from (activity, start, __func__);
 	  debug (dump_path ? 0 : 4,
-		 "cap at " ADDR_FMT " designates a %s but want a %s",
-		 ADDR_PRINTF (address), cap_type_string (root->type),
-		 cap_type_string (type));
+		 "vg_cap at " VG_ADDR_FMT " designates a %s but want a %s",
+		 VG_ADDR_PRINTF (address), vg_cap_type_string (root->type),
+		 vg_cap_type_string (type));
 	  return false;
 	}
     }
 
-  if (mode == as_lookup_want_object && cap_type_weak_p (root->type))
+  if (mode == as_lookup_want_object && vg_cap_type_weak_p (root->type))
     w = false;
 
   if (writable)
@@ -375,7 +375,7 @@ as_lookup_rel_internal (activity_t activity,
       if (root == &fake_slot)
 	{
 	  debug (1, "%llx/%d resolves to a folio object but want a slot",
-		 addr_prefix (address), addr_depth (address));
+		 vg_addr_prefix (address), vg_addr_depth (address));
 	  DUMP_OR_RET (false);
 	}
       rt->capp = root;
@@ -390,8 +390,8 @@ as_lookup_rel_internal (activity_t activity,
 
 bool
 as_lookup_rel (activity_t activity,
-	       struct cap *root, addr_t address,
-	       enum cap_type type, bool *writable,
+	       struct vg_cap *root, vg_addr_t address,
+	       enum vg_cap_type type, bool *writable,
 	       enum as_lookup_mode mode, union as_lookup_ret *rt)
 {
   bool r;
@@ -410,7 +410,7 @@ as_lookup_rel (activity_t activity,
 }
 
 void
-as_dump_path_rel (activity_t activity, struct cap *root, addr_t addr)
+as_dump_path_rel (activity_t activity, struct vg_cap *root, vg_addr_t addr)
 {
   union as_lookup_ret rt;
 

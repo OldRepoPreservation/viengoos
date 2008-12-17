@@ -49,7 +49,7 @@
 
 extern int output_debug;
 
-static addr_t activity;
+static vg_addr_t activity;
 
 /* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
@@ -78,37 +78,37 @@ main (int argc, char *argv[])
   {
     printf ("Checking shadow page tables... ");
 
-    int visit (addr_t addr,
-	       l4_word_t type, struct cap_properties properties,
+    int visit (vg_addr_t addr,
+	       l4_word_t type, struct vg_cap_properties properties,
 	       bool writable,
 	       void *cookie)
       {
-	struct cap cap = as_cap_lookup (addr, -1, NULL);
+	struct vg_cap vg_cap = as_cap_lookup (addr, -1, NULL);
 
-	assert (type == cap.type);
-	if (type == cap_cappage || type == cap_rcappage || type == cap_folio)
+	assert (type == vg_cap.type);
+	if (type == vg_cap_cappage || type == vg_cap_rcappage || type == vg_cap_folio)
 	  {
-	    if (! cap.shadow)
+	    if (! vg_cap.shadow)
 	      as_dump_path (addr);
-	    assertx (cap.shadow,
-		     ADDR_FMT ", %s",
-		     ADDR_PRINTF (addr), cap_type_string (type));
+	    assertx (vg_cap.shadow,
+		     VG_ADDR_FMT ", %s",
+		     VG_ADDR_PRINTF (addr), vg_cap_type_string (type));
 	  }
 	else
 	  {
-	    if (cap.shadow)
+	    if (vg_cap.shadow)
 	      as_dump_path (addr);
-	    assertx (! cap.shadow, ADDR_FMT ": " CAP_FMT " (%p)",
-		     ADDR_PRINTF (addr), CAP_PRINTF (&cap), cap.shadow);
+	    assertx (! vg_cap.shadow, VG_ADDR_FMT ": " VG_CAP_FMT " (%p)",
+		     VG_ADDR_PRINTF (addr), VG_CAP_PRINTF (&vg_cap), vg_cap.shadow);
 	  }
 
-	if (type == cap_folio)
+	if (type == vg_cap_folio)
 	  return -1;
 
 	return 0;
       }
 
-    as_walk (visit, ~(1 << cap_void), NULL);
+    as_walk (visit, ~(1 << vg_cap_void), NULL);
     printf ("ok.\n");
   }
 
@@ -116,33 +116,33 @@ main (int argc, char *argv[])
     printf ("Checking folio_object_alloc... ");
 
 
-    addr_t folio = capalloc ();
-    assert (! ADDR_IS_VOID (folio));
-    error_t err = rm_folio_alloc (activity, activity, FOLIO_POLICY_DEFAULT,
+    vg_addr_t folio = capalloc ();
+    assert (! VG_ADDR_IS_VOID (folio));
+    error_t err = rm_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT,
 				  &folio);
     assert (! err);
-    assert (! ADDR_IS_VOID (folio));
+    assert (! VG_ADDR_IS_VOID (folio));
 
     int i;
     for (i = -10; i < 129; i ++)
       {
-	addr_t addr = capalloc ();
-	if (ADDR_IS_VOID (addr))
+	vg_addr_t addr = capalloc ();
+	if (VG_ADDR_IS_VOID (addr))
 	  panic ("capalloc");
 
-	err = rm_folio_object_alloc (activity, folio, i, cap_page,
-				     OBJECT_POLICY_DEFAULT, 0,
+	err = rm_folio_object_alloc (activity, folio, i, vg_cap_page,
+				     VG_OBJECT_POLICY_DEFAULT, 0,
 				     &addr, NULL);
-	assert ((err == 0) == (0 <= i && i < FOLIO_OBJECTS));
-	assert (! ADDR_IS_VOID (addr));
+	assert ((err == 0) == (0 <= i && i < VG_FOLIO_OBJECTS));
+	assert (! VG_ADDR_IS_VOID (addr));
 
-	if (0 <= i && i < FOLIO_OBJECTS)
+	if (0 <= i && i < VG_FOLIO_OBJECTS)
 	  {
 	    l4_word_t type;
-	    struct cap_properties properties;
-	    err = rm_cap_read (activity, ADDR_VOID, addr, &type, &properties);
+	    struct vg_cap_properties properties;
+	    err = rm_cap_read (activity, VG_ADDR_VOID, addr, &type, &properties);
 	    assert (! err);
-	    assert (type == cap_page);
+	    assert (type == vg_cap_page);
 	  }
 	capfree (addr);
       }
@@ -160,51 +160,51 @@ main (int argc, char *argv[])
     /* We allocate a sub-tree and fill it with folios (specifically,
        2^(bits - 1) folios).  */
     int bits = 2;
-    addr_t root = as_alloc (bits + FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2,
+    vg_addr_t root = as_alloc (bits + VG_FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2,
 			    1, true);
-    assert (! ADDR_IS_VOID (root));
+    assert (! VG_ADDR_IS_VOID (root));
 
     int i;
     for (i = 0; i < (1 << bits); i ++)
       {
 	struct storage shadow_storage
-	  = storage_alloc (activity, cap_page, STORAGE_EPHEMERAL,
-			   OBJECT_POLICY_DEFAULT, ADDR_VOID);
-	struct object *shadow = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
+	  = storage_alloc (activity, vg_cap_page, STORAGE_EPHEMERAL,
+			   VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+	struct object *shadow = VG_ADDR_TO_PTR (vg_addr_extend (shadow_storage.addr,
 							  0, PAGESIZE_LOG2));
 
-	addr_t f = addr_extend (root, i, bits);
+	vg_addr_t f = vg_addr_extend (root, i, bits);
 	as_ensure_use (f,
 		       ({
-			 slot->type = cap_folio;
-			 cap_set_shadow (slot, shadow);
+			 slot->type = vg_cap_folio;
+			 vg_cap_set_shadow (slot, shadow);
 		       }));
 
 	error_t err = rm_folio_alloc (activity, activity,
-				      FOLIO_POLICY_DEFAULT, &f);
+				      VG_FOLIO_POLICY_DEFAULT, &f);
 	assert (! err);
-	assert (! ADDR_IS_VOID (f));
+	assert (! VG_ADDR_IS_VOID (f));
 
 	int j;
 	for (j = 0; j <= i; j ++)
 	  {
 	    l4_word_t type;
-	    struct cap_properties properties;
+	    struct vg_cap_properties properties;
 
-	    error_t err = rm_cap_read (activity, ADDR_VOID,
-				       addr_extend (root, j, bits),
+	    error_t err = rm_cap_read (activity, VG_ADDR_VOID,
+				       vg_addr_extend (root, j, bits),
 				       &type, &properties);
 	    assert (! err);
-	    assert (type == cap_folio);
+	    assert (type == vg_cap_folio);
 
-	    struct cap cap = as_cap_lookup (f, -1, NULL);
-	    assert (cap.type == cap_folio);
+	    struct vg_cap vg_cap = as_cap_lookup (f, -1, NULL);
+	    assert (vg_cap.type == vg_cap_folio);
 	  }
       }
 
     for (i = 0; i < (1 << bits); i ++)
       {
-	addr_t f = addr_extend (root, i, bits);
+	vg_addr_t f = vg_addr_extend (root, i, bits);
 
 	error_t err = rm_folio_free (activity, f);
 	assert (! err);
@@ -213,15 +213,15 @@ main (int argc, char *argv[])
 	bool ret = as_slot_lookup_use
 	  (f,
 	   ({
-	     assert (slot->type == cap_folio);
-	     slot->type = cap_void;
+	     assert (slot->type == vg_cap_folio);
+	     slot->type = vg_cap_void;
 				    
-	     shadow = cap_get_shadow (slot);
+	     shadow = vg_cap_get_shadow (slot);
 	   }));
 	assert (ret);
 
 	assert (shadow);
-	storage_free (addr_chop (PTR_TO_ADDR (shadow), PAGESIZE_LOG2), 1);
+	storage_free (vg_addr_chop (VG_PTR_TO_ADDR (shadow), PAGESIZE_LOG2), 1);
       }
 
     as_free (root, 1);
@@ -233,26 +233,26 @@ main (int argc, char *argv[])
   {
     printf ("Checking storage_alloc... ");
 
-    const int n = 4 * FOLIO_OBJECTS;
-    addr_t storage[n];
+    const int n = 4 * VG_FOLIO_OBJECTS;
+    vg_addr_t storage[n];
 
     int i;
     for (i = 0; i < n; i ++)
       {
-	storage[i] = storage_alloc (activity, cap_page,
+	storage[i] = storage_alloc (activity, vg_cap_page,
 				    (i & 1) == 0
 				    ? STORAGE_LONG_LIVED
 				    : STORAGE_EPHEMERAL,
-				    OBJECT_POLICY_DEFAULT,
-				    ADDR_VOID).addr;
-	assert (! ADDR_IS_VOID (storage[i]));
-	int *p = (int *) ADDR_TO_PTR (addr_extend (storage[i],
+				    VG_OBJECT_POLICY_DEFAULT,
+				    VG_ADDR_VOID).addr;
+	assert (! VG_ADDR_IS_VOID (storage[i]));
+	int *p = (int *) VG_ADDR_TO_PTR (vg_addr_extend (storage[i],
 						   0, PAGESIZE_LOG2));
 	* (int *) p = i;
 
 	int j;
 	for (j = 0; j <= i; j ++)
-	  assert (* (int *) (ADDR_TO_PTR (addr_extend (storage[j],
+	  assert (* (int *) (VG_ADDR_TO_PTR (vg_addr_extend (storage[j],
 						       0, PAGESIZE_LOG2)))
 		  == j);
       }
@@ -330,15 +330,15 @@ main (int argc, char *argv[])
 
     printf ("Checking thread creation... ");
 
-    addr_t thread = capalloc ();
-    debug (5, "thread: " ADDR_FMT, ADDR_PRINTF (thread));
-    addr_t storage = storage_alloc (activity, cap_thread, STORAGE_LONG_LIVED,
-				    OBJECT_POLICY_DEFAULT, thread).addr;
+    vg_addr_t thread = capalloc ();
+    debug (5, "thread: " VG_ADDR_FMT, VG_ADDR_PRINTF (thread));
+    vg_addr_t storage = storage_alloc (activity, vg_cap_thread, STORAGE_LONG_LIVED,
+				    VG_OBJECT_POLICY_DEFAULT, thread).addr;
 
     struct hurd_thread_exregs_in in;
 
-    in.aspace_cap_properties = CAP_PROPERTIES_DEFAULT;
-    in.aspace_cap_properties_flags = CAP_COPY_COPY_SOURCE_GUARD;
+    in.aspace_cap_properties = VG_CAP_PROPERTIES_DEFAULT;
+    in.aspace_cap_properties_flags = VG_CAP_COPY_COPY_SOURCE_GUARD;
 
     in.sp = (l4_word_t) ((void *) stack + sizeof (stack));
     in.ip = (l4_word_t) &start;
@@ -349,7 +349,7 @@ main (int argc, char *argv[])
 		      HURD_EXREGS_SET_ASPACE | HURD_EXREGS_SET_ACTIVITY
 		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START
 		      | HURD_EXREGS_ABORT_IPC,
-		      in, ADDR (0, 0), activity, ADDR_VOID, ADDR_VOID,
+		      in, VG_ADDR (0, 0), activity, VG_ADDR_VOID, VG_ADDR_VOID,
 		      &out, NULL, NULL, NULL, NULL);
 
     debug (5, "Waiting for thread");
@@ -640,7 +640,7 @@ main (int argc, char *argv[])
 
 #undef N
 #define N 10
-    void test (addr_t activity, addr_t folio, int depth)
+    void test (vg_addr_t activity, vg_addr_t folio, int depth)
     {
       error_t err;
       int i;
@@ -648,9 +648,9 @@ main (int argc, char *argv[])
 
       struct
       {
-	addr_t child;
-	addr_t folio;
-	addr_t page;
+	vg_addr_t child;
+	vg_addr_t folio;
+	vg_addr_t page;
       } a[N];
 
       for (i = 0; i < N; i ++)
@@ -658,33 +658,33 @@ main (int argc, char *argv[])
 	  /* Allocate a new activity.  */
 	  a[i].child = capalloc ();
 	  err = rm_folio_object_alloc (activity, folio, obj ++,
-				       cap_activity_control,
-				       OBJECT_POLICY_DEFAULT, 0,
+				       vg_cap_activity_control,
+				       VG_OBJECT_POLICY_DEFAULT, 0,
 				       &a[i].child, NULL);
 	  assert (err == 0);
-	  assert (! ADDR_IS_VOID (a[i].child));
+	  assert (! VG_ADDR_IS_VOID (a[i].child));
 
 	  /* Allocate a folio against the activity and use it.  */
 	  a[i].folio = capalloc ();
-	  err = rm_folio_alloc (activity, a[i].child, FOLIO_POLICY_DEFAULT,
+	  err = rm_folio_alloc (activity, a[i].child, VG_FOLIO_POLICY_DEFAULT,
 				&a[i].folio);
 	  assert (err == 0);
-	  assert (! ADDR_IS_VOID (a[i].folio));
+	  assert (! VG_ADDR_IS_VOID (a[i].folio));
 
 	  a[i].page = capalloc ();
-	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 0, cap_page,
-				       OBJECT_POLICY_DEFAULT, 0,
+	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 0, vg_cap_page,
+				       VG_OBJECT_POLICY_DEFAULT, 0,
 				       &a[i].page, NULL);
 	  assert (err == 0);
-	  assert (! ADDR_IS_VOID (a[i].page));
+	  assert (! VG_ADDR_IS_VOID (a[i].page));
 
 	  l4_word_t type;
-	  struct cap_properties properties;
+	  struct vg_cap_properties properties;
 
-	  err = rm_cap_read (a[i].child, ADDR_VOID,
+	  err = rm_cap_read (a[i].child, VG_ADDR_VOID,
 			     a[i].page, &type, &properties);
 	  assert (err == 0);
-	  assert (type == cap_page);
+	  assert (type == vg_cap_page);
 	}
 
       if (depth > 0)
@@ -706,8 +706,8 @@ main (int argc, char *argv[])
 	     the object does not destroy the capability.  Instead, we try to
 	     use the object.  If this fails, we assume that the folio was
 	     destroyed.  */
-	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 1, cap_page,
-				       OBJECT_POLICY_DEFAULT, 0,
+	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 1, vg_cap_page,
+				       VG_OBJECT_POLICY_DEFAULT, 0,
 				       &a[i].page, NULL);
 	  assert (err);
 
@@ -718,10 +718,10 @@ main (int argc, char *argv[])
     }
 
     error_t err;
-    addr_t folio = capalloc ();
-    err = rm_folio_alloc (activity, activity, FOLIO_POLICY_DEFAULT, &folio);
+    vg_addr_t folio = capalloc ();
+    err = rm_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT, &folio);
     assert (err == 0);
-    assert (! ADDR_IS_VOID (folio));
+    assert (! VG_ADDR_IS_VOID (folio));
 
     test (activity, folio, 2);
 
@@ -736,31 +736,31 @@ main (int argc, char *argv[])
   {
     printf ("Checking activity_policy... ");
 
-    addr_t a = capalloc ();
-    addr_t storage = storage_alloc (activity, cap_activity_control,
-				    STORAGE_LONG_LIVED, OBJECT_POLICY_DEFAULT,
+    vg_addr_t a = capalloc ();
+    vg_addr_t storage = storage_alloc (activity, vg_cap_activity_control,
+				    STORAGE_LONG_LIVED, VG_OBJECT_POLICY_DEFAULT,
 				    a).addr;
 
-    addr_t weak = capalloc ();
-    error_t err = rm_cap_copy (activity, ADDR_VOID, weak, ADDR_VOID, a,
-			       CAP_COPY_WEAKEN, CAP_PROPERTIES_VOID);
+    vg_addr_t weak = capalloc ();
+    error_t err = rm_cap_copy (activity, VG_ADDR_VOID, weak, VG_ADDR_VOID, a,
+			       VG_CAP_COPY_WEAKEN, VG_CAP_PROPERTIES_VOID);
     assert (! err);
 
     struct activity_policy in, out;
     in.sibling_rel.priority = 2;
     in.sibling_rel.weight = 3;
-    in.child_rel = ACTIVITY_MEMORY_POLICY_VOID;
+    in.child_rel = VG_ACTIVITY_MEMORY_POLICY_VOID;
     in.folios = 10000;
 
     err = rm_activity_policy (a, a,
-			      ACTIVITY_POLICY_SIBLING_REL_SET
-			      | ACTIVITY_POLICY_STORAGE_SET,
+			      VG_ACTIVITY_POLICY_SIBLING_REL_SET
+			      | VG_ACTIVITY_POLICY_STORAGE_SET,
 			      in,
 			      &out);
     assert (err == 0);
 			    
     err = rm_activity_policy (a, a,
-			      0, ACTIVITY_POLICY_VOID,
+			      0, VG_ACTIVITY_POLICY_VOID,
 			      &out);
     assert (err == 0);
 
@@ -772,8 +772,8 @@ main (int argc, char *argv[])
     in.sibling_rel.weight = 5;
     in.folios = 10001;
     err = rm_activity_policy (a, a,
-			      ACTIVITY_POLICY_SIBLING_REL_SET
-			      | ACTIVITY_POLICY_STORAGE_SET,
+			      VG_ACTIVITY_POLICY_SIBLING_REL_SET
+			      | VG_ACTIVITY_POLICY_STORAGE_SET,
 			      in, &out);
     assert (err == 0);
 
@@ -783,8 +783,8 @@ main (int argc, char *argv[])
     assert (out.folios == 10000);
 
     err = rm_activity_policy (a, weak,
-			      ACTIVITY_POLICY_SIBLING_REL_SET
-			      | ACTIVITY_POLICY_STORAGE_SET,
+			      VG_ACTIVITY_POLICY_SIBLING_REL_SET
+			      | VG_ACTIVITY_POLICY_STORAGE_SET,
 			      in, &out);
     assertx (err == EPERM, "%d", err);
 
@@ -804,7 +804,7 @@ main (int argc, char *argv[])
   }
 
   {
-    printf ("Checking futex implementation... ");
+    printf ("Checking vg_futex implementation... ");
 
 #undef N
 #define N 4
@@ -881,17 +881,17 @@ main (int argc, char *argv[])
   {
     printf ("Checking object_reply_on_destruction... ");
 
-    struct storage storage = storage_alloc (activity, cap_page,
+    struct storage storage = storage_alloc (activity, vg_cap_page,
 					    STORAGE_MEDIUM_LIVED,
-					    OBJECT_POLICY_DEFAULT,
-					    ADDR_VOID);
-    assert (! ADDR_IS_VOID (storage.addr));
+					    VG_OBJECT_POLICY_DEFAULT,
+					    VG_ADDR_VOID);
+    assert (! VG_ADDR_IS_VOID (storage.addr));
 
     void *start (void *arg)
     {
       uintptr_t ret = 0;
       error_t err;
-      err = rm_object_reply_on_destruction (ADDR_VOID, storage.addr, &ret);
+      err = rm_object_reply_on_destruction (VG_ADDR_VOID, storage.addr, &ret);
       debug (5, "object_reply_on_destruction: err: %d, ret: %d", err, ret);
       assert (err == 0);
       assert (ret == 10);
@@ -908,11 +908,11 @@ main (int argc, char *argv[])
 
     /* Deallocate the object.  */
     debug (5, "Destroying object");
-    rm_folio_object_alloc (ADDR_VOID,
-			   addr_chop (storage.addr, FOLIO_OBJECTS_LOG2),
-			   addr_extract (storage.addr, FOLIO_OBJECTS_LOG2),
-			   cap_void,
-			   OBJECT_POLICY_VOID, 10, NULL, NULL);
+    rm_folio_object_alloc (VG_ADDR_VOID,
+			   vg_addr_chop (storage.addr, VG_FOLIO_OBJECTS_LOG2),
+			   vg_addr_extract (storage.addr, VG_FOLIO_OBJECTS_LOG2),
+			   vg_cap_void,
+			   VG_OBJECT_POLICY_VOID, 10, NULL, NULL);
     /* Release the memory.  */
     storage_free (storage.addr, true);
 
@@ -932,7 +932,7 @@ main (int argc, char *argv[])
     bool fill (struct anonymous_pager *anon,
 	       uintptr_t offset, uintptr_t count,
 	       void *pages[],
-	       struct activation_fault_info info)
+	       struct vg_activation_fault_info info)
     {
       assert (count == 1);
 
@@ -946,8 +946,8 @@ main (int argc, char *argv[])
 
     void *addr;
     struct anonymous_pager *pager
-      = anonymous_pager_alloc (ADDR_VOID, NULL, s, MAP_ACCESS_ALL,
-			       OBJECT_POLICY_DEFAULT, 0,
+      = anonymous_pager_alloc (VG_ADDR_VOID, NULL, s, MAP_ACCESS_ALL,
+			       VG_OBJECT_POLICY_DEFAULT, 0,
 			       fill, &addr);
     assert (pager);
 
@@ -965,7 +965,7 @@ main (int argc, char *argv[])
     bool fill (struct anonymous_pager *anon,
 	       uintptr_t offset, uintptr_t count,
 	       void *pages[],
-	       struct activation_fault_info info)
+	       struct vg_activation_fault_info info)
     {
       assert (count == 1);
 
@@ -981,7 +981,7 @@ main (int argc, char *argv[])
     do
       {
 	struct activity_info info;
-	error_t err = rm_activity_info (ADDR_VOID, activity,
+	error_t err = rm_activity_info (VG_ADDR_VOID, activity,
 					activity_info_stats, 1, &info);
 	assert_perror (err);
 	assert (info.stats.count >= 1);
@@ -999,8 +999,8 @@ main (int argc, char *argv[])
 
     void *addr;
     struct anonymous_pager *pager
-      = anonymous_pager_alloc (ADDR_VOID, NULL, goal * PAGESIZE, MAP_ACCESS_ALL,
-			       OBJECT_POLICY (true, OBJECT_PRIORITY_DEFAULT), 0,
+      = anonymous_pager_alloc (VG_ADDR_VOID, NULL, goal * PAGESIZE, MAP_ACCESS_ALL,
+			       VG_OBJECT_POLICY (true, VG_OBJECT_PRIORITY_DEFAULT), 0,
 			       fill, &addr);
     assert (pager);
 
@@ -1023,18 +1023,18 @@ main (int argc, char *argv[])
   {
     printf ("Checking deallocation... ");
  
-    addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
-    assert (! ADDR_IS_VOID (addr));
+    vg_addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
+    assert (! VG_ADDR_IS_VOID (addr));
 
     as_ensure (addr);
 
-    addr_t storage = storage_alloc (activity, cap_page,
+    vg_addr_t storage = storage_alloc (activity, vg_cap_page,
 				    STORAGE_MEDIUM_LIVED,
-				    OBJECT_POLICY_DEFAULT,
+				    VG_OBJECT_POLICY_DEFAULT,
 				    addr).addr;
-    assert (! ADDR_IS_VOID (storage));
+    assert (! VG_ADDR_IS_VOID (storage));
 
-    int *buffer = ADDR_TO_PTR (addr_extend (addr, 0, PAGESIZE_LOG2));
+    int *buffer = VG_ADDR_TO_PTR (vg_addr_extend (addr, 0, PAGESIZE_LOG2));
 
     debug (5, "Writing before dealloc...");
     *buffer = 0;

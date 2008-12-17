@@ -1,4 +1,4 @@
-/* t-cap.c - Test the implementation of the various cap functions.
+/* t-cap.c - Test the implementation of the various vg_cap functions.
    Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
@@ -31,9 +31,9 @@ char *program_name = "t-addr-trans";
 int
 main (int argc, char *argv[])
 {
-  printf ("Checking CAP_ADDR_TRANS_SET_GUARD_SUBPAGE... ");
+  printf ("Checking VG_CAP_ADDR_TRANS_SET_GUARD_SUBPAGE... ");
 
-  struct cap_addr_trans cap_addr_trans;
+  struct vg_cap_addr_trans cap_addr_trans;
 
   bool r;
   int subpage_bits;
@@ -45,14 +45,14 @@ main (int argc, char *argv[])
 
       memset (&cap_addr_trans, 0, sizeof (cap_addr_trans));
 
-      r = CAP_ADDR_TRANS_SET_SUBPAGE (&cap_addr_trans, 0, subpages);
+      r = VG_CAP_ADDR_TRANS_SET_SUBPAGE (&cap_addr_trans, 0, subpages);
       assert (r == (subpage_bits <= 8));
       if (subpage_bits >= 8)
 	continue;
 
-      assert (CAP_ADDR_TRANS_SUBPAGES (cap_addr_trans) == subpages);
-      assert (CAP_ADDR_TRANS_SUBPAGE_SIZE (cap_addr_trans) == subpage_size);
-      assert (CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (cap_addr_trans)
+      assert (VG_CAP_ADDR_TRANS_SUBPAGES (cap_addr_trans) == subpages);
+      assert (VG_CAP_ADDR_TRANS_SUBPAGE_SIZE (cap_addr_trans) == subpage_size);
+      assert (VG_CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (cap_addr_trans)
 	      == subpage_size_log2);
 
       int gdepth;
@@ -62,15 +62,15 @@ main (int argc, char *argv[])
 	  for (guard_bits = 0; guard_bits < sizeof (uintptr_t) * 8; guard_bits ++)
 	    {
 	      int guard = (1 << guard_bits) - 1;
-	      r = CAP_ADDR_TRANS_SET_GUARD (&cap_addr_trans, guard, gdepth);
+	      r = VG_CAP_ADDR_TRANS_SET_GUARD (&cap_addr_trans, guard, gdepth);
 	      if (guard_bits <= gdepth
 		  && (guard_bits + subpage_bits
-		      <= CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS))
+		      <= VG_CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS))
 		{
 		  assert (r);
-		  assert (CAP_ADDR_TRANS_GUARD_BITS (cap_addr_trans)
+		  assert (VG_CAP_ADDR_TRANS_GUARD_BITS (cap_addr_trans)
 			  == gdepth);
-		  assert (CAP_ADDR_TRANS_GUARD (cap_addr_trans) == guard);
+		  assert (VG_CAP_ADDR_TRANS_GUARD (cap_addr_trans) == guard);
 		}
 	      else
 		assert (! r);

@@ -38,18 +38,18 @@ struct activity
   /* On-disk data.  */
 
   /* Parent activity.  */
-  struct cap parent_cap;
+  struct vg_cap parent_cap;
 
   /* List of child activities (if any).  Threaded via
      SIBLING_NEXT.  */
-  struct cap children_cap;
+  struct vg_cap children_cap;
 
   /* This activity's siblings.  */
-  struct cap sibling_next_cap;
-  struct cap sibling_prev_cap;
+  struct vg_cap sibling_next_cap;
+  struct vg_cap sibling_prev_cap;
 
   /* Head of the linked list of folios allocated to this activity.  */
-  struct cap folios;
+  struct vg_cap folios;
 
   /* Policy.  */
   struct activity_policy policy;
@@ -77,12 +77,12 @@ struct activity
   {
     struct activity_list active;
     struct activity_list inactive;
-  } frames_[-OBJECT_PRIORITY_MIN];
+  } frames_[-VG_OBJECT_PRIORITY_MIN];
   struct
   {
     struct activity_list active;
     struct activity_list inactive;
-  } frames[OBJECT_PRIORITY_MAX + 1];
+  } frames[VG_OBJECT_PRIORITY_MAX + 1];
 
   /* Objects that are owned by this activity and have been selected
      for eviction (DESC->EVICTION_CANDIDATE is true).  These objects
@@ -248,22 +248,22 @@ activity_charge (struct activity *activity, int objects)
 
 /* For each child of ACTIVITY, set to CHILD and execute code.  The
    caller may destroy CHILD, however, it may not destroy any siblings.
-   Be careful of deadlock: this function calls cap_to_object, which
+   Be careful of deadlock: this function calls vg_cap_to_object, which
    calls object_find, which may take LRU_LOCK.  */
 #define activity_for_each_child(__fec_activity, __fec_child, __fec_code) \
   do {									\
     __fec_child								\
-      = (struct activity *) cap_to_object ((__fec_activity),		\
+      = (struct activity *) vg_cap_to_object ((__fec_activity),		\
 					   &(__fec_activity)->children_cap); \
     while (__fec_child)							\
       {									\
 	/* Grab the next child incase this child is destroyed.  */	\
-	struct cap __fec_next = __fec_child->sibling_next_cap;		\
+	struct vg_cap __fec_next = __fec_child->sibling_next_cap;		\
 									\
 	__fec_code;							\
 									\
 	/* Fetch the next child.  */					\
-	__fec_child = (struct activity *) cap_to_object ((__fec_activity), \
+	__fec_child = (struct activity *) vg_cap_to_object ((__fec_activity), \
 							 &__fec_next);	\
 	if (! __fec_child)						\
 	  break;							\

@@ -219,7 +219,7 @@ system_task_load (void)
 {
   const char *const argv[] = { boot_modules[0].command_line, NULL };
   struct thread *thread;
-  thread = process_spawn (ADDR_VOID,
+  thread = process_spawn (VG_ADDR_VOID,
 			  (void *) boot_modules[0].start,
 			  (void *) boot_modules[0].end,
 			  argv, NULL,

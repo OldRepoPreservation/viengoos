@@ -36,12 +36,12 @@ struct pager;
 typedef bool (*pager_fault_t) (struct pager *pager,
 			       uintptr_t offset, int count, bool ro,
 			       uintptr_t fault_addr, uintptr_t ip,
-			       struct activation_fault_info info);
+			       struct vg_activation_fault_info info);
 
 /* The count sub-trees starting at ADDR are no longer referenced and
    their associated storage may be reclaimed.  */
 typedef void (*pager_reclaim_t) (struct pager *pager,
-				 addr_t addr, int count);
+				 vg_addr_t addr, int count);
 
 /* Called when the last map to a pager has been destroyed.  (This
    function should not call pager_deinit!)  Called with PAGER->LOCK

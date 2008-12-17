@@ -218,18 +218,18 @@ server_loop (void)
 	 and then once we find the real principal, we just add the
 	 charges to the former to the latter.  */
       struct activity *activity
-	= (struct activity *) cap_to_object (root_activity,
+	= (struct activity *) vg_cap_to_object (root_activity,
 					     &thread->activity);
       if (! activity)
 	{
 	  DEBUG (1, "Caller has no assigned activity");
 	  continue;
 	}
-      if (object_type ((struct object *) activity) != cap_activity_control)
+      if (object_type ((struct object *) activity) != vg_cap_activity_control)
 	{
 	  DEBUG (1, "Caller's activity slot contains a %s,"
 		 "not an activity_control",
-		 cap_type_string (object_type ((struct object *) activity)));
+		 vg_cap_type_string (object_type ((struct object *) activity)));
 	  continue;
 	}
 
@@ -248,17 +248,17 @@ server_loop (void)
 
 	  uintptr_t page_addr = fault & ~(PAGESIZE - 1);
 
-	  struct cap cap;
+	  struct vg_cap cap;
 	  bool writable;
 	  cap = as_object_lookup_rel (activity, &thread->aspace,
-				      addr_chop (PTR_TO_ADDR (page_addr),
+				      vg_addr_chop (VG_PTR_TO_ADDR (page_addr),
 						 PAGESIZE_LOG2),
-				      write_fault ? cap_page : cap_rpage,
+				      write_fault ? vg_cap_page : vg_cap_rpage,
 				      &writable);
 
-	  assert (cap.type == cap_void
-		  || cap.type == cap_page
-		  || cap.type == cap_rpage);
+	  assert (cap.type == vg_cap_void
+		  || cap.type == vg_cap_page
+		  || cap.type == vg_cap_rpage);
 
 	  bool discarded = false;
 	  if (write_fault && ! writable)
@@ -270,32 +270,32 @@ server_loop (void)
 	  if (! writable && cap.discardable)
 	    {
 	      DEBUG (4, "Ignoring discardable predicate for cap designating "
-		     OID_FMT " (%s)",
-		     OID_PRINTF (cap.oid), cap_type_string (cap.type));
+		     VG_OID_FMT " (%s)",
+		     VG_OID_PRINTF (cap.oid), vg_cap_type_string (cap.type));
 	      cap.discardable = false;
 	    }
 
-	  struct object *page = cap_to_object (activity, &cap);
-	  if (! page && cap.type != cap_void)
+	  struct object *page = vg_cap_to_object (activity, &cap);
+	  if (! page && cap.type != vg_cap_void)
 	    /* It's not in-memory.  See if it was discarded.  If not,
-	       load it using cap_to_object.  */
+	       load it using vg_cap_to_object.  */
 	    {
-	      int object = (cap.oid % (FOLIO_OBJECTS + 1)) - 1;
-	      oid_t foid = cap.oid - object - 1;
+	      int object = (cap.oid % (VG_FOLIO_OBJECTS + 1)) - 1;
+	      vg_oid_t foid = cap.oid - object - 1;
 	      struct folio *folio
 		= (struct folio *) object_find (activity, foid,
-						OBJECT_POLICY_DEFAULT);
+						VG_OBJECT_POLICY_DEFAULT);
 	      assert (folio);
-	      assert (object_type ((struct object *) folio) == cap_folio);
+	      assert (object_type ((struct object *) folio) == vg_cap_folio);
 
 	      if (cap.version == folio_object_version (folio, object))
 		{
 		  if (folio_object_discarded (folio, object))
 		    {
-		      DEBUG (4, OID_FMT " (%s) was discarded",
-			     OID_PRINTF (cap.oid),
-			     cap_type_string (folio_object_type (folio,
-								 object)));
+		      DEBUG (4, VG_OID_FMT " (%s) was discarded",
+			     VG_OID_PRINTF (cap.oid),
+			     vg_cap_type_string (vg_folio_object_type (folio,
+								       object)));
 
 		      assert (! folio_object_content (folio, object));
 
@@ -320,14 +320,14 @@ server_loop (void)
 	      _L4_exchange_registers (&targ, &c,
 				      &sp, &dummy, &dummy, &dummy, &dummy);
 
-	      struct activation_fault_info info;
+	      struct vg_activation_fault_info info;
 	      info.access = access;
-	      info.type = write_fault ? cap_page : cap_rpage;
+	      info.type = write_fault ? vg_cap_page : vg_cap_rpage;
 
 	      info.discarded = discarded;
 
-	      activation_fault_send_marshal (reply_buffer, PTR_TO_ADDR (fault),
-					     sp, ip, info, ADDR_VOID);
+	      activation_fault_send_marshal (reply_buffer, VG_PTR_TO_ADDR (fault),
+					     sp, ip, info, VG_ADDR_VOID);
 	      thread_raise_exception (activity, thread, reply_buffer);
 
 	      continue;
@@ -363,17 +363,17 @@ server_loop (void)
 	      page_addr += PAGESIZE;
 
 	      cap = as_object_lookup_rel (activity, &thread->aspace,
-					  addr_chop (PTR_TO_ADDR (page_addr),
+					  vg_addr_chop (VG_PTR_TO_ADDR (page_addr),
 						     PAGESIZE_LOG2),
-					  cap_rpage, &writable);
+					  vg_cap_rpage, &writable);
 
-	      if (cap.type != cap_page && cap.type != cap_rpage)
+	      if (cap.type != vg_cap_page && cap.type != vg_cap_rpage)
 		break;
 
 	      if (! writable && cap.discardable)
 		cap.discardable = false;
 
-	      struct object *page = cap_to_object (activity, &cap);
+	      struct object *page = vg_cap_to_object (activity, &cap);
 	      if (! page)
 		break;
 
@@ -392,7 +392,7 @@ server_loop (void)
 	      DEBUG (5, "Prefaulting " DEBUG_BOLD ("%x") " <- %p (%x/%x/%x) %s",
 		     page_addr,
 		     page, l4_address (fpage), l4_size (fpage),
-		     l4_rights (fpage), cap_type_string (cap.type));
+		     l4_rights (fpage), vg_cap_type_string (cap.type));
 
 	      count ++;
 	    }
@@ -427,7 +427,7 @@ server_loop (void)
 
       /* Return the capability slot corresponding to address ADDR in
 	 the address space rooted at ROOT.  */
-      error_t SLOT_ (struct cap *root, addr_t addr, struct cap **capp)
+      error_t SLOT_ (struct vg_cap *root, vg_addr_t addr, struct vg_cap **capp)
 	{
 	  bool w;
 	  if (! as_slot_lookup_rel_use (activity, root, addr,
@@ -437,14 +437,14 @@ server_loop (void)
 					})))
 	    {
 	      DEBUG (0, "No capability slot at 0x%llx/%d",
-		     addr_prefix (addr), addr_depth (addr));
+		     vg_addr_prefix (addr), vg_addr_depth (addr));
 	      as_dump_from (activity, root, "");
 	      return ENOENT;
 	    }
 	  if (! w)
 	    {
 	      DEBUG (1, "Capability slot at 0x%llx/%d not writable",
-		     addr_prefix (addr), addr_depth (addr));
+		     vg_addr_prefix (addr), vg_addr_depth (addr));
 	      as_dump_from (activity, root, "");
 	      return EPERM;
 	    }
@@ -453,7 +453,7 @@ server_loop (void)
       }
 #define SLOT(root_, addr_)				\
       ({						\
-	struct cap *SLOT_ret;				\
+	struct vg_cap *SLOT_ret;				\
 	error_t err = SLOT_ (root_, addr_, &SLOT_ret);	\
 	if (err)					\
 	  REPLY (err);					\
@@ -463,27 +463,27 @@ server_loop (void)
       /* Return a cap referencing the object at address ADDR of the
 	 callers capability space if it is of type TYPE (-1 = don't care).
 	 Whether the object is writable is stored in *WRITABLEP_.  */
-      error_t CAP_ (struct cap *root,
-		    addr_t addr, int type, bool require_writable,
-		    struct cap *cap)
+      error_t CAP_ (struct vg_cap *root,
+		    vg_addr_t addr, int type, bool require_writable,
+		    struct vg_cap *cap)
 	{
 	  bool writable = true;
 	  *cap = as_cap_lookup_rel (principal, root, addr,
 				    type, require_writable ? &writable : NULL);
-	  if (type != -1 && ! cap_types_compatible (cap->type, type))
+	  if (type != -1 && ! vg_cap_types_compatible (cap->type, type))
 	    {
 	      DEBUG (1, "Addr 0x%llx/%d does not reference object of "
 		     "type %s but %s",
-		     addr_prefix (addr), addr_depth (addr),
-		     cap_type_string (type), cap_type_string (cap->type));
+		     vg_addr_prefix (addr), vg_addr_depth (addr),
+		     vg_cap_type_string (type), vg_cap_type_string (cap->type));
 	      as_dump_from (activity, root, "");
 	      return ENOENT;
 	    }
 
 	  if (require_writable && ! writable)
 	    {
-	      DEBUG (1, "Addr " ADDR_FMT " not writable",
-		     ADDR_PRINTF (addr));
+	      DEBUG (1, "Addr " VG_ADDR_FMT " not writable",
+		     VG_ADDR_PRINTF (addr));
 	      return EPERM;
 	    }
 
@@ -491,7 +491,7 @@ server_loop (void)
 	}
 #define CAP(root_, addr_, type_, require_writable_)			\
       ({								\
-	struct cap CAP_ret;						\
+	struct vg_cap CAP_ret;						\
 	error_t err = CAP_ (root_, addr_, type_, require_writable_,	\
 			    &CAP_ret);					\
 	if (err)							\
@@ -499,19 +499,19 @@ server_loop (void)
 	CAP_ret;							\
       })
 
-      error_t OBJECT_ (struct cap *root,
-		       addr_t addr, int type, bool require_writable,
+      error_t OBJECT_ (struct vg_cap *root,
+		       vg_addr_t addr, int type, bool require_writable,
 		       struct object **objectp, bool *writable)
 	{
 	  bool w = true;
-	  struct cap cap;
+	  struct vg_cap cap;
 	  cap = as_object_lookup_rel (principal, root, addr, type, &w);
-	  if (type != -1 && ! cap_types_compatible (cap.type, type))
+	  if (type != -1 && ! vg_cap_types_compatible (cap.type, type))
 	    {
 	      DEBUG (0, "Addr 0x%llx/%d does not reference object of "
 		     "type %s but %s",
-		     addr_prefix (addr), addr_depth (addr),
-		     cap_type_string (type), cap_type_string (cap.type));
+		     vg_addr_prefix (addr), vg_addr_depth (addr),
+		     vg_cap_type_string (type), vg_cap_type_string (cap.type));
 	      return ENOENT;
 	    }
 
@@ -520,18 +520,18 @@ server_loop (void)
 
 	  if (require_writable && ! w)
 	    {
-	      DEBUG (0, "Addr " ADDR_FMT " not writable",
-		     ADDR_PRINTF (addr));
+	      DEBUG (0, "Addr " VG_ADDR_FMT " not writable",
+		     VG_ADDR_PRINTF (addr));
 	      return EPERM;
 	    }
 
-	  *objectp = cap_to_object (principal, &cap);
+	  *objectp = vg_cap_to_object (principal, &cap);
 	  if (! *objectp)
 	    {
 	      do_debug (4)
-		DEBUG (0, "Addr " ADDR_FMT " contains a dangling pointer: "
-		       CAP_FMT,
-		       ADDR_PRINTF (addr), CAP_PRINTF (&cap));
+		DEBUG (0, "Addr " VG_ADDR_FMT " contains a dangling pointer: "
+		       VG_CAP_FMT,
+		       VG_ADDR_PRINTF (addr), VG_CAP_PRINTF (&cap));
 	      return ENOENT;
 	    }
 
@@ -547,14 +547,14 @@ server_loop (void)
 	OBJECT_ret;							\
       })
 
-      /* Find an address space root.  If ADDR_VOID, the current
+      /* Find an address space root.  If VG_ADDR_VOID, the current
 	 thread's.  Otherwise, the object identified by ROOT_ADDR_ in
 	 the caller's address space.  If that is a thread object, then
 	 it's address space root.  */
 #define ROOT(root_addr_)						\
       ({								\
-	struct cap *root_;						\
-	if (ADDR_IS_VOID (root_addr_))					\
+	struct vg_cap *root_;						\
+	if (VG_ADDR_IS_VOID (root_addr_))					\
 	  root_ = &thread->aspace;					\
 	else								\
 	  {								\
@@ -563,13 +563,13 @@ server_loop (void)
 	       thread if it matches the guard exactly.  */		\
 	    struct object *t_;						\
 	    error_t err = OBJECT_ (&thread->aspace, root_addr_,		\
-				   cap_thread, true, &t_, NULL);	\
+				   vg_cap_thread, true, &t_, NULL);	\
 	    if (! err)							\
 	      root_ = &((struct thread *) t_)->aspace;			\
 	    else							\
 	      root_ = SLOT (&thread->aspace, root_addr_);		\
 	  }								\
-	DEBUG (4, "root: " CAP_FMT, CAP_PRINTF (root_));		\
+	DEBUG (4, "root: " VG_CAP_FMT, VG_CAP_PRINTF (root_));		\
 									\
 	root_;								\
       })
@@ -592,7 +592,7 @@ server_loop (void)
 #define ARG64_WORDS 1
 #endif
 
-#define ARG_ADDR(word_) ((addr_t) { ARG64(word_) })
+#define ARG_ADDR(word_) ((vg_addr_t) { ARG64(word_) })
 
       if (label == 2132)
 	/* write.  */
@@ -613,30 +613,30 @@ server_loop (void)
       int i = 0;
       uintptr_t flags = ARG (i);
       i ++;
-      addr_t recv_activity = ARG_ADDR (i);
+      vg_addr_t recv_activity = ARG_ADDR (i);
       i += ARG64_WORDS;
-      addr_t recv_messenger = ARG_ADDR (i);
+      vg_addr_t recv_messenger = ARG_ADDR (i);
       i += ARG64_WORDS;
-      addr_t recv_buf = ARG_ADDR (i);
+      vg_addr_t recv_buf = ARG_ADDR (i);
       i += ARG64_WORDS;
-      addr_t recv_inline_cap = ARG_ADDR (i);
-      i += ARG64_WORDS;
-
-      addr_t send_activity = ARG_ADDR (i);
-      i += ARG64_WORDS;
-      addr_t target_messenger = ARG_ADDR (i);
+      vg_addr_t recv_inline_cap = ARG_ADDR (i);
       i += ARG64_WORDS;
 
-      addr_t send_messenger = ARG_ADDR (i);
+      vg_addr_t send_activity = ARG_ADDR (i);
       i += ARG64_WORDS;
-      addr_t send_buf = ARG_ADDR (i);
+      vg_addr_t target_messenger = ARG_ADDR (i);
+      i += ARG64_WORDS;
+
+      vg_addr_t send_messenger = ARG_ADDR (i);
+      i += ARG64_WORDS;
+      vg_addr_t send_buf = ARG_ADDR (i);
       i += ARG64_WORDS;
 
       uintptr_t inline_word1 = ARG (i);
       i ++;
       uintptr_t inline_word2 = ARG (i);
       i ++;
-      addr_t inline_cap = ARG_ADDR (i);
+      vg_addr_t inline_cap = ARG_ADDR (i);
 
 #ifndef NDEBUG
       /* Get the label early to improve debugging output in case the
@@ -649,21 +649,21 @@ server_loop (void)
 	    {
 	      principal = activity;
 
-	      struct cap cap = CAP_VOID;
-	      if (! ADDR_IS_VOID (send_buf))
+	      struct vg_cap cap = VG_CAP_VOID;
+	      if (! VG_ADDR_IS_VOID (send_buf))
 		/* Caller provided a send buffer.  */
-		CAP_ (&thread->aspace, send_buf, cap_page, true, &cap);
+		CAP_ (&thread->aspace, send_buf, vg_cap_page, true, &cap);
 	      else
 		{
 		  struct object *object = NULL;
 		  OBJECT_ (&thread->aspace, send_messenger,
-			   cap_messenger, true, &object, NULL);
+			   vg_cap_messenger, true, &object, NULL);
 		  if (object)
 		    cap = ((struct messenger *) object)->buffer;
 		}
 		
 	      struct vg_message *message;
-	      message = (struct vg_message *) cap_to_object (principal,
+	      message = (struct vg_message *) vg_cap_to_object (principal,
 							     &cap);
 	      if (message)
 		label = vg_message_word (message, 0);
@@ -672,9 +672,9 @@ server_loop (void)
 #endif
 
       DEBUG (4, "flags: %s%s%s%s%s%s %s%s%s%s%s%s %s %s%s%s%s(%x),"
-	     "recv (" ADDR_FMT ", " ADDR_FMT ", " ADDR_FMT "), "
-	     "send (" ADDR_FMT ", " ADDR_FMT ", " ADDR_FMT ", " ADDR_FMT "), "
-	     "inline (" ADDR_FMT "; %x, %x, " ADDR_FMT ")",
+	     "recv (" VG_ADDR_FMT ", " VG_ADDR_FMT ", " VG_ADDR_FMT "), "
+	     "send (" VG_ADDR_FMT ", " VG_ADDR_FMT ", " VG_ADDR_FMT ", " VG_ADDR_FMT "), "
+	     "inline (" VG_ADDR_FMT "; %x, %x, " VG_ADDR_FMT ")",
 	     (flags & VG_IPC_RECEIVE) ? "R" : "-",
 	     (flags & VG_IPC_RECEIVE_NONBLOCKING) ? "N" : "B",
 	     (flags & VG_IPC_RECEIVE_ACTIVATE) ? "A" : "-",
@@ -693,22 +693,22 @@ server_loop (void)
 	     (flags & VG_IPC_SEND_INLINE_WORD2) ? "2" : "-",
 	     (flags & VG_IPC_SEND_INLINE_CAP1) ? "C" : "-",
 	     flags,
-	     ADDR_PRINTF (recv_activity), ADDR_PRINTF (recv_messenger),
-	     ADDR_PRINTF (recv_buf),
-	     ADDR_PRINTF (send_activity), ADDR_PRINTF (target_messenger),
-	     ADDR_PRINTF (send_messenger), ADDR_PRINTF (send_buf),
-	     ADDR_PRINTF (recv_inline_cap),
-	     inline_word1, inline_word2, ADDR_PRINTF (inline_cap));
+	     VG_ADDR_PRINTF (recv_activity), VG_ADDR_PRINTF (recv_messenger),
+	     VG_ADDR_PRINTF (recv_buf),
+	     VG_ADDR_PRINTF (send_activity), VG_ADDR_PRINTF (target_messenger),
+	     VG_ADDR_PRINTF (send_messenger), VG_ADDR_PRINTF (send_buf),
+	     VG_ADDR_PRINTF (recv_inline_cap),
+	     inline_word1, inline_word2, VG_ADDR_PRINTF (inline_cap));
 
       if ((flags & VG_IPC_RECEIVE))
 	/* IPC includes a receive phase.  */
 	{
 	  principal = activity;
-	  if (! ADDR_IS_VOID (recv_activity))
+	  if (! VG_ADDR_IS_VOID (recv_activity))
 	    {
 	      principal = (struct activity *) OBJECT (&thread->aspace,
 						      recv_activity,
-						      cap_activity, false,
+						      vg_cap_activity, false,
 						      NULL);
 	      if (! principal)
 		{
@@ -719,7 +719,7 @@ server_loop (void)
 
 	  struct messenger *messenger
 	    = (struct messenger *) OBJECT (&thread->aspace,
-					   recv_messenger, cap_messenger,
+					   recv_messenger, vg_cap_messenger,
 					   true, NULL);
 	  if (! messenger)
 	    {
@@ -737,10 +737,10 @@ server_loop (void)
 	  else
 	    {
 	      messenger->out_of_band = true;
-	      if (unlikely (! ADDR_IS_VOID (recv_buf)))
+	      if (unlikely (! VG_ADDR_IS_VOID (recv_buf)))
 		/* Associate RECV_BUF with RECV_MESSENGER.  */
 		messenger->buffer = CAP (&thread->aspace, recv_buf,
-					 cap_page, true);
+					 vg_cap_page, true);
 	    }
 
 	  if (unlikely ((flags & VG_IPC_RECEIVE_SET_THREAD_TO_CALLER)))
@@ -799,19 +799,19 @@ server_loop (void)
 	label = inline_word1;
 
       principal = activity;
-      struct cap principal_cap;
-      if (! ADDR_IS_VOID (send_activity))
+      struct vg_cap principal_cap;
+      if (! VG_ADDR_IS_VOID (send_activity))
 	{
 	  /* We need the cap below, otherwise, we could just use
 	     OBJECT.  */
 	  principal_cap = CAP (&thread->aspace,
-			       send_activity, cap_activity, false);
-	  principal = (struct activity *) cap_to_object (principal,
+			       send_activity, vg_cap_activity, false);
+	  principal = (struct activity *) vg_cap_to_object (principal,
 							 &principal_cap);
 	  if (! principal)
 	    {
-	      DEBUG (4, "Dangling pointer at " ADDR_FMT,
-		     ADDR_PRINTF (send_activity));
+	      DEBUG (4, "Dangling pointer at " VG_ADDR_FMT,
+		     VG_ADDR_PRINTF (send_activity));
 	      REPLY (ENOENT);
 	    }
 	}
@@ -823,7 +823,7 @@ server_loop (void)
 
       struct messenger *source
 	= (struct messenger *) OBJECT (&thread->aspace,
-				       send_messenger, cap_messenger,
+				       send_messenger, vg_cap_messenger,
 				       true, NULL);
       if (unlikely (! source))
 	{
@@ -832,8 +832,8 @@ server_loop (void)
 	}
 
       if (! (flags & VG_IPC_SEND_INLINE)
-	  && unlikely (! ADDR_IS_VOID (send_buf)))
-	source->buffer = CAP (&thread->aspace, send_buf, cap_page, true);
+	  && unlikely (! VG_ADDR_IS_VOID (send_buf)))
+	source->buffer = CAP (&thread->aspace, send_buf, vg_cap_page, true);
 
       if (unlikely ((flags & VG_IPC_SEND_SET_THREAD_TO_CALLER)))
 	source->thread = object_to_cap ((struct object *) thread);
@@ -846,7 +846,7 @@ server_loop (void)
       bool target_writable = true;
       struct object *target;
       /* We special case VOID to mean the current thread.  */
-      if (ADDR_IS_VOID (target_messenger))
+      if (VG_ADDR_IS_VOID (target_messenger))
 	target = (struct object *) thread;
       else
 	target = OBJECT (&thread->aspace, target_messenger, -1, false,
@@ -857,13 +857,13 @@ server_loop (void)
 	  REPLY (ENOENT);
 	}
 
-      if (object_type (target) == cap_messenger && ! target_writable)
+      if (object_type (target) == vg_cap_messenger && ! target_writable)
 	/* TARGET is a weak reference to a messenger.  Forward the
 	   message.  */
 	{
-	  DEBUG (5, "IPC: " OID_FMT " -> " OID_FMT,
-		 OID_PRINTF (object_oid ((struct object *) source)),
-		 OID_PRINTF (object_oid ((struct object *) target)));
+	  DEBUG (5, "IPC: " VG_OID_FMT " -> " VG_OID_FMT,
+		 VG_OID_PRINTF (object_oid ((struct object *) source)),
+		 VG_OID_PRINTF (object_oid ((struct object *) target)));
 
 	  if ((flags & VG_IPC_SEND_INLINE))
 	    {
@@ -940,18 +940,18 @@ server_loop (void)
 	}
       else
 	{
-	  if (source->buffer.type != cap_page)
+	  if (source->buffer.type != vg_cap_page)
 	    {
 	      DEBUG (0, "Sender user-buffer has wrong type: %s",
-		     cap_type_string (source->buffer.type));
+		     vg_cap_type_string (source->buffer.type));
 	      REPLY (EINVAL);
 	    }
-	  message = (struct vg_message *) cap_to_object (principal,
+	  message = (struct vg_message *) vg_cap_to_object (principal,
 							 &source->buffer);
 	  if (! message)
 	    {
 	      DEBUG (0, "Sender user-buffer has wrong type: %s",
-		     cap_type_string (source->buffer.type));
+		     vg_cap_type_string (source->buffer.type));
 	      REPLY (EINVAL);
 	    }
 	}
@@ -973,16 +973,16 @@ server_loop (void)
 	  OBJECT (&thread->aspace,
 		  vg_message_cap (message,
 				  vg_message_cap_count (message) - 1),
-		  cap_rmessenger, false, NULL);
+		  vg_cap_rmessenger, false, NULL);
 
       /* There are a number of methods that look up an object relative
 	 to the invoked object.  Generate an appropriate root for
 	 them.  */
-      struct cap target_root_cap;
-      struct cap *target_root;
+      struct vg_cap target_root_cap;
+      struct vg_cap *target_root;
       if (likely (target == (struct object *) thread))
 	target_root = &thread->aspace;
-      else if (object_type (target) == cap_thread)
+      else if (object_type (target) == vg_cap_thread)
 	target_root = &((struct thread *) target)->aspace;
       else
 	{
@@ -990,17 +990,17 @@ server_loop (void)
 	  target_root = &target_root_cap;
 	}
 
-      DEBUG (4, OID_FMT " %s(%llx) -> " OID_FMT " %s(%llx)",
-	     OID_PRINTF (object_oid ((struct object *) source)),
-	     cap_type_string (object_type ((struct object *) source)),
+      DEBUG (4, VG_OID_FMT " %s(%llx) -> " VG_OID_FMT " %s(%llx)",
+	     VG_OID_PRINTF (object_oid ((struct object *) source)),
+	     vg_cap_type_string (object_type ((struct object *) source)),
 	     source->id,
-	     OID_PRINTF (object_oid ((struct object *) target)),
-	     cap_type_string (object_type (target)),
-	     object_type (target) == cap_messenger
+	     VG_OID_PRINTF (object_oid ((struct object *) target)),
+	     vg_cap_type_string (object_type (target)),
+	     object_type (target) == vg_cap_messenger
 	     ? ((struct messenger *) target)->id : 0);
       if (reply)
-	DEBUG (4, "reply to: " OID_FMT "(%llx)",
-	       OID_PRINTF (object_oid ((struct object *) reply)),
+	DEBUG (4, "reply to: " VG_OID_FMT "(%llx)",
+	       VG_OID_PRINTF (object_oid ((struct object *) reply)),
 	       reply->id);
 
       switch (label)
@@ -1066,20 +1066,20 @@ server_loop (void)
 	    int count = 0;
 	    for (count = 0; count < max; count ++, start += PAGESIZE)
 	      {
-		struct cap cap;
+		struct vg_cap cap;
 		bool writable;
 		cap = as_object_lookup_rel (activity, &thread->aspace,
-					    addr_chop (PTR_TO_ADDR (start),
+					    vg_addr_chop (VG_PTR_TO_ADDR (start),
 						       PAGESIZE_LOG2),
-					    cap_rpage, &writable);
+					    vg_cap_rpage, &writable);
 
-		if (cap.type != cap_page && cap.type != cap_rpage)
+		if (cap.type != vg_cap_page && cap.type != vg_cap_rpage)
 		  break;
 
 		if (! writable && cap.discardable)
 		  cap.discardable = false;
 
-		struct object *page = cap_to_object (activity, &cap);
+		struct object *page = vg_cap_to_object (activity, &cap);
 		if (! page)
 		  break;
 
@@ -1097,7 +1097,7 @@ server_loop (void)
 		DEBUG (4, "Prefault %d: " DEBUG_BOLD ("%x") " <- %x/%x %s",
 		       count + 1, start,
 		       l4_address (fpage), l4_rights (fpage),
-		       cap_type_string (cap.type));
+		       vg_cap_type_string (cap.type));
 	      }
 
 	    if (count > 0)
@@ -1115,11 +1115,11 @@ server_loop (void)
 
 	case RM_folio_alloc:
 	  {
-	    if (object_type (target) != cap_activity_control)
+	    if (object_type (target) != vg_cap_activity_control)
 	      {
-		DEBUG (0, "target " ADDR_FMT " not an activity but a %s",
-		       ADDR_PRINTF (target_messenger),
-		       cap_type_string (object_type (target)));
+		DEBUG (0, "target " VG_ADDR_FMT " not an activity but a %s",
+		       VG_ADDR_PRINTF (target_messenger),
+		       vg_cap_type_string (object_type (target)));
 		REPLY (EINVAL);
 	      }
 
@@ -1130,7 +1130,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(" ADDR_FMT ")", ADDR_PRINTF (target_messenger));
+	    DEBUG (4, "(" VG_ADDR_FMT ")", VG_ADDR_PRINTF (target_messenger));
 
 	    struct folio *folio = folio_alloc (activity, policy);
 	    if (! folio)
@@ -1143,7 +1143,7 @@ server_loop (void)
 
 	case RM_folio_free:
 	  {
-	    if (object_type (target) != cap_folio)
+	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
 
 	    struct folio *folio = (struct folio *) target;
@@ -1152,7 +1152,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(" ADDR_FMT ")", ADDR_PRINTF (target_messenger));
+	    DEBUG (4, "(" VG_ADDR_FMT ")", VG_ADDR_PRINTF (target_messenger));
 
 	    folio_free (principal, folio);
 
@@ -1162,7 +1162,7 @@ server_loop (void)
 
 	case RM_folio_object_alloc:
 	  {
-	    if (object_type (target) != cap_folio)
+	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
 
 	    struct folio *folio = (struct folio *) target;
@@ -1178,30 +1178,30 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(" ADDR_FMT ", %d (" ADDR_FMT "), %s, (%s, %d), %d)",
-		   ADDR_PRINTF (target_messenger), idx,
-		   addr_depth (target_messenger) + FOLIO_OBJECTS_LOG2
-		   <= ADDR_BITS
-		   ? ADDR_PRINTF (addr_extend (target_messenger,
-					       idx, FOLIO_OBJECTS_LOG2))
-		   : ADDR_PRINTF (ADDR_VOID),
-		   cap_type_string (type),
+	    DEBUG (4, "(" VG_ADDR_FMT ", %d (" VG_ADDR_FMT "), %s, (%s, %d), %d)",
+		   VG_ADDR_PRINTF (target_messenger), idx,
+		   vg_addr_depth (target_messenger) + VG_FOLIO_OBJECTS_LOG2
+		   <= VG_ADDR_BITS
+		   ? VG_ADDR_PRINTF (vg_addr_extend (target_messenger,
+					       idx, VG_FOLIO_OBJECTS_LOG2))
+		   : VG_ADDR_PRINTF (VG_ADDR_VOID),
+		   vg_cap_type_string (type),
 		   policy.discardable ? "discardable" : "precious",
 		   policy.priority,
 		   return_code);
 
-	    if (idx >= FOLIO_OBJECTS)
+	    if (idx >= VG_FOLIO_OBJECTS)
 	      REPLY (EINVAL);
 
-	    if (! (CAP_TYPE_MIN <= type && type <= CAP_TYPE_MAX))
+	    if (! (VG_CAP_TYPE_MIN <= type && type <= VG_CAP_TYPE_MAX))
 	      REPLY (EINVAL);
 
-	    struct cap cap;
+	    struct vg_cap cap;
 	    cap = folio_object_alloc (principal,
 				      folio, idx, type, policy, return_code);
 
-	    struct cap weak = cap;
-	    weak.type = cap_type_weaken (cap.type);
+	    struct vg_cap weak = cap;
+	    weak.type = vg_cap_type_weaken (cap.type);
 
 	    rm_folio_object_alloc_reply (activity, reply, cap, weak);
 	    break;
@@ -1209,7 +1209,7 @@ server_loop (void)
 
 	case RM_folio_policy:
 	  {
-	    if (object_type (target) != cap_folio)
+	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
 
 	    struct folio *folio = (struct folio *) target;
@@ -1221,8 +1221,8 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(" ADDR_FMT ", %d)",
-		   ADDR_PRINTF (target_messenger), flags);
+	    DEBUG (4, "(" VG_ADDR_FMT ", %d)",
+		   VG_ADDR_PRINTF (target_messenger), flags);
 
 	    folio_policy (principal, folio, flags, in, &out);
 
@@ -1232,13 +1232,13 @@ server_loop (void)
 
 	case RM_cap_copy:
 	  {
-	    addr_t source_as_addr;
-	    addr_t source_addr;
-	    struct cap source;
-	    addr_t target_as_addr;
-	    addr_t target_addr;
+	    vg_addr_t source_as_addr;
+	    vg_addr_t source_addr;
+	    struct vg_cap source;
+	    vg_addr_t target_as_addr;
+	    vg_addr_t target_addr;
 	    uint32_t flags;
-	    struct cap_properties properties;
+	    struct vg_cap_properties properties;
 
 	    err = rm_cap_copy_send_unmarshal (message,
 					      &target_addr, 
@@ -1247,67 +1247,67 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, "(" ADDR_FMT "@" ADDR_FMT " <- "
-		   ADDR_FMT "@" ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
+	    DEBUG (4, "(" VG_ADDR_FMT "@" VG_ADDR_FMT " <- "
+		   VG_ADDR_FMT "@" VG_ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
 
-		   ADDR_PRINTF (target_messenger), ADDR_PRINTF (target_addr),
-		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
+		   VG_ADDR_PRINTF (target_messenger), VG_ADDR_PRINTF (target_addr),
+		   VG_ADDR_PRINTF (source_as_addr), VG_ADDR_PRINTF (source_addr),
 		   
-		   CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
+		   VG_CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
 		   ? "copy subpage/" : "",
-		   CAP_COPY_COPY_ADDR_TRANS_GUARD & flags
+		   VG_CAP_COPY_COPY_ADDR_TRANS_GUARD & flags
 		   ? "copy trans guard/" : "",
-		   CAP_COPY_COPY_SOURCE_GUARD & flags
+		   VG_CAP_COPY_COPY_SOURCE_GUARD & flags
 		   ? "copy src guard/" : "",
-		   CAP_COPY_WEAKEN & flags ? "weak/" : "",
-		   CAP_COPY_DISCARDABLE_SET & flags ? "discardable/" : "",
-		   CAP_COPY_PRIORITY_SET & flags ? "priority" : "",
+		   VG_CAP_COPY_WEAKEN & flags ? "weak/" : "",
+		   VG_CAP_COPY_DISCARDABLE_SET & flags ? "discardable/" : "",
+		   VG_CAP_COPY_PRIORITY_SET & flags ? "priority" : "",
 
 		   properties.policy.discardable ? "discardable" : "precious",
 		   properties.policy.priority,
-		   CAP_ADDR_TRANS_GUARD (properties.addr_trans),
-		   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
-		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
-		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
+		   VG_CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+		   VG_CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
+		   VG_CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
+		   VG_CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
 
-	    struct cap *target;
+	    struct vg_cap *target;
 	    target = SLOT (target_root, target_addr);
 
 	    target_root = ROOT (source_as_addr);
 	    source = CAP (target_root, source_addr, -1, false);
 
-	    if ((flags & ~(CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
-			   | CAP_COPY_COPY_ADDR_TRANS_GUARD
-			   | CAP_COPY_COPY_SOURCE_GUARD
-			   | CAP_COPY_WEAKEN
-			   | CAP_COPY_DISCARDABLE_SET
-			   | CAP_COPY_PRIORITY_SET)))
+	    if ((flags & ~(VG_CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
+			   | VG_CAP_COPY_COPY_ADDR_TRANS_GUARD
+			   | VG_CAP_COPY_COPY_SOURCE_GUARD
+			   | VG_CAP_COPY_WEAKEN
+			   | VG_CAP_COPY_DISCARDABLE_SET
+			   | VG_CAP_COPY_PRIORITY_SET)))
 	      REPLY (EINVAL);
 
-	    DEBUG (4, "(target: (" ADDR_FMT ") " ADDR_FMT ", "
-		   "source: (" ADDR_FMT ") " ADDR_FMT ", "
+	    DEBUG (4, "(target: (" VG_ADDR_FMT ") " VG_ADDR_FMT ", "
+		   "source: (" VG_ADDR_FMT ") " VG_ADDR_FMT ", "
 		   "%s|%s, %s {%llx/%d %d/%d})",
-		   ADDR_PRINTF (target_as_addr), ADDR_PRINTF (target_addr),
-		   ADDR_PRINTF (source_as_addr), ADDR_PRINTF (source_addr),
-		   flags & CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
-		   : (flags & CAP_COPY_COPY_SOURCE_GUARD ? "source"
+		   VG_ADDR_PRINTF (target_as_addr), VG_ADDR_PRINTF (target_addr),
+		   VG_ADDR_PRINTF (source_as_addr), VG_ADDR_PRINTF (source_addr),
+		   flags & VG_CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
+		   : (flags & VG_CAP_COPY_COPY_SOURCE_GUARD ? "source"
 		      : "preserve"),
-		   flags & CAP_COPY_COPY_ADDR_TRANS_SUBPAGE ? "copy"
+		   flags & VG_CAP_COPY_COPY_ADDR_TRANS_SUBPAGE ? "copy"
 		   : "preserve",
-		   flags & CAP_COPY_WEAKEN ? "weaken" : "no weaken",
-		   CAP_ADDR_TRANS_GUARD (properties.addr_trans),
-		   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
-		   CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
-		   CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
+		   flags & VG_CAP_COPY_WEAKEN ? "weaken" : "no weaken",
+		   VG_CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+		   VG_CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans),
+		   VG_CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
+		   VG_CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans));
 
-	    bool r = cap_copy_x (principal,
-				 ADDR_VOID, target, ADDR_VOID,
-				 ADDR_VOID, source, ADDR_VOID,
+	    bool r = vg_cap_copy_x (principal,
+				 VG_ADDR_VOID, target, VG_ADDR_VOID,
+				 VG_ADDR_VOID, source, VG_ADDR_VOID,
 				 flags, properties);
 	    if (! r)
 	      REPLY (EINVAL);
 
-	    if ((flags & (CAP_COPY_DISCARDABLE_SET | CAP_COPY_PRIORITY_SET)))
+	    if ((flags & (VG_CAP_COPY_DISCARDABLE_SET | VG_CAP_COPY_PRIORITY_SET)))
 	      /* The caller changed the policy.  Also change it on the
 		 object.  */
 	      {
@@ -1322,12 +1322,12 @@ server_loop (void)
 
 		    /* XXX: This should only be allowed if TARGET
 		       grants writable access to the object.  */
-		    if ((flags & CAP_COPY_DISCARDABLE_SET))
+		    if ((flags & VG_CAP_COPY_DISCARDABLE_SET))
 		      p.discardable = properties.policy.discardable;
 
 		    /* Only the current claimant can set the
 		       priority.  */
-		    if ((flags & CAP_COPY_PRIORITY_SET)
+		    if ((flags & VG_CAP_COPY_PRIORITY_SET)
 			&& desc->activity == principal)
 		      p.priority = properties.policy.priority;
 
@@ -1341,20 +1341,20 @@ server_loop (void)
 	    /* XXX: Surprisingly, it appears that this may be
 	       more expensive than just faulting the pages
 	       normally.  This needs more investivation.  */
-	    if (ADDR_IS_VOID (target_as_addr)
-		&& cap_types_compatible (target->type, cap_page)
-		&& CAP_GUARD_BITS (target) == 0
-		&& addr_depth (target_addr) == ADDR_BITS - PAGESIZE_LOG2)
+	    if (VG_ADDR_IS_VOID (target_as_addr)
+		&& vg_cap_types_compatible (target->type, vg_cap_page)
+		&& VG_CAP_GUARD_BITS (target) == 0
+		&& vg_addr_depth (target_addr) == VG_ADDR_BITS - PAGESIZE_LOG2)
 	      /* The target address space is the caller's.  The target
 		 object appears to be a page.  It seems to be
 		 installed at a point where it would appear in the
 		 hardware address space.  If this is really the case,
 		 then we can map it now and save a fault later.  */
 	      {
-		profile_region ("cap_copy-prefault");
+		profile_region ("vg_cap_copy-prefault");
 
-		struct cap cap = *target;
-		if (target->type == cap_rpage)
+		struct vg_cap cap = *target;
+		if (target->type == vg_cap_rpage)
 		  cap.discardable = false;
 
 		struct object *page = cap_to_object_soft (principal, &cap);
@@ -1365,11 +1365,11 @@ server_loop (void)
 		    l4_fpage_t fpage
 		      = l4_fpage ((uintptr_t) page, PAGESIZE);
 		    fpage = l4_fpage_add_rights (fpage, L4_FPAGE_READABLE);
-		    if (cap.type == cap_page)
+		    if (cap.type == vg_cap_page)
 		      fpage = l4_fpage_add_rights (fpage,
 						   L4_FPAGE_WRITABLE);
 
-		    uintptr_t page_addr = addr_prefix (target_addr);
+		    uintptr_t page_addr = vg_addr_prefix (target_addr);
 
 		    l4_map_item_t map_item = l4_map_item (fpage, page_addr);
 
@@ -1385,19 +1385,19 @@ server_loop (void)
 
 	case RM_cap_rubout:
 	  {
-	    addr_t addr;
+	    vg_addr_t addr;
 
 	    err = rm_cap_rubout_send_unmarshal (message, &addr, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT "@" ADDR_FMT,
-		   ADDR_PRINTF (target_messenger),
-		   ADDR_PRINTF (addr));
+	    DEBUG (4, VG_ADDR_FMT "@" VG_ADDR_FMT,
+		   VG_ADDR_PRINTF (target_messenger),
+		   VG_ADDR_PRINTF (addr));
 
 	    /* We don't look up the argument directly as we need to
 	       respect any subpage specification for cappages.  */
-	    struct cap *slot = SLOT (target_root, addr);
+	    struct vg_cap *slot = SLOT (target_root, addr);
 
 	    cap_shootdown (principal, slot);
 
@@ -1409,53 +1409,53 @@ server_loop (void)
 
 	case RM_cap_read:
 	  {
-	    addr_t cap_addr;
+	    vg_addr_t cap_addr;
 
 	    err = rm_cap_read_send_unmarshal (message, &cap_addr, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT "@" ADDR_FMT,
-		   ADDR_PRINTF (target_messenger), ADDR_PRINTF (cap_addr));
+	    DEBUG (4, VG_ADDR_FMT "@" VG_ADDR_FMT,
+		   VG_ADDR_PRINTF (target_messenger), VG_ADDR_PRINTF (cap_addr));
 
-	    struct cap cap = CAP (target_root, cap_addr, -1, false);
+	    struct vg_cap cap = CAP (target_root, cap_addr, -1, false);
 	    /* Even if CAP.TYPE is not void, the cap may not designate
 	       an object.  Looking up the object will set CAP.TYPE to
-	       cap_void if this is the case.  */
-	    if (cap.type != cap_void)
-	      cap_to_object (principal, &cap);
+	       vg_cap_void if this is the case.  */
+	    if (cap.type != vg_cap_void)
+	      vg_cap_to_object (principal, &cap);
 
 	    rm_cap_read_reply (activity, reply, cap.type,
-			       CAP_PROPERTIES_GET (cap));
+			       VG_CAP_PROPERTIES_GET (cap));
 	    break;
 	  }
 
 	case RM_object_discarded_clear:
 	  {
-	    addr_t object_addr;
+	    vg_addr_t object_addr;
 
 	    err = rm_object_discarded_clear_send_unmarshal
 	      (message, &object_addr, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (object_addr));
+	    DEBUG (4, VG_ADDR_FMT, VG_ADDR_PRINTF (object_addr));
 
 	    /* We can't look up the object use OBJECT as object_lookup
 	       returns NULL if the object's discardable bit is set!
 	       Instead, we lookup the capability, find the object's
 	       folio and then clear its discarded bit.  */
-	    struct cap cap = CAP (&thread->aspace, object_addr, -1, true);
-	    if (cap.type == cap_void)
+	    struct vg_cap cap = CAP (&thread->aspace, object_addr, -1, true);
+	    if (cap.type == vg_cap_void)
 	      REPLY (ENOENT);
-	    if (cap_type_weak_p (cap.type))
+	    if (vg_cap_type_weak_p (cap.type))
 	      REPLY (EPERM);
 
-	    int idx = (cap.oid % (1 + FOLIO_OBJECTS)) - 1;
-	    oid_t foid = cap.oid - idx - 1;
+	    int idx = (cap.oid % (1 + VG_FOLIO_OBJECTS)) - 1;
+	    vg_oid_t foid = cap.oid - idx - 1;
 
 	    struct folio *folio = (struct folio *)
-	      object_find (activity, foid, OBJECT_POLICY_VOID);
+	      object_find (activity, foid, VG_OBJECT_POLICY_VOID);
 
 	    if (folio_object_version (folio, idx) != cap.version)
 	      REPLY (ENOENT);
@@ -1470,9 +1470,9 @@ server_loop (void)
 	       expensive than just faulting the pages normally.  This
 	       needs more investivation.  */
 	    if (was_discarded
-		&& cap.type == cap_page
-		&& CAP_GUARD_BITS (&cap) == 0
-		&& (addr_depth (object_addr) == ADDR_BITS - PAGESIZE_LOG2))
+		&& cap.type == vg_cap_page
+		&& VG_CAP_GUARD_BITS (&cap) == 0
+		&& (vg_addr_depth (object_addr) == VG_ADDR_BITS - PAGESIZE_LOG2))
 	      /* The target object was discarded, appears to be a page
 		 and seems to be installed at a point where it would
 		 appear in the hardware address space.  If this is
@@ -1481,7 +1481,7 @@ server_loop (void)
 	      {
 		profile_region ("object_discard-prefault");
 
-		struct object *page = cap_to_object (principal, &cap);
+		struct object *page = vg_cap_to_object (principal, &cap);
 		if (page)
 		  {
 		    object_to_object_desc (page)->mapped = true;
@@ -1491,14 +1491,14 @@ server_loop (void)
 						 L4_FPAGE_READABLE
 						 | L4_FPAGE_WRITABLE);
 
-		    uintptr_t page_addr = addr_prefix (object_addr);
+		    uintptr_t page_addr = vg_addr_prefix (object_addr);
 
 		    l4_map_item_t map_item = l4_map_item (fpage, page_addr);
 
 		    l4_msg_append_map_item (msg, map_item);
 
-		    DEBUG (4, "Prefaulting "ADDR_FMT"(%x) <- %p (%x/%x/%x)",
-			   ADDR_PRINTF (object_addr), page_addr,
+		    DEBUG (4, "Prefaulting "VG_ADDR_FMT"(%x) <- %p (%x/%x/%x)",
+			   VG_ADDR_PRINTF (object_addr), page_addr,
 			   page, l4_address (fpage), l4_size (fpage),
 			   l4_rights (fpage));
 		  }
@@ -1516,7 +1516,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (target_messenger));
+	    DEBUG (4, VG_ADDR_FMT, VG_ADDR_PRINTF (target_messenger));
 
 	    struct folio *folio = objects_folio (principal, target);
 
@@ -1534,8 +1534,8 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT ", %sclear",
-		   ADDR_PRINTF (target_messenger), clear ? "" : "no ");
+	    DEBUG (4, VG_ADDR_FMT ", %sclear",
+		   VG_ADDR_PRINTF (target_messenger), clear ? "" : "no ");
 
 	    struct object_desc *desc = object_to_object_desc (target);
 	    uintptr_t status = (desc->user_referenced ? object_referenced : 0)
@@ -1556,14 +1556,14 @@ server_loop (void)
 	    struct object_name name;
 	    err = rm_object_name_send_unmarshal (message, &name, NULL);
 
-	    if (object_type (target) == cap_activity_control)
+	    if (object_type (target) == vg_cap_activity_control)
 	      {
 		struct activity *a = (struct activity *) target;
 
 		memcpy (a->name.name, name.name, sizeof (name));
 		a->name.name[sizeof (a->name.name) - 1] = 0;
 	      }
-	    else if (object_type (target) == cap_thread)
+	    else if (object_type (target) == vg_cap_thread)
 	      {
 		struct thread *t = (struct thread *) target;
 
@@ -1577,16 +1577,16 @@ server_loop (void)
 
 	case RM_thread_exregs:
 	  {
-	    if (object_type (target) != cap_thread)
+	    if (object_type (target) != vg_cap_thread)
 	      REPLY (EINVAL);
 	    struct thread *t = (struct thread *) target;
 
 	    struct hurd_thread_exregs_in in;
 	    uintptr_t control;
-	    addr_t aspace_addr;
-	    addr_t activity_addr;
-	    addr_t utcb_addr;
-	    addr_t exception_messenger_addr;
+	    vg_addr_t aspace_addr;
+	    vg_addr_t activity_addr;
+	    vg_addr_t utcb_addr;
+	    vg_addr_t exception_messenger_addr;
 	    err = rm_thread_exregs_send_unmarshal
 	      (message, &control, &in,
 	       &aspace_addr, &activity_addr, &utcb_addr,
@@ -1596,10 +1596,10 @@ server_loop (void)
 	      REPLY (err);
 
 	    int d = 4;
-	    DEBUG (d, "%s%s" ADDR_FMT "(%x): %s%s%s%s %s%s%s%s %s%s%s %s%s",
+	    DEBUG (d, "%s%s" VG_ADDR_FMT "(%x): %s%s%s%s %s%s%s%s %s%s%s %s%s",
 		   t->name.name[0] ? t->name.name : "",
 		   t->name.name[0] ? ": " : "",
-		   ADDR_PRINTF (target_messenger), t->tid,
+		   VG_ADDR_PRINTF (target_messenger), t->tid,
 		   (control & HURD_EXREGS_SET_UTCB) ? "U" : "-",
 		   (control & HURD_EXREGS_SET_EXCEPTION_MESSENGER) ? "E" : "-",
 		   (control & HURD_EXREGS_SET_ASPACE) ? "R" : "-",
@@ -1615,14 +1615,14 @@ server_loop (void)
 		   (control & _L4_XCHG_REGS_SET_HALT) ? "Y" : "N");
 
 	    if ((control & HURD_EXREGS_SET_UTCB))
-	      DEBUG (d, "utcb: " ADDR_FMT, ADDR_PRINTF (utcb_addr));
+	      DEBUG (d, "utcb: " VG_ADDR_FMT, VG_ADDR_PRINTF (utcb_addr));
 	    if ((control & HURD_EXREGS_SET_EXCEPTION_MESSENGER))
-	      DEBUG (d, "exception messenger: " ADDR_FMT,
-		     ADDR_PRINTF (exception_messenger_addr));
+	      DEBUG (d, "exception messenger: " VG_ADDR_FMT,
+		     VG_ADDR_PRINTF (exception_messenger_addr));
 	    if ((control & HURD_EXREGS_SET_ASPACE))
-	      DEBUG (d, "aspace: " ADDR_FMT, ADDR_PRINTF (aspace_addr));
+	      DEBUG (d, "aspace: " VG_ADDR_FMT, VG_ADDR_PRINTF (aspace_addr));
 	    if ((control & HURD_EXREGS_SET_ACTIVITY))
-	      DEBUG (d, "activity: " ADDR_FMT, ADDR_PRINTF (activity_addr));
+	      DEBUG (d, "activity: " VG_ADDR_FMT, VG_ADDR_PRINTF (activity_addr));
 	    if ((control & HURD_EXREGS_SET_SP))
 	      DEBUG (d, "sp: %p", (void *) in.sp);
 	    if ((control & HURD_EXREGS_SET_IP))
@@ -1632,35 +1632,35 @@ server_loop (void)
 	    if ((control & HURD_EXREGS_SET_USER_HANDLE))
 	      DEBUG (d, "user_handle: %p", (void *) in.user_handle);
 
-	    struct cap aspace = CAP_VOID;
+	    struct vg_cap aspace = VG_CAP_VOID;
 	    if ((HURD_EXREGS_SET_ASPACE & control))
 	      aspace = CAP (&thread->aspace, aspace_addr, -1, false);
 
-	    struct cap a = CAP_VOID;
+	    struct vg_cap a = VG_CAP_VOID;
 	    if ((HURD_EXREGS_SET_ACTIVITY & control))
 	      {
 		/* XXX: Remove this hack... */
-		if (ADDR_IS_VOID (activity_addr))
+		if (VG_ADDR_IS_VOID (activity_addr))
 		  a = thread->activity;
 		else
 		  a = CAP (&thread->aspace,
-			   activity_addr, cap_activity, false);
+			   activity_addr, vg_cap_activity, false);
 	      }
 
-	    struct cap utcb = CAP_VOID;
+	    struct vg_cap utcb = VG_CAP_VOID;
 	    if ((HURD_EXREGS_SET_UTCB & control))
-	      utcb = CAP (&thread->aspace, utcb_addr, cap_page, true);
+	      utcb = CAP (&thread->aspace, utcb_addr, vg_cap_page, true);
 
-	    struct cap exception_messenger = CAP_VOID;
+	    struct vg_cap exception_messenger = VG_CAP_VOID;
 	    if ((HURD_EXREGS_SET_EXCEPTION_MESSENGER & control))
 	      exception_messenger
 		= CAP (&thread->aspace, exception_messenger_addr,
-		       cap_rmessenger, false);
+		       vg_cap_rmessenger, false);
 
-	    struct cap aspace_out = thread->aspace;
-	    struct cap activity_out = thread->activity;
-	    struct cap utcb_out = thread->utcb;
-	    struct cap exception_messenger_out = thread->exception_messenger;
+	    struct vg_cap aspace_out = thread->aspace;
+	    struct vg_cap activity_out = thread->activity;
+	    struct vg_cap utcb_out = thread->utcb;
+	    struct vg_cap exception_messenger_out = thread->exception_messenger;
 
 	    struct hurd_thread_exregs_out out;
 	    out.sp = in.sp;
@@ -1686,7 +1686,7 @@ server_loop (void)
 
 	case RM_thread_id:
 	  {
-	    if (object_type (target) != cap_thread)
+	    if (object_type (target) != vg_cap_thread)
 	      REPLY (EINVAL);
 	    struct thread *t = (struct thread *) target;
 
@@ -1705,7 +1705,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    DEBUG (4, ADDR_FMT, ADDR_PRINTF (target_messenger));
+	    DEBUG (4, VG_ADDR_FMT, VG_ADDR_PRINTF (target_messenger));
 
 	    reply->wait_reason = MESSENGER_WAIT_DESTROY;
 	    object_wait_queue_enqueue (principal, target, reply);
@@ -1715,10 +1715,10 @@ server_loop (void)
 
 	case RM_activity_policy:
 	  {
-	    if (object_type (target) != cap_activity_control)
+	    if (object_type (target) != vg_cap_activity_control)
 	      {
 		DEBUG (0, "expects an activity, not a %s",
-		       cap_type_string (object_type (target)));
+		       vg_cap_type_string (object_type (target)));
 		REPLY (EINVAL);
 	      }
 	    struct activity *activity = (struct activity *) target;
@@ -1734,50 +1734,50 @@ server_loop (void)
 	    int d = 4;
 	    DEBUG (d, "(%s) child: %s%s; sibling: %s%s; storage: %s",
 		   target_writable ? "strong" : "weak",
-		   (flags & ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET) ? "P" : "-",
-		   (flags & ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET) ? "W" : "-",
-		   (flags & ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET)
+		   (flags & VG_ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET) ? "P" : "-",
+		   (flags & VG_ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET) ? "W" : "-",
+		   (flags & VG_ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET)
 		   ? "P" : "-",
-		   (flags & ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET) ? "W" : "-",
-		   (flags & ACTIVITY_POLICY_STORAGE_SET) ? "P" : "-");
+		   (flags & VG_ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET) ? "W" : "-",
+		   (flags & VG_ACTIVITY_POLICY_STORAGE_SET) ? "P" : "-");
 
-	    if ((flags & ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
+	    if ((flags & VG_ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
 	      DEBUG (d, "Child priority: %d", in.child_rel.priority);
-	    if ((flags & ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET))
+	    if ((flags & VG_ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET))
 	      DEBUG (d, "Child weight: %d", in.child_rel.weight);
-	    if ((flags & ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET))
+	    if ((flags & VG_ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET))
 	      DEBUG (d, "Sibling priority: %d", in.sibling_rel.priority);
-	    if ((flags & ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET))
+	    if ((flags & VG_ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET))
 	      DEBUG (d, "Sibling weight: %d", in.sibling_rel.weight);
-	    if ((flags & ACTIVITY_POLICY_STORAGE_SET))
+	    if ((flags & VG_ACTIVITY_POLICY_STORAGE_SET))
 	      DEBUG (d, "Storage: %d", in.folios);
 
 	    if (! target_writable
-		&& (flags & (ACTIVITY_POLICY_STORAGE_SET
-			     | ACTIVITY_POLICY_SIBLING_REL_SET)))
+		&& (flags & (VG_ACTIVITY_POLICY_STORAGE_SET
+			     | VG_ACTIVITY_POLICY_SIBLING_REL_SET)))
 	      REPLY (EPERM);
 
 	    rm_activity_policy_reply (principal, reply, activity->policy);
 
-	    if ((flags & (ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET
-			  | ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET
-			  | ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET
-			  | ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET
-			  | ACTIVITY_POLICY_STORAGE_SET)))
+	    if ((flags & (VG_ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET
+			  | VG_ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET
+			  | VG_ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET
+			  | VG_ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET
+			  | VG_ACTIVITY_POLICY_STORAGE_SET)))
 	      {
 		struct activity_policy p = principal->policy;
 
-		if ((flags & ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
+		if ((flags & VG_ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
 		  p.child_rel.priority = in.child_rel.priority;
-		if ((flags & ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET))
+		if ((flags & VG_ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET))
 		  p.child_rel.weight = in.child_rel.weight;
 
-		if ((flags & ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET))
+		if ((flags & VG_ACTIVITY_POLICY_SIBLING_REL_PRIORITY_SET))
 		  p.sibling_rel.priority = in.sibling_rel.priority;
-		if ((flags & ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET))
+		if ((flags & VG_ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET))
 		  p.sibling_rel.weight = in.sibling_rel.weight;
 
-		if ((flags & ACTIVITY_POLICY_STORAGE_SET))
+		if ((flags & VG_ACTIVITY_POLICY_STORAGE_SET))
 		  p.folios = in.folios;
 
 		activity_policy_update (activity, p);
@@ -1788,7 +1788,7 @@ server_loop (void)
 
 	case RM_activity_info:
 	  {
-	    if (object_type (target) != cap_activity_control)
+	    if (object_type (target) != vg_cap_activity_control)
 	      REPLY (EINVAL);
 	    struct activity *activity = (struct activity *) target;
 
@@ -1855,7 +1855,7 @@ server_loop (void)
 
 	case RM_thread_activation_collect:
 	  {
-	    if (object_type (target) != cap_thread)
+	    if (object_type (target) != vg_cap_thread)
 	      REPLY (EINVAL);
 
 	    err = rm_thread_activation_collect_send_unmarshal (message, NULL);
@@ -1903,7 +1903,7 @@ server_loop (void)
 
 			err = rm_futex_reply (principal, m, 0);
 			if (err)
-			  panic ("Error futex waking: %d", err);
+			  panic ("Error vg_futex waking: %d", err);
 
 			count ++;
 
@@ -1962,8 +1962,8 @@ server_loop (void)
 
 	      char *mode = "unknown";
 
-	      struct object *page = cap_to_object (principal, &thread->utcb);
-	      if (page && object_type (page) == cap_page)
+	      struct object *page = vg_cap_to_object (principal, &thread->utcb);
+	      if (page && object_type (page) == vg_cap_page)
 		{
 		  struct vg_utcb *utcb = (struct vg_utcb *) page;
 
@@ -1989,9 +1989,9 @@ server_loop (void)
 		REPLY (ENOSYS);
 	      };
 
-	    addr_t addr = addr_chop (PTR_TO_ADDR (addr1), PAGESIZE_LOG2);
+	    vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (addr1), PAGESIZE_LOG2);
 	    struct object *object1 = OBJECT (&thread->aspace,
-					     addr, cap_page, true, NULL);
+					     addr, vg_cap_page, true, NULL);
 	    int offset1 = (uintptr_t) addr1 & (PAGESIZE - 1);
 	    int *vaddr1 = (void *) object1 + offset1;
 
@@ -2028,9 +2028,9 @@ server_loop (void)
 		break;
 
 	      case FUTEX_WAKE_OP:
-		addr = addr_chop (PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
+		addr = vg_addr_chop (VG_PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
 		struct object *object2 = OBJECT (&thread->aspace,
-						 addr, cap_page, true, NULL);
+						 addr, vg_cap_page, true, NULL);
 		int offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 		int *vaddr2 = (void *) object2 + offset2;
 
@@ -2096,8 +2096,8 @@ server_loop (void)
 		  REPLY (EAGAIN);
 
 		/* Get the second object.  */
-		addr = addr_chop (PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
-		object2 = OBJECT (&thread->aspace, addr, cap_page, true, NULL);
+		addr = vg_addr_chop (VG_PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
+		object2 = OBJECT (&thread->aspace, addr, vg_cap_page, true, NULL);
 		offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 
 		count = wake (val1, object1, offset1,
@@ -2111,7 +2111,7 @@ server_loop (void)
 
 	case VG_messenger_id:
 	  {
-	    if (object_type (target) != cap_messenger || ! target_writable)
+	    if (object_type (target) != vg_cap_messenger || ! target_writable)
 	      REPLY (EINVAL);
 	    struct messenger *m = (struct messenger *) target;
 

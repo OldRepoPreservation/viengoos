@@ -12,7 +12,7 @@
 #include <hurd/startup.h>
 #include <hurd/anonymous.h>
 
-static addr_t activity;
+static vg_addr_t activity;
 
 /* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
@@ -32,23 +32,23 @@ main (int argc, char *argv[])
 #define THREADS 4
 
   /* The activities.  */
-  addr_t activities[THREADS];
+  vg_addr_t activities[THREADS];
 
   /* Create THREADS activities, each with an increasing weight.  */
   int i;
   for (i = 0; i < THREADS; i ++)
     {
-      activities[i] = storage_alloc (activity, cap_activity,
+      activities[i] = storage_alloc (activity, vg_cap_activity,
 				     STORAGE_LONG_LIVED,
-				     OBJECT_POLICY_DEFAULT,
-				     ADDR_VOID).addr;
+				     VG_OBJECT_POLICY_DEFAULT,
+				     VG_ADDR_VOID).addr;
 
       struct activity_policy in;
       in.sibling_rel.priority = i == 0 ? 2 : 1;
       in.sibling_rel.weight = i + 1;
       struct activity_policy out;
       err = rm_activity_policy (activity, activities[i],
-				ACTIVITY_POLICY_SIBLING_REL_SET, in,
+				VG_ACTIVITY_POLICY_SIBLING_REL_SET, in,
 				&out);
       assert (err == 0);
     }
@@ -74,7 +74,7 @@ main (int argc, char *argv[])
   bool my_fill (struct anonymous_pager *anon,
 		uintptr_t offset, uintptr_t count,
 		void *pages[],
-		struct activation_fault_info info)
+		struct vg_activation_fault_info info)
   {
     uintptr_t *p = pages[0];
     p[0] = offset;
@@ -111,9 +111,9 @@ main (int argc, char *argv[])
 	  /* Allocate a (discardable) buffer.  */
 	  {
 	    pagers[i]
-	      = anonymous_pager_alloc (ADDR_VOID, NULL, SIZE, MAP_ACCESS_ALL,
-				       OBJECT_POLICY (true,
-						      OBJECT_PRIORITY_DEFAULT),
+	      = anonymous_pager_alloc (VG_ADDR_VOID, NULL, SIZE, MAP_ACCESS_ALL,
+				       VG_OBJECT_POLICY (true,
+						      VG_OBJECT_PRIORITY_DEFAULT),
 				       0, my_fill, &buffers[i]);
 	    assert (pagers[i]);
 	    assert (buffers[i]);
@@ -192,7 +192,7 @@ main (int argc, char *argv[])
 
   printf ("parent ");
   for (i = 0; i < THREADS; i ++)
-    printf (ADDR_FMT " ", ADDR_PRINTF (activities[i]));
+    printf (VG_ADDR_FMT " ", VG_ADDR_PRINTF (activities[i]));
   printf ("\n");
 
   for (i = 0; i < ITERATIONS; i ++)

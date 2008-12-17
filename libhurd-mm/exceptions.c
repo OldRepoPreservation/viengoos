@@ -141,8 +141,8 @@ hurd_activation_fetch (void)
 
   /* Any reply will come in the form of a pending activation being
      delivered.  This RPC does not generate a response.  */
-  error_t err = rm_thread_activation_collect_send (ADDR_VOID, ADDR_VOID,
-						   ADDR_VOID);
+  error_t err = rm_thread_activation_collect_send (VG_ADDR_VOID, VG_ADDR_VOID,
+						   VG_ADDR_VOID);
   if (err)
     panic ("Sending thread_activation_collect failed: %d", err);
 }
@@ -199,9 +199,9 @@ activation_frame_slab_alloc (void *hook, size_t size, void **ptr)
   assert (size == PAGESIZE);
 
   struct storage storage = storage_alloc (meta_data_activity,
-					  cap_page, STORAGE_EPHEMERAL,
-					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
-  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+					  vg_cap_page, STORAGE_EPHEMERAL,
+					  VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+  *ptr = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -211,7 +211,7 @@ activation_frame_slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
-  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;
@@ -342,10 +342,10 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 	{
 	case ACTIVATION_fault:
 	  {
-	    addr_t fault;
+	    vg_addr_t fault;
 	    uintptr_t ip;
 	    uintptr_t sp;
-	    struct activation_fault_info info;
+	    struct vg_activation_fault_info info;
 
 	    error_t err;
 	    err = activation_fault_send_unmarshal (mb->reply,
@@ -354,10 +354,10 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 	    if (err)
 	      panic ("Failed to unmarshal exception: %d", err);
 
-	    debug (5, "Fault at " ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
+	    debug (5, "Fault at " VG_ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
 		   "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, ebp: %p, "
 		   "eflags: %p)",
-		   ADDR_PRINTF (fault),
+		   VG_ADDR_PRINTF (fault),
 		   (void *) ip, (void *) sp,
 		   (void *) activation_frame->eax,
 		   (void *) activation_frame->ebx,
@@ -375,7 +375,7 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 	      r = map_fault (fault, ip, info);
 	    if (! r)
 	      {
-		uintptr_t f = (uintptr_t) ADDR_TO_PTR (fault);
+		uintptr_t f = (uintptr_t) VG_ADDR_TO_PTR (fault);
 		struct hurd_fault_catcher *catcher;
 		for (catcher = utcb->catchers; catcher; catcher = catcher->next)
 		  {
@@ -404,10 +404,10 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 		    if (as_rwlock_owner == l4_myself ())
 		      debug (0, "I hold as_rwlock!");
 
-		    debug (0, "SIGSEGV at " ADDR_FMT " "
+		    debug (0, "SIGSEGV at " VG_ADDR_FMT " "
 			   "(ip: %p, sp: %p, eax: %p, ebx: %p, ecx: %p, "
 			   "edx: %p, edi: %p, esi: %p, ebp: %p, eflags: %p)",
-			   ADDR_PRINTF (fault),
+			   VG_ADDR_PRINTF (fault),
 			   (void *) ip, (void *) sp,
 			   (void *) activation_frame->eax,
 			   (void *) activation_frame->ebx,
@@ -423,7 +423,7 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 		    siginfo_t si;
 		    memset (&si, 0, sizeof (si));
 		    si.si_signo = SIGSEGV;
-		    si.si_addr = ADDR_TO_PTR (fault);
+		    si.si_addr = VG_ADDR_TO_PTR (fault);
 
 		    /* XXX: Should set si.si_code to SEGV_MAPERR or
 		       SEGV_ACCERR.  */
@@ -545,10 +545,10 @@ hurd_activation_handler_activated (struct hurd_utcb *utcb)
 	{
 	case ACTIVATION_fault:
 	  {
-	    addr_t fault;
+	    vg_addr_t fault;
 	    uintptr_t ip;
 	    uintptr_t sp;
-	    struct activation_fault_info info;
+	    struct vg_activation_fault_info info;
 
 	    error_t err;
 	    err = activation_fault_send_unmarshal (mb->reply,
@@ -557,10 +557,10 @@ hurd_activation_handler_activated (struct hurd_utcb *utcb)
 	    if (err)
 	      panic ("Failed to unmarshal exception: %d", err);
 
-	    debug (4, "Fault at " ADDR_FMT "(ip: %x, sp: %x).",
-		   ADDR_PRINTF (fault), ip, sp);
+	    debug (4, "Fault at " VG_ADDR_FMT "(ip: %x, sp: %x).",
+		   VG_ADDR_PRINTF (fault), ip, sp);
 
-	    uintptr_t f = (uintptr_t) ADDR_TO_PTR (fault);
+	    uintptr_t f = (uintptr_t) VG_ADDR_TO_PTR (fault);
 	    uintptr_t stack_page = (sp & ~(PAGESIZE - 1));
 	    uintptr_t fault_page = (f & ~(PAGESIZE - 1));
 	    if (stack_page == fault_page
@@ -569,8 +569,8 @@ hurd_activation_handler_activated (struct hurd_utcb *utcb)
 		 the following page.  It is likely a stack fault.
 		 Handle it using the alternate stack.  */
 	      {
-		debug (5, "Stack fault at " ADDR_FMT "(ip: %x, sp: %x).",
-		       ADDR_PRINTF (fault), ip, sp);
+		debug (5, "Stack fault at " VG_ADDR_FMT "(ip: %x, sp: %x).",
+		       VG_ADDR_PRINTF (fault), ip, sp);
 
 		assert (! utcb->alternate_stack_inuse);
 		utcb->alternate_stack_inuse = true;
@@ -580,9 +580,9 @@ hurd_activation_handler_activated (struct hurd_utcb *utcb)
 		activation_frame->normal_mode_stack = utcb->alternate_stack;
 	      }
 
-	    debug (5, "Handling fault at " ADDR_FMT " in normal mode "
+	    debug (5, "Handling fault at " VG_ADDR_FMT " in normal mode "
 		   "(ip: %x, sp: %x).",
-		   ADDR_PRINTF (fault), ip, sp);
+		   VG_ADDR_PRINTF (fault), ip, sp);
 
 	    break;
 	  }
@@ -594,9 +594,9 @@ hurd_activation_handler_activated (struct hurd_utcb *utcb)
       /* Unblock the exception handler messenger.  */
       error_t err = vg_ipc (VG_IPC_RECEIVE | VG_IPC_RECEIVE_ACTIVATE
 			    | VG_IPC_RETURN,
-			    ADDR_VOID, utcb->exception_buffer->receiver,
-			    ADDR_VOID,
-			    ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID);
+			    VG_ADDR_VOID, utcb->exception_buffer->receiver,
+			    VG_ADDR_VOID,
+			    VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID);
       assert (! err);
     }
   else if (mb->just_free)
@@ -685,8 +685,8 @@ hurd_activation_handler_init_early (void)
 
   struct vg_message *msg = (void *) &activation_handler_msg[0];
   rm_thread_exregs_send_marshal (msg, HURD_EXREGS_SET_UTCB, in,
-				 ADDR_VOID, ADDR_VOID,
-				 PTR_TO_PAGE (utcb), ADDR_VOID,
+				 VG_ADDR_VOID, VG_ADDR_VOID,
+				 VG_PTR_TO_PAGE (utcb), VG_ADDR_VOID,
 				 __hurd_startup_data->messengers[1]);
 
   error_t err;
@@ -696,11 +696,11 @@ hurd_activation_handler_init_early (void)
 		     | VG_IPC_RECEIVE_INLINE
 		     | VG_IPC_SEND_SET_THREAD_TO_CALLER
 		     | VG_IPC_SEND_SET_ASROOT_TO_CALLERS,
-		     ADDR_VOID,
-		     __hurd_startup_data->messengers[1], ADDR_VOID, ADDR_VOID,
-		     ADDR_VOID, __hurd_startup_data->thread,
-		     __hurd_startup_data->messengers[0], PTR_TO_PAGE (msg),
-		     0, 0, ADDR_VOID);
+		     VG_ADDR_VOID,
+		     __hurd_startup_data->messengers[1], VG_ADDR_VOID, VG_ADDR_VOID,
+		     VG_ADDR_VOID, __hurd_startup_data->thread,
+		     __hurd_startup_data->messengers[0], VG_PTR_TO_PAGE (msg),
+		     0, 0, VG_ADDR_VOID);
   if (err)
     panic ("Failed to send IPC: %d", err);
   if (utcb->vg.inline_words[0])
@@ -730,14 +730,14 @@ hurd_activation_handler_init (void)
 #define ACTIVATION_AREA_SIZE (1 << ACTIVATION_AREA_SIZE_LOG2)
 
 error_t
-hurd_activation_state_alloc (addr_t thread, struct hurd_utcb **utcbp)
+hurd_activation_state_alloc (vg_addr_t thread, struct hurd_utcb **utcbp)
 {
-  debug (5, DEBUG_BOLD ("allocating activation state for " ADDR_FMT),
-	 ADDR_PRINTF (thread));
+  debug (5, DEBUG_BOLD ("allocating activation state for " VG_ADDR_FMT),
+	 VG_ADDR_PRINTF (thread));
 
-  addr_t activation_area = as_alloc (ACTIVATION_AREA_SIZE_LOG2, 1, true);
+  vg_addr_t activation_area = as_alloc (ACTIVATION_AREA_SIZE_LOG2, 1, true);
   void *activation_area_base
-    = ADDR_TO_PTR (addr_extend (activation_area,
+    = VG_ADDR_TO_PTR (vg_addr_extend (activation_area,
 				0, ACTIVATION_AREA_SIZE_LOG2));
 
   debug (0, "Activation area: %p-%p",
@@ -746,22 +746,22 @@ hurd_activation_state_alloc (addr_t thread, struct hurd_utcb **utcbp)
   int page_count = 0;
   /* Be careful!  We assume that pages is properly set up after at
      most 2 allocations!  */
-  addr_t pages_[2];
-  addr_t *pages = pages_;
+  vg_addr_t pages_[2];
+  vg_addr_t *pages = pages_;
 
   void alloc (void *addr)
   {
-    addr_t slot = addr_chop (PTR_TO_ADDR (addr), PAGESIZE_LOG2);
+    vg_addr_t slot = vg_addr_chop (VG_PTR_TO_ADDR (addr), PAGESIZE_LOG2);
 
     as_ensure (slot);
 
     struct storage storage;
-    storage = storage_alloc (ADDR_VOID, cap_page,
+    storage = storage_alloc (VG_ADDR_VOID, vg_cap_page,
 			     STORAGE_LONG_LIVED,
-			     OBJECT_POLICY_DEFAULT,
+			     VG_OBJECT_POLICY_DEFAULT,
 			     slot);
 
-    if (ADDR_IS_VOID (storage.addr))
+    if (VG_ADDR_IS_VOID (storage.addr))
       panic ("Failed to allocate page for exception state");
 
     if (pages == pages_)
@@ -804,12 +804,12 @@ hurd_activation_state_alloc (addr_t thread, struct hurd_utcb **utcbp)
   /* At the top of the stack page, we use some space to remember the
      storage we allocate so that we can free it later.  */
   utcb->vg.activation_handler_sp
-    -= sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE;
+    -= sizeof (vg_addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE;
   memset ((void *) utcb->vg.activation_handler_sp, 0,
-	  sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE);
+	  sizeof (vg_addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE);
   memcpy ((void *) utcb->vg.activation_handler_sp, pages,
-	  sizeof (addr_t) * page_count);
-  pages = (addr_t *) utcb->vg.activation_handler_sp;
+	  sizeof (vg_addr_t) * page_count);
+  pages = (vg_addr_t *) utcb->vg.activation_handler_sp;
 
   /* The word beyond the base of the stack is a pointer to the
      exception page.  */
@@ -848,8 +848,8 @@ hurd_activation_state_alloc (addr_t thread, struct hurd_utcb **utcbp)
   /* Unblock the exception handler messenger.  */
   error_t err = vg_ipc (VG_IPC_RECEIVE | VG_IPC_RECEIVE_ACTIVATE
 			| VG_IPC_RETURN,
-			ADDR_VOID, utcb->exception_buffer->receiver, ADDR_VOID,
-			ADDR_VOID, ADDR_VOID, ADDR_VOID, ADDR_VOID);
+			VG_ADDR_VOID, utcb->exception_buffer->receiver, VG_ADDR_VOID,
+			VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID);
   assert (! err);
 
 
@@ -858,20 +858,20 @@ hurd_activation_state_alloc (addr_t thread, struct hurd_utcb **utcbp)
   struct hurd_thread_exregs_in in;
   struct hurd_thread_exregs_out out;
 
-  err = rm_thread_exregs (ADDR_VOID, thread,
+  err = rm_thread_exregs (VG_ADDR_VOID, thread,
 			  HURD_EXREGS_SET_UTCB
 			  | HURD_EXREGS_SET_EXCEPTION_MESSENGER,
-			  in, ADDR_VOID, ADDR_VOID,
-			  PTR_TO_PAGE (utcb), utcb->exception_buffer->receiver,
+			  in, VG_ADDR_VOID, VG_ADDR_VOID,
+			  VG_PTR_TO_PAGE (utcb), utcb->exception_buffer->receiver,
 			  &out, NULL, NULL, NULL, NULL);
   if (err)
     panic ("Failed to install utcb");
 
-  err = rm_cap_copy (ADDR_VOID,
+  err = rm_cap_copy (VG_ADDR_VOID,
 		     utcb->exception_buffer->receiver,
-		     ADDR (VG_MESSENGER_THREAD_SLOT, VG_MESSENGER_SLOTS_LOG2),
-		     ADDR_VOID, thread,
-		     0, CAP_PROPERTIES_DEFAULT);
+		     VG_ADDR (VG_MESSENGER_THREAD_SLOT, VG_MESSENGER_SLOTS_LOG2),
+		     VG_ADDR_VOID, thread,
+		     0, VG_CAP_PROPERTIES_DEFAULT);
   if (err)
     panic ("Failed to set messenger's thread");
 
@@ -901,20 +901,20 @@ hurd_activation_state_free (struct hurd_utcb *utcb)
   /* Free the allocated storage.  */
   /* Copy the array as we're going to free the storage that it is
      in.  */
-  addr_t pages[ACTIVATION_AREA_SIZE / PAGESIZE];
+  vg_addr_t pages[ACTIVATION_AREA_SIZE / PAGESIZE];
   memcpy (pages,
 	  (void *) utcb->vg.activation_handler_sp + sizeof (uintptr_t),
-	  sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE);
+	  sizeof (vg_addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE);
 
   int i;
   for (i = 0; i < sizeof (pages) / sizeof (pages[0]); i ++)
-    if (! ADDR_IS_VOID (pages[i]))
+    if (! VG_ADDR_IS_VOID (pages[i]))
       storage_free (pages[i], false);
 
   /* Finally, free the address space.  */
   int page = SKIP;
   void *activation_area_base = (void *) utcb - page * PAGESIZE;
-  as_free (addr_chop (PTR_TO_ADDR (activation_area_base),
+  as_free (vg_addr_chop (VG_PTR_TO_ADDR (activation_area_base),
 		      ACTIVATION_AREA_SIZE_LOG2),
 	   false);
 }

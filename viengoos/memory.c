@@ -367,8 +367,8 @@ memory_frame_allocate (struct activity *activity)
       struct object_desc *desc = available_list_head (&available);
       while (desc)
 	{
-	  if (desc->type != cap_activity_control
-	      && desc->type != cap_thread)
+	  if (desc->type != vg_cap_activity_control
+	      && desc->type != vg_cap_thread)
 	    /* We will detach DESC from AVAILALBE in
 	       memory_object_destroy.  */
 	    break;
@@ -382,12 +382,12 @@ memory_frame_allocate (struct activity *activity)
 	  assert (desc->eviction_candidate);
 	  assert (desc->activity);
 	  assert (object_type ((struct object *) desc->activity)
-		  == cap_activity_control);
+		  == vg_cap_activity_control);
 	  assert (! desc->dirty || desc->policy.discardable);
 	  assert (! desc->mapped);
 
-	  debug (5, "Reusing OID " OID_FMT " (%s)",
-		 OID_PRINTF (desc->oid), cap_type_string (desc->type));
+	  debug (5, "Reusing OID " VG_OID_FMT " (%s)",
+		 VG_OID_PRINTF (desc->oid), vg_cap_type_string (desc->type));
 
 	  struct object *object = object_desc_to_object (desc);
 
@@ -401,11 +401,11 @@ memory_frame_allocate (struct activity *activity)
 	      ACTIVITY_STATS (desc->activity)->discarded ++;
 	    }
 
-	  oid_t oid = desc->oid;
+	  vg_oid_t oid = desc->oid;
 	  memory_object_destroy (activity, object);
 	  /* DESC is no longer valid.  */
 
-	  assert (! object_find_soft (activity, oid, OBJECT_POLICY_DEFAULT));
+	  assert (! object_find_soft (activity, oid, VG_OBJECT_POLICY_DEFAULT));
 
 	  if (discarded)
 	    /* Note that we discarded the page.  */

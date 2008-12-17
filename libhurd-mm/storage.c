@@ -56,12 +56,12 @@ static uatomic32_t free_count;
 struct storage_desc
 {
   /* The address of the folio.  */
-  addr_t folio;
-  /* The location of the shadow cap designating this folio.  */
+  vg_addr_t folio;
+  /* The location of the shadow vg_cap designating this folio.  */
   struct object *shadow;
 
   /* Which objects are allocated.  */
-  unsigned char alloced[FOLIO_OBJECTS / 8];
+  unsigned char alloced[VG_FOLIO_OBJECTS / 8];
 
   /* The number of free objects.  */
   unsigned char free;
@@ -119,7 +119,7 @@ list_unlink (struct storage_desc *e)
 }
 
 static int
-addr_compare (const addr_t *a, const addr_t *b)
+addr_compare (const vg_addr_t *a, const vg_addr_t *b)
 {
   if (a->raw < b->raw)
     return -1;
@@ -127,7 +127,7 @@ addr_compare (const addr_t *a, const addr_t *b)
 }
 
 BTREE_CLASS (storage_desc, struct storage_desc,
-	     addr_t, folio, node, addr_compare, false)
+	     vg_addr_t, folio, node, addr_compare, false)
 
 static hurd_btree_storage_desc_t storage_descs;
 
@@ -154,16 +154,16 @@ check_slab_space_reserve (void)
     return;
 
   /* We don't have a reserve.  Allocate one now.  */
-  struct storage storage = storage_alloc (meta_data_activity, cap_page,
+  struct storage storage = storage_alloc (meta_data_activity, vg_cap_page,
 					  STORAGE_LONG_LIVED,
-					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
-  void *buffer = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+					  VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+  void *buffer = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   buffer = (void *) atomic_exchange_acq (&slab_space_reserve, buffer);
   if (buffer)
     /* Someone else allocated a buffer.  We don't need two, so
        deallocate it.  */
-    storage_free (addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2), false);
+    storage_free (vg_addr_chop (VG_PTR_TO_ADDR (buffer), PAGESIZE_LOG2), false);
 }
 
 static error_t
@@ -187,7 +187,7 @@ storage_desc_slab_dealloc (void *hook, void *buffer, size_t size)
 
   assert (size == PAGESIZE);
 
-  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;
@@ -235,10 +235,10 @@ static struct storage_desc *short_lived;
 /* Once there are more free objects in a LONG_LIVED_STABLE folio than
    FREEING_THRESHOLD, we change the folios state from stable to
    freeing.  */
-#define FREEING_THRESHOLD (FOLIO_OBJECTS / 2)
+#define FREEING_THRESHOLD (VG_FOLIO_OBJECTS / 2)
 
 static void
-shadow_setup (struct cap *cap, struct storage_desc *desc)
+shadow_setup (struct vg_cap *cap, struct storage_desc *desc)
 {
   /* We do not need to hold DESC->LOCK here as either we are in the
      init phase and thus single threaded or we are initializing a new
@@ -254,12 +254,12 @@ shadow_setup (struct cap *cap, struct storage_desc *desc)
       atomic_decrement (&free_count);
 
       error_t err = rm_folio_object_alloc (meta_data_activity,
-					   desc->folio, idx, cap_page,
-					   OBJECT_POLICY_DEFAULT, 0,
+					   desc->folio, idx, vg_cap_page,
+					   VG_OBJECT_POLICY_DEFAULT, 0,
 					   NULL, NULL);
       assert (err == 0);
-      shadow = ADDR_TO_PTR (addr_extend (addr_extend (desc->folio,
-						      idx, FOLIO_OBJECTS_LOG2),
+      shadow = VG_ADDR_TO_PTR (vg_addr_extend (vg_addr_extend (desc->folio,
+						      idx, VG_FOLIO_OBJECTS_LOG2),
 					 0, PAGESIZE_LOG2));
 
       if (desc->free == 0)
@@ -285,32 +285,32 @@ shadow_setup (struct cap *cap, struct storage_desc *desc)
     {
       assert (! as_init_done);
 
-      struct storage storage = storage_alloc (meta_data_activity, cap_page,
+      struct storage storage = storage_alloc (meta_data_activity, vg_cap_page,
 					      STORAGE_LONG_LIVED,
-					      OBJECT_POLICY_DEFAULT,
-					      ADDR_VOID);
-      if (ADDR_IS_VOID (storage.addr))
+					      VG_OBJECT_POLICY_DEFAULT,
+					      VG_ADDR_VOID);
+      if (VG_ADDR_IS_VOID (storage.addr))
 	panic ("Out of storage.");
-      shadow = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+      shadow = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
     }
 
   desc->shadow = shadow;
 
-  cap->type = cap_folio;
-  CAP_SET_SUBPAGE (cap, 0, 1);
-  cap_set_shadow (cap, shadow);
+  cap->type = vg_cap_folio;
+  VG_CAP_SET_SUBPAGE (cap, 0, 1);
+  vg_cap_set_shadow (cap, shadow);
 
   if (idx != -1)
     {
-      shadow->caps[idx].type = cap_page;
-      CAP_PROPERTIES_SET (&shadow->caps[idx],
-			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
-					  CAP_ADDR_TRANS_VOID));
+      shadow->caps[idx].type = vg_cap_page;
+      VG_CAP_PROPERTIES_SET (&shadow->caps[idx],
+			  VG_CAP_PROPERTIES (VG_OBJECT_POLICY_DEFAULT,
+					  VG_CAP_ADDR_TRANS_VOID));
     }
 }
 
 void
-storage_shadow_setup (struct cap *cap, addr_t folio)
+storage_shadow_setup (struct vg_cap *cap, vg_addr_t folio)
 {
   /* This code is only called from the initialization code.  When this
      code runs, there is exactly one thread.  Thus, there is no need
@@ -357,7 +357,7 @@ static bool do_serialize;
 
 static void
 storage_check_reserve_internal (bool force_allocate,
-				addr_t activity,
+				vg_addr_t activity,
 				enum storage_expectancy expectancy,
 				bool i_may_have_lock)
 {
@@ -435,18 +435,18 @@ storage_check_reserve_internal (bool force_allocate,
   /* Although we have not yet allocated the objects, allocating
      support structures for the folio may require memory causing
      us to recurse.  Thus, we add them first.  */
-  atomic_add (&free_count, FOLIO_OBJECTS);
+  atomic_add (&free_count, VG_FOLIO_OBJECTS);
 
   /* Here is the big recursive dependency!  Using the address that
      as_alloc returns might require allocating one (or more) page
      tables to make a slot available.  Moreover, each of those
      page tables requires not only a cappage but also a shadow
      page table.  */
-  addr_t addr;
+  vg_addr_t addr;
   if (likely (as_init_done))
     {
-      addr = as_alloc (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2, 1, true);
-      if (ADDR_IS_VOID (addr))
+      addr = as_alloc (VG_FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2, 1, true);
+      if (VG_ADDR_IS_VOID (addr))
 	panic ("Failed to allocate address space!");
 
       as_ensure (addr);
@@ -454,21 +454,21 @@ storage_check_reserve_internal (bool force_allocate,
   else
     {
       struct hurd_object_desc *desc;
-      desc = as_alloc_slow (FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2);
-      if (! desc || ADDR_IS_VOID (desc->object))
+      desc = as_alloc_slow (VG_FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2);
+      if (! desc || VG_ADDR_IS_VOID (desc->object))
 	panic ("Failed to allocate address space!");
 
       addr = desc->object;
       desc->storage = addr;
-      desc->type = cap_folio;
+      desc->type = vg_cap_folio;
     }
 
   /* And then the folio.  */
-  addr_t a = addr;
-  error_t err = rm_folio_alloc (activity, activity, FOLIO_POLICY_DEFAULT,
+  vg_addr_t a = addr;
+  error_t err = rm_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT,
 				&a);
   assert (! err);
-  assert (ADDR_EQ (addr, a));
+  assert (VG_ADDR_EQ (addr, a));
 
   /* Allocate and fill a descriptor.  */
   struct storage_desc *s = storage_desc_alloc ();
@@ -476,7 +476,7 @@ storage_check_reserve_internal (bool force_allocate,
   s->lock = (ss_mutex_t) 0;
   s->folio = addr;
   memset (&s->alloced, 0, sizeof (s->alloced));
-  s->free = FOLIO_OBJECTS;
+  s->free = VG_FOLIO_OBJECTS;
 
   if (likely (as_init_done))
     {
@@ -529,10 +529,10 @@ storage_check_reserve (bool i_may_have_lock)
 
 #undef storage_alloc
 struct storage
-storage_alloc (addr_t activity,
-	       enum cap_type type, enum storage_expectancy expectancy,
+storage_alloc (vg_addr_t activity,
+	       enum vg_cap_type type, enum storage_expectancy expectancy,
 	       struct object_policy policy,
-	       addr_t addr)
+	       vg_addr_t addr)
 {
   assert (storage_init_done);
 
@@ -610,17 +610,17 @@ storage_alloc (addr_t activity,
 
   int idx = bit_alloc (desc->alloced, sizeof (desc->alloced), 0);
   assertx (idx != -1,
-	   "Folio (" ADDR_FMT ") full (free: %d) but on a list!",
-	   ADDR_PRINTF (desc->folio), desc->free);
+	   "Folio (" VG_ADDR_FMT ") full (free: %d) but on a list!",
+	   VG_ADDR_PRINTF (desc->folio), desc->free);
 
-  addr_t folio = desc->folio;
-  addr_t object = addr_extend (folio, idx, FOLIO_OBJECTS_LOG2);
+  vg_addr_t folio = desc->folio;
+  vg_addr_t object = vg_addr_extend (folio, idx, VG_FOLIO_OBJECTS_LOG2);
 
-  debug (5, "Allocating object %d as %s from " ADDR_FMT " (" ADDR_FMT ") "
-	 "(%d left), installing at " ADDR_FMT,
-	 idx, cap_type_string (type),
-	 ADDR_PRINTF (folio), ADDR_PRINTF (object),
-	 desc->free, ADDR_PRINTF (addr));
+  debug (5, "Allocating object %d as %s from " VG_ADDR_FMT " (" VG_ADDR_FMT ") "
+	 "(%d left), installing at " VG_ADDR_FMT,
+	 idx, vg_cap_type_string (type),
+	 VG_ADDR_PRINTF (folio), VG_ADDR_PRINTF (object),
+	 desc->free, VG_ADDR_PRINTF (addr));
 
   atomic_decrement (&free_count);
   desc->free --;
@@ -632,7 +632,7 @@ storage_alloc (addr_t activity,
     {
       assert (bit_alloc (desc->alloced, sizeof (desc->alloced), 0) == -1);
 
-      debug (3, "Folio at " ADDR_FMT " full", ADDR_PRINTF (folio));
+      debug (3, "Folio at " VG_ADDR_FMT " full", VG_ADDR_PRINTF (folio));
 
       list_unlink (desc);
 
@@ -644,20 +644,20 @@ storage_alloc (addr_t activity,
       ss_mutex_unlock (&storage_descs_lock);
     }
 
-  addr_t a = addr;
+  vg_addr_t a = addr;
   error_t err = rm_folio_object_alloc (activity, folio, idx, type, policy, 0,
 				       &a, NULL);
   assertx (! err,
-	   "Allocating object %d from " ADDR_FMT " at " ADDR_FMT ": %d!",
-	   idx, ADDR_PRINTF (folio), ADDR_PRINTF (addr), err);
-  assert (ADDR_EQ (a, addr));
+	   "Allocating object %d from " VG_ADDR_FMT " at " VG_ADDR_FMT ": %d!",
+	   idx, VG_ADDR_PRINTF (folio), VG_ADDR_PRINTF (addr), err);
+  assert (VG_ADDR_EQ (a, addr));
 
   struct object *shadow = desc->shadow;
-  struct cap *cap = NULL;
+  struct vg_cap *cap = NULL;
   if (likely (!! shadow))
     {
       cap = &shadow->caps[idx];
-      CAP_PROPERTIES_SET (cap, CAP_PROPERTIES (policy, CAP_ADDR_TRANS_VOID));
+      VG_CAP_PROPERTIES_SET (cap, VG_CAP_PROPERTIES (policy, VG_CAP_ADDR_TRANS_VOID));
       cap->type = type;
     }
   else
@@ -666,16 +666,16 @@ storage_alloc (addr_t activity,
   /* We drop DESC->LOCK.  */
   ss_mutex_unlock (&desc->lock);
 
-  if (! ADDR_IS_VOID (addr))
-    /* We also have to update the shadow for ADDR.  Unfortunately, we
+  if (! VG_ADDR_IS_VOID (addr))
+    /* We also have to update the shadow for VG_ADDR.  Unfortunately, we
        don't have the cap although the caller might.  */
     {
       bool ret = as_slot_lookup_use
 	(addr,
 	 ({
 	   slot->type = type;
-	   cap_set_shadow (slot, NULL);
-	   CAP_POLICY_SET (slot, policy);
+	   vg_cap_set_shadow (slot, NULL);
+	   VG_CAP_POLICY_SET (slot, policy);
 	 }));
       if (! ret)
 	{
@@ -689,29 +689,29 @@ storage_alloc (addr_t activity,
   storage.addr = object;
 
 #ifndef NDEBUG
-  if (type == cap_page)
+  if (type == vg_cap_page)
     {
-      unsigned int *p = ADDR_TO_PTR (addr_extend (storage.addr,
+      unsigned int *p = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr,
 						  0, PAGESIZE_LOG2));
       int c;
       for (c = 0; c < PAGESIZE / sizeof (int); c ++)
 	assertx (p[c] == 0,
-		 ADDR_FMT "(%p)[%d] = %x",
-		 ADDR_PRINTF (storage.addr), p, c * sizeof (int), p[c]);
+		 VG_ADDR_FMT "(%p)[%d] = %x",
+		 VG_ADDR_PRINTF (storage.addr), p, c * sizeof (int), p[c]);
     }
 #endif
-  debug (5, "Allocated " ADDR_FMT "; " ADDR_FMT,
-	 ADDR_PRINTF (storage.addr), ADDR_PRINTF (addr));
+  debug (5, "Allocated " VG_ADDR_FMT "; " VG_ADDR_FMT,
+	 VG_ADDR_PRINTF (storage.addr), VG_ADDR_PRINTF (addr));
 
   return storage;
 }
 
 void
-storage_free_ (addr_t object, bool unmap_now)
+storage_free_ (vg_addr_t object, bool unmap_now)
 {
-  debug (5, DEBUG_BOLD ("Freeing " ADDR_FMT), ADDR_PRINTF (object));
+  debug (5, DEBUG_BOLD ("Freeing " VG_ADDR_FMT), VG_ADDR_PRINTF (object));
 
-  addr_t folio = addr_chop (object, FOLIO_OBJECTS_LOG2);
+  vg_addr_t folio = vg_addr_chop (object, VG_FOLIO_OBJECTS_LOG2);
 
   atomic_increment (&free_count);
 
@@ -721,9 +721,9 @@ storage_free_ (addr_t object, bool unmap_now)
   struct storage_desc *storage;
   storage = hurd_btree_storage_desc_find (&storage_descs, &folio);
   assertx (storage,
-	   "No storage associated with " ADDR_FMT " "
+	   "No storage associated with " VG_ADDR_FMT " "
 	   "(did you pass the storage address?)",
-	   ADDR_PRINTF (object));
+	   VG_ADDR_PRINTF (object));
 
   ss_mutex_lock (&storage->lock);
 
@@ -731,20 +731,20 @@ storage_free_ (addr_t object, bool unmap_now)
 
   struct object *shadow = storage->shadow;
 
-  if (storage->free == FOLIO_OBJECTS
-      || ((storage->free == FOLIO_OBJECTS - 1)
+  if (storage->free == VG_FOLIO_OBJECTS
+      || ((storage->free == VG_FOLIO_OBJECTS - 1)
 	  && shadow
-	  && ADDR_EQ (folio, addr_chop (PTR_TO_ADDR (shadow),
-					FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2))))
+	  && VG_ADDR_EQ (folio, vg_addr_chop (VG_PTR_TO_ADDR (shadow),
+					VG_FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2))))
     /* The folio is now empty.  */
     {
-      debug (1, "Folio at " ADDR_FMT " now empty", ADDR_PRINTF (folio));
+      debug (1, "Folio at " VG_ADDR_FMT " now empty", VG_ADDR_PRINTF (folio));
 
-      if (free_count - FOLIO_OBJECTS > FREE_PAGES_LOW_WATER)
+      if (free_count - VG_FOLIO_OBJECTS > FREE_PAGES_LOW_WATER)
 	/* There are sufficient reserve pages not including this
 	   folio.  Thus, we free STORAGE.  */
 	{
-	  atomic_add (&free_count, - FOLIO_OBJECTS);
+	  atomic_add (&free_count, - VG_FOLIO_OBJECTS);
 
 	  list_unlink (storage);
 	  hurd_btree_storage_desc_detach (&storage_descs, storage);
@@ -757,18 +757,18 @@ storage_free_ (addr_t object, bool unmap_now)
 
 	  as_slot_lookup_use (folio,
 			      ({
-				cap_set_shadow (slot, NULL);
-				slot->type = cap_void;
+				vg_cap_set_shadow (slot, NULL);
+				slot->type = vg_cap_void;
 			      }));
 
 	  storage_desc_free (storage);
 
 	  if (shadow)
 	    {
-	      addr_t shadow_addr = addr_chop (PTR_TO_ADDR (shadow),
+	      vg_addr_t shadow_addr = vg_addr_chop (VG_PTR_TO_ADDR (shadow),
 					      PAGESIZE_LOG2);
 
-	      if (ADDR_EQ (addr_chop (shadow_addr, FOLIO_OBJECTS_LOG2), folio))
+	      if (VG_ADDR_EQ (vg_addr_chop (shadow_addr, VG_FOLIO_OBJECTS_LOG2), folio))
 		{
 		  /* The shadow was allocate from ourself, which we
 		     already freed.  */
@@ -803,22 +803,22 @@ storage_free_ (addr_t object, bool unmap_now)
 
   ss_mutex_unlock (&storage_descs_lock);
 
-  int idx = addr_extract (object, FOLIO_OBJECTS_LOG2);
+  int idx = vg_addr_extract (object, VG_FOLIO_OBJECTS_LOG2);
   bit_dealloc (storage->alloced, idx);
 
   error_t err = rm_folio_object_alloc (meta_data_activity,
-				       folio, idx, cap_void,
-				       OBJECT_POLICY_DEFAULT, 0,
+				       folio, idx, vg_cap_void,
+				       VG_OBJECT_POLICY_DEFAULT, 0,
 				       NULL, NULL);
   assert (err == 0);
 
   if (likely (!! shadow))
     {
-      shadow->caps[idx].type = cap_void;
-      cap_set_shadow (&shadow->caps[idx], NULL);
-      CAP_PROPERTIES_SET (&shadow->caps[idx],
-			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
-					  CAP_ADDR_TRANS_VOID));
+      shadow->caps[idx].type = vg_cap_void;
+      vg_cap_set_shadow (&shadow->caps[idx], NULL);
+      VG_CAP_PROPERTIES_SET (&shadow->caps[idx],
+			  VG_CAP_PROPERTIES (VG_OBJECT_POLICY_DEFAULT,
+					  VG_CAP_ADDR_TRANS_VOID));
     }
   else
     assert (! as_init_done);
@@ -851,28 +851,28 @@ storage_init (void)
        i < __hurd_startup_data->desc_count;
        i ++, odesc ++)
     {
-      if (ADDR_IS_VOID (odesc->storage))
+      if (VG_ADDR_IS_VOID (odesc->storage))
 	continue;
 
-      addr_t folio;
-      if (odesc->type == cap_folio)
+      vg_addr_t folio;
+      if (odesc->type == vg_cap_folio)
 	folio = odesc->object;
       else
-	folio = addr_chop (odesc->storage, FOLIO_OBJECTS_LOG2);
+	folio = vg_addr_chop (odesc->storage, VG_FOLIO_OBJECTS_LOG2);
 
       struct storage_desc *sdesc;
       sdesc = hurd_btree_storage_desc_find (&storage_descs, &folio);
       if (! sdesc)
 	/* Haven't seen this folio yet.  */
 	{
-	  debug (5, "Adding folio " ADDR_FMT, ADDR_PRINTF (folio));
+	  debug (5, "Adding folio " VG_ADDR_FMT, VG_ADDR_PRINTF (folio));
 
 	  folio_count ++;
 
 	  sdesc = storage_desc_alloc ();
 	  sdesc->lock = (ss_mutex_t) 0;
 	  sdesc->folio = folio;
-	  sdesc->free = FOLIO_OBJECTS;
+	  sdesc->free = VG_FOLIO_OBJECTS;
 	  sdesc->mode = LONG_LIVED_ALLOCING;
 
 	  list_link (&long_lived_allocing, sdesc);
@@ -881,20 +881,20 @@ storage_init (void)
 
 	  /* Assume that the folio is free.  As we encounter objects,
 	     we will mark them as allocated.  */
-	  free_count += FOLIO_OBJECTS;
+	  free_count += VG_FOLIO_OBJECTS;
 	}
 
-      if (odesc->type != cap_folio)
+      if (odesc->type != vg_cap_folio)
 	{
-	  int idx = addr_extract (odesc->storage, FOLIO_OBJECTS_LOG2);
+	  int idx = vg_addr_extract (odesc->storage, VG_FOLIO_OBJECTS_LOG2);
 
 	  debug (5, "%llx/%d, %d -> %llx/%d (%s)",
-		 addr_prefix (folio),
-		 addr_depth (folio),
+		 vg_addr_prefix (folio),
+		 vg_addr_depth (folio),
 		 idx,
-		 addr_prefix (odesc->storage),
-		 addr_depth (odesc->storage),
-		 cap_type_string (odesc->type));
+		 vg_addr_prefix (odesc->storage),
+		 vg_addr_depth (odesc->storage),
+		 vg_cap_type_string (odesc->type));
 
 	  bit_set (sdesc->alloced, sizeof (sdesc->alloced), idx);
 

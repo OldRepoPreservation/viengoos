@@ -53,14 +53,14 @@ main (int argc, char *argv[])
   struct vg_message *msg;
 
 
-#define REPLY ADDR (0x1000, ADDR_BITS - 12)
-  addr_t reply = REPLY;
+#define REPLY VG_ADDR (0x1000, VG_ADDR_BITS - 12)
+  vg_addr_t reply = REPLY;
 
   msg = malloc (sizeof (*msg));
   rpc_noargs_send_marshal (msg, REPLY);
   err = rpc_noargs_send_unmarshal (msg, &reply);
   assert (! err);
-  assert (ADDR_EQ (reply, REPLY));
+  assert (VG_ADDR_EQ (reply, REPLY));
   free (msg);
 
   msg = malloc (sizeof (*msg));
@@ -79,7 +79,7 @@ main (int argc, char *argv[])
   err = rpc_onein_send_unmarshal (msg, &arg_out, &reply);
   assert (! err);
   assert (arg_out == VALUE);
-  assert (ADDR_EQ (reply, REPLY));
+  assert (VG_ADDR_EQ (reply, REPLY));
   free (msg);
 
   msg = malloc (sizeof (*msg));
@@ -92,7 +92,7 @@ main (int argc, char *argv[])
   rpc_oneout_send_marshal (msg, REPLY);
   err = rpc_oneout_send_unmarshal (msg, &reply);
   assert (! err);
-  assert (ADDR_EQ (reply, REPLY));
+  assert (VG_ADDR_EQ (reply, REPLY));
   free (msg);
 
   msg = malloc (sizeof (*msg));
@@ -120,7 +120,7 @@ main (int argc, char *argv[])
   assert (foo_out.a == foo.a);
   assert (foo_out.b == foo.b);
   assert (p_out == true);
-  assert (ADDR_EQ (reply, REPLY));
+  assert (VG_ADDR_EQ (reply, REPLY));
   free (msg);
 
   msg = malloc (sizeof (*msg));
@@ -133,7 +133,7 @@ main (int argc, char *argv[])
   rpc_onlyout_send_marshal (msg, REPLY);
   err = rpc_onlyout_send_unmarshal (msg, &reply);
   assert (! err);
-  assert (ADDR_EQ (reply, REPLY));
+  assert (VG_ADDR_EQ (reply, REPLY));
   free (msg);
 
   msg = malloc (sizeof (*msg));
@@ -155,7 +155,7 @@ main (int argc, char *argv[])
   assert (! err);
   assert (arg_out == arg);
   assert (idx_out == 456789);
-  assert (ADDR_EQ (reply, REPLY));
+  assert (VG_ADDR_EQ (reply, REPLY));
   free (msg);
 
   msg = malloc (sizeof (*msg));
@@ -170,12 +170,12 @@ main (int argc, char *argv[])
   free (msg);
 
   msg = malloc (sizeof (*msg));
-  rpc_caps_send_marshal (msg, 54, ADDR (1, ADDR_BITS), foo, REPLY);
-  addr_t addr;
+  rpc_caps_send_marshal (msg, 54, VG_ADDR (1, VG_ADDR_BITS), foo, REPLY);
+  vg_addr_t addr;
   err = rpc_caps_send_unmarshal (msg, &i_out, &addr, &foo_out, &reply);
   assert (! err);
   assert (i_out == 54);
-  assert (ADDR_EQ (addr, ADDR (1, ADDR_BITS)));
+  assert (VG_ADDR_EQ (addr, VG_ADDR (1, VG_ADDR_BITS)));
   assert (foo_out.a == foo.a);
   assert (foo_out.b == foo.b);
   free (msg);

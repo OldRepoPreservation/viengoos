@@ -44,9 +44,9 @@ messenger_load_internal (struct activity *activity,
 			 struct vg_message *smessage,
 			 bool may_block)
 {
-  assert (object_type ((struct object *) target) == cap_messenger);
+  assert (object_type ((struct object *) target) == vg_cap_messenger);
   if (source)
-    assert (object_type ((struct object *) source) == cap_messenger);
+    assert (object_type ((struct object *) source) == vg_cap_messenger);
 
   if (source)
     assert (! smessage);
@@ -97,16 +97,16 @@ messenger_load_internal (struct activity *activity,
   void *tdata;
   int data_count;
 
-  addr_t *saddrs;
+  vg_addr_t *saddrs;
   int saddr_count;
-  addr_t *taddrs;
+  vg_addr_t *taddrs;
   int taddr_count;
 
   if (! source || source->out_of_band)
     /* Source data is in a buffer.  */
     {
       if (source)
-	smessage = (struct vg_message *) cap_to_object (activity,
+	smessage = (struct vg_message *) vg_cap_to_object (activity,
 							&source->buffer);
       else
 	assert (smessage);
@@ -143,7 +143,7 @@ messenger_load_internal (struct activity *activity,
   if (target->out_of_band)
     /* Target data is in a buffer.  */
     {
-      tmessage = (struct vg_message *) cap_to_object (activity,
+      tmessage = (struct vg_message *) vg_cap_to_object (activity,
 						      &target->buffer);
       if (tmessage)
 	{
@@ -199,8 +199,8 @@ messenger_load_internal (struct activity *activity,
       /* First get the target capability slot.  */
       bool twritable = true;
 
-      struct cap *tcap = NULL;
-      if (! ADDR_IS_VOID (taddrs[i]))
+      struct vg_cap *tcap = NULL;
+      if (! VG_ADDR_IS_VOID (taddrs[i]))
 	{
 	  as_slot_lookup_rel_use (activity, &target->as_root, taddrs[i],
 				  ({
@@ -208,20 +208,20 @@ messenger_load_internal (struct activity *activity,
 				    tcap = slot;
 				  }));
 	  if (! tcap || ! twritable)
-	    debug (0, DEBUG_BOLD ("Target " ADDR_FMT " does not designate "
+	    debug (0, DEBUG_BOLD ("Target " VG_ADDR_FMT " does not designate "
 				  "a %svalid slot!"),
-		   ADDR_PRINTF (taddrs[i]), twritable ? "writable " : "");
+		   VG_ADDR_PRINTF (taddrs[i]), twritable ? "writable " : "");
 	}
 
       if (likely (tcap && twritable))
 	/* We have a slot and it is writable.  Look up the source
 	   capability.  */
 	{
-	  struct cap scap = CAP_VOID;
+	  struct vg_cap scap = VG_CAP_VOID;
 	  bool swritable = true;
 	  if (source)
 	    {
-	      if (! ADDR_IS_VOID (saddrs[i]))
+	      if (! VG_ADDR_IS_VOID (saddrs[i]))
 		scap = as_cap_lookup_rel (activity,
 					  &source->as_root, saddrs[i],
 					  -1, &swritable);
@@ -230,28 +230,28 @@ messenger_load_internal (struct activity *activity,
 	    /* This is a kernel provided buffer.  In this case the
 	       address is really a pointer to a capability.  */
 	    if ((uintptr_t) saddrs[i].raw)
-	      scap = * (struct cap *) (uintptr_t) saddrs[i].raw;
+	      scap = * (struct vg_cap *) (uintptr_t) saddrs[i].raw;
 
 	  if (! swritable)
-	    scap.type = cap_type_weaken (scap.type);
+	    scap.type = vg_cap_type_weaken (scap.type);
 
 	  /* Shoot down the capability.  */
 	  cap_shootdown (activity, tcap);
 
 	  /* Preserve the address translator and policy.  */
-	  struct cap_properties props = CAP_PROPERTIES_GET (*tcap);
+	  struct vg_cap_properties props = VG_CAP_PROPERTIES_GET (*tcap);
 	  *tcap = scap;
-	  CAP_PROPERTIES_SET (tcap, props);
+	  VG_CAP_PROPERTIES_SET (tcap, props);
 
-	  debug (5, ADDR_FMT " <- " CAP_FMT,
-		 ADDR_PRINTF (taddrs[i]), CAP_PRINTF (tcap));
+	  debug (5, VG_ADDR_FMT " <- " VG_CAP_FMT,
+		 VG_ADDR_PRINTF (taddrs[i]), VG_CAP_PRINTF (tcap));
 	}
       else
-	taddrs[i] = ADDR_VOID;
+	taddrs[i] = VG_ADDR_VOID;
     }
   if (i < MAX (taddr_count, saddr_count) && target->out_of_band && taddrs)
     /* Set the address of any non-transferred caps in the target to
-       ADDR_VOID.  */
+       VG_ADDR_VOID.  */
     memset (&taddrs[i], 0,
 	    sizeof (taddrs[0]) * (MAX (taddr_count, saddr_count)) - i);
 
@@ -301,17 +301,17 @@ messenger_message_deliver (struct activity *activity,
   assert (! messenger->wait_queue_p);
 
   struct thread *thread
-    = (struct thread *) cap_to_object (activity, &messenger->thread);
+    = (struct thread *) vg_cap_to_object (activity, &messenger->thread);
   if (! thread)
     {
       debug (0, "Messenger has no thread to activate!");
       return false;
     }
 
-  if (object_type ((struct object *) thread) != cap_thread)
+  if (object_type ((struct object *) thread) != vg_cap_thread)
     {
-      debug (0, "Messenger's thread cap does not designate a thread but a %s",
-	     cap_type_string (object_type ((struct object *) thread)));
+      debug (0, "Messenger's thread vg_cap does not designate a thread but a %s",
+	     vg_cap_type_string (object_type ((struct object *) thread)));
       return false;
     }
 

@@ -62,7 +62,7 @@ extern bool messenger_message_load (struct activity *activity,
 #else
 # include <hurd/message-buffer.h>
 #endif
-typedef addr_t cap_t;
+typedef vg_addr_t cap_t;
 
 /* First we define some cpp help macros.  */
 #define CPP_IFELSE_0(when, whennot) whennot
@@ -224,7 +224,7 @@ typedef addr_t cap_t;
 	union								\
 	{								\
 	  __rla_type __rla_a;						\
-	  RPC_GRAB2 (, 1, RPC_TYPE_SHIFT (1, struct cap *, cap_t, __rla_foo)); \
+	  RPC_GRAB2 (, 1, RPC_TYPE_SHIFT (1, struct vg_cap *, cap_t, __rla_foo)); \
 	  cap_t __rla_cap;						\
 	} __rla_arg2 = { (__rla_arg) };					\
 	vg_message_append_cap (msg, __rla_arg2.__rla_cap);		\
@@ -461,7 +461,7 @@ typedef addr_t cap_t;
      RPC_GRAB2 (, out_count, ##__VA_ARGS__)				\
      RPC_IF_COMMA (ret_cap_count) ()					\
      RPC_GRAB2 (, ret_cap_count,					\
-		RPC_TYPE_SHIFT (ret_cap_count, struct cap *,		\
+		RPC_TYPE_SHIFT (ret_cap_count, struct vg_cap *,		\
 				RPC_CHOP2 (out_count, __VA_ARGS__))))	\
   {									\
     vg_message_clear (msg);						\
@@ -736,7 +736,7 @@ typedef addr_t cap_t;
     error_t err = vg_send (VG_IPC_SEND_SET_THREAD_TO_CALLER		\
 			   | VG_IPC_SEND_SET_ASROOT_TO_CALLERS,		\
 			   __rpc_activity, __rpc_object,		\
-			   mb->sender, ADDR_VOID);			\
+			   mb->sender, VG_ADDR_VOID);			\
 									\
     return err;								\
   }
@@ -765,7 +765,7 @@ typedef addr_t cap_t;
     error_t err = vg_reply (VG_IPC_SEND_SET_THREAD_TO_CALLER		\
 			    | VG_IPC_SEND_SET_ASROOT_TO_CALLERS,	\
 			    __rpc_activity, __rpc_object,		\
-			    mb->sender, ADDR_VOID);			\
+			    mb->sender, VG_ADDR_VOID);			\
 									\
     hurd_message_buffer_free (mb);					\
 									\
@@ -782,8 +782,8 @@ typedef addr_t cap_t;
   __attribute__((always_inline))					\
   RPC_CONCAT (RPC_CONCAT (RPC_STUB_PREFIX_(id), _using), postfix)	\
     (struct hurd_message_buffer *mb,					\
-     addr_t __rpc_activity,						\
-     addr_t __rpc_object						\
+     vg_addr_t __rpc_activity,						\
+     vg_addr_t __rpc_object						\
      /* In arguments.  */						\
      RPC_IF_COMMA (in_count) ()						\
      RPC_GRAB2 (, in_count, __VA_ARGS__)				\
@@ -796,7 +796,7 @@ typedef addr_t cap_t;
     RPC_CONCAT (RPC_STUB_PREFIX_(id), _receive_marshal)			\
       (mb->reply							\
        RPC_IF_COMMA (ret_cap_count) ()					\
-       CPP_FOREACH(ret_cap_count, CPP_SAFE_DEREF, ADDR_VOID,		\
+       CPP_FOREACH(ret_cap_count, CPP_SAFE_DEREF, VG_ADDR_VOID,		\
 		   RPC_ARGUMENTS (ret_cap_count, ,			\
 				  RPC_CHOP2 (CPP_ADD (in_count, out_count), \
 					     __VA_ARGS__))));		\
@@ -818,9 +818,9 @@ typedef addr_t cap_t;
 			  | VG_IPC_RECEIVE_SET_THREAD_TO_CALLER		\
 			  | VG_IPC_RECEIVE_SET_ASROOT_TO_CALLERS,	\
 			  __rpc_activity,				\
-			  mb->receiver_strong, ADDR_VOID,		\
+			  mb->receiver_strong, VG_ADDR_VOID,		\
 			  __rpc_activity, __rpc_object,			\
-			  mb->sender, ADDR_VOID);			\
+			  mb->sender, VG_ADDR_VOID);			\
     if (err)								\
       /* Error sending the IPC.  */					\
       hurd_activation_message_unregister (mb);				\
@@ -837,8 +837,8 @@ typedef addr_t cap_t;
   static inline error_t							\
   __attribute__((always_inline))					\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), postfix)				\
-    (addr_t __rpc_activity,						\
-     addr_t __rpc_object						\
+    (vg_addr_t __rpc_activity,						\
+     vg_addr_t __rpc_object						\
      /* In arguments.  */						\
      RPC_IF_COMMA (in_count) ()						\
      RPC_GRAB2 (, in_count, __VA_ARGS__)				\
@@ -871,8 +871,8 @@ typedef addr_t cap_t;
 #define RPC_REPLY_(id, in_count, out_count, ret_cap_count, ...)		\
   static inline error_t							\
   RPC_CONCAT (RPC_STUB_PREFIX_(id), _reply)				\
-    (addr_t __rpc_activity,						\
-     addr_t __rpc_target						\
+    (vg_addr_t __rpc_activity,						\
+     vg_addr_t __rpc_target						\
      /* Out data.  */							\
      RPC_IF_COMMA (out_count) ()					\
      RPC_GRAB2 (, out_count, RPC_CHOP2 (in_count, ##__VA_ARGS__))	\
@@ -898,7 +898,7 @@ typedef addr_t cap_t;
     error_t err = vg_reply (VG_IPC_SEND_SET_THREAD_TO_CALLER		\
 			    | VG_IPC_SEND_SET_ASROOT_TO_CALLERS,	\
 			    __rpc_activity, __rpc_target,		\
-			    mb->sender, ADDR_VOID);			\
+			    mb->sender, VG_ADDR_VOID);			\
 									\
     hurd_message_buffer_free (mb);					\
 									\
@@ -917,7 +917,7 @@ typedef addr_t cap_t;
      /* Return capabilities.  */					\
      RPC_IF_COMMA (ret_cap_count) ()					\
      RPC_GRAB2 (, ret_cap_count,					\
-		RPC_TYPE_SHIFT (ret_cap_count, struct cap,		\
+		RPC_TYPE_SHIFT (ret_cap_count, struct vg_cap,		\
 				RPC_CHOP2 (CPP_ADD (in_count, out_count), \
 					   ##__VA_ARGS__))))		\
   {									\
@@ -991,7 +991,7 @@ typedef addr_t cap_t;
 
    Note that *XYZZY must be initialize with the location of a
    capability slot to store the returned capability.  *XYZZY is set to
-   ADDR_VOID if the sender did not provide a capability.
+   VG_ADDR_VOID if the sender did not provide a capability.
 
    To send a message and not wait for a reply, a function with the
    following prototype is generated:
@@ -1045,9 +1045,9 @@ rpc_error_reply (cap_t activity, cap_t target, error_t err)
 {
   return vg_ipc_short (VG_IPC_SEND_NONBLOCKING | VG_IPC_SEND_INLINE
 		       | VG_IPC_SEND_INLINE_WORD1,
-		       ADDR_VOID, ADDR_VOID, ADDR_VOID,
-		       ADDR_VOID, target,
-		       ADDR_VOID, err, 0, ADDR_VOID);
+		       VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
+		       VG_ADDR_VOID, target,
+		       VG_ADDR_VOID, err, 0, VG_ADDR_VOID);
 }
 #endif
 

@@ -65,16 +65,16 @@ print_nr (int width, int64_t nr, bool hex)
 
 static void
 do_walk (activity_t activity, int index,
-	 struct cap *root, addr_t addr,
+	 struct vg_cap *root, vg_addr_t addr,
 	 int indent, bool descend, const char *output_prefix)
 {
   int i;
 
-  struct cap cap = as_cap_lookup_rel (activity, root, addr, -1, NULL);
-  if (cap.type == cap_void)
+  struct vg_cap vg_cap = as_cap_lookup_rel (activity, root, addr, -1, NULL);
+  if (vg_cap.type == vg_cap_void)
     return;
 
-  if (! cap_to_object (activity, &cap))
+  if (! vg_cap_to_object (activity, &vg_cap))
     /* Cap is there but the object has been deallocated.  */
     return;
 
@@ -90,30 +90,30 @@ do_walk (activity_t activity, int index,
     S_PRINTF ("root");
   S_PRINTF (" ] ");
 
-  print_nr (12, addr_prefix (addr), true);
-  S_PRINTF ("/%d ", addr_depth (addr));
-  if (CAP_GUARD_BITS (&cap))
-    S_PRINTF ("| 0x%llx/%d ", CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
-  if (CAP_SUBPAGES (&cap) != 1)
-    S_PRINTF ("(%d/%d) ", CAP_SUBPAGE (&cap), CAP_SUBPAGES (&cap));
+  print_nr (12, vg_addr_prefix (addr), true);
+  S_PRINTF ("/%d ", vg_addr_depth (addr));
+  if (VG_CAP_GUARD_BITS (&vg_cap))
+    S_PRINTF ("| 0x%llx/%d ", VG_CAP_GUARD (&vg_cap), VG_CAP_GUARD_BITS (&vg_cap));
+  if (VG_CAP_SUBPAGES (&vg_cap) != 1)
+    S_PRINTF ("(%d/%d) ", VG_CAP_SUBPAGE (&vg_cap), VG_CAP_SUBPAGES (&vg_cap));
 
-  if (CAP_GUARD_BITS (&cap)
-      && ADDR_BITS - addr_depth (addr) >= CAP_GUARD_BITS (&cap))
+  if (VG_CAP_GUARD_BITS (&vg_cap)
+      && VG_ADDR_BITS - vg_addr_depth (addr) >= VG_CAP_GUARD_BITS (&vg_cap))
     S_PRINTF ("=> 0x%llx/%d ",
-	    addr_prefix (addr_extend (addr,
-				      CAP_GUARD (&cap),
-				      CAP_GUARD_BITS (&cap))),
-	    addr_depth (addr) + CAP_GUARD_BITS (&cap));
+	    vg_addr_prefix (vg_addr_extend (addr,
+				      VG_CAP_GUARD (&vg_cap),
+				      VG_CAP_GUARD_BITS (&vg_cap))),
+	    vg_addr_depth (addr) + VG_CAP_GUARD_BITS (&vg_cap));
 
 #ifdef RM_INTERN
-  S_PRINTF ("@" OID_FMT " ", OID_PRINTF (cap.oid));
+  S_PRINTF ("@" VG_OID_FMT " ", VG_OID_PRINTF (vg_cap.oid));
 #endif
-  S_PRINTF ("%s", cap_type_string (cap.type));
+  S_PRINTF ("%s", vg_cap_type_string (vg_cap.type));
 
 #ifdef RM_INTERN
-  if (cap.type == cap_page || cap.type == cap_rpage)
+  if (vg_cap.type == vg_cap_page || vg_cap.type == vg_cap_rpage)
     {
-      struct object *object = cap_to_object_soft (root_activity, &cap);
+      struct object *object = cap_to_object_soft (root_activity, &vg_cap);
       if (object)
 	{
 	  struct md5_ctx ctx;
@@ -145,55 +145,55 @@ do_walk (activity_t activity, int index,
   if (! descend)
     return;
 
-  if (addr_depth (addr) + CAP_GUARD_BITS (&cap) > ADDR_BITS)
+  if (vg_addr_depth (addr) + VG_CAP_GUARD_BITS (&vg_cap) > VG_ADDR_BITS)
     return;
 
-  addr = addr_extend (addr, CAP_GUARD (&cap), CAP_GUARD_BITS (&cap));
+  addr = vg_addr_extend (addr, VG_CAP_GUARD (&vg_cap), VG_CAP_GUARD_BITS (&vg_cap));
 
-  switch (cap.type)
+  switch (vg_cap.type)
     {
-    case cap_cappage:
-    case cap_rcappage:
-      if (addr_depth (addr) + CAP_SUBPAGE_SIZE_LOG2 (&cap) > ADDR_BITS)
+    case vg_cap_cappage:
+    case vg_cap_rcappage:
+      if (vg_addr_depth (addr) + VG_CAP_SUBPAGE_SIZE_LOG2 (&vg_cap) > VG_ADDR_BITS)
 	return;
 
-      for (i = 0; i < CAP_SUBPAGE_SIZE (&cap); i ++)
+      for (i = 0; i < VG_CAP_SUBPAGE_SIZE (&vg_cap); i ++)
 	do_walk (activity, i, root,
-		 addr_extend (addr, i, CAP_SUBPAGE_SIZE_LOG2 (&cap)),
+		 vg_addr_extend (addr, i, VG_CAP_SUBPAGE_SIZE_LOG2 (&vg_cap)),
 		 indent + 1, true, output_prefix);
 
       return;
 
-    case cap_folio:
-      if (addr_depth (addr) + FOLIO_OBJECTS_LOG2 > ADDR_BITS)
+    case vg_cap_folio:
+      if (vg_addr_depth (addr) + VG_FOLIO_OBJECTS_LOG2 > VG_ADDR_BITS)
 	return;
 
-      for (i = 0; i < FOLIO_OBJECTS; i ++)
+      for (i = 0; i < VG_FOLIO_OBJECTS; i ++)
 	do_walk (activity, i, root,
-		 addr_extend (addr, i, FOLIO_OBJECTS_LOG2),
+		 vg_addr_extend (addr, i, VG_FOLIO_OBJECTS_LOG2),
 		 indent + 1, false, output_prefix);
 
       return;
 
-    case cap_thread:
-      if (addr_depth (addr) + THREAD_SLOTS_LOG2 > ADDR_BITS)
+    case vg_cap_thread:
+      if (vg_addr_depth (addr) + VG_THREAD_SLOTS_LOG2 > VG_ADDR_BITS)
 	return;
 
-      for (i = 0; i < THREAD_SLOTS; i ++)
+      for (i = 0; i < VG_THREAD_SLOTS; i ++)
 	do_walk (activity, i, root,
-		 addr_extend (addr, i, THREAD_SLOTS_LOG2),
+		 vg_addr_extend (addr, i, VG_THREAD_SLOTS_LOG2),
 		 indent + 1, true, output_prefix);
 
       return;
 
-    case cap_messenger:
+    case vg_cap_messenger:
       /* rmessenger's don't expose their capability slots.  */
-      if (addr_depth (addr) + VG_MESSENGER_SLOTS_LOG2 > ADDR_BITS)
+      if (vg_addr_depth (addr) + VG_MESSENGER_SLOTS_LOG2 > VG_ADDR_BITS)
 	return;
 
       for (i = 0; i < VG_MESSENGER_SLOTS; i ++)
 	do_walk (activity, i, root,
-		 addr_extend (addr, i, VG_MESSENGER_SLOTS_LOG2),
+		 vg_addr_extend (addr, i, VG_MESSENGER_SLOTS_LOG2),
 		 indent + 1, true, output_prefix);
 
       return;
@@ -205,11 +205,11 @@ do_walk (activity_t activity, int index,
 
 /* AS_LOCK must not be held.  */
 void
-as_dump_from (activity_t activity, struct cap *root, const char *prefix)
+as_dump_from (activity_t activity, struct vg_cap *root, const char *prefix)
 {
   debug (0, "Dumping address space.");
   backtrace_print ();
 
   if (0)
-    do_walk (activity, -1, root, ADDR (0, 0), 0, true, prefix);
+    do_walk (activity, -1, root, VG_ADDR (0, 0), 0, true, prefix);
 }

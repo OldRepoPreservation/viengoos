@@ -38,19 +38,19 @@
 
 extern struct hurd_startup_data *__hurd_startup_data;
 
-addr_t meta_data_activity;
+vg_addr_t meta_data_activity;
 
 int mm_init_done;
 
 void
-mm_init (addr_t activity)
+mm_init (vg_addr_t activity)
 {
   assert (! mm_init_done);
 
   extern int output_debug;
   output_debug = 1;
 
-  if (ADDR_IS_VOID (activity))
+  if (VG_ADDR_IS_VOID (activity))
     meta_data_activity = __hurd_startup_data->activity;
   else
     meta_data_activity = activity;
@@ -74,8 +74,8 @@ mm_init (addr_t activity)
 #ifdef i386
   void test (int nesting)
   {
-    addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
-    void *a = ADDR_TO_PTR (addr_extend (addr, 0, PAGESIZE_LOG2));
+    vg_addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
+    void *a = VG_ADDR_TO_PTR (vg_addr_extend (addr, 0, PAGESIZE_LOG2));
 
     int recursed = false;
 
@@ -83,7 +83,7 @@ mm_init (addr_t activity)
     bool fault (struct pager *pager,
 		uintptr_t offset, int count, bool ro,
 		uintptr_t fault_addr, uintptr_t ip,
-		struct activation_fault_info info)
+		struct vg_activation_fault_info info)
     {
       assert (a == (void *) (fault_addr & ~(PAGESIZE - 1)));
       assert (count == 1);
@@ -115,9 +115,9 @@ mm_init (addr_t activity)
       /* We cannot easily check esp and eip here.  */
 
       as_ensure (addr);
-      storage = storage_alloc (ADDR_VOID,
-			       cap_page, STORAGE_UNKNOWN,
-			       OBJECT_POLICY_DEFAULT,
+      storage = storage_alloc (VG_ADDR_VOID,
+			       vg_cap_page, STORAGE_UNKNOWN,
+			       VG_OBJECT_POLICY_DEFAULT,
 			       addr);
 
       if (nesting > 1 && ! recursed)

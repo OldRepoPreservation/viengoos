@@ -25,9 +25,9 @@
 #include <viengoos/addr.h>
 
 /* Allocate a capability slot.  */
-extern addr_t capalloc (void);
+extern vg_addr_t capalloc (void);
 
 /* Free a capability previously allocated by capalloc.  */
-extern void capfree (addr_t cap);
+extern void capfree (vg_addr_t vg_cap);
 
 #endif /* _HURD_CAP_ALLOC_H */

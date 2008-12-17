@@ -663,8 +663,8 @@ diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.su
  #     undef DYNAMIC_LOADING
 +
 +#     include <hurd/addr.h>
-+extern addr_t gc_activity __attribute__ ((weak));
-+#     define ACTIVITY (&gc_activity ? gc_activity : ADDR_VOID)
++extern vg_addr_t gc_activity __attribute__ ((weak));
++#     define ACTIVITY (&gc_activity ? gc_activity : VG_ADDR_VOID)
 +extern int GC_available_bytes;
 +
  #   endif
@@ -682,8 +682,8 @@ diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.su
 +#include <hurd/viengoos.h>
 +#include <hurd/as.h>
 +
-+extern addr_t gc_activity __attribute__ ((weak));
-+#define ACTIVITY (&gc_activity ? gc_activity : ADDR_VOID)
++extern vg_addr_t gc_activity __attribute__ ((weak));
++#define ACTIVITY (&gc_activity ? gc_activity : VG_ADDR_VOID)
 +
 +#endif
 +

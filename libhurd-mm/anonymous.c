@@ -46,7 +46,7 @@ struct storage_desc
   /* Offset from start of pager.  */
   uintptr_t offset;
   /* The allocated storage.  */
-  addr_t storage;
+  vg_addr_t storage;
 };
 
 static int
@@ -83,12 +83,12 @@ slab_alloc (void *hook, size_t size, void **ptr)
 {
   assert (size == PAGESIZE);
 
-  struct storage storage = storage_alloc (meta_data_activity, cap_page,
+  struct storage storage = storage_alloc (meta_data_activity, vg_cap_page,
 					  STORAGE_LONG_LIVED,
-					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
-  if (ADDR_IS_VOID (storage.addr))
+					  VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+  if (VG_ADDR_IS_VOID (storage.addr))
     panic ("Out of space.");
-  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+  *ptr = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -98,7 +98,7 @@ slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
-  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;
@@ -133,7 +133,7 @@ static struct hurd_slab_space anonymous_pager_slab
 
 static bool
 fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
-       uintptr_t fault_addr, uintptr_t ip, struct activation_fault_info info)
+       uintptr_t fault_addr, uintptr_t ip, struct vg_activation_fault_info info)
 {
   struct anonymous_pager *anon = (struct anonymous_pager *) pager;
   assert (anon->magic == ANONYMOUS_MAGIC);
@@ -141,8 +141,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
   debug (5, "%p: fault at %p, spans %d pg (%d kb); "
 	 "pager: %p-%p (%d pages; %d kb), offset: %x",
 	 anon, (void *) fault_addr, count, count * PAGESIZE / 1024,
-	 (void *) (uintptr_t) addr_prefix (anon->map_area),
-	 (void *) (uintptr_t) addr_prefix (anon->map_area) + anon->pager.length,
+	 (void *) (uintptr_t) vg_addr_prefix (anon->map_area),
+	 (void *) (uintptr_t) vg_addr_prefix (anon->map_area) + anon->pager.length,
 	 anon->pager.length / PAGESIZE, anon->pager.length / 1024,
 	 offset);
 
@@ -216,10 +216,10 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	       "%x + %d pages <= %x",
 	       offset, count, pager->length);
 
-      debug (5, "Faulting %p - %p (%d pages; %d kb); pager at " ADDR_FMT "+%d",
+      debug (5, "Faulting %p - %p (%d pages; %d kb); pager at " VG_ADDR_FMT "+%d",
 	     (void *) fault_addr, (void *) fault_addr + count * PAGE_SIZE,
 	     count, count * PAGESIZE / 1024,
-	     ADDR_PRINTF (anon->map_area), offset);
+	     VG_ADDR_PRINTF (anon->map_area), offset);
     }
 
   pages = __builtin_alloca (sizeof (void *) * count);
@@ -253,13 +253,13 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		 storage address as object_discarded_clear also
 		 returns a mapping and we are likely to access the
 		 data at the fault address.  */
-	      err = rm_object_discarded_clear (ADDR_VOID, ADDR_VOID,
+	      err = rm_object_discarded_clear (VG_ADDR_VOID, VG_ADDR_VOID,
 					       storage_desc->storage);
 	      assertx (err == 0, "%d", err);
 
-	      debug (5, "Clearing discarded bit for %p / " ADDR_FMT,
+	      debug (5, "Clearing discarded bit for %p / " VG_ADDR_FMT,
 		     (void *) fault_addr + i * PAGESIZE,
-		     ADDR_PRINTF (storage_desc->storage));
+		     VG_ADDR_PRINTF (storage_desc->storage));
 	    }
 	  else if (! storage_desc)
 	    /* Seems we have not yet allocated a page.  */
@@ -271,9 +271,9 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 
 	      struct storage storage
 		= storage_alloc (anon->activity,
-				 cap_page, STORAGE_UNKNOWN, anon->policy,
-				 ADDR_VOID);
-	      if (ADDR_IS_VOID (storage.addr))
+				 vg_cap_page, STORAGE_UNKNOWN, anon->policy,
+				 VG_ADDR_VOID);
+	      if (VG_ADDR_IS_VOID (storage.addr))
 		panic ("Out of memory.");
 	      storage_desc->storage = storage.addr;
 
@@ -286,32 +286,32 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		       "Fault address: %p, offset: %x",
 		       (void *) fault_addr + i * PAGESIZE, o);
 
-	      debug (5, "Allocating storage for %p at " ADDR_FMT,
+	      debug (5, "Allocating storage for %p at " VG_ADDR_FMT,
 		     (void *) fault_addr  + i * PAGESIZE,
-		     ADDR_PRINTF (storage_desc->storage));
+		     VG_ADDR_PRINTF (storage_desc->storage));
 
 	      profile_region ("install");
 
 	      /* We generate a fake shadow cap for the storage as we know
 		 its contents (It is a page that is in a folio with the
 		 policy ANON->POLICY.)  */
-	      struct cap page;
+	      struct vg_cap page;
 	      memset (&page, 0, sizeof (page));
-	      page.type = cap_page;
-	      CAP_POLICY_SET (&page, anon->policy);
+	      page.type = vg_cap_page;
+	      VG_CAP_POLICY_SET (&page, anon->policy);
 
-	      addr_t addr = addr_chop (PTR_TO_ADDR (fault_addr + i * PAGESIZE),
+	      vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (fault_addr + i * PAGESIZE),
 				       PAGESIZE_LOG2);
 
 	      as_ensure_use
 		(addr,
 		 ({
 		   bool ret;
-		   ret = cap_copy_x (anon->activity,
-				     ADDR_VOID, slot, addr,
-				     ADDR_VOID, page, storage_desc->storage,
-				     read_only ? CAP_COPY_WEAKEN : 0,
-				     CAP_PROPERTIES_VOID);
+		   ret = vg_cap_copy_x (anon->activity,
+				     VG_ADDR_VOID, slot, addr,
+				     VG_ADDR_VOID, page, storage_desc->storage,
+				     read_only ? VG_CAP_COPY_WEAKEN : 0,
+				     VG_CAP_PROPERTIES_VOID);
 		   assert (ret);
 		 }));
 
@@ -319,7 +319,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	    }
 
 	  if (! recursive || ! (anon->flags & ANONYMOUS_NO_RECURSIVE))
-	    pages[i] = ADDR_TO_PTR (addr_extend (storage_desc->storage,
+	    pages[i] = VG_ADDR_TO_PTR (vg_addr_extend (storage_desc->storage,
 						 0, PAGESIZE_LOG2));
 	}
 
@@ -327,7 +327,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
       int faulted;
       for (i = 0; i < count; i += faulted)
 	{
-	  error_t err = rm_fault (ADDR_VOID, fault_addr + i * PAGESIZE,
+	  error_t err = rm_fault (VG_ADDR_VOID, fault_addr + i * PAGESIZE,
 				  count - i, &faulted);
 	  if (err || faulted == 0)
 	    break;
@@ -471,7 +471,7 @@ mdestroy (struct map *map)
     debug (5, "Freed %d pages", count);
 
   /* Free the map area.  Should we also free the staging area?  */
-  as_free (PTR_TO_ADDR (map->region.start), map->region.length);
+  as_free (VG_PTR_TO_ADDR (map->region.start), map->region.length);
 }
 
 static void
@@ -490,7 +490,7 @@ destroy (struct pager *pager)
     /* Free the staging area.  */
     {
       assert ((anon->flags & ANONYMOUS_STAGING_AREA));
-      as_free (addr_chop (PTR_TO_ADDR (anon->staging_area), PAGESIZE_LOG2),
+      as_free (vg_addr_chop (VG_PTR_TO_ADDR (anon->staging_area), PAGESIZE_LOG2),
 	       anon->pager.length / PAGESIZE);
     }
   else
@@ -556,14 +556,14 @@ advise (struct pager *pager,
 
     case pager_advice_normal:
       {
-	struct activation_fault_info info;
+	struct vg_activation_fault_info info;
 	info.discarded = anon->policy.discardable;
-	info.type = cap_page;
+	info.type = vg_cap_page;
 	/* XXX: What should we set info.access to?  */
 	info.access = MAP_ACCESS_ALL;
 
 	bool r = fault (pager, start, length / PAGESIZE, false,
-			addr_prefix (anon->map_area) + start, 0, info);
+			vg_addr_prefix (anon->map_area) + start, 0, info);
 	if (! r)
 	  debug (5, "Did not resolve fault for anonymous pager");
 
@@ -577,7 +577,7 @@ advise (struct pager *pager,
 }
 
 struct anonymous_pager *
-anonymous_pager_alloc (addr_t activity,
+anonymous_pager_alloc (vg_addr_t activity,
 		       void *hint, uintptr_t length, enum map_access access,
 		       struct object_policy policy,
 		       uintptr_t flags, anonymous_pager_fill_t fill,
@@ -640,7 +640,7 @@ anonymous_pager_alloc (addr_t activity,
 	   may not cover all of the requested region if the starting
 	   address is not aligned on a 1 << WIDTH boundary.  Consider
 	   a requested address of 12k and a size of 8k.  In this case,
-	   WIDTH is 13 and addr_chop (hint, WIDTH) => 8k thus yielding
+	   WIDTH is 13 and vg_addr_chop (hint, WIDTH) => 8k thus yielding
 	   the region 8-16k, yet, the requested region is 12k-20k!  In
 	   such cases, we just need to double the width to cover the
 	   whole region.  */
@@ -659,7 +659,7 @@ anonymous_pager_alloc (addr_t activity,
     {
       /* NB: this may round HINT down if we need a power-of-2 staging
 	 area!  */
-      anon->map_area = addr_chop (PTR_TO_ADDR (hint), width);
+      anon->map_area = vg_addr_chop (VG_PTR_TO_ADDR (hint), width);
 
       bool r = as_alloc_at (anon->map_area, count);
       if (! r)
@@ -667,10 +667,10 @@ anonymous_pager_alloc (addr_t activity,
 	{
 	  if ((flags & ANONYMOUS_FIXED))
 	    {
-	      debug (0, "(%p, %x (%p)): Specified range " ADDR_FMT "+%d "
+	      debug (0, "(%p, %x (%p)): Specified range " VG_ADDR_FMT "+%d "
 		     "in use and ANONYMOUS_FIXED specified",
 		     hint, length, hint + length - 1,
-		     ADDR_PRINTF (anon->map_area), count);
+		     VG_ADDR_PRINTF (anon->map_area), count);
 	      goto error_with_buffer;
 	    }
 	}
@@ -683,14 +683,14 @@ anonymous_pager_alloc (addr_t activity,
   if (! alloced)
     {
       anon->map_area = as_alloc (width, count, true);
-      if (ADDR_IS_VOID (anon->map_area))
+      if (VG_ADDR_IS_VOID (anon->map_area))
 	{
 	  debug (0, "(%p, %x (%p)): No VA available",
 		 hint, length, hint + length - 1);
 	  goto error_with_buffer;
 	}
 
-      *addr_out = ADDR_TO_PTR (addr_extend (anon->map_area, 0, width));
+      *addr_out = VG_ADDR_TO_PTR (vg_addr_extend (anon->map_area, 0, width));
     }
 
   anon->map_area_count = count;
@@ -699,11 +699,11 @@ anonymous_pager_alloc (addr_t activity,
   if ((flags & ANONYMOUS_STAGING_AREA))
     /* We need a staging area.  */
     {
-      addr_t staging_area = as_alloc (PAGESIZE_LOG2, length / PAGESIZE, true);
-      if (ADDR_IS_VOID (staging_area))
+      vg_addr_t staging_area = as_alloc (PAGESIZE_LOG2, length / PAGESIZE, true);
+      if (VG_ADDR_IS_VOID (staging_area))
 	goto error_with_map_area;
 
-      anon->staging_area = ADDR_TO_PTR (addr_extend (staging_area,
+      anon->staging_area = VG_ADDR_TO_PTR (vg_addr_extend (staging_area,
 						     0, PAGESIZE_LOG2));
     }
 

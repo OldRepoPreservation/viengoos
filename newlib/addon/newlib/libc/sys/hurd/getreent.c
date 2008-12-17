@@ -25,13 +25,13 @@
 static error_t
 slab_alloc (void *hook, size_t size, void **ptr)
 {
-  struct storage storage = storage_alloc (ADDR_VOID, cap_page,
+  struct storage storage = storage_alloc (VG_ADDR_VOID, vg_cap_page,
 					  STORAGE_LONG_LIVED,
-					  OBJECT_POLICY_DEFAULT,
-					  ADDR_VOID);
-  if (ADDR_IS_VOID (storage.addr))
+					  VG_OBJECT_POLICY_DEFAULT,
+					  VG_ADDR_VOID);
+  if (VG_ADDR_IS_VOID (storage.addr))
     panic ("Out of space.");
-  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+  *ptr = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -41,7 +41,7 @@ slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
-  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;

@@ -62,17 +62,17 @@ struct messenger
   /* When this messenger is activated (that is, its contents are
      delivered or it receives a message), THREAD is activated.  This
      is settable from user space.  */
-  struct cap thread;
+  struct vg_cap thread;
 
   /* The root of the address space in which capability addresses
      referenced in the message are resolved.  */
-  struct cap as_root;
+  struct vg_cap as_root;
 
   /* The message buffer.  */
-  struct cap buffer;
+  struct vg_cap buffer;
 
   /* The activity supplied by the sender of the message.  */
-  struct cap sender_activity;
+  struct vg_cap sender_activity;
 
 
   /* Whether the data is inline or out of line.  */
@@ -84,7 +84,7 @@ struct messenger
 
   /* Inline data.  */
   uintptr_t inline_words[VG_MESSENGER_INLINE_WORDS];
-  addr_t inline_caps[VG_MESSENGER_INLINE_CAPS];
+  vg_addr_t inline_caps[VG_MESSENGER_INLINE_CAPS];
 
 
   /* The buffer's version.  If USER_VERSION_MATCHING is true, a
@@ -142,8 +142,8 @@ struct messenger
   {
     /* We don't need versioning as we automatically collect on object
        destruction.  */
-    oid_t next;
-    oid_t prev;
+    vg_oid_t next;
+    vg_oid_t prev;
   } wait_queue;
 
   /* Whether the object is attached to a wait queue.  (This is

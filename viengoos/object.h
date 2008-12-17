@@ -46,9 +46,9 @@ extern ss_mutex_t kernel_lock;
    -------
 
    A folio is a unit of disk storage.  Objects are allocated out of a
-   folio.  Each folio consists of exactly FOLIO_OBJECTS objects each
+   folio.  Each folio consists of exactly VG_FOLIO_OBJECTS objects each
    PAGESIZE bytes in size.  A folio also includes a 4 kb header (Thus
-   a folio consists of a total of FOLIO_OBJECTS + 1 pages of storage).
+   a folio consists of a total of VG_FOLIO_OBJECTS + 1 pages of storage).
    The header also describes the folio:
 
 	version
@@ -80,7 +80,7 @@ extern ss_mutex_t kernel_lock;
 
    The implementation ensures these invariants.  When a storage device
    is initialized, all objects are set to have a version of 0 and a
-   type of cap_void.  As all objects are new, there can be no
+   type of vg_cap_void.  As all objects are new, there can be no
    capabilities designating them.  When an object is deallocated, if
    the object's type is void, nothing is done.  Otherwise, the
    object's version is incremented and its type is set to void.  When
@@ -122,9 +122,9 @@ extern ss_mutex_t kernel_lock;
 struct object_desc
 {
   /* The version and OID of the object.  */
-  oid_t oid;
-  uintptr_t version : CAP_VERSION_BITS;
-  uintptr_t type : CAP_TYPE_BITS;
+  vg_oid_t oid;
+  uintptr_t version : VG_CAP_VERSION_BITS;
+  uintptr_t type : VG_CAP_TYPE_BITS;
 
   /* Whether the page is dirty.  */
   uintptr_t dirty: 1;
@@ -172,13 +172,13 @@ struct object_desc
   union
   {
     /* ACTIVITY is valid, EVICTION_CANDIDATE is false, POLICY.PRIORITY
-       != OBJECT_PRIORITY_DEFAULT.
+       != VG_OBJECT_PRIORITY_DEFAULT.
 
          => attached to ACTIVITY->PRIORITIES.  */
     hurd_btree_node_t priority_node;
 
     /* ACTIVITY is valid, EVICTION_CANDIDATE is false, POLICY.PRIORITY
-       == OBJECT_PRIORITY_DEFAULT,
+       == VG_OBJECT_PRIORITY_DEFAULT,
 
          => attached to one of ACTIVITY's LRU lists.
 
@@ -215,16 +215,16 @@ extern struct object_desc *object_descs;
    place.  The first reason is that it relies on the definition of
    struct activity and struct thread and this header file includes
    neither activity.h nor thread.h.  */
-#define OBJECT_NAME_FMT "%s%s" OID_FMT
+#define OBJECT_NAME_FMT "%s%s" VG_OID_FMT
 #define OBJECT_NAME_PRINTF(__onp)				\
   ({								\
     const char *name = "";					\
-    if (object_type ((__onp)) == cap_activity_control)		\
+    if (object_type ((__onp)) == vg_cap_activity_control)		\
       {								\
 	struct activity *a = (struct activity *) (__onp);	\
 	name = a->name.name;					\
       }								\
-    else if (object_type ((__onp)) == cap_thread)		\
+    else if (object_type ((__onp)) == vg_cap_thread)		\
       {								\
 	struct thread *t = (struct thread *) (__onp);		\
 	name = t->name.name;					\
@@ -233,12 +233,12 @@ extern struct object_desc *object_descs;
   }),								\
   ({								\
     const char *name = "";					\
-    if (object_type ((__onp)) == cap_activity_control)		\
+    if (object_type ((__onp)) == vg_cap_activity_control)		\
       {								\
 	struct activity *a = (struct activity *) (__onp);	\
 	name = a->name.name;					\
       }								\
-    else if (object_type ((__onp)) == cap_thread)		\
+    else if (object_type ((__onp)) == vg_cap_thread)		\
       {								\
 	struct thread *t = (struct thread *) (__onp);		\
 	name = t->name.name;					\
@@ -247,7 +247,7 @@ extern struct object_desc *object_descs;
     if (*name)							\
       space = " ";						\
     space;							\
-  }), OID_PRINTF (object_to_object_desc ((__onp))->oid)		\
+  }), VG_OID_PRINTF (object_to_object_desc ((__onp))->oid)		\
 
 LIST_CLASS(activity, struct object_desc, activity_node, true)
 LIST_CLASS(eviction, struct object_desc, activity_node, true)
@@ -281,13 +281,13 @@ extern void object_init (void);
 
 /* Return the address of the object corresponding to object OID,
    reading it from backing store if required.  */
-extern struct object *object_find (struct activity *activity, oid_t oid,
+extern struct object *object_find (struct activity *activity, vg_oid_t oid,
 				   struct object_policy policy);
 
 /* If the object corresponding to object OID is in-memory, return it.
    Otherwise, return NULL.  Does not go to disk.  */
 extern struct object *object_find_soft (struct activity *activity,
-					oid_t oid,
+					vg_oid_t oid,
 					struct object_policy policy);
 
 /* Destroy the object OBJECT.  Any changes must have already been
@@ -329,41 +329,41 @@ extern void memory_object_destroy (struct activity *activity,
     &object_descs[((uintptr_t) (object__) - first_frame) / PAGESIZE];	\
   })
 
-/* Return a cap referencing the object designated by OBJECT_DESC.  */
-static inline struct cap
+/* Return a vg_cap referencing the object designated by OBJECT_DESC.  */
+static inline struct vg_cap
 object_desc_to_cap (struct object_desc *desc)
 {
-  struct cap cap;
+  struct vg_cap vg_cap;
 
-  cap.type = desc->type;
-  cap.oid = desc->oid;
-  cap.version = desc->version;
-  cap.addr_trans = CAP_ADDR_TRANS_VOID;
-  cap.discardable = desc->policy.discardable;
-  cap.priority = desc->policy.priority;
+  vg_cap.type = desc->type;
+  vg_cap.oid = desc->oid;
+  vg_cap.version = desc->version;
+  vg_cap.addr_trans = VG_CAP_ADDR_TRANS_VOID;
+  vg_cap.discardable = desc->policy.discardable;
+  vg_cap.priority = desc->policy.priority;
 
-  if (cap.type == cap_cappage)
-    CAP_SET_SUBPAGE (&cap, 0, 1);
-  else if (cap.type == cap_folio)
-    CAP_SET_SUBPAGE (&cap, 0, 1);
+  if (vg_cap.type == vg_cap_cappage)
+    VG_CAP_SET_SUBPAGE (&vg_cap, 0, 1);
+  else if (vg_cap.type == vg_cap_folio)
+    VG_CAP_SET_SUBPAGE (&vg_cap, 0, 1);
 
-  return cap;
+  return vg_cap;
 }
 
-/* Return a cap referencing the object OBJECT.  */
-static inline struct cap
+/* Return a vg_cap referencing the object OBJECT.  */
+static inline struct vg_cap
 object_to_cap (struct object *object)
 {
   return object_desc_to_cap (object_to_object_desc (object));
 }
 
-static inline oid_t
+static inline vg_oid_t
 object_oid (struct object *object)
 {
   return object_to_object_desc (object)->oid;
 }
 
-static inline enum cap_type
+static inline enum vg_cap_type
 object_type (struct object *object)
 {
   return object_to_object_desc (object)->type;
@@ -469,13 +469,13 @@ extern void folio_free (struct activity *activity, struct folio *folio);
 /* Allocate an object of type TYPE using the PAGE page from the folio
    FOLIO.  This implicitly destroys any existing object in that page.
    If there were any waiters waiting for the descruction, they are
-   woken and passed RETURN_CODE.  If TYPE is cap_void, this is
+   woken and passed RETURN_CODE.  If TYPE is vg_cap_void, this is
    equivalent to calling folio_object_free.  If OBJECTP is not-NULL,
    then the in-memory location of the object is returned in
    *OBJECTP.  */
-extern struct cap folio_object_alloc (struct activity *activity,
+extern struct vg_cap folio_object_alloc (struct activity *activity,
 				      struct folio *folio, int page,
-				      enum cap_type type,
+				      enum vg_cap_type type,
 				      struct object_policy policy,
 				      uintptr_t return_code);
 
@@ -484,8 +484,8 @@ static inline void
 folio_object_free (struct activity *activity,
 		   struct folio *folio, int page)
 {
-  folio_object_alloc (activity, folio, page, cap_void,
-		      OBJECT_POLICY_VOID, 0);
+  folio_object_alloc (activity, folio, page, vg_cap_void,
+		      VG_OBJECT_POLICY_VOID, 0);
 }
 
 /* Return an object's position within its folio.  */
@@ -494,7 +494,7 @@ objects_folio_offset (struct object *object)
 {
   struct object_desc *desc = object_to_object_desc (object);
 
-  return (desc->oid % (1 + FOLIO_OBJECTS)) - 1;
+  return (desc->oid % (1 + VG_FOLIO_OBJECTS)) - 1;
 }
 
 /* Return the folio corresponding to the object OBJECT.  */
@@ -504,7 +504,7 @@ objects_folio (struct activity *activity, struct object *object)
   struct object_desc *odesc = object_to_object_desc (object);
 
   int page = objects_folio_offset (object);
-  oid_t foid = odesc->oid - page - 1;
+  vg_oid_t foid = odesc->oid - page - 1;
 
   if (odesc->maybe_folio_desc
       && odesc->maybe_folio_desc->live
@@ -512,7 +512,7 @@ objects_folio (struct activity *activity, struct object *object)
     return (struct folio *) object_desc_to_object (odesc->maybe_folio_desc);
 
   struct folio *folio = (struct folio *) object_find (activity, foid,
-						      OBJECT_POLICY_VOID);
+						      VG_OBJECT_POLICY_VOID);
   assert (folio);
 
   odesc->maybe_folio_desc = object_to_object_desc ((struct object *) folio);
@@ -578,8 +578,8 @@ extern void object_wait_queue_unlink (struct activity *activity,
 	 (folio_object_wait_queue_p (__owqfe_folio, __owqfe_idx)	\
 	  ? object_find (__owqfe_activity,				\
 			 folio_object_wait_queue (__owqfe_folio,	\
-						  __owqfe_idx),		\
-			 OBJECT_POLICY_VOID)				\
+						     __owqfe_idx),	\
+			 VG_OBJECT_POLICY_VOID)				\
 	  : NULL);							\
        (__owqfe_messenger = __owqfe_next)				\
 	 && ((__owqfe_next = object_wait_queue_next (__owqfe_activity,	\

@@ -37,8 +37,8 @@ is_clean (struct object_desc *desc)
   l4_fpage_t result = l4_unmap_fpage (l4_fpage ((l4_word_t) object,
 						PAGESIZE));
   assertx (! l4_was_written (result) && ! l4_was_referenced (result),
-	   "The %s " OID_FMT "(at %p) has status bits set (%s %s)",
-	   cap_type_string (desc->type), OID_PRINTF (desc->oid), object,
+	   "The %s " VG_OID_FMT "(at %p) has status bits set (%s %s)",
+	   vg_cap_type_string (desc->type), VG_OID_PRINTF (desc->oid), object,
 	   l4_was_written (result) ? "dirty" : "",
 	   l4_was_referenced (result) ? "refed" : "");
 
@@ -55,8 +55,8 @@ is_clean (struct object_desc *desc)
 	    clean = false;
 	  }
       assertx (clean,
-	       "The %s " OID_FMT "(at %p) is dirty!",
-	       cap_type_string (desc->type), OID_PRINTF (desc->oid),
+	       "The %s " VG_OID_FMT "(at %p) is dirty!",
+	       vg_cap_type_string (desc->type), VG_OID_PRINTF (desc->oid),
 	       object);
     }
 #endif
@@ -79,7 +79,7 @@ reclaim_from (struct activity *victim, int goal)
   int active = 0;
   int inactive = 0;
 
-  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+  for (i = VG_OBJECT_PRIORITY_MIN; i <= VG_OBJECT_PRIORITY_MAX; i ++)
     {
       active += activity_list_count (&victim->frames[i].active);
       inactive += activity_list_count (&victim->frames[i].inactive);
@@ -98,7 +98,7 @@ reclaim_from (struct activity *victim, int goal)
 	 victim->frames_local,
 	 available_list_count (&available), laundry_list_count (&laundry));
 
-  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+  for (i = VG_OBJECT_PRIORITY_MIN; i <= VG_OBJECT_PRIORITY_MAX; i ++)
     {
       int s = count;
 
@@ -207,7 +207,7 @@ reclaim_from (struct activity *victim, int goal)
   active = 0;
   inactive = 0;
 
-  for (i = OBJECT_PRIORITY_MIN; i <= OBJECT_PRIORITY_MAX; i ++)
+  for (i = VG_OBJECT_PRIORITY_MIN; i <= VG_OBJECT_PRIORITY_MAX; i ++)
     {
       active += activity_list_count (&victim->frames[i].active);
       inactive += activity_list_count (&victim->frames[i].inactive);

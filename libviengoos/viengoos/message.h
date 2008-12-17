@@ -42,7 +42,7 @@ struct vg_message
       /* The number of bytes of data transferred in this message.  */
       uint16_t data_count;
 
-      addr_t caps[/* cap_count */];
+      vg_addr_t caps[/* cap_count */];
       // char data[data_count];
     };
 
@@ -66,7 +66,7 @@ static inline int
 vg_message_cap_count (struct vg_message *msg)
 {
   int max = (PAGESIZE - __builtin_offsetof (struct vg_message, caps))
-    / sizeof (addr_t);
+    / sizeof (vg_addr_t);
 
   int count = msg->cap_count;
   if (count > max)
@@ -80,7 +80,7 @@ static inline int
 vg_message_data_count (struct vg_message *msg)
 {
   int max = PAGESIZE
-    - vg_message_cap_count (msg) * sizeof (addr_t)
+    - vg_message_cap_count (msg) * sizeof (vg_addr_t)
     - __builtin_offsetof (struct vg_message, caps);
 
   int count = msg->data_count;
@@ -92,14 +92,14 @@ vg_message_data_count (struct vg_message *msg)
 
 
 /* Return the start of the capability address array in msg MSG.  */
-static inline addr_t *
+static inline vg_addr_t *
 vg_message_caps (struct vg_message *msg)
 {
   return msg->caps;
 }
 
 /* Return capability IDX in msg MSG.  */
-static inline addr_t
+static inline vg_addr_t
 vg_message_cap (struct vg_message *msg, int idx)
 {
   assert (idx < msg->cap_count);
@@ -114,7 +114,7 @@ vg_message_data (struct vg_message *msg)
 {
   return (void *) msg
     + __builtin_offsetof (struct vg_message, caps)
-    + msg->cap_count * sizeof (addr_t);
+    + msg->cap_count * sizeof (vg_addr_t);
 }
 
 /* Return data word WORD in msg MSG.  */
@@ -130,7 +130,7 @@ vg_message_word (struct vg_message *msg, int word)
 /* Append the array of capability addresses CAPS to the msg MSG.
    There must be sufficient room in the message buffer.  */
 static inline void
-vg_message_append_caps (struct vg_message *msg, int cap_count, addr_t *caps)
+vg_message_append_caps (struct vg_message *msg, int cap_count, vg_addr_t *caps)
 {
   assert ((void *) vg_message_data (msg) - (void *) msg
 	  + vg_message_data_count (msg) + cap_count * sizeof (*caps)
@@ -142,7 +142,7 @@ vg_message_append_caps (struct vg_message *msg, int cap_count, addr_t *caps)
 
   __builtin_memcpy (&msg->caps[msg->cap_count],
 		    caps,
-		    cap_count * sizeof (addr_t));
+		    cap_count * sizeof (vg_addr_t));
 
   msg->cap_count += cap_count;
 }
@@ -150,9 +150,9 @@ vg_message_append_caps (struct vg_message *msg, int cap_count, addr_t *caps)
 /* Append the capability address CAP to the msg MSG.  There must be
    sufficient room in the message buffer.  */
 static inline void
-vg_message_append_cap (struct vg_message *msg, addr_t cap)
+vg_message_append_cap (struct vg_message *msg, vg_addr_t vg_cap)
 {
-  vg_message_append_caps (msg, 1, &cap);
+  vg_message_append_caps (msg, 1, &vg_cap);
 }
 
 
@@ -162,7 +162,7 @@ static inline void
 vg_message_append_data (struct vg_message *msg, int bytes, char *data)
 {
   int dstart = __builtin_offsetof (struct vg_message, caps)
-    + msg->cap_count * sizeof (addr_t);
+    + msg->cap_count * sizeof (vg_addr_t);
   int dend = dstart + msg->data_count;
 
   int new_dend = dend + bytes;
@@ -221,8 +221,8 @@ vg_message_dump (struct vg_message *message)
     }
 
   for (i = 0; i < vg_message_cap_count (message); i ++)
-    s_printf ("cap %d: " ADDR_FMT "\n",
-	      i, ADDR_PRINTF (vg_message_cap (message, i)));
+    s_printf ("cap %d: " VG_ADDR_FMT "\n",
+	      i, VG_ADDR_PRINTF (vg_message_cap (message, i)));
 }
 
 

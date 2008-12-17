@@ -28,9 +28,9 @@
 
 #include "as-build.c"
 
-struct cap *
+struct vg_cap *
 as_ensure_full_custom (activity_t activity,
-		       addr_t as_root_addr, struct cap *root, addr_t addr,
+		       vg_addr_t as_root_addr, struct vg_cap *root, vg_addr_t addr,
 		       as_allocate_page_table_t as_allocate_page_table,
 		       as_object_index_t object_index)
 {
@@ -39,18 +39,18 @@ as_ensure_full_custom (activity_t activity,
 			  true);
 }
 
-struct cap *
+struct vg_cap *
 as_insert_custom (activity_t activity,
-		  addr_t as_root_addr, struct cap *root, addr_t addr,
-		  addr_t entry_as, struct cap entry, addr_t entry_addr,
+		  vg_addr_t as_root_addr, struct vg_cap *root, vg_addr_t addr,
+		  vg_addr_t entry_as, struct vg_cap entry, vg_addr_t entry_addr,
 		  as_allocate_page_table_t as_allocate_page_table,
 		  as_object_index_t object_index)
 {
-  struct cap *slot = as_build_custom (activity, as_root_addr, root, addr,
+  struct vg_cap *slot = as_build_custom (activity, as_root_addr, root, addr,
 				      as_allocate_page_table,
 				      object_index, false);
   assert (slot);
-  cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
+  vg_cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
 
   return slot;
 }

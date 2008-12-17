@@ -482,8 +482,8 @@ ager_loop (void)
 	      continue;
 
 	    assertx (desc->activity,
-		     "OID: " OID_FMT " (%s), age: %d",
-		     OID_PRINTF (desc->oid), cap_type_string (desc->type),
+		     "OID: " VG_OID_FMT " (%s), age: %d",
+		     VG_OID_PRINTF (desc->oid), vg_cap_type_string (desc->type),
 		     desc->age);
 
 	    descs[count] = desc;
@@ -495,7 +495,7 @@ ager_loop (void)
 	      /* We periodically unmap shared frames and mark them as
 		 floating.  See above for details.  */
 	      {
-		if (desc->type == cap_page)
+		if (desc->type == vg_cap_page)
 		  /* We only unmap the object if it is a page.  No
 		     other objects are actually mapped to users.  */
 		  {
@@ -551,7 +551,7 @@ ager_loop (void)
 	      int j = 0;
 	      l4_fpage_t unmap[count];
 	      for (i = 0; i < count; i ++)
-		if (descs[i]->shared && descs[i]->type == cap_page)
+		if (descs[i]->shared && descs[i]->type == vg_cap_page)
 		  unmap[j ++]
 		    = l4_fpage_add_rights (fpages[i],
 					   L4_FPAGE_FULLY_ACCESSIBLE);
@@ -562,7 +562,7 @@ ager_loop (void)
 	      /* Bitwise or the status bits.  */
 	      j = 0;
 	      for (i = 0; i < count; i ++)
-		if (descs[i]->shared && descs[i]->type == cap_page)
+		if (descs[i]->shared && descs[i]->type == vg_cap_page)
 		  fpages[i] = l4_fpage_add_rights (fpages[i],
 						   l4_rights (unmap[j ++]));
 	    }

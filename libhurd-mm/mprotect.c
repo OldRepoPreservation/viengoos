@@ -124,10 +124,10 @@ mprotect (void *addr, size_t length, int prot)
 	  {
 	    map->access = access;
 
-	    addr_t addr;
-	    for (addr = ADDR (map_start, ADDR_BITS - PAGESIZE_LOG2);
-		 addr_prefix (addr) < map_end;
-		 addr = addr_add (addr, 1))
+	    vg_addr_t addr;
+	    for (addr = VG_ADDR (map_start, VG_ADDR_BITS - PAGESIZE_LOG2);
+		 vg_addr_prefix (addr) < map_end;
+		 addr = vg_addr_add (addr, 1))
 	      {
 		/* This may fail if the page has not yet been faulted
 		   in.  That's okay: it will get the right
@@ -139,18 +139,18 @@ mprotect (void *addr, size_t length, int prot)
 		       {
 			 error_t err;
 			 err = rm_cap_rubout (meta_data_activity,
-					      ADDR_VOID, addr);
+					      VG_ADDR_VOID, addr);
 			 assert (! err);
-			 slot->type = cap_void;
+			 slot->type = vg_cap_void;
 		       }
 		     else
 		       {
 			 bool ret;
-			 ret = cap_copy_x (meta_data_activity,
-					   ADDR_VOID, slot, addr,
-					   ADDR_VOID, *slot, addr,
-					   CAP_COPY_WEAKEN,
-					   CAP_PROPERTIES_VOID);
+			 ret = vg_cap_copy_x (meta_data_activity,
+					   VG_ADDR_VOID, slot, addr,
+					   VG_ADDR_VOID, *slot, addr,
+					   VG_CAP_COPY_WEAKEN,
+					   VG_CAP_PROPERTIES_VOID);
 			 assert (ret);
 		       }
 		   }));

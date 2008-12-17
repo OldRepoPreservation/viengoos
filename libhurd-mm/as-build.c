@@ -85,7 +85,7 @@ struct trace_buffer as_trace = TRACE_BUFFER_INIT ("as_trace", 0,
 #ifdef RM_INTERN
 # define AS_DUMP as_dump_from (activity, as_root, __func__)
 #else
-# define AS_DUMP rm_as_dump (ADDR_VOID, as_root_addr)
+# define AS_DUMP rm_as_dump (VG_ADDR_VOID, as_root_addr)
 #endif
 
 /* The following macros allow providing specialized address-space
@@ -120,49 +120,49 @@ struct trace_buffer as_trace = TRACE_BUFFER_INIT ("as_trace", 0,
    location of the idx'th capability slot.  If the capability is
    implicit (in the case of a folio), return a fabricated capability
    in *FAKE_SLOT and return FAKE_SLOT.  Return NULL on failure.  */
-static inline struct cap *
-do_index (activity_t activity, struct cap *pte, addr_t pt_addr, int idx,
-	  struct cap *fake_slot)
+static inline struct vg_cap *
+do_index (activity_t activity, struct vg_cap *pte, vg_addr_t pt_addr, int idx,
+	  struct vg_cap *fake_slot)
 {
-  assert (pte->type == cap_cappage || pte->type == cap_rcappage
-	  || pte->type == cap_folio
-	  || pte->type == cap_thread
-	  || pte->type == cap_messenger || pte->type == cap_rmessenger);
+  assert (pte->type == vg_cap_cappage || pte->type == vg_cap_rcappage
+	  || pte->type == vg_cap_folio
+	  || pte->type == vg_cap_thread
+	  || pte->type == vg_cap_messenger || pte->type == vg_cap_rmessenger);
 
   /* Load the referenced object.  */
-  struct object *pt = cap_to_object (activity, pte);
+  struct object *pt = vg_cap_to_object (activity, pte);
   if (! pt)
     /* PTE's type was not void but its designation was invalid.  This
        can only happen if we inserted an object and subsequently
        destroyed it.  */
     {
-      /* The type should now have been set to cap_void.  */
-      assert (pte->type == cap_void);
-      PANIC ("No object at " ADDR_FMT, ADDR_PRINTF (pt_addr));
+      /* The type should now have been set to vg_cap_void.  */
+      assert (pte->type == vg_cap_void);
+      PANIC ("No object at " VG_ADDR_FMT, VG_ADDR_PRINTF (pt_addr));
     }
 
   switch (pte->type)
     {
-    case cap_cappage:
-    case cap_rcappage:
-      return &pt->caps[CAP_SUBPAGE_OFFSET (pte) + idx];
+    case vg_cap_cappage:
+    case vg_cap_rcappage:
+      return &pt->caps[VG_CAP_SUBPAGE_OFFSET (pte) + idx];
 
-    case cap_folio:;
+    case vg_cap_folio:;
       struct folio *folio = (struct folio *) pt;
 
-      if (folio_object_type (folio, idx) == cap_void)
-	PANIC ("Can't use void object at " ADDR_FMT " for address translation",
-	       ADDR_PRINTF (pt_addr));
+      if (vg_folio_object_type (folio, idx) == vg_cap_void)
+	PANIC ("Can't use void object at " VG_ADDR_FMT " for address translation",
+	       VG_ADDR_PRINTF (pt_addr));
 
-      *fake_slot = folio_object_cap (folio, idx);
+      *fake_slot = vg_folio_object_cap (folio, idx);
 
       return fake_slot;
 
-    case cap_thread:
-      assert (idx < THREAD_SLOTS);
+    case vg_cap_thread:
+      assert (idx < VG_THREAD_SLOTS);
       return &pt->caps[idx];
       
-    case cap_messenger:
+    case vg_cap_messenger:
       /* Note: rmessengers don't expose their capability slots.  */
       assert (idx < VG_MESSENGER_SLOTS);
       return &pt->caps[idx];
@@ -186,53 +186,53 @@ do_index (activity_t activity, struct cap *pte, addr_t pt_addr, int idx,
    If MAY_OVERWRITE is true, the function may overwrite an existing
    capability.  Otherwise, only capability slots containing a void
    capability are used.  */
-struct cap *
+struct vg_cap *
 ID (as_build) (activity_t activity,
-	       addr_t as_root_addr, struct cap *as_root, addr_t addr,
+	       vg_addr_t as_root_addr, struct vg_cap *as_root, vg_addr_t addr,
 	       as_allocate_page_table_t allocate_page_table
 	       OBJECT_INDEX_PARAM,
 	       bool may_overwrite)
 {
-  struct cap *pte = as_root;
+  struct vg_cap *pte = as_root;
 
-  DEBUG (5, DEBUG_BOLD ("Ensuring slot at " ADDR_FMT) " may overwrite: %d",
-	 ADDR_PRINTF (addr), may_overwrite);
-  assert (! ADDR_IS_VOID (addr));
+  DEBUG (5, DEBUG_BOLD ("Ensuring slot at " VG_ADDR_FMT) " may overwrite: %d",
+	 VG_ADDR_PRINTF (addr), may_overwrite);
+  assert (! VG_ADDR_IS_VOID (addr));
 
   /* The number of bits to translate.  */
-  int remaining = addr_depth (addr);
+  int remaining = vg_addr_depth (addr);
   /* The REMAINING bits to translates are in the REMAINING most significant
      bits of PREFIX.  Here it is more convenient to have them in the
      lower bits.  */
-  uint64_t prefix = addr_prefix (addr) >> (ADDR_BITS - remaining);
+  uint64_t prefix = vg_addr_prefix (addr) >> (VG_ADDR_BITS - remaining);
 
   /* Folios are not made up of capability slots and cannot be written
      to.  When traversing a folio, we manufacture a capability to used
      object in FAKE_SLOT.  If ADDR ends up designating such a
      capability, we fail.  */
-  struct cap fake_slot;
+  struct vg_cap fake_slot;
 
   do
     {
-      addr_t pte_addr = addr_chop (addr, remaining);
+      vg_addr_t pte_addr = vg_addr_chop (addr, remaining);
 
-      DEBUG (5, "Cap at " ADDR_FMT ": " CAP_FMT " -> " ADDR_FMT " (%p); "
+      DEBUG (5, "Cap at " VG_ADDR_FMT ": " VG_CAP_FMT " -> " VG_ADDR_FMT " (%p); "
 	     "remaining: %d",
-	     ADDR_PRINTF (pte_addr),
-	     CAP_PRINTF (pte),
-	     ADDR_PRINTF (addr_chop (addr,
-				     remaining - CAP_GUARD_BITS (pte))),
+	     VG_ADDR_PRINTF (pte_addr),
+	     VG_CAP_PRINTF (pte),
+	     VG_ADDR_PRINTF (vg_addr_chop (addr,
+				     remaining - VG_CAP_GUARD_BITS (pte))),
 #ifdef RM_INTERN
 	     NULL,
 #else
-	     cap_get_shadow (pte),
+	     vg_cap_get_shadow (pte),
 #endif
 	     remaining);
 
       AS_CHECK_SHADOW (as_root_addr, pte_addr, pte, {});
 
-      uint64_t pte_guard = CAP_GUARD (pte);
-      int pte_gbits = CAP_GUARD_BITS (pte);
+      uint64_t pte_guard = VG_CAP_GUARD (pte);
+      int pte_gbits = VG_CAP_GUARD_BITS (pte);
 
       uint64_t addr_guard;
       if (remaining >= pte_gbits)
@@ -254,14 +254,14 @@ ID (as_build) (activity_t activity,
 	   the other context may only use a slot if it owns the
 	   area.  */
 	break;
-      else if ((pte->type == cap_cappage || pte->type == cap_rcappage
-		|| pte->type == cap_folio
-		|| pte->type == cap_thread
-		|| pte->type == cap_messenger)
+      else if ((pte->type == vg_cap_cappage || pte->type == vg_cap_rcappage
+		|| pte->type == vg_cap_folio
+		|| pte->type == vg_cap_thread
+		|| pte->type == vg_cap_messenger)
 	       && remaining >= pte_gbits
 	       && pte_guard == addr_guard)
 	/* PTE's (possibly zero-width) guard matches and the
-	   designated object translates ADDR.  We index the object
+	   designated object translates VG_ADDR.  We index the object
 	   below.  */
 	{
 	  remaining -= pte_gbits;
@@ -352,18 +352,18 @@ ID (as_build) (activity_t activity,
 	     length of the pte in the new cappage.  */
 	  int gbits;
 
-	  bool need_pivot = ! (pte->type == cap_void && pte_gbits == 0);
+	  bool need_pivot = ! (pte->type == vg_cap_void && pte_gbits == 0);
 	  if (! need_pivot)
 	    /* The slot is available.  */
 	    {
 	      int space = vg_msb64 (extract_bits64 (prefix, 0, remaining));
-	      if (space <= CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS)
+	      if (space <= VG_CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS)
 		/* The remaining bits to translate fit in the
 		   guard, we are done.  */
 		break;
 
 	      /* The guard value requires more than
-		 CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS bits.  We need to
+		 VG_CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS bits.  We need to
 		 insert a page table.  */
 	      gbits = tilobject = remaining;
 	    }
@@ -386,23 +386,23 @@ ID (as_build) (activity_t activity,
 	     area.  */
 	  int firstset = vg_msb64 (extract_bits64_inv (prefix,
 						       remaining - 1, gbits));
-	  if (firstset > CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS)
+	  if (firstset > VG_CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS)
 	    /* FIRSTSET is the first (most significant) non-zero guard
 	       bit.  GBITS - FIRSTSET are the number of zero bits
 	       before the most significant non-zero bit.  We can
 	       include all of the initial zero bits plus up to the
-	       next CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS bits.  */
-	    gbits -= firstset - CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS;
+	       next VG_CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS bits.  */
+	    gbits -= firstset - VG_CAP_ADDR_TRANS_GUARD_SUBPAGE_BITS;
 
 	  /* We want to choose the guard length such that the cappage
 	     that we insert occurs at certain positions so as minimize
 	     small partial cappages and painful rearrangements of the
 	     tree.  In particular, we want the total remaining bits to
 	     translate after accounting the guard to be equal to
-	     FOLIO_OBJECTS_LOG2 + i * CAPPAGE_SLOTS_LOG2 where i >= 0.
+	     VG_FOLIO_OBJECTS_LOG2 + i * VG_CAPPAGE_SLOTS_LOG2 where i >= 0.
 	     As GBITS is maximal, we may have to remove guard bits to
 	     achieve this.  */
-	  int untranslated_bits = remaining + ADDR_BITS - addr_depth (addr);
+	  int untranslated_bits = remaining + VG_ADDR_BITS - vg_addr_depth (addr);
 
 	  if (! (untranslated_bits > 0 && tilobject > 0 && gbits >= 0
 		 && untranslated_bits >= tilobject
@@ -422,25 +422,25 @@ ID (as_build) (activity_t activity,
 	  remaining -= gbits;
 
 	  int pt_width = gc.cappage_width;
-	  if (! (pt_width > 0 && pt_width <= CAPPAGE_SLOTS_LOG2))
+	  if (! (pt_width > 0 && pt_width <= VG_CAPPAGE_SLOTS_LOG2))
 	    PANIC ("pt_width: %d", pt_width);
 
 	  /* Allocate a new page table.  */
 	  /* XXX: If we use a subpage, we just ignore the rest of the
 	     page.  This is a bit of a waste but makes the code
 	     simpler.  */
-	  addr_t pt_addr = addr_chop (addr, remaining);
+	  vg_addr_t pt_addr = vg_addr_chop (addr, remaining);
 	  struct as_allocate_pt_ret rt = allocate_page_table (pt_addr);
-	  if (rt.cap.type == cap_void)
+	  if (rt.cap.type == vg_cap_void)
 	    /* No memory.  */
 	    return NULL;
 
-	  struct cap pt_cap = rt.cap;
-	  addr_t pt_phys_addr = rt.storage;
+	  struct vg_cap pt_cap = rt.cap;
+	  vg_addr_t pt_phys_addr = rt.storage;
 	  /* do_index requires that the subpage specification be
 	     correct.  */
-	  CAP_SET_SUBPAGE (&pt_cap,
-			   0, 1 << (CAPPAGE_SLOTS_LOG2 - pt_width));
+	  VG_CAP_SET_SUBPAGE (&pt_cap,
+			   0, 1 << (VG_CAPPAGE_SLOTS_LOG2 - pt_width));
 
 
 
@@ -471,50 +471,50 @@ ID (as_build) (activity_t activity,
 	  int pivot_idx = extract_bits_inv (pte_guard,
 					    pte_gbits - gbits - 1,
 					    pt_width);
-	  addr_t pivot_addr = addr_extend (pt_addr,
+	  vg_addr_t pivot_addr = vg_addr_extend (pt_addr,
 					   pivot_idx, pt_width);
-	  addr_t pivot_phys_addr = addr_extend (pt_phys_addr,
+	  vg_addr_t pivot_phys_addr = vg_addr_extend (pt_phys_addr,
 						pivot_idx,
-						CAPPAGE_SLOTS_LOG2);
+						VG_CAPPAGE_SLOTS_LOG2);
 
 	  int pivot_gbits = pte_gbits - gbits - pt_width;
 	  int pivot_guard = extract_bits64 (pte_guard, 0, pivot_gbits);
 
-	  if (! ADDR_EQ (addr_extend (pivot_addr, pivot_guard, pivot_gbits),
-			 addr_extend (pte_addr, pte_guard, pte_gbits)))
+	  if (! VG_ADDR_EQ (vg_addr_extend (pivot_addr, pivot_guard, pivot_gbits),
+			 vg_addr_extend (pte_addr, pte_guard, pte_gbits)))
 	    {
-	      PANIC ("old pte target: " ADDR_FMT " != pivot target: " ADDR_FMT,
-		     ADDR_PRINTF (addr_extend (pte_addr,
+	      PANIC ("old pte target: " VG_ADDR_FMT " != pivot target: " VG_ADDR_FMT,
+		     VG_ADDR_PRINTF (vg_addr_extend (pte_addr,
 					       pte_guard, pte_gbits)),
-		     ADDR_PRINTF (addr_extend (pivot_addr,
+		     VG_ADDR_PRINTF (vg_addr_extend (pivot_addr,
 					       pivot_guard, pivot_gbits)));
 	    }
 
-	  DEBUG (5, ADDR_FMT ": indirecting pte at " ADDR_FMT
-		 " -> " ADDR_FMT " " CAP_FMT " with page table/%d at "
-		 ADDR_FMT "(%p) " "common guard: %d, remaining: %d;  "
+	  DEBUG (5, VG_ADDR_FMT ": indirecting pte at " VG_ADDR_FMT
+		 " -> " VG_ADDR_FMT " " VG_CAP_FMT " with page table/%d at "
+		 VG_ADDR_FMT "(%p) " "common guard: %d, remaining: %d;  "
 		 "old target (need pivot: %d) now via pt[%d] "
-		 "(" ADDR_FMT "-> " DEBUG_BOLD (ADDR_FMT) ")",
-		 ADDR_PRINTF (addr),
-		 ADDR_PRINTF (pte_addr),
-		 ADDR_PRINTF (addr_extend (pte_addr, CAP_GUARD (pte),
-					   CAP_GUARD_BITS (pte))),
-		 CAP_PRINTF (pte),
-		 pt_width, ADDR_PRINTF (pt_addr),
+		 "(" VG_ADDR_FMT "-> " DEBUG_BOLD (VG_ADDR_FMT) ")",
+		 VG_ADDR_PRINTF (addr),
+		 VG_ADDR_PRINTF (pte_addr),
+		 VG_ADDR_PRINTF (vg_addr_extend (pte_addr, VG_CAP_GUARD (pte),
+					   VG_CAP_GUARD_BITS (pte))),
+		 VG_CAP_PRINTF (pte),
+		 pt_width, VG_ADDR_PRINTF (pt_addr),
 #ifdef RM_INTERN
 		 NULL,
 #else
-		 cap_get_shadow (&pt_cap),
+		 vg_cap_get_shadow (&pt_cap),
 #endif
 		 gbits, remaining,
-		 need_pivot, pivot_idx, ADDR_PRINTF (pivot_addr),
-		 ADDR_PRINTF (addr_extend (pivot_addr,
+		 need_pivot, pivot_idx, VG_ADDR_PRINTF (pivot_addr),
+		 VG_ADDR_PRINTF (vg_addr_extend (pivot_addr,
 					   pivot_guard, pivot_gbits)));
 
 	  /* 1.) Copy the PTE into the new page table.  Adjust the
 	     guard in the process.  This is only necessary if PTE
 	     actually designates something.  */
-	  struct cap *pivot_cap = NULL;
+	  struct vg_cap *pivot_cap = NULL;
 	  if (need_pivot)
 	    {
 	      /* 1.a) Get the pivot PTE.  */
@@ -526,18 +526,18 @@ ID (as_build) (activity_t activity,
 
 	      /* 1.b) Make the pivot designate the object the PTE
 		 currently designates.  */
-	      struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
+	      struct vg_cap_addr_trans addr_trans = VG_CAP_ADDR_TRANS_VOID;
 
 	      bool r;
-	      r = CAP_ADDR_TRANS_SET_GUARD (&addr_trans,
+	      r = VG_CAP_ADDR_TRANS_SET_GUARD (&addr_trans,
 					    pivot_guard, pivot_gbits);
 	      assert (r);
 
-	      r = cap_copy_x (activity,
-			      ADDR_VOID, pivot_cap, pivot_phys_addr,
+	      r = vg_cap_copy_x (activity,
+			      VG_ADDR_VOID, pivot_cap, pivot_phys_addr,
 			      as_root_addr, *pte, pte_addr,
-			      CAP_COPY_COPY_ADDR_TRANS_GUARD,
-			      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT,
+			      VG_CAP_COPY_COPY_ADDR_TRANS_GUARD,
+			      VG_CAP_PROPERTIES (VG_OBJECT_POLICY_DEFAULT,
 					      addr_trans));
 	      assert (r);
 	    }
@@ -547,22 +547,22 @@ ID (as_build) (activity_t activity,
 					  pte_gbits - 1, gbits);
 	  pte_gbits = gbits;
 
-	  struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
+	  struct vg_cap_addr_trans addr_trans = VG_CAP_ADDR_TRANS_VOID;
 	  bool r;
-	  r = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans,
+	  r = VG_CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans,
 						pte_guard, pte_gbits,
 						0 /* We always use the
 						     first subpage in
 						     a page.  */,
-						1 << (CAPPAGE_SLOTS_LOG2
+						1 << (VG_CAPPAGE_SLOTS_LOG2
 						      - pt_width));
 	  assert (r);
 
-	  r = cap_copy_x (activity, as_root_addr, pte, pte_addr,
-			  ADDR_VOID, pt_cap, rt.storage,
-			  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
-			  | CAP_COPY_COPY_ADDR_TRANS_GUARD,
-			  CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
+	  r = vg_cap_copy_x (activity, as_root_addr, pte, pte_addr,
+			  VG_ADDR_VOID, pt_cap, rt.storage,
+			  VG_CAP_COPY_COPY_ADDR_TRANS_SUBPAGE
+			  | VG_CAP_COPY_COPY_ADDR_TRANS_GUARD,
+			  VG_CAP_PROPERTIES (VG_OBJECT_POLICY_DEFAULT, addr_trans));
 	  assert (r);
 
 #ifndef NDEBUG
@@ -579,8 +579,8 @@ ID (as_build) (activity_t activity,
 	      if (! (ret && rt.capp == pivot_cap))
 		as_dump_from (activity, as_root, "");
 	      assertx (ret && rt.capp == pivot_cap,
-		       ADDR_FMT ": %sfound, got %p, expected %p",
-		       ADDR_PRINTF (pivot_addr),
+		       VG_ADDR_FMT ": %sfound, got %p, expected %p",
+		       VG_ADDR_PRINTF (pivot_addr),
 		       ret ? "" : "not ", ret ? rt.capp : 0, pivot_cap);
 
 	      AS_CHECK_SHADOW (as_root_addr, pivot_addr, pivot_cap, { });
@@ -595,52 +595,52 @@ ID (as_build) (activity_t activity,
       int width;
       switch (pte->type)
 	{
-	case cap_cappage:
-	case cap_rcappage:
-	  width = CAP_SUBPAGE_SIZE_LOG2 (pte);
+	case vg_cap_cappage:
+	case vg_cap_rcappage:
+	  width = VG_CAP_SUBPAGE_SIZE_LOG2 (pte);
 	  break;
 
-	case cap_folio:
-	  width = FOLIO_OBJECTS_LOG2;
+	case vg_cap_folio:
+	  width = VG_FOLIO_OBJECTS_LOG2;
 	  break;
 
-	case cap_thread:
-	  width = THREAD_SLOTS_LOG2;
+	case vg_cap_thread:
+	  width = VG_THREAD_SLOTS_LOG2;
 	  break;
 
-	case cap_messenger:
+	case vg_cap_messenger:
 	  /* Note: rmessengers don't expose their capability slots.  */
 	  width = VG_MESSENGER_SLOTS_LOG2;
 	  break;
 
 	default:
 	  AS_DUMP;
-	  PANIC ("Can't insert object at " ADDR_FMT ": "
-		 CAP_FMT " does translate address bits",
-		 ADDR_PRINTF (addr),
-		 CAP_PRINTF (pte));
+	  PANIC ("Can't insert object at " VG_ADDR_FMT ": "
+		 VG_CAP_FMT " does translate address bits",
+		 VG_ADDR_PRINTF (addr),
+		 VG_CAP_PRINTF (pte));
 	}
 
       /* That should not be more than we have left to translate.  */
       if (width > remaining)
 	{
 	  AS_DUMP;
-	  PANIC ("Translating " ADDR_FMT ": can't index %d-bit %s at "
-		 ADDR_FMT "; not enough bits (%d)",
-		 ADDR_PRINTF (addr), width, cap_type_string (pte->type),
-		 ADDR_PRINTF (addr_chop (addr, remaining)), remaining);
+	  PANIC ("Translating " VG_ADDR_FMT ": can't index %d-bit %s at "
+		 VG_ADDR_FMT "; not enough bits (%d)",
+		 VG_ADDR_PRINTF (addr), width, vg_cap_type_string (pte->type),
+		 VG_ADDR_PRINTF (vg_addr_chop (addr, remaining)), remaining);
 	}
 
       int idx = extract_bits64_inv (prefix, remaining - 1, width);
 
-      enum cap_type type = pte->type;
-      pte = do_index (activity, pte, addr_chop (addr, remaining), idx,
+      enum vg_cap_type type = pte->type;
+      pte = do_index (activity, pte, vg_addr_chop (addr, remaining), idx,
 		      &fake_slot);
       if (! pte)
-	PANIC ("Failed to index object at " ADDR_FMT,
-	       ADDR_PRINTF (addr_chop (addr, remaining)));
+	PANIC ("Failed to index object at " VG_ADDR_FMT,
+	       VG_ADDR_PRINTF (vg_addr_chop (addr, remaining)));
 
-      if (type == cap_folio)
+      if (type == vg_cap_folio)
 	assert (pte == &fake_slot);
       else
 	assert (pte != &fake_slot);
@@ -648,41 +648,41 @@ ID (as_build) (activity_t activity,
       remaining -= width;
 
       DEBUG (5, "Indexing %s/%d[%d]; remaining: %d",
-	     cap_type_string (type), width, idx, remaining);
+	     vg_cap_type_string (type), width, idx, remaining);
 
       if (remaining == 0)
 	AS_CHECK_SHADOW (as_root_addr, addr, pte, {});
     }
   while (remaining > 0);
 
-  if (! (pte->type == cap_void && CAP_GUARD_BITS (pte) == 0))
+  if (! (pte->type == vg_cap_void && VG_CAP_GUARD_BITS (pte) == 0))
     /* PTE in use.  */
     {
-      if (remaining != CAP_GUARD_BITS (pte)
-	  && extract_bits64 (prefix, 0, remaining) != CAP_GUARD (pte))
-	DEBUG (0, "Overwriting " CAP_FMT " at " ADDR_FMT " -> " ADDR_FMT,
-	       CAP_PRINTF (pte),
-	       ADDR_PRINTF (addr),
-	       ADDR_PRINTF (addr_extend (addr, CAP_GUARD (pte),
-					 CAP_GUARD_BITS (pte))));
+      if (remaining != VG_CAP_GUARD_BITS (pte)
+	  && extract_bits64 (prefix, 0, remaining) != VG_CAP_GUARD (pte))
+	DEBUG (0, "Overwriting " VG_CAP_FMT " at " VG_ADDR_FMT " -> " VG_ADDR_FMT,
+	       VG_CAP_PRINTF (pte),
+	       VG_ADDR_PRINTF (addr),
+	       VG_ADDR_PRINTF (vg_addr_extend (addr, VG_CAP_GUARD (pte),
+					 VG_CAP_GUARD_BITS (pte))));
 
       if (may_overwrite)
 	{
-	  DEBUG (5, "Overwriting " CAP_FMT " at " ADDR_FMT " -> " ADDR_FMT,
-		 CAP_PRINTF (pte),
-		 ADDR_PRINTF (addr),
-		 ADDR_PRINTF (addr_extend (addr, CAP_GUARD (pte),
-					   CAP_GUARD_BITS (pte))));
+	  DEBUG (5, "Overwriting " VG_CAP_FMT " at " VG_ADDR_FMT " -> " VG_ADDR_FMT,
+		 VG_CAP_PRINTF (pte),
+		 VG_ADDR_PRINTF (addr),
+		 VG_ADDR_PRINTF (vg_addr_extend (addr, VG_CAP_GUARD (pte),
+					   VG_CAP_GUARD_BITS (pte))));
 	  /* XXX: Free any data associated with the capability
 	     (e.g., shadow pages).  */
 	}
       else
 	{
 	  AS_DUMP;
-	  PANIC ("There is already an object at " ADDR_FMT
-		 " (" CAP_FMT ") but may not overwrite.",
-		 ADDR_PRINTF (addr),
-		 CAP_PRINTF (pte));
+	  PANIC ("There is already an object at " VG_ADDR_FMT
+		 " (" VG_CAP_FMT ") but may not overwrite.",
+		 VG_ADDR_PRINTF (addr),
+		 VG_CAP_PRINTF (pte));
 	}
     }
 
@@ -691,19 +691,19 @@ ID (as_build) (activity_t activity,
   /* It is safe to use an int as a guard has a most 22 significant
      bits.  */
   int guard = extract_bits64 (prefix, 0, gbits);
-  if (gbits != CAP_GUARD_BITS (pte) || guard != CAP_GUARD (pte))
+  if (gbits != VG_CAP_GUARD_BITS (pte) || guard != VG_CAP_GUARD (pte))
     {
-      struct cap_addr_trans addr_trans = CAP_ADDR_TRANS_VOID;
-      bool r = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans, guard, gbits,
+      struct vg_cap_addr_trans addr_trans = VG_CAP_ADDR_TRANS_VOID;
+      bool r = VG_CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&addr_trans, guard, gbits,
 						 0, 1);
       assert (r);
-      r = cap_copy_x (activity, as_root_addr, pte, addr_chop (addr, gbits),
-		      as_root_addr, *pte, addr_chop (addr, gbits),
-		      CAP_COPY_COPY_ADDR_TRANS_GUARD,
-		      CAP_PROPERTIES (OBJECT_POLICY_DEFAULT, addr_trans));
+      r = vg_cap_copy_x (activity, as_root_addr, pte, vg_addr_chop (addr, gbits),
+		      as_root_addr, *pte, vg_addr_chop (addr, gbits),
+		      VG_CAP_COPY_COPY_ADDR_TRANS_GUARD,
+		      VG_CAP_PROPERTIES (VG_OBJECT_POLICY_DEFAULT, addr_trans));
       assert (r);
 
-      AS_CHECK_SHADOW (as_root_addr, addr_chop (addr, gbits), pte, { });
+      AS_CHECK_SHADOW (as_root_addr, vg_addr_chop (addr, gbits), pte, { });
     }
 
 #ifndef NDEBUG
@@ -719,8 +719,8 @@ ID (as_build) (activity_t activity,
     if (! (ret && rt.capp == pte))
       as_dump_from (activity, as_root, "");
     assertx (ret && rt.capp == pte,
-	     ADDR_FMT ": %sfound, got %p, expected %p",
-	     ADDR_PRINTF (addr),
+	     VG_ADDR_FMT ": %sfound, got %p, expected %p",
+	     VG_ADDR_PRINTF (addr),
 	     ret ? "" : "not ", ret ? rt.capp : 0, pte);
   }
 # endif

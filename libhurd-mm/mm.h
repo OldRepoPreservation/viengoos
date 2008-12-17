@@ -29,6 +29,6 @@ extern int mm_init_done;
 
 /* Initialize the memory management sub-system.  ACTIVITY is the
    activity to use to account meta-data resources.  */
-extern void mm_init (addr_t activity);
+extern void mm_init (vg_addr_t activity);
 
 #endif /* HURD_MM_MM_H */

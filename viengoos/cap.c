@@ -27,21 +27,21 @@
 #include "activity.h"
 #include "thread.h"
 
-const int cap_type_num_slots[] = { [cap_void] = 0,
-				   [cap_page] = 0,
-				   [cap_rpage] = 0,
-				   [cap_cappage] = CAPPAGE_SLOTS,
-				   [cap_rcappage] = CAPPAGE_SLOTS,
-				   [cap_folio] = 0,
-				   [cap_activity] = 0,
-				   [cap_activity_control] = 0,
-				   [cap_thread] = THREAD_SLOTS };
+const int cap_type_num_slots[] = { [vg_cap_void] = 0,
+				   [vg_cap_page] = 0,
+				   [vg_cap_rpage] = 0,
+				   [vg_cap_cappage] = VG_CAPPAGE_SLOTS,
+				   [vg_cap_rcappage] = VG_CAPPAGE_SLOTS,
+				   [vg_cap_folio] = 0,
+				   [vg_cap_activity] = 0,
+				   [vg_cap_activity_control] = 0,
+				   [vg_cap_thread] = VG_THREAD_SLOTS };
 
 static struct object *
-cap_to_object_internal (struct activity *activity, struct cap *cap,
+cap_to_object_internal (struct activity *activity, struct vg_cap *cap,
 			bool hard)
 {
-  if (cap->type == cap_void)
+  if (cap->type == vg_cap_void)
     return NULL;
 
   /* XXX: If CAP does not grant write access, then we need to flatten
@@ -49,10 +49,10 @@ cap_to_object_internal (struct activity *activity, struct cap *cap,
   struct object *object;
   if (hard)
     {
-      object = object_find (activity, cap->oid, CAP_POLICY_GET (*cap));
+      object = object_find (activity, cap->oid, VG_CAP_POLICY_GET (*cap));
     }
   else
-    object = object_find_soft (activity, cap->oid, CAP_POLICY_GET (*cap));
+    object = object_find_soft (activity, cap->oid, VG_CAP_POLICY_GET (*cap));
 
   if (! object)
     return NULL;
@@ -62,54 +62,54 @@ cap_to_object_internal (struct activity *activity, struct cap *cap,
     {
       /* Clear the capability to save the effort of looking up the
 	 object in the future.  */
-      cap->type = cap_void;
+      cap->type = vg_cap_void;
       return NULL;
     }
 
   /* If the capability is valid, then the cap type and the object type
      must be compatible.  */
-  assert (cap_types_compatible (cap->type, desc->type));
+  assert (vg_cap_types_compatible (cap->type, desc->type));
 
   return object;
 }
 
 struct object *
-cap_to_object (struct activity *activity, struct cap *cap)
+vg_cap_to_object (struct activity *activity, struct vg_cap *cap)
 {
   return cap_to_object_internal (activity, cap, true);
 }
 
 struct object *
-cap_to_object_soft (struct activity *activity, struct cap *cap)
+cap_to_object_soft (struct activity *activity, struct vg_cap *cap)
 {
   return cap_to_object_internal (activity, cap, false);
 }
 
 void
-cap_shootdown (struct activity *activity, struct cap *root)
+cap_shootdown (struct activity *activity, struct vg_cap *root)
 {
   assert (activity);
 
   /* XXX: A recursive function may not be the best idea here.  We are
      guaranteed, however, at most 63 nested calls.  */
-  void doit (struct cap *cap, int remaining)
+  void doit (struct vg_cap *cap, int remaining)
     {
       int i;
       struct object *object;
 
-      remaining -= CAP_GUARD_BITS (cap);
+      remaining -= VG_CAP_GUARD_BITS (cap);
 
       switch (cap->type)
 	{
-	case cap_page:
-	case cap_rpage:
+	case vg_cap_page:
+	case vg_cap_rpage:
 	  if (remaining < PAGESIZE_LOG2)
 	    return;
 
 	  /* If the object is not in memory, then it can't be
 	     mapped.  */
 	  object = object_find_soft (activity, cap->oid,
-				     OBJECT_POLICY (cap->discardable,
+				     VG_OBJECT_POLICY (cap->discardable,
 						    cap->priority));
 	  if (! object)
 	    return;
@@ -119,36 +119,36 @@ cap_shootdown (struct activity *activity, struct cap *root)
 	    {
 	      /* Clear the capability to save the effort of looking up the
 		 object in the future.  */
-	      cap->type = cap_void;
+	      cap->type = vg_cap_void;
 	      return;
 	    }
 
 	  object_desc_unmap (desc);
 	  return;
 
-	case cap_cappage:
-	case cap_rcappage:
-	  if (remaining < CAP_SUBPAGE_SIZE_LOG2 (cap) + PAGESIZE_LOG2)
+	case vg_cap_cappage:
+	case vg_cap_rcappage:
+	  if (remaining < VG_CAP_SUBPAGE_SIZE_LOG2 (cap) + PAGESIZE_LOG2)
 	    return;
 
-	  object = cap_to_object (activity, cap);
+	  object = vg_cap_to_object (activity, cap);
 	  if (! object)
 	    return;
 
-	  remaining -= CAP_SUBPAGE_SIZE_LOG2 (cap);
+	  remaining -= VG_CAP_SUBPAGE_SIZE_LOG2 (cap);
 
-	  for (i = 0; i < CAP_SUBPAGE_SIZE (cap); i ++)
+	  for (i = 0; i < VG_CAP_SUBPAGE_SIZE (cap); i ++)
 	    if (root->oid != object->caps[i].oid)
 	      doit (&object->caps[i], remaining);
 
 	  return;
 
-	case cap_messenger:
-	case cap_rmessenger:
+	case vg_cap_messenger:
+	case vg_cap_rmessenger:
 	  if (remaining < VG_MESSENGER_SLOTS_LOG2 + PAGESIZE_LOG2)
 	    return;
 
-	  object = cap_to_object (activity, cap);
+	  object = vg_cap_to_object (activity, cap);
 	  if (! object)
 	    return;
 
@@ -160,50 +160,50 @@ cap_shootdown (struct activity *activity, struct cap *root)
 
 	  return;
 
-	case cap_thread:
-	  if (remaining < THREAD_SLOTS_LOG2 + PAGESIZE_LOG2)
+	case vg_cap_thread:
+	  if (remaining < VG_THREAD_SLOTS_LOG2 + PAGESIZE_LOG2)
 	    return;
 
-	  object = cap_to_object (activity, cap);
+	  object = vg_cap_to_object (activity, cap);
 	  if (! object)
 	    return;
 
-	  remaining -= THREAD_SLOTS_LOG2;
+	  remaining -= VG_THREAD_SLOTS_LOG2;
 
-	  for (i = 0; i < THREAD_SLOTS_LOG2; i ++)
+	  for (i = 0; i < VG_THREAD_SLOTS_LOG2; i ++)
 	    if (root->oid != object->caps[i].oid)
 	      doit (&object->caps[i],
 		    remaining
-		    + (i == THREAD_ASPACE_SLOT ? THREAD_SLOTS_LOG2 : 0));
+		    + (i == VG_THREAD_ASPACE_SLOT ? VG_THREAD_SLOTS_LOG2 : 0));
 
 	  return;
 
 
-	case cap_folio:
-	  if (remaining < FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2)
+	case vg_cap_folio:
+	  if (remaining < VG_FOLIO_OBJECTS_LOG2 + PAGESIZE_LOG2)
 	    return;
 
-	  object = cap_to_object (activity, cap);
+	  object = vg_cap_to_object (activity, cap);
 	  if (! object)
 	    return;
 
 	  struct folio *folio = (struct folio *) object;
 	  struct object_desc *fdesc = object_to_object_desc (object);
-	  oid_t foid = fdesc->oid;
+	  vg_oid_t foid = fdesc->oid;
 
-	  remaining -= FOLIO_OBJECTS_LOG2;
+	  remaining -= VG_FOLIO_OBJECTS_LOG2;
 
-	  for (i = 0; i < FOLIO_OBJECTS; i ++)
-	    if (folio_object_type (folio, i) == cap_page
-		|| folio_object_type (folio, i) == cap_rpage
-		|| folio_object_type (folio, i) == cap_cappage
-		|| folio_object_type (folio, i) == cap_rcappage)
+	  for (i = 0; i < VG_FOLIO_OBJECTS; i ++)
+	    if (vg_folio_object_type (folio, i) == vg_cap_page
+		|| vg_folio_object_type (folio, i) == vg_cap_rpage
+		|| vg_folio_object_type (folio, i) == vg_cap_cappage
+		|| vg_folio_object_type (folio, i) == vg_cap_rcappage)
 	      {
-		struct cap cap;
+		struct vg_cap cap;
 
 		cap.version = folio_object_version (folio, i);
-		cap.type = folio_object_type (folio, i);
-		cap.addr_trans = CAP_ADDR_TRANS_VOID;
+		cap.type = vg_folio_object_type (folio, i);
+		cap.addr_trans = VG_CAP_ADDR_TRANS_VOID;
 		cap.oid = foid + 1 + i;
 
 		if (root->oid != cap.oid)
@@ -217,5 +217,5 @@ cap_shootdown (struct activity *activity, struct cap *root)
 	}
     }
 
-  doit (root, ADDR_BITS);
+  doit (root, VG_ADDR_BITS);
 }

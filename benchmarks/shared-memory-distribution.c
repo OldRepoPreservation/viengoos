@@ -10,7 +10,7 @@
 #include <hurd/storage.h>
 #include <hurd/startup.h>
 
-static addr_t activity;
+static vg_addr_t activity;
 
 /* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
@@ -36,14 +36,14 @@ main (int argc, char *argv[])
 
 #define THREADS 3
   /* And the activities.  */
-  addr_t activities[THREADS];
+  vg_addr_t activities[THREADS];
 
   int i;
   for (i = 0; i < THREADS; i ++)
-    activities[i] = storage_alloc (activity, cap_activity,
+    activities[i] = storage_alloc (activity, vg_cap_activity,
 				   STORAGE_LONG_LIVED,
-				   OBJECT_POLICY_DEFAULT,
-				   ADDR_VOID).addr;
+				   VG_OBJECT_POLICY_DEFAULT,
+				   VG_ADDR_VOID).addr;
 
   bool terminate = false;
   l4_thread_id_t tids[THREADS];
@@ -143,7 +143,7 @@ main (int argc, char *argv[])
 
   printf ("parent ");
   for (i = 0; i < THREADS; i ++)
-    printf (ADDR_FMT " ", ADDR_PRINTF (activities[i]));
+    printf (VG_ADDR_FMT " ", VG_ADDR_PRINTF (activities[i]));
   printf ("\n");
 
   for (i = 0; i < ITERATIONS; i ++)

@@ -34,18 +34,18 @@ struct thread
   /* User accessible fields.  */
 
   /* Address space.  */
-  struct cap aspace;
+  struct vg_cap aspace;
 
   /* The current associated activity.  (Not the activity out of which
      this thread's storage is allocated!)  */
-  struct cap activity;
+  struct vg_cap activity;
 
   /* A capability designating a messenger to which to deliver
      exceptions.  */
-  struct cap exception_messenger;
+  struct vg_cap exception_messenger;
 
   /* A capability the page that contains the thread's UTCB.  */
-  struct cap utcb;
+  struct vg_cap utcb;
 
   /* Non-user-accessible fields.  */
 
@@ -95,11 +95,11 @@ extern void thread_decommission (struct thread *thread);
    not set the pager.  */
 extern error_t thread_exregs (struct activity *principal,
 			      struct thread *thread, uintptr_t control,
-			      struct cap aspace,
-			      uintptr_t flags, struct cap_properties properties,
-			      struct cap activity,
-			      struct cap utcb,
-			      struct cap exception_messenger,
+			      struct vg_cap aspace,
+			      uintptr_t flags, struct vg_cap_properties properties,
+			      struct vg_cap activity,
+			      struct vg_cap utcb,
+			      struct vg_cap exception_messenger,
 			      uintptr_t *sp, uintptr_t *ip,
 			      uintptr_t *eflags, uintptr_t *user_handle);
 

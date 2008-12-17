@@ -188,8 +188,8 @@ static struct hurd_ihash cache;
 #include <hurd/as.h>
 #include <string.h>
 
-addr_t main_activity;
-addr_t hog_activity;
+vg_addr_t main_activity;
+vg_addr_t hog_activity;
 #endif
 
 void *
@@ -211,7 +211,7 @@ helper (void *arg)
     /* First the main thread.  */
     error_t err;
 
-    err = rm_activity_info (ADDR_VOID, main_activity, activity_info_stats,
+    err = rm_activity_info (VG_ADDR_VOID, main_activity, activity_info_stats,
 			    stat_count == 0
 			    ? 0 : stats[stat_count - 1].period + 1,
 			    &info);
@@ -227,7 +227,7 @@ helper (void *arg)
     stats[stat_count].period = info.stats.stats[0].period;
 
     /* Then, the hog.  */
-    err = rm_activity_info (ADDR_VOID, hog_activity, activity_info_stats,
+    err = rm_activity_info (VG_ADDR_VOID, hog_activity, activity_info_stats,
 			    stat_count == 0
 			    ? 0 : stats[stat_count - 1].period + 1,
 			    &info);
@@ -390,24 +390,24 @@ helper_fork (void)
 #ifdef __gnu_hurd_viengoos__
   int err;
 
-  main_activity = storage_alloc (ADDR_VOID,
-				 cap_activity_control, STORAGE_LONG_LIVED,
-				 OBJECT_POLICY_DEFAULT, ADDR_VOID).addr;
-  if (ADDR_IS_VOID (main_activity))
+  main_activity = storage_alloc (VG_ADDR_VOID,
+				 vg_cap_activity_control, STORAGE_LONG_LIVED,
+				 VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID).addr;
+  if (VG_ADDR_IS_VOID (main_activity))
     panic ("Failed to allocate main activity");
 
   struct object_name name;
   snprintf (&name.name[0], sizeof (name.name), "main.%x", l4_myself ());
-  rm_object_name (ADDR_VOID, main_activity, name);
+  rm_object_name (VG_ADDR_VOID, main_activity, name);
 
-  hog_activity = storage_alloc (ADDR_VOID,
-				cap_activity_control, STORAGE_LONG_LIVED,
-				OBJECT_POLICY_DEFAULT, ADDR_VOID).addr;
-  if (ADDR_IS_VOID (hog_activity))
+  hog_activity = storage_alloc (VG_ADDR_VOID,
+				vg_cap_activity_control, STORAGE_LONG_LIVED,
+				VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID).addr;
+  if (VG_ADDR_IS_VOID (hog_activity))
     panic ("Failed to allocate hog activity");
 
   snprintf (&name.name[0], sizeof (name.name), "hog.%x", l4_myself ());
-  rm_object_name (ADDR_VOID, hog_activity, name);
+  rm_object_name (VG_ADDR_VOID, hog_activity, name);
 
   /* We give the main thread and the hog the same priority and
      weight.  */  
@@ -419,16 +419,16 @@ helper_fork (void)
   in.child_rel.priority = 2;
   in.child_rel.weight = 20;
 
-  err = rm_activity_policy (ADDR_VOID, meta_data_activity,
-			    ACTIVITY_POLICY_CHILD_REL_SET, in, &out);
+  err = rm_activity_policy (VG_ADDR_VOID, meta_data_activity,
+			    VG_ACTIVITY_POLICY_CHILD_REL_SET, in, &out);
   assert (err == 0);
 
-  err = rm_activity_policy (ADDR_VOID, hog_activity,
-			    ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
+  err = rm_activity_policy (VG_ADDR_VOID, hog_activity,
+			    VG_ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
   assert (err == 0);
 
-  err = rm_activity_policy (ADDR_VOID, main_activity,
-			    ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
+  err = rm_activity_policy (VG_ADDR_VOID, main_activity,
+			    VG_ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
   assert (err == 0);
 
 
@@ -632,7 +632,7 @@ bool
 object_fill (struct anonymous_pager *anon,
 	     uintptr_t offset, uintptr_t count,
 	     void *pages[],
-	     struct activation_fault_info info)
+	     struct vg_activation_fault_info info)
 {
   profile_region (NULL);
 
@@ -649,7 +649,7 @@ object_fill (struct anonymous_pager *anon,
       abort ();
     }
 
-  struct obj *object = (struct obj *) (uintptr_t) addr_prefix (anon->map_area);
+  struct obj *object = (struct obj *) (uintptr_t) vg_addr_prefix (anon->map_area);
 
   // debug (0, "Filling %d at %p", id, object);
 
@@ -693,10 +693,10 @@ object_lookup_hard (int id)
   if (! chunk || offset + OBJECT_SIZE > size)
     {
       static struct anonymous_pager *pager
-	= anonymous_pager_alloc (ADDR_VOID, NULL,
+	= anonymous_pager_alloc (VG_ADDR_VOID, NULL,
 				 size, MAP_ACCESS_ALL,
-				 OBJECT_POLICY (true,
-						OBJECT_PRIORITY_DEFAULT - 1),
+				 VG_OBJECT_POLICY (true,
+						VG_OBJECT_PRIORITY_DEFAULT - 1),
 				 0, NULL, &chunk);
 
       assert (pager);
@@ -714,10 +714,10 @@ object_lookup_hard (int id)
 
   void *chunk;
   struct anonymous_pager *pager
-    = anonymous_pager_alloc (ADDR_VOID, NULL,
+    = anonymous_pager_alloc (VG_ADDR_VOID, NULL,
 			     size, MAP_ACCESS_ALL,
-			     OBJECT_POLICY (true,
-					    OBJECT_PRIORITY_DEFAULT - 1),
+			     VG_OBJECT_POLICY (true,
+					    VG_OBJECT_PRIORITY_DEFAULT - 1),
 			     ANONYMOUS_NO_RECURSIVE, object_fill, &chunk);
   assert (pager);
   assert (chunk);

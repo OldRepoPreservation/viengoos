@@ -97,9 +97,9 @@ free_space_desc_slab_alloc (void *hook, size_t size, void **ptr)
   assert (size == PAGESIZE);
 
   struct storage storage  = storage_alloc (meta_data_activity,
-					   cap_page, STORAGE_LONG_LIVED,
-					   OBJECT_POLICY_DEFAULT, ADDR_VOID);
-  *ptr = ADDR_TO_PTR (addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+					   vg_cap_page, STORAGE_LONG_LIVED,
+					   VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+  *ptr = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
 
   return 0;
 }
@@ -109,7 +109,7 @@ free_space_desc_slab_dealloc (void *hook, void *buffer, size_t size)
 {
   assert (size == PAGESIZE);
 
-  addr_t addr = addr_chop (PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
+  vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (buffer), PAGESIZE_LOG2);
   storage_free (addr, false);
 
   return 0;
@@ -171,7 +171,7 @@ free_space_split (struct free_space *f, uint64_t start, uint64_t end)
     }
 }
 
-addr_t
+vg_addr_t
 as_alloc (int width, uint64_t count, bool data_mappable)
 {
   assert (as_init_done);
@@ -189,10 +189,10 @@ as_alloc (int width, uint64_t count, bool data_mappable)
       else if (w <= PAGESIZE_LOG2)
 	w = PAGESIZE_LOG2;
       else
-	/* Make W - PAGESIZE_LOG2 a multiple of CAPPAGE_SLOTS_LOG2;
+	/* Make W - PAGESIZE_LOG2 a multiple of VG_CAPPAGE_SLOTS_LOG2;
 	   this greatly simplifies page table construction.  */
-	w += (CAPPAGE_SLOTS_LOG2
-	      - ((w - PAGESIZE_LOG2) % CAPPAGE_SLOTS_LOG2));
+	w += (VG_CAPPAGE_SLOTS_LOG2
+	      - ((w - PAGESIZE_LOG2) % VG_CAPPAGE_SLOTS_LOG2));
     }
 
   uint64_t align = 1ULL << w;
@@ -200,7 +200,7 @@ as_alloc (int width, uint64_t count, bool data_mappable)
 
   ss_mutex_lock (&free_spaces_lock);
 
-  addr_t addr = ADDR_VOID;
+  vg_addr_t addr = VG_ADDR_VOID;
 
   struct free_space *free_space;
   for (free_space = hurd_btree_free_space_first (&free_spaces);
@@ -220,24 +220,24 @@ as_alloc (int width, uint64_t count, bool data_mappable)
 	    break;
 
 	  free_space_split (free_space, start, start + length - 1);
-	  addr = ADDR (start, ADDR_BITS - (w - shift));
+	  addr = VG_ADDR (start, VG_ADDR_BITS - (w - shift));
 	  break;
 	}
     }
 
   ss_mutex_unlock (&free_spaces_lock);
 
-  if (ADDR_IS_VOID (addr))
+  if (VG_ADDR_IS_VOID (addr))
     debug (0, "No space for object of size 0x%x", 1 << (width - 1));
 
   return addr;
 }
 
 bool
-as_alloc_at (addr_t addr, uint64_t count)
+as_alloc_at (vg_addr_t addr, uint64_t count)
 {
-  uint64_t start = addr_prefix (addr);
-  uint64_t length = (1ULL << (ADDR_BITS - addr_depth (addr))) * count;
+  uint64_t start = vg_addr_prefix (addr);
+  uint64_t length = (1ULL << (VG_ADDR_BITS - vg_addr_depth (addr))) * count;
   uint64_t end = start + length - 1;
 
   struct region region = { start, end };
@@ -259,10 +259,10 @@ as_alloc_at (addr_t addr, uint64_t count)
 }
 
 void
-as_free (addr_t addr, uint64_t count)
+as_free (vg_addr_t addr, uint64_t count)
 {
-  uint64_t start = addr_prefix (addr);
-  uint64_t length = (1ULL << (ADDR_BITS - addr_depth (addr))) * count;
+  uint64_t start = vg_addr_prefix (addr);
+  uint64_t length = (1ULL << (VG_ADDR_BITS - vg_addr_depth (addr))) * count;
   uint64_t end = start + length - 1;
 
   struct free_space *space = free_space_desc_alloc ();
@@ -325,29 +325,29 @@ as_free (addr_t addr, uint64_t count)
 }
 
 struct as_allocate_pt_ret
-as_allocate_page_table (addr_t addr)
+as_allocate_page_table (vg_addr_t addr)
 {
   struct as_allocate_pt_ret ret;
 
   memset (&ret, 0, sizeof (ret));
-  ret.cap.type = cap_void;
+  ret.cap.type = vg_cap_void;
 
   /* First allocate the real object.  */
-  struct storage storage = storage_alloc (meta_data_activity, cap_cappage,
+  struct storage storage = storage_alloc (meta_data_activity, vg_cap_cappage,
 					  STORAGE_LONG_LIVED,
-					  OBJECT_POLICY_DEFAULT, ADDR_VOID);
-  if (ADDR_IS_VOID (storage.addr))
+					  VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+  if (VG_ADDR_IS_VOID (storage.addr))
     return ret;
 
-  debug (4, ADDR_FMT " -> " ADDR_FMT,
-	 ADDR_PRINTF (addr), ADDR_PRINTF (storage.addr));
+  debug (4, VG_ADDR_FMT " -> " VG_ADDR_FMT,
+	 VG_ADDR_PRINTF (addr), VG_ADDR_PRINTF (storage.addr));
 
   /* Then, allocate the shadow object.  */
-  struct storage shadow = storage_alloc (meta_data_activity, cap_page,
+  struct storage shadow = storage_alloc (meta_data_activity, vg_cap_page,
 					 STORAGE_LONG_LIVED,
-					 OBJECT_POLICY_DEFAULT,
-					 ADDR_VOID);
-  if (ADDR_IS_VOID (shadow.addr))
+					 VG_OBJECT_POLICY_DEFAULT,
+					 VG_ADDR_VOID);
+  if (VG_ADDR_IS_VOID (shadow.addr))
     {
       storage_free (storage.addr, false);
       return ret;
@@ -355,8 +355,8 @@ as_allocate_page_table (addr_t addr)
 
   ret.storage = storage.addr;
   ret.cap = *storage.cap;
-  cap_set_shadow (&ret.cap,
-		  ADDR_TO_PTR (addr_extend (shadow.addr,
+  vg_cap_set_shadow (&ret.cap,
+		  VG_ADDR_TO_PTR (vg_addr_extend (shadow.addr,
 					    0, PAGESIZE_LOG2)));
 
   return ret;
@@ -374,26 +374,26 @@ as_alloc_slow (int width)
 {
   assert (! as_init_done);
 
-  addr_t slot = ADDR_VOID;
+  vg_addr_t slot = VG_ADDR_VOID;
 
-  int find_free_slot (addr_t addr,
-		      uintptr_t type, struct cap_properties properties,
+  int find_free_slot (vg_addr_t addr,
+		      uintptr_t type, struct vg_cap_properties properties,
 		      bool writable,
 		      void *cookie)
   {
-    if (type == cap_folio)
+    if (type == vg_cap_folio)
       /* We avoid allocating out of folios.  */
       return -1;
 
-    assert (type == cap_void);
+    assert (type == vg_cap_void);
 
-    if (ADDR_BITS - addr_depth (addr) < width)
+    if (VG_ADDR_BITS - vg_addr_depth (addr) < width)
       return -1;
 
     if (! writable)
       return 0;
 
-    uint64_t start = addr_prefix (addr);
+    uint64_t start = vg_addr_prefix (addr);
     uint64_t end = start + (1 << width) - 1;
 
     if (end >= DATA_ADDR_MAX)
@@ -414,8 +414,8 @@ as_alloc_slow (int width)
     for (i = 0; i < desc_additional_count; i ++)
       {
 	struct hurd_object_desc *desc = &desc_additional[i];
-	if (ADDR_EQ (addr, addr_chop (desc->object,
-				      CAP_ADDR_TRANS_GUARD_BITS
+	if (VG_ADDR_EQ (addr, vg_addr_chop (desc->object,
+				      VG_CAP_ADDR_TRANS_GUARD_BITS
 				      (properties.addr_trans))))
 	  return 0;
       }
@@ -426,31 +426,31 @@ as_alloc_slow (int width)
 
   error_t err;
 
-  if (! as_walk (find_free_slot, 1 << cap_void | 1 << cap_folio,
+  if (! as_walk (find_free_slot, 1 << vg_cap_void | 1 << vg_cap_folio,
 		 (void *) &slot))
     panic ("Failed to find a free slot!");
-  assert (! ADDR_IS_VOID (slot));
+  assert (! VG_ADDR_IS_VOID (slot));
 
   /* Set the guard on the slot.  */
-  int gbits = ADDR_BITS - addr_depth (slot) - width;
+  int gbits = VG_ADDR_BITS - vg_addr_depth (slot) - width;
   assert (gbits >= 0);
 
-  struct cap_properties properties = CAP_PROPERTIES_DEFAULT;
-  CAP_ADDR_TRANS_SET_GUARD (&properties.addr_trans, 0, gbits);
-  err = rm_cap_copy (meta_data_activity, ADDR_VOID, slot, ADDR_VOID, slot,
-		     CAP_COPY_COPY_ADDR_TRANS_GUARD, properties);
+  struct vg_cap_properties properties = VG_CAP_PROPERTIES_DEFAULT;
+  VG_CAP_ADDR_TRANS_SET_GUARD (&properties.addr_trans, 0, gbits);
+  err = rm_cap_copy (meta_data_activity, VG_ADDR_VOID, slot, VG_ADDR_VOID, slot,
+		     VG_CAP_COPY_COPY_ADDR_TRANS_GUARD, properties);
   if (err)
     panic ("failed to copy capability: %d", err);
 
-  slot = addr_extend (slot, 0, gbits);
+  slot = vg_addr_extend (slot, 0, gbits);
 
   /* Fill in a descriptor.  */
   assertx ((((uintptr_t) &desc_additional[0]) & (PAGESIZE - 1)) == 0,
 	   "%p", &desc_additional[0]);
 
-  debug (5, "Allocating space for " ADDR_FMT
+  debug (5, "Allocating space for " VG_ADDR_FMT
 	 "; using additional descriptor %d",
-	 ADDR_PRINTF (slot), desc_additional_count);
+	 VG_ADDR_PRINTF (slot), desc_additional_count);
 
   struct hurd_object_desc *desc = &desc_additional[desc_additional_count ++];
   if (desc_additional_count > DESC_ADDITIONAL)
@@ -460,7 +460,7 @@ as_alloc_slow (int width)
   return desc;
 }
 
-struct cap shadow_root;
+struct vg_cap shadow_root;
 
 void
 as_init (void)
@@ -471,10 +471,10 @@ as_init (void)
       debug (0, "%d descriptors", __hurd_startup_data->desc_count);
       for (i = 0; i < __hurd_startup_data->desc_count; i ++)
 	{
-	  debug (0, ADDR_FMT " (" ADDR_FMT "): %s",
-		 ADDR_PRINTF (__hurd_startup_data->descs[i].object), 
-		 ADDR_PRINTF (__hurd_startup_data->descs[i].storage),
-		 cap_type_string (__hurd_startup_data->descs[i].type));
+	  debug (0, VG_ADDR_FMT " (" VG_ADDR_FMT "): %s",
+		 VG_ADDR_PRINTF (__hurd_startup_data->descs[i].object), 
+		 VG_ADDR_PRINTF (__hurd_startup_data->descs[i].storage),
+		 vg_cap_type_string (__hurd_startup_data->descs[i].type));
 	}
     }
 
@@ -490,37 +490,37 @@ as_init (void)
 
   /* We start with a tabula rasa and then "allocate" the regions that
      are actually in use.  */
-  as_free (ADDR (0, 0), 1);
+  as_free (VG_ADDR (0, 0), 1);
 
   /* Then, we create the shadow page tables and mark the allocation
      regions appropriately.  */
 
-  void add (struct hurd_object_desc *desc, addr_t addr)
+  void add (struct hurd_object_desc *desc, vg_addr_t addr)
     {
       error_t err;
 
-      debug (5, "Adding object " ADDR_FMT " (%s)",
-	     ADDR_PRINTF (addr), cap_type_string (desc->type));
+      debug (5, "Adding object " VG_ADDR_FMT " (%s)",
+	     VG_ADDR_PRINTF (addr), vg_cap_type_string (desc->type));
 
       uintptr_t type;
-      struct cap_properties properties;
-      err = rm_cap_read (meta_data_activity, ADDR_VOID, addr,
+      struct vg_cap_properties properties;
+      err = rm_cap_read (meta_data_activity, VG_ADDR_VOID, addr,
 			 &type, &properties);
       assert (! err);
-      if (! cap_types_compatible (type, desc->type))
-	rm_as_dump (ADDR_VOID, ADDR_VOID);
-      assertx (cap_types_compatible (type, desc->type),
-	       "Object at " ADDR_FMT ": %s != %s",
-	       ADDR_PRINTF (addr),
-	       cap_type_string (type), cap_type_string (desc->type));
+      if (! vg_cap_types_compatible (type, desc->type))
+	rm_as_dump (VG_ADDR_VOID, VG_ADDR_VOID);
+      assertx (vg_cap_types_compatible (type, desc->type),
+	       "Object at " VG_ADDR_FMT ": %s != %s",
+	       VG_ADDR_PRINTF (addr),
+	       vg_cap_type_string (type), vg_cap_type_string (desc->type));
 
-      int gbits = CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans);
-      addr_t slot_addr = addr_chop (addr, gbits);
+      int gbits = VG_CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans);
+      vg_addr_t slot_addr = vg_addr_chop (addr, gbits);
 
       as_slot_lookup_use (slot_addr,
 			  ({
 			    slot->type = type;
-			    CAP_PROPERTIES_SET (slot, properties);
+			    VG_CAP_PROPERTIES_SET (slot, properties);
 			  }));
 
       switch (desc->type)
@@ -528,42 +528,42 @@ as_init (void)
 	default:
 	  /* Don't allocate the AS associated with the storage.  It is
 	     dominated by its containing folio.  */
-	  if (! ADDR_EQ (addr, desc->storage))
+	  if (! VG_ADDR_EQ (addr, desc->storage))
 	    as_alloc_at (addr, 1);
 	  break;
 
-	case cap_void:
+	case vg_cap_void:
 	  assert (! "void descriptor?");
 	  return;
 
-	case cap_cappage:
-	case cap_rcappage:
-	  if (ADDR_BITS - addr_depth (addr)
-	      < CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans))
+	case vg_cap_cappage:
+	case vg_cap_rcappage:
+	  if (VG_ADDR_BITS - vg_addr_depth (addr)
+	      < VG_CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans))
 	    /* The cappage is unusable for addressing, assuming it is
 	       in-use.  */
 	    {
-	      if (! ADDR_EQ (addr, desc->storage))
+	      if (! VG_ADDR_EQ (addr, desc->storage))
 		as_alloc_at (addr, 1);
 	      return;
 	    }
 
 	  struct storage shadow_storage
 	    = storage_alloc (meta_data_activity,
-			     cap_page, STORAGE_LONG_LIVED,
-			     OBJECT_POLICY_DEFAULT, ADDR_VOID);
-	  if (ADDR_IS_VOID (shadow_storage.addr))
+			     vg_cap_page, STORAGE_LONG_LIVED,
+			     VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+	  if (VG_ADDR_IS_VOID (shadow_storage.addr))
 	    panic ("Out of space.");
 	  struct object *shadow
-	    = ADDR_TO_PTR (addr_extend (shadow_storage.addr,
+	    = VG_ADDR_TO_PTR (vg_addr_extend (shadow_storage.addr,
 					0, PAGESIZE_LOG2));
 	  as_slot_lookup_use (addr,
 			      ({
-				cap_set_shadow (slot, shadow);
+				vg_cap_set_shadow (slot, shadow);
 			      }));
 	  break;
 
-	case cap_folio:
+	case vg_cap_folio:
 	  /* Folios are not available for use.  */
 	  as_alloc_at (addr, 1);
 	  as_slot_lookup_use (addr,
@@ -593,8 +593,8 @@ as_init (void)
        i < __hurd_startup_data->desc_count;
        i ++, desc ++)
     {
-      depths |= 1ULL << addr_depth (desc->object);
-      depths |= 1ULL << addr_depth (desc->storage);
+      depths |= 1ULL << vg_addr_depth (desc->object);
+      depths |= 1ULL << vg_addr_depth (desc->storage);
     }
 
   while (depths)
@@ -606,20 +606,20 @@ as_init (void)
 	   i < __hurd_startup_data->desc_count;
 	   i ++, desc ++)
 	{
-	  if (addr_depth (desc->object) == depth)
+	  if (vg_addr_depth (desc->object) == depth)
 	    add (desc, desc->object);
-	  if (! ADDR_EQ (desc->object, desc->storage)
-	      && addr_depth (desc->storage) == depth)
+	  if (! VG_ADDR_EQ (desc->object, desc->storage)
+	      && vg_addr_depth (desc->storage) == depth)
 	    add (desc, desc->storage);
 	}
     }
 
   /* Reserve the kip and the utcb.  */
-  as_alloc_at (ADDR ((uintptr_t) l4_kip (), ADDR_BITS), l4_kip_area_size ());
-  as_alloc_at (ADDR ((uintptr_t) _L4_utcb (), ADDR_BITS), l4_utcb_size ());
+  as_alloc_at (VG_ADDR ((uintptr_t) l4_kip (), VG_ADDR_BITS), l4_kip_area_size ());
+  as_alloc_at (VG_ADDR ((uintptr_t) _L4_utcb (), VG_ADDR_BITS), l4_utcb_size ());
 
   /* And the page at 0.  */
-  as_alloc_at (addr_chop (PTR_TO_ADDR (0), PAGESIZE_LOG2), 1);
+  as_alloc_at (vg_addr_chop (VG_PTR_TO_ADDR (0), PAGESIZE_LOG2), 1);
 
   /* Now we add any additional descriptors that describe memory that
      we have allocated in the mean time.  */
@@ -628,14 +628,14 @@ as_init (void)
       desc = &desc_additional[i];
 
       debug (5, "Considering additional descriptor (%d): "
-	     ADDR_FMT "(" ADDR_FMT "), a %s",
-	     i, ADDR_PRINTF (desc->object), ADDR_PRINTF (desc->storage),
-	     cap_type_string (desc->type));
+	     VG_ADDR_FMT "(" VG_ADDR_FMT "), a %s",
+	     i, VG_ADDR_PRINTF (desc->object), VG_ADDR_PRINTF (desc->storage),
+	     vg_cap_type_string (desc->type));
 
-      assert (desc->type != cap_void);
-      assert (! ADDR_IS_VOID (desc->storage));
+      assert (desc->type != vg_cap_void);
+      assert (! VG_ADDR_IS_VOID (desc->storage));
 
-      if (! ADDR_EQ (desc->object, desc->storage))
+      if (! VG_ADDR_EQ (desc->object, desc->storage))
 	add (desc, desc->storage);
       add (desc, desc->object);
     }
@@ -645,30 +645,30 @@ as_init (void)
 
   /* Walk the address space the hard way and make sure that we've got
      everything.  */
-  int visit (addr_t addr,
-	     uintptr_t type, struct cap_properties properties,
+  int visit (vg_addr_t addr,
+	     uintptr_t type, struct vg_cap_properties properties,
 	     bool writable, void *cookie)
     {
-      debug (5, "Checking that " ADDR_FMT " is a %s",
-	     ADDR_PRINTF (addr), cap_type_string (type));
+      debug (5, "Checking that " VG_ADDR_FMT " is a %s",
+	     VG_ADDR_PRINTF (addr), vg_cap_type_string (type));
 
-      struct cap cap = as_cap_lookup (addr, -1, NULL);
+      struct vg_cap cap = as_cap_lookup (addr, -1, NULL);
 
       assertx (cap.type == type,
 	       "user: %s != kernel: %s",
-	       cap_type_string (cap.type), cap_type_string (type));
+	       vg_cap_type_string (cap.type), vg_cap_type_string (type));
 
-      struct cap_properties properties2 = CAP_PROPERTIES_GET (cap);
+      struct vg_cap_properties properties2 = VG_CAP_PROPERTIES_GET (cap);
       assert (properties.policy.discardable == properties2.policy.discardable);
       assertx (properties.policy.priority == properties2.policy.priority,
-	       ADDR_FMT "(%s) %d != %d",
-	       ADDR_PRINTF (addr), cap_type_string (type),
+	       VG_ADDR_FMT "(%s) %d != %d",
+	       VG_ADDR_PRINTF (addr), vg_cap_type_string (type),
 	       properties.policy.priority, properties2.policy.priority);
       assert (properties.addr_trans.raw == properties2.addr_trans.raw);
 
-      if (type == cap_folio)
+      if (type == vg_cap_folio)
 	{
-	  processing_folio = FOLIO_OBJECTS;
+	  processing_folio = VG_FOLIO_OBJECTS;
 	  return 0;
 	}
 
@@ -690,11 +690,11 @@ as_init (void)
   for (i = 0, desc = &__hurd_startup_data->descs[0];
        i < __hurd_startup_data->desc_count;
        i ++, desc ++)
-    if (ADDR_EQ (desc->object,
-		 addr_chop (PTR_TO_ADDR (desc_additional), PAGESIZE_LOG2)))
+    if (VG_ADDR_EQ (desc->object,
+		 vg_addr_chop (VG_PTR_TO_ADDR (desc_additional), PAGESIZE_LOG2)))
       {
 	storage_free (desc->storage, false);
-	as_free (addr_chop (PTR_TO_ADDR (desc_additional), PAGESIZE_LOG2), 1);
+	as_free (vg_addr_chop (VG_PTR_TO_ADDR (desc_additional), PAGESIZE_LOG2), 1);
 	break;
       }
   assert (i != __hurd_startup_data->desc_count);
@@ -726,8 +726,8 @@ as_alloced_dump (const char *prefix)
    exited.  For other non-zero values, the walk is aborted and that
    value is returned.  If the walk is not aborted, 0 is returned.  */
 int
-as_walk (int (*visit) (addr_t addr,
-		       uintptr_t type, struct cap_properties properties,
+as_walk (int (*visit) (vg_addr_t addr,
+		       uintptr_t type, struct vg_cap_properties properties,
 		       bool writable,
 		       void *cookie),
 	 int types,
@@ -740,8 +740,8 @@ as_walk (int (*visit) (addr_t addr,
       /* We keep track of the child that we should visit at a
 	 particular depth.  If child[0] is 2, that means traverse the
 	 root's object's child #2.  */
-      unsigned short child[1 + ADDR_BITS];
-      assert (CAPPAGE_SLOTS_LOG2 < sizeof (child[0]) * 8);
+      unsigned short child[1 + VG_ADDR_BITS];
+      assert (VG_CAPPAGE_SLOTS_LOG2 < sizeof (child[0]) * 8);
 
       /* Depth is the current level that we are visiting.  If depth is
 	 1, we are visiting the root object's children.  */
@@ -749,16 +749,16 @@ as_walk (int (*visit) (addr_t addr,
       child[0] = 0;
 
       error_t err;
-      struct cap_properties properties;
+      struct vg_cap_properties properties;
       uintptr_t type;
 
       /* Just caching the root capability cuts the number of RPCs by
 	 about 25%.  */
-      struct cap_properties root_properties;
+      struct vg_cap_properties root_properties;
       uintptr_t root_type;
 
-      err = rm_cap_read (meta_data_activity, ADDR_VOID,
-			 ADDR (0, 0), &root_type, &root_properties);
+      err = rm_cap_read (meta_data_activity, VG_ADDR_VOID,
+			 VG_ADDR (0, 0), &root_type, &root_properties);
       assert (err == 0);
 
     restart:
@@ -766,7 +766,7 @@ as_walk (int (*visit) (addr_t addr,
 
       int slots_log2;
 
-      addr_t addr = ADDR (0, 0);
+      vg_addr_t addr = VG_ADDR (0, 0);
 
       bool writable = true;
       int d;
@@ -779,31 +779,31 @@ as_walk (int (*visit) (addr_t addr,
 	    }
 	  else
 	    {
-	      err = rm_cap_read (meta_data_activity, ADDR_VOID,
+	      err = rm_cap_read (meta_data_activity, VG_ADDR_VOID,
 				 addr, &type, &properties);
 	      assert (err == 0);
 	    }
 
 	  addr
-	    = addr_extend (addr, CAP_ADDR_TRANS_GUARD (properties.addr_trans),
-			   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans));
+	    = vg_addr_extend (addr, VG_CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+			   VG_CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans));
 
 	  switch (type)
 	    {
-	    case cap_rcappage:
+	    case vg_cap_rcappage:
 	      writable = false;
 	      /* Fall through.  */
-	    case cap_cappage:
+	    case vg_cap_cappage:
 	      slots_log2
-		= CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans);
+		= VG_CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans);
 	      break;
-	    case cap_folio:
-	      slots_log2 = FOLIO_OBJECTS_LOG2;
+	    case vg_cap_folio:
+	      slots_log2 = VG_FOLIO_OBJECTS_LOG2;
 	      break;
-	    case cap_thread:
-	      slots_log2 = THREAD_SLOTS_LOG2;
+	    case vg_cap_thread:
+	      slots_log2 = VG_THREAD_SLOTS_LOG2;
 	      break;
-	    case cap_messenger:
+	    case vg_cap_messenger:
 	      slots_log2 = VG_MESSENGER_SLOTS_LOG2;
 	      break;
 	    default:
@@ -831,15 +831,15 @@ as_walk (int (*visit) (addr_t addr,
 	      goto restart;
 	    }
 
-	  addr = addr_extend (addr, child[d], slots_log2);
-	  err = rm_cap_read (meta_data_activity, ADDR_VOID,
+	  addr = vg_addr_extend (addr, child[d], slots_log2);
+	  err = rm_cap_read (meta_data_activity, VG_ADDR_VOID,
 			     addr, &type, &properties);
 	  assert (err == 0);
 	}
 
       for (;;)
 	{
-	  err = rm_cap_read (meta_data_activity, ADDR_VOID,
+	  err = rm_cap_read (meta_data_activity, VG_ADDR_VOID,
 			     addr, &type, &properties);
 	  if (err)
 	    /* Dangling pointer.  */
@@ -854,8 +854,8 @@ as_walk (int (*visit) (addr_t addr,
 
 	  do_debug (5)
 	    {
-	      s_printf ("Considering " ADDR_FMT "(%s): ",
-			ADDR_PRINTF (addr), cap_type_string (type));
+	      s_printf ("Considering " VG_ADDR_FMT "(%s): ",
+			VG_ADDR_PRINTF (addr), vg_cap_type_string (type));
 	      int i;
 	      for (i = 0; i < depth; i ++)
 		s_printf ("%s%d", i == 0 ? "" : " -> ", child[i]);
@@ -883,27 +883,27 @@ as_walk (int (*visit) (addr_t addr,
 		return r;
 	    }
 
-	  if (addr_depth (addr)
-	      + CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans)
-	      > ADDR_BITS)
+	  if (vg_addr_depth (addr)
+	      + VG_CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans)
+	      > VG_ADDR_BITS)
 	    {
 	      child[depth - 1] ++;
 	      goto restart;
 	    }
 
 	  addr
-	    = addr_extend (addr, CAP_ADDR_TRANS_GUARD (properties.addr_trans),
-			   CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans));
+	    = vg_addr_extend (addr, VG_CAP_ADDR_TRANS_GUARD (properties.addr_trans),
+			   VG_CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans));
 
 	  switch (type)
 	    {
-	    case cap_rcappage:
-	    case cap_cappage:
+	    case vg_cap_rcappage:
+	    case vg_cap_cappage:
 	      slots_log2
-		= CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans);
+		= VG_CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (properties.addr_trans);
 	      break;
-	    case cap_folio:
-	      slots_log2 = FOLIO_OBJECTS_LOG2;
+	    case vg_cap_folio:
+	      slots_log2 = VG_FOLIO_OBJECTS_LOG2;
 	      break;
 	    default:
 	      if (depth == 0)
@@ -914,34 +914,34 @@ as_walk (int (*visit) (addr_t addr,
 	      goto restart;
 	    }
 
-	  if (addr_depth (addr) + slots_log2 > ADDR_BITS)
+	  if (vg_addr_depth (addr) + slots_log2 > VG_ADDR_BITS)
 	    {
 	      child[depth - 1] ++;
 	      goto restart;
 	    }
 
 	  /* Visit the first child.  */
-	  addr = addr_extend (addr, 0, slots_log2);
+	  addr = vg_addr_extend (addr, 0, slots_log2);
 	  child[depth] = 0;
 	  depth ++;
 	}
     }
   
   /* We have the shadow page tables and presumably a normal stack.  */
-  int do_walk (struct cap *cap, addr_t addr, bool writable)
+  int do_walk (struct vg_cap *cap, vg_addr_t addr, bool writable)
     {
       uintptr_t type;
-      struct cap_properties cap_properties;
+      struct vg_cap_properties vg_cap_properties;
 
       type = cap->type;
-      cap_properties = CAP_PROPERTIES_GET (*cap);
+      vg_cap_properties = VG_CAP_PROPERTIES_GET (*cap);
 
-      debug (5, ADDR_FMT " (%s)", ADDR_PRINTF (addr), cap_type_string (type));
+      debug (5, VG_ADDR_FMT " (%s)", VG_ADDR_PRINTF (addr), vg_cap_type_string (type));
 
       int r;
       if (((1 << type) & types))
 	{
-	  r = visit (addr, type, cap_properties, writable, cookie);
+	  r = visit (addr, type, vg_cap_properties, writable, cookie);
 	  if (r == -1)
 	    /* Don't go deeper.  */
 	    return 0;
@@ -949,49 +949,49 @@ as_walk (int (*visit) (addr_t addr,
 	    return r;
 	}
 
-      if (addr_depth (addr)
-	  + CAP_ADDR_TRANS_GUARD_BITS (cap_properties.addr_trans)
-	  > ADDR_BITS)
+      if (vg_addr_depth (addr)
+	  + VG_CAP_ADDR_TRANS_GUARD_BITS (vg_cap_properties.addr_trans)
+	  > VG_ADDR_BITS)
 	return 0;
 
       addr
-	= addr_extend (addr, CAP_ADDR_TRANS_GUARD (cap_properties.addr_trans),
-		       CAP_ADDR_TRANS_GUARD_BITS (cap_properties.addr_trans));
+	= vg_addr_extend (addr, VG_CAP_ADDR_TRANS_GUARD (vg_cap_properties.addr_trans),
+		       VG_CAP_ADDR_TRANS_GUARD_BITS (vg_cap_properties.addr_trans));
 
       int slots_log2 = 0;
       switch (type)
 	{
-	case cap_cappage:
-	case cap_rcappage:
-	  if (type == cap_rcappage)
+	case vg_cap_cappage:
+	case vg_cap_rcappage:
+	  if (type == vg_cap_rcappage)
 	    writable = false;
 
 	  slots_log2
-	    = CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (cap_properties.addr_trans);
+	    = VG_CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 (vg_cap_properties.addr_trans);
 	  break;
 
-	case cap_folio:
-	  slots_log2 = FOLIO_OBJECTS_LOG2;
+	case vg_cap_folio:
+	  slots_log2 = VG_FOLIO_OBJECTS_LOG2;
 	  break;
 	default:
 	  return 0;
 	}
 
-      if (addr_depth (addr) + slots_log2 > ADDR_BITS)
+      if (vg_addr_depth (addr) + slots_log2 > VG_ADDR_BITS)
 	return 0;
 
       struct object *shadow = NULL;
       if (as_init_done)
-	shadow = cap_to_object (meta_data_activity, cap);
+	shadow = vg_cap_to_object (meta_data_activity, cap);
 
       int i;
       for (i = 0; i < (1 << slots_log2); i ++)
 	{
-	  struct cap *object = NULL;
+	  struct vg_cap *object = NULL;
 	  if (as_init_done)
 	    object = &shadow->caps[i];
 
-	  r = do_walk (object, addr_extend (addr, i, slots_log2), writable);
+	  r = do_walk (object, vg_addr_extend (addr, i, slots_log2), writable);
 	  if (r)
 	    return r;
 	}
@@ -999,5 +999,5 @@ as_walk (int (*visit) (addr_t addr,
       return 0;
     }
 
-  return do_walk (&shadow_root, ADDR (0, 0), true);
+  return do_walk (&shadow_root, VG_ADDR (0, 0), true);
 }

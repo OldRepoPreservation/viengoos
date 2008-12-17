@@ -66,7 +66,7 @@ finish (void)
 	       i < __hurd_startup_data->desc_count;
 	       i ++, desc ++)
 	    {
-	      if (ADDR_EQ (PTR_TO_PAGE (p), desc->object))
+	      if (VG_ADDR_EQ (VG_PTR_TO_PAGE (p), desc->object))
 		{
 		  storage_free (desc->storage, true);
 		  break;

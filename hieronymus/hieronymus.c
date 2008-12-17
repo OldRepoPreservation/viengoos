@@ -54,7 +54,7 @@ struct module
 #include "modules.h"
 
 static int module_count;
-static addr_t *activities;
+static vg_addr_t *activities;
 
 /* Initialized by the machine-specific startup-code.  */
 extern struct hurd_startup_data *__hurd_startup_data;
@@ -66,16 +66,16 @@ static struct storage
 activity_alloc (struct activity_policy policy)
 {
   struct storage storage
-    = storage_alloc (root_activity, cap_activity_control, STORAGE_LONG_LIVED,
-		     OBJECT_POLICY_DEFAULT, ADDR_VOID);
+    = storage_alloc (root_activity, vg_cap_activity_control, STORAGE_LONG_LIVED,
+		     VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
   if (! storage.cap)
     panic ("Failed to allocate storage.");
 
   struct activity_policy out;
-  error_t err = rm_activity_policy (ADDR_VOID, storage.addr,
-				    ACTIVITY_POLICY_STORAGE_SET
-				    | ACTIVITY_POLICY_CHILD_REL_SET
-				    | ACTIVITY_POLICY_SIBLING_REL_SET,
+  error_t err = rm_activity_policy (VG_ADDR_VOID, storage.addr,
+				    VG_ACTIVITY_POLICY_STORAGE_SET
+				    | VG_ACTIVITY_POLICY_CHILD_REL_SET
+				    | VG_ACTIVITY_POLICY_SIBLING_REL_SET,
 				    policy, &out);
   if (err)
     panic ("Failed to set policy on activity");
@@ -137,7 +137,7 @@ do_gather_stats (void *arg)
       for (i = 0; i < module_count; i ++, stat ++)
 	{
 	  error_t err;
-	  err = rm_activity_info (ADDR_VOID, activities[i], activity_info_stats,
+	  err = rm_activity_info (VG_ADDR_VOID, activities[i], activity_info_stats,
 				  period, &info);
 	  assert_perror (err);
 	  assert (info.event == activity_info_stats);
@@ -177,7 +177,7 @@ main (int argc, char *argv[])
 
   module_count = sizeof (modules) / sizeof (modules[0]);
 
-  addr_t a[module_count];
+  vg_addr_t a[module_count];
   activities = &a[0];
 
   /* Create the activities.  */
@@ -185,14 +185,14 @@ main (int argc, char *argv[])
   for (i = 0; i < module_count; i ++)
     {
       struct activity_memory_policy sibling_policy
-	= ACTIVITY_MEMORY_POLICY (modules[i].priority, modules[i].weight);
+	= VG_ACTIVITY_MEMORY_POLICY (modules[i].priority, modules[i].weight);
       struct activity_policy policy
-	= ACTIVITY_POLICY (sibling_policy, ACTIVITY_MEMORY_POLICY_VOID, 0);
+	= VG_ACTIVITY_POLICY (sibling_policy, VG_ACTIVITY_MEMORY_POLICY_VOID, 0);
       activities[i] = activity_alloc (policy).addr;
 
       struct object_name name;
       strncpy (&name.name[0], modules[i].name, sizeof (name.name));
-      rm_object_name (ADDR_VOID, activities[i], name);
+      rm_object_name (VG_ADDR_VOID, activities[i], name);
     }
 
   bool gather_stats = false;
@@ -215,7 +215,7 @@ main (int argc, char *argv[])
     }
 
   /* Load each program (but don't yet start it).  */
-  addr_t thread[module_count];
+  vg_addr_t thread[module_count];
   for (i = 0; i < module_count; i ++)
     {
       struct md5_ctx ctx;
@@ -268,22 +268,22 @@ main (int argc, char *argv[])
     {
       struct hurd_object_desc *desc = &__hurd_startup_data->descs[j];
 
-      if ((desc->type == cap_page || desc->type == cap_rpage)
-	  && ! ADDR_IS_VOID (desc->storage)
-	  && addr_depth (desc->object) == ADDR_BITS - PAGESIZE_LOG2)
+      if ((desc->type == vg_cap_page || desc->type == vg_cap_rpage)
+	  && ! VG_ADDR_IS_VOID (desc->storage)
+	  && vg_addr_depth (desc->object) == VG_ADDR_BITS - PAGESIZE_LOG2)
 	{
 	  int i;
 	  for (i = 0; i < module_count; i ++)
-	    if ((uintptr_t) modules[i].start <= addr_prefix (desc->object)
-		&& (addr_prefix (desc->object) + PAGESIZE - 1
+	    if ((uintptr_t) modules[i].start <= vg_addr_prefix (desc->object)
+		&& (vg_addr_prefix (desc->object) + PAGESIZE - 1
 		    <= (uintptr_t) modules[i].end))
 	      break;
 
 	  if (i != module_count)
 	    {
-	      debug (5, "Freeing " ADDR_FMT "(" ADDR_FMT "), a %s",
-		     ADDR_PRINTF (desc->object), ADDR_PRINTF (desc->storage),
-		     cap_type_string (desc->type));
+	      debug (5, "Freeing " VG_ADDR_FMT "(" VG_ADDR_FMT "), a %s",
+		     VG_ADDR_PRINTF (desc->object), VG_ADDR_PRINTF (desc->storage),
+		     vg_cap_type_string (desc->type));
 	      storage_free (desc->storage, true);
 	    }
 	}
@@ -312,7 +312,7 @@ main (int argc, char *argv[])
 		  modules[i].delay = -1U;
 
 		  debug (0, DEBUG_BOLD ("Starting %s"), modules[i].name);
-		  thread_start (thread[i]);
+		  vg_thread_start (thread[i]);
 		}
 	      else if (deadline > modules[i].delay * 1000000ULL)
 		{
@@ -339,12 +339,12 @@ main (int argc, char *argv[])
       rm_object_reply_on_destruction (root_activity,
 				      thread[i], &rt);
 
-      addr_t folio = addr_chop (activities[i], FOLIO_OBJECTS_LOG2);
-      int index = addr_extract (activities[i], FOLIO_OBJECTS_LOG2);
+      vg_addr_t folio = vg_addr_chop (activities[i], VG_FOLIO_OBJECTS_LOG2);
+      int index = vg_addr_extract (activities[i], VG_FOLIO_OBJECTS_LOG2);
 
       error_t err;
-      err = rm_folio_object_alloc (ADDR_VOID, folio, index,
-				   cap_void, OBJECT_POLICY_VOID,
+      err = rm_folio_object_alloc (VG_ADDR_VOID, folio, index,
+				   vg_cap_void, VG_OBJECT_POLICY_VOID,
 				   (uintptr_t) rt,
 				   NULL, NULL);
       if (err)

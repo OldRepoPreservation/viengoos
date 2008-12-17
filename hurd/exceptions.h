@@ -48,7 +48,7 @@ extern struct hurd_utcb *(*hurd_utcb) (void);
    but should not be running).  Installs the UTCB and exception
    messenger in the thread object.  Returns the new UTCB in *UTCB.
    Returns 0 on success, otherwise an error code.  */
-extern error_t hurd_activation_state_alloc (addr_t thread,
+extern error_t hurd_activation_state_alloc (vg_addr_t thread,
 					    struct hurd_utcb **utcb);
 
 /* Release the state allocated by hurd_activation_state_alloc.  May

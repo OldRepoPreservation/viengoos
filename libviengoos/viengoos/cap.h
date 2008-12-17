@@ -1,4 +1,4 @@
-/* cap.h - Capability definitions.
+/* vg_cap.h - Capability definitions.
    Copyright (C) 2007, 2008 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
@@ -37,82 +37,82 @@
    used to control how the designated object should be managed.  */
 
 /* The types of objects designated by capabilities.  */
-enum cap_type
+enum vg_cap_type
   {
-#define CAP_TYPE_MIN cap_void
-    cap_void,
-    cap_page,
-    cap_rpage,
-    cap_cappage,
-    cap_rcappage,
-    cap_folio,
-    cap_activity,
-    cap_activity_control,
-    cap_thread,
-    cap_messenger,
-    cap_rmessenger,
-    cap_type_count,
-#define CAP_TYPE_MAX (cap_type_count - 1)
+#define VG_CAP_TYPE_MIN vg_cap_void
+    vg_cap_void,
+    vg_cap_page,
+    vg_cap_rpage,
+    vg_cap_cappage,
+    vg_cap_rcappage,
+    vg_cap_folio,
+    vg_cap_activity,
+    vg_cap_activity_control,
+    vg_cap_thread,
+    vg_cap_messenger,
+    vg_cap_rmessenger,
+    vg_cap_type_count,
+#define VG_CAP_TYPE_MAX (vg_cap_type_count - 1)
   };
 
 static inline const char *
-cap_type_string (enum cap_type type)
+vg_cap_type_string (enum vg_cap_type type)
 {
   switch (type)
     {
-    case cap_void:
+    case vg_cap_void:
       return "void";
-    case cap_page:
+    case vg_cap_page:
       return "page";
-    case cap_rpage:
+    case vg_cap_rpage:
       return "rpage";
-    case cap_cappage:
+    case vg_cap_cappage:
       return "cappage";
-    case cap_rcappage:
+    case vg_cap_rcappage:
       return "rcappage";
-    case cap_folio:
+    case vg_cap_folio:
       return "folio";
-    case cap_activity:
+    case vg_cap_activity:
       return "activity";
-    case cap_activity_control:
+    case vg_cap_activity_control:
       return "activity_control";
-    case cap_thread:
+    case vg_cap_thread:
       return "thread";
-    case cap_messenger:
+    case vg_cap_messenger:
       return "messenger";
-    case cap_rmessenger:
+    case vg_cap_rmessenger:
       return "rmessenger";
     default:
-      return "unknown cap type";
+      return "unknown vg_cap type";
   };
 }
 
 /* Return whether two types are compatible in the sense that two caps
    with the given types can designate the same object.  */
 static inline bool
-cap_types_compatible (enum cap_type a, enum cap_type b)
+vg_cap_types_compatible (enum vg_cap_type a, enum vg_cap_type b)
 {
   if (a == b)
     return true;
 
-  if (a == cap_page && b == cap_rpage)
+  if (a == vg_cap_page && b == vg_cap_rpage)
     return true;
-  if (a == cap_rpage && b == cap_page)
-    return true;
-
-  if (a == cap_cappage && b == cap_rcappage)
-    return true;
-  if (a == cap_rcappage && b == cap_cappage)
+  if (a == vg_cap_rpage && b == vg_cap_page)
     return true;
 
-  if (a == cap_activity && b == cap_activity_control)
+  if (a == vg_cap_cappage && b == vg_cap_rcappage)
     return true;
-  if (a == cap_activity_control && b == cap_activity)
+  if (a == vg_cap_rcappage && b == vg_cap_cappage)
     return true;
 
-  if (a == cap_messenger && b == cap_rmessenger)
+  if (a == vg_cap_activity && b == vg_cap_activity_control)
     return true;
-  if (a == cap_rmessenger && b == cap_messenger)
+  if (a == vg_cap_activity_control && b == vg_cap_activity)
+    return true;
+
+  if (a == vg_cap_messenger && b == vg_cap_rmessenger)
+    return true;
+  if (a == vg_cap_rmessenger && b == vg_cap_messenger)
     return true;
 
   return false;
@@ -120,14 +120,14 @@ cap_types_compatible (enum cap_type a, enum cap_type b)
 
 /* Returns weather TYPE corresponds to a weak type.  */
 static inline bool
-cap_type_weak_p (enum cap_type type)
+vg_cap_type_weak_p (enum vg_cap_type type)
 {
   switch (type)
     {
-    case cap_rpage:
-    case cap_rcappage:
-    case cap_activity:
-    case cap_rmessenger:
+    case vg_cap_rpage:
+    case vg_cap_rcappage:
+    case vg_cap_activity:
+    case vg_cap_rmessenger:
       return true;
 
     default:
@@ -137,54 +137,54 @@ cap_type_weak_p (enum cap_type type)
 
 /* Returns the weakened type corresponding to TYPE.  If type is
    already a weak type, returns TYPE.  */
-static inline enum cap_type
-cap_type_weaken (enum cap_type type)
+static inline enum vg_cap_type
+vg_cap_type_weaken (enum vg_cap_type type)
 {
   switch (type)
     {
-    case cap_page:
-    case cap_rpage:
-      return cap_rpage;
+    case vg_cap_page:
+    case vg_cap_rpage:
+      return vg_cap_rpage;
 
-    case cap_cappage:
-    case cap_rcappage:
-      return cap_rcappage;
+    case vg_cap_cappage:
+    case vg_cap_rcappage:
+      return vg_cap_rcappage;
 
-    case cap_activity_control:
-    case cap_activity:
-      return cap_activity;
+    case vg_cap_activity_control:
+    case vg_cap_activity:
+      return vg_cap_activity;
 
-    case cap_messenger:
-    case cap_rmessenger:
-      return cap_rmessenger;
+    case vg_cap_messenger:
+    case vg_cap_rmessenger:
+      return vg_cap_rmessenger;
 
     default:
-      return cap_void;
+      return vg_cap_void;
     }
 }
 
 /* Returns the strong type corresponding to TYPE.  If type is already
    a strong type, returns TYPE.  */
-static inline enum cap_type
-cap_type_strengthen (enum cap_type type)
+static inline enum vg_cap_type
+vg_cap_type_strengthen (enum vg_cap_type type)
 {
   switch (type)
     {
-    case cap_page:
-    case cap_rpage:
-      return cap_page;
+    case vg_cap_page:
+    case vg_cap_rpage:
+      return vg_cap_page;
 
-    case cap_cappage:
-    case cap_rcappage:
-      return cap_cappage;
+    case vg_cap_cappage:
+    case vg_cap_rcappage:
+      return vg_cap_cappage;
 
-    case cap_activity_control:
-    case cap_activity:
-      return cap_activity_control;
+    case vg_cap_activity_control:
+    case vg_cap_activity:
+      return vg_cap_activity_control;
 
-    case cap_messenger:
-    case cap_rmessenger:
-      return cap_messenger;
+    case vg_cap_messenger:
+    case vg_cap_rmessenger:
+      return vg_cap_messenger;
 
     default:
       return type;
@@ -195,11 +195,11 @@ cap_type_strengthen (enum cap_type type)
 
 /* The object priority is a signed 7-bit number (-64 -> 63).  A lower
    numeric value corresponds to a lower priority.  */
-#define OBJECT_PRIORITY_BITS 7
-#define OBJECT_PRIORITY_LEVELS (1 << OBJECT_PRIORITY_BITS)
-#define OBJECT_PRIORITY_MIN (-(1 << (OBJECT_PRIORITY_BITS - 1)))
-#define OBJECT_PRIORITY_DEFAULT (0)
-#define OBJECT_PRIORITY_MAX ((1 << (OBJECT_PRIORITY_BITS - 1)) - 1)
+#define VG_OBJECT_PRIORITY_BITS 7
+#define VG_OBJECT_PRIORITY_LEVELS (1 << VG_OBJECT_PRIORITY_BITS)
+#define VG_OBJECT_PRIORITY_MIN (-(1 << (VG_OBJECT_PRIORITY_BITS - 1)))
+#define VG_OBJECT_PRIORITY_DEFAULT (0)
+#define VG_OBJECT_PRIORITY_MAX ((1 << (VG_OBJECT_PRIORITY_BITS - 1)) - 1)
 
 struct object_policy
 {
@@ -216,93 +216,93 @@ struct object_policy
 	 eviction.  When a memory object is to be evicted, we select
 	 the object with the lowest priority (higher value = lower
 	 priority).  */
-      int8_t priority : OBJECT_PRIORITY_BITS;
+      int8_t priority : VG_OBJECT_PRIORITY_BITS;
     };
     uint8_t raw;
   };
 };
 
-#define OBJECT_POLICY_INIT { { raw: 0 } }
-#define OBJECT_POLICY(__op_discardable, __op_priority) \
+#define VG_OBJECT_POLICY_INIT { { raw: 0 } }
+#define VG_OBJECT_POLICY(__op_discardable, __op_priority) \
   (struct object_policy) { { { (__op_discardable), (__op_priority) } } }
 /* The default object policy: not discardable, managed by LRU.  */
-#define OBJECT_POLICY_VOID \
-  OBJECT_POLICY (false,  OBJECT_PRIORITY_DEFAULT)
-/* Synonym for OBJECT_POLICY_VOID.  */
-#define OBJECT_POLICY_DEFAULT OBJECT_POLICY_VOID
+#define VG_OBJECT_POLICY_VOID \
+  VG_OBJECT_POLICY (false,  VG_OBJECT_PRIORITY_DEFAULT)
+/* Synonym for VG_OBJECT_POLICY_VOID.  */
+#define VG_OBJECT_POLICY_DEFAULT VG_OBJECT_POLICY_VOID
 
 /* Capability properties.  */
 
-struct cap_properties
+struct vg_cap_properties
 {
   struct object_policy policy;
-  struct cap_addr_trans addr_trans;
+  struct vg_cap_addr_trans addr_trans;
 };
 
-#define CAP_PROPERTIES_INIT \
-  { OBJECT_POLICY_INIT, CAP_ADDR_TRANS_INIT }
-#define CAP_PROPERTIES(__op_object_policy, __op_addr_trans) \
-  (struct cap_properties) { __op_object_policy, __op_addr_trans }
-#define CAP_PROPERTIES_VOID \
-  CAP_PROPERTIES (OBJECT_POLICY_INIT, CAP_ADDR_TRANS_INIT)
-#define CAP_PROPERTIES_DEFAULT CAP_PROPERTIES_VOID
+#define VG_CAP_PROPERTIES_INIT \
+  { VG_OBJECT_POLICY_INIT, VG_CAP_ADDR_TRANS_INIT }
+#define VG_CAP_PROPERTIES(__op_object_policy, __op_addr_trans) \
+  (struct vg_cap_properties) { __op_object_policy, __op_addr_trans }
+#define VG_CAP_PROPERTIES_VOID \
+  VG_CAP_PROPERTIES (VG_OBJECT_POLICY_INIT, VG_CAP_ADDR_TRANS_INIT)
+#define VG_CAP_PROPERTIES_DEFAULT VG_CAP_PROPERTIES_VOID
 
 /* Capability representation.  */
 
 #ifdef RM_INTERN
 /* An OID corresponds to a page on a volume.  Only the least 54 bits
    are significant.  */
-typedef uint64_t oid_t;
-#define OID_FMT "0x%llx"
-#define OID_PRINTF(__op_oid) ((oid_t) (__op_oid))
+typedef uint64_t vg_oid_t;
+#define VG_OID_FMT "0x%llx"
+#define VG_OID_PRINTF(__op_oid) ((vg_oid_t) (__op_oid))
 #endif
 
-#define CAP_VERSION_BITS 20
-#define CAP_TYPE_BITS 6
+#define VG_CAP_VERSION_BITS 20
+#define VG_CAP_TYPE_BITS 6
 
-struct cap
+struct vg_cap
 {
 #ifdef RM_INTERN
   /* For a description of how versioning works, refer to the comment
      titled "Object versioning" in object.h.  */
-  uint32_t version : CAP_VERSION_BITS;
+  uint32_t version : VG_CAP_VERSION_BITS;
   /* Whether the capability is weak.  */
   uint32_t weak_p : 1;
 
   /* Whether the designated object may be discarded.  */
   uint32_t discardable : 1;
   /* The designated object's priority.  */
-  int32_t priority : OBJECT_PRIORITY_BITS;
+  int32_t priority : VG_OBJECT_PRIORITY_BITS;
 
-  struct cap_addr_trans addr_trans;
+  struct vg_cap_addr_trans addr_trans;
 
-  uint64_t type : CAP_TYPE_BITS;
+  uint64_t type : VG_CAP_TYPE_BITS;
 
   /* If the capability designates an object, the object id.  */
-  uint64_t oid : 64 - CAP_TYPE_BITS;
+  uint64_t oid : 64 - VG_CAP_TYPE_BITS;
 #else
   /* The shadow object (only for cappages and folios).  */
   struct object *shadow;
 
   uint32_t discardable : 1;
-  int32_t priority : OBJECT_PRIORITY_BITS;
+  int32_t priority : VG_OBJECT_PRIORITY_BITS;
 
-  uint32_t type : CAP_TYPE_BITS;
+  uint32_t type : VG_CAP_TYPE_BITS;
 
-  uint32_t pad0 : 32 - 1 - OBJECT_PRIORITY_BITS - CAP_TYPE_BITS;
+  uint32_t pad0 : 32 - 1 - VG_OBJECT_PRIORITY_BITS - VG_CAP_TYPE_BITS;
 
   /* This capability's address description.  */
-  struct cap_addr_trans addr_trans;
+  struct vg_cap_addr_trans addr_trans;
 #endif
 };
 
-#define CAP_VOID ((struct cap) { .type = cap_void })
+#define VG_CAP_VOID ((struct vg_cap) { .type = vg_cap_void })
 
 /* Return CAP's policy.  */
-#define CAP_POLICY_GET(__cpg_cap)				\
-  OBJECT_POLICY ((__cpg_cap).discardable, (__cpg_cap).priority)
+#define VG_CAP_POLICY_GET(__cpg_cap)				\
+  VG_OBJECT_POLICY ((__cpg_cap).discardable, (__cpg_cap).priority)
 /* Set CAP's policy to POLICY.  */
-#define CAP_POLICY_SET(__cps_cap, __cps_policy)			\
+#define VG_CAP_POLICY_SET(__cps_cap, __cps_policy)			\
   do								\
     {								\
       (__cps_cap)->discardable = (__cps_policy).discardable;	\
@@ -311,14 +311,14 @@ struct cap
   while (0)
 
 /* Return CAP's properties.  */
-#define CAP_PROPERTIES_GET(__cpg_cap)				\
-  CAP_PROPERTIES (CAP_POLICY_GET (__cpg_cap),			\
+#define VG_CAP_PROPERTIES_GET(__cpg_cap)				\
+  VG_CAP_PROPERTIES (VG_CAP_POLICY_GET (__cpg_cap),			\
 		  (__cpg_cap).addr_trans)
 /* Set *CAP's properties to PROPERTIES.  */
-#define CAP_PROPERTIES_SET(__cps_cap, __cps_properties)			\
+#define VG_CAP_PROPERTIES_SET(__cps_cap, __cps_properties)			\
   do									\
     {									\
-      CAP_POLICY_SET (__cps_cap, (__cps_properties).policy);		\
+      VG_CAP_POLICY_SET (__cps_cap, (__cps_properties).policy);		\
       (__cps_cap)->addr_trans = (__cps_properties).addr_trans;		\
     }									\
   while (0)
@@ -326,55 +326,55 @@ struct cap
 /* Convenience macros for printing capabilities.  */
 
 #ifdef RM_INTERN
-#define CAP_FMT "{ " OID_FMT ".%d:%s %llx/%d; %d/%d }"
-#define CAP_PRINTF(cap) \
-  OID_PRINTF ((cap)->oid), (cap)->version, cap_type_string ((cap)->type), \
-  CAP_GUARD ((cap)), CAP_GUARD_BITS ((cap)), \
-  CAP_SUBPAGE ((cap)), CAP_SUBPAGES ((cap))
+#define VG_CAP_FMT "{ " VG_OID_FMT ".%d:%s %llx/%d; %d/%d }"
+#define VG_CAP_PRINTF(vg_cap) \
+  VG_OID_PRINTF ((vg_cap)->oid), (vg_cap)->version, vg_cap_type_string ((vg_cap)->type), \
+  VG_CAP_GUARD ((vg_cap)), VG_CAP_GUARD_BITS ((vg_cap)), \
+  VG_CAP_SUBPAGE ((vg_cap)), VG_CAP_SUBPAGES ((vg_cap))
 #else
-#define CAP_FMT "{ %s %llx/%d; %d/%d }"
-#define CAP_PRINTF(cap) \
-  cap_type_string ((cap)->type), \
-  CAP_GUARD ((cap)), CAP_GUARD_BITS ((cap)), \
-  CAP_SUBPAGE ((cap)), CAP_SUBPAGES ((cap))
+#define VG_CAP_FMT "{ %s %llx/%d; %d/%d }"
+#define VG_CAP_PRINTF(vg_cap) \
+  vg_cap_type_string ((vg_cap)->type), \
+  VG_CAP_GUARD ((vg_cap)), VG_CAP_GUARD_BITS ((vg_cap)), \
+  VG_CAP_SUBPAGE ((vg_cap)), VG_CAP_SUBPAGES ((vg_cap))
 #endif
 
 /* Accessors corresponding to the CAP_ADDR_TRANS macros.  */
-#define CAP_SUBPAGES_LOG2(cap_) \
-  CAP_ADDR_TRANS_SUBPAGES_LOG2((cap_)->addr_trans)
-#define CAP_SUBPAGES(cap_) CAP_ADDR_TRANS_SUBPAGES ((cap_)->addr_trans)
-#define CAP_SUBPAGE(cap_) CAP_ADDR_TRANS_SUBPAGE((cap_)->addr_trans)
-#define CAP_SUBPAGE_SIZE_LOG2(cap_) \
-  CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 ((cap_)->addr_trans)
-#define CAP_SUBPAGE_SIZE(cap_) \
-  CAP_ADDR_TRANS_SUBPAGE_SIZE ((cap_)->addr_trans)
-#define CAP_SUBPAGE_OFFSET(cap_) \
-  CAP_ADDR_TRANS_SUBPAGE_OFFSET((cap_)->addr_trans)
-#define CAP_GUARD_BITS(cap_) CAP_ADDR_TRANS_GUARD_BITS((cap_)->addr_trans)
-#define CAP_GUARD(cap_) CAP_ADDR_TRANS_GUARD((cap_)->addr_trans)
+#define VG_CAP_SUBPAGES_LOG2(cap_) \
+  VG_CAP_ADDR_TRANS_SUBPAGES_LOG2((cap_)->addr_trans)
+#define VG_CAP_SUBPAGES(cap_) VG_CAP_ADDR_TRANS_SUBPAGES ((cap_)->addr_trans)
+#define VG_CAP_SUBPAGE(cap_) VG_CAP_ADDR_TRANS_SUBPAGE((cap_)->addr_trans)
+#define VG_CAP_SUBPAGE_SIZE_LOG2(cap_) \
+  VG_CAP_ADDR_TRANS_SUBPAGE_SIZE_LOG2 ((cap_)->addr_trans)
+#define VG_CAP_SUBPAGE_SIZE(cap_) \
+  VG_CAP_ADDR_TRANS_SUBPAGE_SIZE ((cap_)->addr_trans)
+#define VG_CAP_SUBPAGE_OFFSET(cap_) \
+  VG_CAP_ADDR_TRANS_SUBPAGE_OFFSET((cap_)->addr_trans)
+#define VG_CAP_GUARD_BITS(cap_) VG_CAP_ADDR_TRANS_GUARD_BITS((cap_)->addr_trans)
+#define VG_CAP_GUARD(cap_) VG_CAP_ADDR_TRANS_GUARD((cap_)->addr_trans)
 
 /* NB: Only updates the shadow guard; NOT the capability.  If the
-   latter behavior is desired, use cap_copy_x instead.  */
-#define CAP_SET_GUARD_SUBPAGE(cap_, guard_, gdepth_, subpage_, subpages_) \
+   latter behavior is desired, use vg_cap_copy_x instead.  */
+#define VG_CAP_SET_GUARD_SUBPAGE(cap_, guard_, gdepth_, subpage_, subpages_) \
   ({ bool r_ = true; \
      if ((subpages_) != 1 \
-	 && ! ((cap_)->type == cap_cappage || (cap_)->type == cap_rcappage)) \
+	 && ! ((cap_)->type == vg_cap_cappage || (cap_)->type == vg_cap_rcappage)) \
        { \
          debug (1, "Subpages are only allow for cappages."); \
          r_ = false; \
        } \
      if (r_) \
-       r_ = CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&(cap_)->addr_trans, \
+       r_ = VG_CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&(cap_)->addr_trans, \
 					      (guard_), (gdepth_), \
 					      (subpage_), (subpages_)); \
      r_; \
   })
 
-#define CAP_SET_GUARD(cap_, guard_, gdepth_) \
-  CAP_SET_GUARD_SUBPAGE ((cap_), (guard_), (gdepth_), \
-			 CAP_SUBPAGE ((cap_)), CAP_SUBPAGES ((cap_)))
-#define CAP_SET_SUBPAGE(cap_, subpage_, subpages_) \
-  CAP_SET_GUARD_SUBPAGE ((cap_), CAP_GUARD (cap_), CAP_GUARD_BITS (cap_), \
+#define VG_CAP_SET_GUARD(cap_, guard_, gdepth_) \
+  VG_CAP_SET_GUARD_SUBPAGE ((cap_), (guard_), (gdepth_), \
+			 VG_CAP_SUBPAGE ((cap_)), VG_CAP_SUBPAGES ((cap_)))
+#define VG_CAP_SET_SUBPAGE(cap_, subpage_, subpages_) \
+  VG_CAP_SET_GUARD_SUBPAGE ((cap_), VG_CAP_GUARD (cap_), VG_CAP_GUARD_BITS (cap_), \
 			 (subpage_), (subpages_))
 
 /* Capability-related methods.  */
@@ -401,65 +401,65 @@ enum
 {
   /* Use subpage in CAP_ADDR_TRANS (must be a subset of subpage in
      SOURCE).  */
-  CAP_COPY_COPY_ADDR_TRANS_SUBPAGE = 1 << 0,
+  VG_CAP_COPY_COPY_ADDR_TRANS_SUBPAGE = 1 << 0,
   /* Use guard in TARGET, not the guard in CAP_ADDR_TRANS.  */
-  CAP_COPY_COPY_ADDR_TRANS_GUARD = 1 << 1,
+  VG_CAP_COPY_COPY_ADDR_TRANS_GUARD = 1 << 1,
   /* Use guard in SOURCE.  */
-  CAP_COPY_COPY_SOURCE_GUARD = 1 << 2,
+  VG_CAP_COPY_COPY_SOURCE_GUARD = 1 << 2,
 
   /* When copying the capability copies a weakened reference.  */
-  CAP_COPY_WEAKEN = 1 << 3,
+  VG_CAP_COPY_WEAKEN = 1 << 3,
 
   /* Set the discardable bit on the capability.  */
-  CAP_COPY_DISCARDABLE_SET = 1 << 4,
+  VG_CAP_COPY_DISCARDABLE_SET = 1 << 4,
 
   /* Set the priority of the object.  */
-  CAP_COPY_PRIORITY_SET = 1 << 5,
+  VG_CAP_COPY_PRIORITY_SET = 1 << 5,
 };
 
-/* Copy the capability in capability slot SOURCE to the slot at ADDR
-   in the object OBJECT.  If OBJECT is ADDR_VOID, then the calling
+/* Copy the capability in capability slot SOURCE to the slot at VG_ADDR
+   in the object OBJECT.  If OBJECT is VG_ADDR_VOID, then the calling
    thread's address space root is used.
 
    By default, preserves SOURCE's subpage specification and copies
    TARGET's guard and policy.
 
    If CAP_COPY_COPY_SUBPAGE is set, then uses the subpage
-   specification in CAP_PROPERTIES.  If CAP_COPY_COPY_ADDR_TRANS_GUARD
-   is set, uses the guard description in CAP_PROPERTIES.
+   specification in VG_CAP_PROPERTIES.  If VG_CAP_COPY_COPY_ADDR_TRANS_GUARD
+   is set, uses the guard description in VG_CAP_PROPERTIES.
 
-   If CAP_COPY_COPY_SOURCE_GUARD is set, uses the guard description in
+   If VG_CAP_COPY_COPY_SOURCE_GUARD is set, uses the guard description in
    source.  Otherwise, preserves the guard in TARGET.
 
-   If CAP_COPY_WEAKEN is set, saves a weakened version of SOURCE
-   (e.g., if SOURCE's type is cap_page, a cap_rpage is saved).
+   If VG_CAP_COPY_WEAKEN is set, saves a weakened version of SOURCE
+   (e.g., if SOURCE's type is vg_cap_page, a vg_cap_rpage is saved).
 
-   If CAP_COPY_DISCARDABLE_SET is set, then sets the discardable bit
+   If VG_CAP_COPY_DISCARDABLE_SET is set, then sets the discardable bit
    based on the value in PROPERTIES.  Otherwise, copies SOURCE's
    value.
 
-   If CAP_COPY_PRIORITY_SET is set, then sets the priority based on
+   If VG_CAP_COPY_PRIORITY_SET is set, then sets the priority based on
    the value in properties.  Otherwise, copies SOURCE's value.  */
 RPC(cap_copy, 5, 0, 0,
-    /* cap_t activity, cap_t object, */ addr_t, addr,
-    cap_t, source_object, addr_t, source_addr,
-    uintptr_t, flags, struct cap_properties, properties)
+    /* cap_t activity, cap_t object, */ vg_addr_t, addr,
+    cap_t, source_object, vg_addr_t, source_addr,
+    uintptr_t, flags, struct vg_cap_properties, properties)
 
-/* Overwrite the capability slot at ADDR in the object OBJECT with a
+/* Overwrite the capability slot at VG_ADDR in the object OBJECT with a
    void capability.  */
 RPC(cap_rubout, 1, 0, 0,
-    /* cap_t activity, cap_t object, */ addr_t, addr)
+    /* cap_t activity, cap_t object, */ vg_addr_t, addr)
 
-/* Returns the public bits of the capability at address ADDR in OBJECT
-   in TYPE and CAP_PROPERTIES.  */
+/* Returns the public bits of the capability at address VG_ADDR in OBJECT
+   in TYPE and VG_CAP_PROPERTIES.  */
 RPC(cap_read, 1, 2, 0,
-    /* cap_t activity, cap_t object, */ addr_t, addr,
+    /* cap_t activity, cap_t object, */ vg_addr_t, addr,
     /* Out: */
-    uintptr_t, type, struct cap_properties, properties)
+    uintptr_t, type, struct vg_cap_properties, properties)
 
-/* Clear the discarded bit of the object at ADDR in object OBJECT.  */
+/* Clear the discarded bit of the object at VG_ADDR in object OBJECT.  */
 RPC(object_discarded_clear, 1, 0, 0,
-    /* cap_t activity, cap_t object, */ addr_t, addr)
+    /* cap_t activity, cap_t object, */ vg_addr_t, addr)
 
 /* If the object designated by OBJECT is in memory, discard it.
    OBJECT must have write authority.  This does not set the object's
@@ -480,7 +480,7 @@ enum
    whether the object has been modified since the last time it the
    dirty bit was cleared.)  */
 RPC (object_status, 1, 1, 0,
-     /* addr_t activity, addr_t object, */ bool, clear,
+     /* vg_addr_t activity, vg_addr_t object, */ bool, clear,
      uintptr_t, status)
 
 /* Returns the object's return code in RETURN_CODE on object
@@ -510,12 +510,12 @@ RPC (object_name, 1, 0, 0,
 /* The number of capabilities per page.  */
 enum
   {
-    CAPPAGE_SLOTS = PAGESIZE / 16,
+    VG_CAPPAGE_SLOTS = PAGESIZE / 16,
   };
 /* The log2 of the number of capabilities per page.  */
 enum
   {
-    CAPPAGE_SLOTS_LOG2 = PAGESIZE_LOG2 - 4,
+    VG_CAPPAGE_SLOTS_LOG2 = PAGESIZE_LOG2 - 4,
   };
 
 struct object
@@ -523,69 +523,69 @@ struct object
   union
   {
     char data[PAGESIZE];
-    struct cap caps[CAPPAGE_SLOTS];
+    struct vg_cap caps[VG_CAPPAGE_SLOTS];
   };
 };
 
 #ifdef RM_INTERN
 typedef struct activity *activity_t;
 #else
-typedef addr_t activity_t;
+typedef vg_addr_t activity_t;
 #endif
 
 #ifndef RM_INTERN
-/* Return the address of cap CAP's shadow object.  */
+/* Return the address of vg_cap CAP's shadow object.  */
 static inline void *
-cap_get_shadow (const struct cap *cap)
+vg_cap_get_shadow (const struct vg_cap *vg_cap)
 {
-  return cap->shadow;
+  return vg_cap->shadow;
 }
 
 /* Set CAP's shadow object to SHADOW.  */
 static inline void
-cap_set_shadow (struct cap *cap, void *shadow)
+vg_cap_set_shadow (struct vg_cap *vg_cap, void *shadow)
 {
-  cap->shadow = shadow;
+  vg_cap->shadow = shadow;
 }
 #endif
 
-/* Given cap CAP, return the corresponding object, or NULL, if there
+/* Given vg_cap CAP, return the corresponding object, or NULL, if there
    is none.  */
 #ifdef RM_INTERN
-extern struct object *cap_to_object (activity_t activity, struct cap *cap);
+extern struct object *vg_cap_to_object (activity_t activity, struct vg_cap *vg_cap);
 #else
 static inline struct object *
-cap_to_object (activity_t activity, struct cap *cap)
+vg_cap_to_object (activity_t activity, struct vg_cap *vg_cap)
 {
-  return cap_get_shadow (cap);
+  return vg_cap_get_shadow (vg_cap);
 }
 #endif
 
-/* Wrapper for the cap_copy method.  Also updates shadow
+/* Wrapper for the vg_cap_copy method.  Also updates shadow
    capabilities.  */
 static inline bool
-cap_copy_x (activity_t activity,
-	    addr_t target_address_space, struct cap *target, addr_t target_addr,
-	    addr_t source_address_space, struct cap source, addr_t source_addr,
-	    int flags, struct cap_properties properties)
+vg_cap_copy_x (activity_t activity,
+	    vg_addr_t target_address_space, struct vg_cap *target, vg_addr_t target_addr,
+	    vg_addr_t source_address_space, struct vg_cap source, vg_addr_t source_addr,
+	    int flags, struct vg_cap_properties properties)
 {
   /* By default, we preserve SOURCE's subpage specification.  */
-  int subpage = CAP_SUBPAGE (&source);
-  int subpages = CAP_SUBPAGES (&source);
+  int subpage = VG_CAP_SUBPAGE (&source);
+  int subpages = VG_CAP_SUBPAGES (&source);
 
-  if ((flags & CAP_COPY_COPY_ADDR_TRANS_SUBPAGE))
+  if ((flags & VG_CAP_COPY_COPY_ADDR_TRANS_SUBPAGE))
     /* Copy the subpage descriptor from PROPERTIES.ADDR_TRANS.  */
     {
-      if (CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans) != 1
-	  && (source.type != cap_cappage
-	      && source.type != cap_rcappage))
+      if (VG_CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans) != 1
+	  && (source.type != vg_cap_cappage
+	      && source.type != vg_cap_rcappage))
 	/* A subpage descriptor is only valid for
 	   cappages.  */
 	{
 	  debug (1, "subpages (%d) specified for non-cappage "
-		 "cap " CAP_FMT,
-		 CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans),
-		 CAP_PRINTF (&source));
+		 "vg_cap " VG_CAP_FMT,
+		 VG_CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans),
+		 VG_CAP_PRINTF (&source));
 	  return false;
 	}
 
@@ -593,48 +593,48 @@ cap_copy_x (activity_t activity,
 	  (/* Start of PROPERTIES.ADDR_TRANS must be at or after start of
 	      SOURCE.  */
 	   subpage * (256 / subpages)
-	   <= (CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans) *
-	       (256 / CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans)))
+	   <= (VG_CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans) *
+	       (256 / VG_CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans)))
 	   /* End of PROPERTIES.ADDR_TRANS must be before or at end of
 	      SOURCE.  */
-	   && (((CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans) + 1) *
-		(256 / CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans)))
+	   && (((VG_CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans) + 1) *
+		(256 / VG_CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans)))
 	       <= (subpage + 1) * (256 / subpages))))
 	/* The subpage descriptor does not narrow the
 	   rights.  */
 	{
 	  debug (1, "specified subpage (%d/%d) not a subset "
-		 " of source " CAP_FMT,
-		 CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
-		 CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans),
-		 CAP_PRINTF (&source));
+		 " of source " VG_CAP_FMT,
+		 VG_CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans),
+		 VG_CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans),
+		 VG_CAP_PRINTF (&source));
 	  return false;
 	}
 
-      subpage = CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans);
-      subpages = CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans);
+      subpage = VG_CAP_ADDR_TRANS_SUBPAGE (properties.addr_trans);
+      subpages = VG_CAP_ADDR_TRANS_SUBPAGES (properties.addr_trans);
     }
 
   /* By default, we preserve the guard in TARGET.  */
-  int guard = CAP_GUARD (target);
-  int gbits = CAP_GUARD_BITS (target);
+  int guard = VG_CAP_GUARD (target);
+  int gbits = VG_CAP_GUARD_BITS (target);
 
-  if ((flags & CAP_COPY_COPY_ADDR_TRANS_GUARD))
+  if ((flags & VG_CAP_COPY_COPY_ADDR_TRANS_GUARD))
     /* Copy guard from PROPERTIES.ADDR_TRANS.  */
     {
-      guard = CAP_ADDR_TRANS_GUARD (properties.addr_trans);
-      gbits = CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans);
+      guard = VG_CAP_ADDR_TRANS_GUARD (properties.addr_trans);
+      gbits = VG_CAP_ADDR_TRANS_GUARD_BITS (properties.addr_trans);
     }
-  else if ((flags & CAP_COPY_COPY_SOURCE_GUARD))
+  else if ((flags & VG_CAP_COPY_COPY_SOURCE_GUARD))
     /* Copy guard from SOURCE.  */
     {
-      guard = CAP_GUARD (&source);
-      gbits = CAP_GUARD_BITS (&source);
+      guard = VG_CAP_GUARD (&source);
+      gbits = VG_CAP_GUARD_BITS (&source);
     }
 
   int type = source.type;
-  if ((flags & CAP_COPY_WEAKEN))
-    type = cap_type_weaken (type);
+  if ((flags & VG_CAP_COPY_WEAKEN))
+    type = vg_cap_type_weaken (type);
 
 #ifdef RM_INTERN
   /* Changing a capability can change how addresses are translated.
@@ -652,19 +652,19 @@ cap_copy_x (activity_t activity,
       changes_translation = true;
     }
 
-  if (subpage != CAP_SUBPAGE (target) || subpages != CAP_SUBPAGES (target))
+  if (subpage != VG_CAP_SUBPAGE (target) || subpages != VG_CAP_SUBPAGES (target))
     {
       debug (5, "Subpage specification differs %d/%d -> %d/%d.",
-	     subpage, subpages, CAP_SUBPAGE (target), CAP_SUBPAGES (target));
+	     subpage, subpages, VG_CAP_SUBPAGE (target), VG_CAP_SUBPAGES (target));
       changes_translation = true;
     }
 
-  if (guard != CAP_GUARD (target)
-      || gbits != CAP_GUARD_BITS (target))
+  if (guard != VG_CAP_GUARD (target)
+      || gbits != VG_CAP_GUARD_BITS (target))
     {
       debug (5, "Guard changed invalidating translation "
 	     "0x%x/%d -> %llx/%d",
-	     guard, gbits, CAP_GUARD (target), CAP_GUARD_BITS (target));
+	     guard, gbits, VG_CAP_GUARD (target), VG_CAP_GUARD_BITS (target));
       changes_translation = true;
     }
 
@@ -676,23 +676,23 @@ cap_copy_x (activity_t activity,
 
   if (changes_translation)
     {
-      extern void cap_shootdown (struct activity *activity, struct cap *cap);
+      extern void cap_shootdown (struct activity *activity, struct vg_cap *vg_cap);
 
-      debug (5, "Translation changed: " CAP_FMT " -> " CAP_FMT,
-	     CAP_PRINTF (target), CAP_PRINTF (&source));
+      debug (5, "Translation changed: " VG_CAP_FMT " -> " VG_CAP_FMT,
+	     VG_CAP_PRINTF (target), VG_CAP_PRINTF (&source));
 
       cap_shootdown (activity, target);
     }
 #endif
 
-  if (! CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&properties.addr_trans,
+  if (! VG_CAP_ADDR_TRANS_SET_GUARD_SUBPAGE (&properties.addr_trans,
 					  guard, gbits,
 					  subpage, subpages))
     return false;
 
 #ifndef RM_INTERN
-  assert (! ADDR_IS_VOID (target_addr));
-  assert (! ADDR_IS_VOID (source_addr));
+  assert (! VG_ADDR_IS_VOID (target_addr));
+  assert (! VG_ADDR_IS_VOID (source_addr));
 
   error_t err = rm_cap_copy (activity, target_address_space, target_addr,
 			     source_address_space, source_addr,
@@ -704,10 +704,10 @@ cap_copy_x (activity_t activity,
   target->addr_trans = properties.addr_trans;
   target->type = type;
 
-  if ((flags & CAP_COPY_DISCARDABLE_SET))
+  if ((flags & VG_CAP_COPY_DISCARDABLE_SET))
     target->discardable = properties.policy.discardable;
 
-  if ((flags & CAP_COPY_PRIORITY_SET))
+  if ((flags & VG_CAP_COPY_PRIORITY_SET))
     target->priority = properties.policy.priority;
 
   return true;
@@ -717,14 +717,14 @@ cap_copy_x (activity_t activity,
    SOURCE's subpage specification and TARGET's guard.  Copies SOURCE's
    policy.  */
 static inline bool
-cap_copy (activity_t activity,
-	  addr_t target_as, struct cap *target, addr_t target_addr,
-	  addr_t source_as, struct cap source, addr_t source_addr)
+vg_cap_copy (activity_t activity,
+	  vg_addr_t target_as, struct vg_cap *target, vg_addr_t target_addr,
+	  vg_addr_t source_as, struct vg_cap source, vg_addr_t source_addr)
 {
-  return cap_copy_x (activity, target_as, target, target_addr,
+  return vg_cap_copy_x (activity, target_as, target, target_addr,
 		     source_as, source, source_addr,
-		     CAP_COPY_DISCARDABLE_SET | CAP_COPY_PRIORITY_SET,
-		     CAP_PROPERTIES_GET (source));
+		     VG_CAP_COPY_DISCARDABLE_SET | VG_CAP_COPY_PRIORITY_SET,
+		     VG_CAP_PROPERTIES_GET (source));
 }
 
 #endif

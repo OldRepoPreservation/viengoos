@@ -17,21 +17,21 @@ static struct folio *folio;
 static int object;
 
 static struct as_allocate_pt_ret
-allocate_object (enum cap_type type, addr_t addr)
+allocate_object (enum vg_cap_type type, vg_addr_t addr)
 {
-  if (! folio || object == FOLIO_OBJECTS)
+  if (! folio || object == VG_FOLIO_OBJECTS)
     {
-      folio = folio_alloc (root_activity, FOLIO_POLICY_DEFAULT);
+      folio = folio_alloc (root_activity, VG_FOLIO_POLICY_DEFAULT);
       object = 0;
     }
 
   struct as_allocate_pt_ret rt;
   rt.cap = folio_object_alloc (root_activity, folio, object ++,
-			       type, OBJECT_POLICY_DEFAULT, 0);
+			       type, VG_OBJECT_POLICY_DEFAULT, 0);
 
   /* We don't need to set RT.STORAGE as as_insert doesn't require it
      for the internal interface implementations.  */
-  rt.storage = ADDR (0, 0);
+  rt.storage = VG_ADDR (0, 0);
   return rt;
 }
 
@@ -49,12 +49,12 @@ test (void)
   object_init ();
 
   /* Create the root activity.  */
-  folio = folio_alloc (NULL, FOLIO_POLICY_DEFAULT);
+  folio = folio_alloc (NULL, VG_FOLIO_POLICY_DEFAULT);
   if (! folio)
     panic ("Failed to allocate storage for the initial task!");
 
-  struct cap c = allocate_object (cap_activity_control, ADDR_VOID).cap;
-  root_activity = (struct activity *) cap_to_object (root_activity, &c);
+  struct vg_cap c = allocate_object (vg_cap_activity_control, VG_ADDR_VOID).cap;
+  root_activity = (struct activity *) vg_cap_to_object (root_activity, &c);
     
   folio_parent (root_activity, folio);
 
@@ -74,20 +74,20 @@ test (void)
     for (i = 0; i < N; i ++)
       {
 	/* Allocate a new activity.  */
-	struct cap cap;
+	struct vg_cap cap;
 	cap = folio_object_alloc (activity, folio, obj ++,
-				  cap_activity_control,
-				  OBJECT_POLICY_DEFAULT, 0);
-	a[i].child = (struct activity *) cap_to_object (activity, &cap);
+				  vg_cap_activity_control,
+				  VG_OBJECT_POLICY_DEFAULT, 0);
+	a[i].child = (struct activity *) vg_cap_to_object (activity, &cap);
 
 	/* Allocate a folio against the activity and use it.  */
-	a[i].folio = folio_alloc (a[i].child, FOLIO_POLICY_DEFAULT);
+	a[i].folio = folio_alloc (a[i].child, VG_FOLIO_POLICY_DEFAULT);
 	assert (a[i].folio);
 
 	cap = folio_object_alloc (a[i].child, a[i].folio, 0,
-				  cap_page, OBJECT_POLICY_DEFAULT, 0);
-	a[i].page = cap_to_object (activity, &cap);
-	assert (object_type (a[i].page) == cap_page);
+				  vg_cap_page, VG_OBJECT_POLICY_DEFAULT, 0);
+	a[i].page = vg_cap_to_object (activity, &cap);
+	assert (object_type (a[i].page) == vg_cap_page);
       }
 
     if (depth > 0)
@@ -99,14 +99,14 @@ test (void)
        destroy the rest.  */
     for (i = 0; i < N / 2; i ++)
       {
-	struct cap cap = object_to_cap (a[i].page);
-	struct object *o = cap_to_object (activity, &cap);
+	struct vg_cap cap = object_to_cap (a[i].page);
+	struct object *o = vg_cap_to_object (activity, &cap);
 	assert (o == a[i].page);
 
 	/* Destroy the activity.  */
 	folio_free (activity, a[i].folio);
 
-	o = cap_to_object (activity, &cap);
+	o = vg_cap_to_object (activity, &cap);
 	assert (! o);
       }
   }
@@ -114,7 +114,7 @@ test (void)
   int i;
   for (i = 0; i < 10; i ++)
     {
-      struct folio *f = folio_alloc (root_activity, FOLIO_POLICY_DEFAULT);
+      struct folio *f = folio_alloc (root_activity, VG_FOLIO_POLICY_DEFAULT);
       assert (f);
 
       try (root_activity, f, 4);

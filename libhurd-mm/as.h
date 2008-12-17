@@ -35,11 +35,11 @@
    are allocated as well.  */
 
 /* Allocate COUNT contiguous subtree such that the root's depth of
-   each is at least ADDR_BITS - WIDTH.  If DATA_MAPPABLE is true, then
+   each is at least VG_ADDR_BITS - WIDTH.  If DATA_MAPPABLE is true, then
    ensures that the leaves of each subtree are mappable in the region
    accessible to data instructions.  On success returns the address of
-   the first subtree.  Otherwise, returns ADDR_VOID.  */
-extern addr_t as_alloc (int width, uint64_t count,
+   the first subtree.  Otherwise, returns VG_ADDR_VOID.  */
+extern vg_addr_t as_alloc (int width, uint64_t count,
 			bool data_mappable);
 
 /* Like as_alloc but may be called before as_init is called.  Address
@@ -49,14 +49,14 @@ extern struct hurd_object_desc *as_alloc_slow (int width);
 
 /* Allocate the COUNT contiguous addresses strating at address ADDR.
    Returns true on success, false otherwise.  */
-extern bool as_alloc_at (addr_t addr, uint64_t count);
+extern bool as_alloc_at (vg_addr_t addr, uint64_t count);
 
-/* Free the COUNT contiguous addresses starting at ADDR.  Each ADDR
+/* Free the COUNT contiguous addresses starting at VG_ADDR.  Each ADDR
    must have been previously returned by a call to as_chunk_alloc or
    as_region_alloc.  All address returned by a call to as_chunk_alloc
    or as_region_alloc need not be freed by a single call to
    as_free.  */
-extern void as_free (addr_t addr, uint64_t count);
+extern void as_free (vg_addr_t addr, uint64_t count);
 
 /* Whether as_init has completed.  */
 extern bool as_init_done;
@@ -187,7 +187,7 @@ as_unlock (void)
 extern activity_t meta_data_activity;
 
 /* The root of the shadow page tables.  */
-extern struct cap shadow_root;
+extern struct vg_cap shadow_root;
 #endif
 
 #if defined (RM_INTERN) || defined (NDEBUG)
@@ -201,7 +201,7 @@ extern struct cap shadow_root;
   do									\
     {									\
       uintptr_t __acs_type = -1;					\
-      struct cap_properties __acs_p;					\
+      struct vg_cap_properties __acs_p;					\
       error_t __acs_err;						\
 									\
       __acs_err = rm_cap_read (meta_data_activity,			\
@@ -211,7 +211,7 @@ extern struct cap shadow_root;
       bool die = false;							\
       if (__acs_err)							\
 	die = true;							\
-      else if (__acs_type == cap_void)					\
+      else if (__acs_type == vg_cap_void)					\
 	/* The kernel's type is void.  Either the shadow has not yet	\
 	   been updated or the object is dead.  */			\
 	;								\
@@ -221,26 +221,26 @@ extern struct cap shadow_root;
 		  && (!!__acs_p.policy.discardable			\
 		      == !!(__acs_cap)->discardable)))			\
 	die = true;							\
-      else if ((__acs_type == cap_cappage || __acs_type == cap_rcappage) \
+      else if ((__acs_type == vg_cap_cappage || __acs_type == vg_cap_rcappage) \
 	       && __acs_p.addr_trans.raw != (__acs_cap)->addr_trans.raw) \
 	die = true;							\
 									\
       if (die)								\
 	{								\
 	  debug (0,							\
-		 ADDR_FMT "@" ADDR_FMT ": err: %d; type: %s =? %s; "	\
+		 VG_ADDR_FMT "@" VG_ADDR_FMT ": err: %d; type: %s =? %s; "	\
 		 "guard: %lld/%d =? %lld/%d; subpage: %d/%d =? %d/%d; "	\
 		 "priority: %d =? %d; discardable: %d =? %d",		\
-		 ADDR_PRINTF ((__acs_root_addr)), ADDR_PRINTF ((__acs_addr)), \
+		 VG_ADDR_PRINTF ((__acs_root_addr)), VG_ADDR_PRINTF ((__acs_addr)), \
 		 __acs_err,						\
-		 cap_type_string ((__acs_cap)->type),			\
-		 cap_type_string (__acs_type),				\
-		 CAP_GUARD ((__acs_cap)), CAP_GUARD_BITS ((__acs_cap)),	\
-		 CAP_ADDR_TRANS_GUARD (__acs_p.addr_trans),		\
-		 CAP_ADDR_TRANS_GUARD_BITS (__acs_p.addr_trans),	\
-		 CAP_SUBPAGE ((__acs_cap)), CAP_SUBPAGES_LOG2 ((__acs_cap)), \
-		 CAP_ADDR_TRANS_SUBPAGE (__acs_p.addr_trans),		\
-		 CAP_ADDR_TRANS_SUBPAGES_LOG2 (__acs_p.addr_trans),	\
+		 vg_cap_type_string ((__acs_cap)->type),			\
+		 vg_cap_type_string (__acs_type),				\
+		 VG_CAP_GUARD ((__acs_cap)), VG_CAP_GUARD_BITS ((__acs_cap)),	\
+		 VG_CAP_ADDR_TRANS_GUARD (__acs_p.addr_trans),		\
+		 VG_CAP_ADDR_TRANS_GUARD_BITS (__acs_p.addr_trans),	\
+		 VG_CAP_SUBPAGE ((__acs_cap)), VG_CAP_SUBPAGES_LOG2 ((__acs_cap)), \
+		 VG_CAP_ADDR_TRANS_SUBPAGE (__acs_p.addr_trans),		\
+		 VG_CAP_ADDR_TRANS_SUBPAGES_LOG2 (__acs_p.addr_trans),	\
 		 (__acs_cap)->priority, __acs_p.policy.priority,	\
 		 !!(__acs_cap)->discardable, !!__acs_p.policy.discardable); \
 	  {								\
@@ -258,7 +258,7 @@ extern struct cap shadow_root;
   do								\
     {								\
       if ((__acs_root_cap) == &shadow_root)			\
-	AS_CHECK_SHADOW(ADDR_VOID, (__acs_addr), (__acs_cap),	\
+	AS_CHECK_SHADOW(VG_ADDR_VOID, (__acs_addr), (__acs_cap),	\
 			(__acs_code));				\
     }								\
   while (0)
@@ -266,21 +266,21 @@ extern struct cap shadow_root;
 
 struct as_allocate_pt_ret
 {
-  struct cap cap;
-  addr_t storage;
+  struct vg_cap cap;
+  vg_addr_t storage;
 };
 
 /* Page table allocator used by as_build.  */
-typedef struct as_allocate_pt_ret (*as_allocate_page_table_t) (addr_t addr);
+typedef struct as_allocate_pt_ret (*as_allocate_page_table_t) (vg_addr_t addr);
 
-/* Default page table allocator.  Allocates a cap_cappage and the
+/* Default page table allocator.  Allocates a vg_cap_cappage and the
    accompanying shadow page table.  */
-extern struct as_allocate_pt_ret as_allocate_page_table (addr_t addr);
+extern struct as_allocate_pt_ret as_allocate_page_table (vg_addr_t addr);
 
 
 /* Build up the address space, which is root at AS_ROOT_ADDR (and
    shadowed by AS_ROOT_CAP), such that there is a capability slot at
-   address ADDR.  Return the shadow capability.
+   address VG_ADDR.  Return the shadow capability.
 
    If MAY_OVERWRITE is true, the function is permitted to overwrite an
    existing capability.  Otherwise, only capability slots containing a
@@ -294,9 +294,9 @@ extern struct as_allocate_pt_ret as_allocate_page_table (addr_t addr);
 
    Must be called with a write lock on AS_LOCK.  Must be called with
    8kb of stack that will not fault.  */
-struct cap *as_build (activity_t activity,
-		      addr_t as_root_addr, struct cap *as_root_cap,
-		      addr_t addr,
+struct vg_cap *as_build (activity_t activity,
+		      vg_addr_t as_root_addr, struct vg_cap *as_root_cap,
+		      vg_addr_t addr,
 		      as_allocate_page_table_t allocate_page_table,
 		      bool may_overwrite);
 
@@ -306,21 +306,21 @@ struct cap *as_build (activity_t activity,
    is implicit (in the case of a folio), return a fabricated
    capability in *FAKE_SLOT and return FAKE_SLOT.  Return NULL on
    failure.  */
-typedef struct cap *(*as_object_index_t) (activity_t activity,
-					  struct cap *pt,
-					  addr_t pt_addr, int idx,
-					  struct cap *fake_slot);
+typedef struct vg_cap *(*as_object_index_t) (activity_t activity,
+					  struct vg_cap *pt,
+					  vg_addr_t pt_addr, int idx,
+					  struct vg_cap *fake_slot);
 
 /* Like as_buildup, but using a custom shadow page table
    implementation.  */
-struct cap *as_build_custom (activity_t activity,
-			     addr_t as_root_addr, struct cap *as_root_cap,
-			     addr_t addr,
+struct vg_cap *as_build_custom (activity_t activity,
+			     vg_addr_t as_root_addr, struct vg_cap *as_root_cap,
+			     vg_addr_t addr,
 			     as_allocate_page_table_t allocate_page_table,
 			     as_object_index_t object_index,
 			     bool may_overwrite);
 
-/* Ensure that the slot designated by ADDR in the address space rooted
+/* Ensure that the slot designated by VG_ADDR in the address space rooted
    at AS_ROOT_ADDR (which is shadowed by AS_ROOT_CAP) is accessible by
    allocating any required page tables and rearranging the address
    space as necessary.  Execute CODE (with AS_LOCK held) with the
@@ -334,15 +334,15 @@ struct cap *as_build_custom (activity_t activity,
   do									\
     {									\
       activity_t __asef_activity = (__asef_activity_);			\
-      addr_t __asef_as_root_addr = (__asef_as_root_addr_);		\
-      struct cap *__asef_as_root_cap = (__asef_as_root_cap_);		\
-      addr_t __asef_addr = (__asef_addr_);				\
+      vg_addr_t __asef_as_root_addr = (__asef_as_root_addr_);		\
+      struct vg_cap *__asef_as_root_cap = (__asef_as_root_cap_);		\
+      vg_addr_t __asef_addr = (__asef_addr_);				\
       as_allocate_page_table_t __asef_allocate_page_table		\
 	= (__asef_allocate_page_table_);				\
 									\
       as_lock ();							\
 									\
-      struct cap *slot = as_build (__asef_activity,			\
+      struct vg_cap *slot = as_build (__asef_activity,			\
 				   __asef_as_root_addr,			\
 				   __asef_as_root_cap,			\
 				   __asef_addr,				\
@@ -365,10 +365,10 @@ struct cap *as_build_custom (activity_t activity,
     {									\
       assert (as_init_done);						\
 									\
-      addr_t __ase_as_addr = (__ase_as_addr_);				\
+      vg_addr_t __ase_as_addr = (__ase_as_addr_);				\
 									\
       as_ensure_full (meta_data_activity,				\
-		      ADDR_VOID, &shadow_root,				\
+		      VG_ADDR_VOID, &shadow_root,				\
 		      __ase_as_addr,					\
 		      as_allocate_page_table,				\
 		      (__ase_code));					\
@@ -378,7 +378,7 @@ struct cap *as_build_custom (activity_t activity,
 /* Like as_ensure_use, however, does not execute any code.  */
 #define as_ensure(__ae_addr)				\
   as_ensure_full (meta_data_activity,			\
-		  ADDR_VOID, &shadow_root, __ae_addr,	\
+		  VG_ADDR_VOID, &shadow_root, __ae_addr,	\
 		  as_allocate_page_table,		\
 		  ({;}))
 #endif
@@ -397,10 +397,10 @@ struct cap *as_build_custom (activity_t activity,
    accompanying shadow page tables.  See as_build for details.  */
 static inline void
 as_insert_full (activity_t activity,
-		addr_t target_as_root_addr, struct cap *target_as_root_cap,
-		addr_t target_addr,
-		addr_t source_as_root_addr, 
-		addr_t source_addr, struct cap source_cap,
+		vg_addr_t target_as_root_addr, struct vg_cap *target_as_root_cap,
+		vg_addr_t target_addr,
+		vg_addr_t source_as_root_addr, 
+		vg_addr_t source_addr, struct vg_cap source_cap,
 		as_allocate_page_table_t allocate_page_table)
 {
   AS_CHECK_SHADOW (source_as_root_addr, source_addr, &source_cap, {});
@@ -411,7 +411,7 @@ as_insert_full (activity_t activity,
 		  allocate_page_table,
 		  ({
 		    bool ret;
-		    ret = cap_copy (activity,
+		    ret = vg_cap_copy (activity,
 				    target_as_root_addr,
 				    slot,
 				    target_addr,
@@ -419,24 +419,24 @@ as_insert_full (activity_t activity,
 				    source_cap,
 				    source_addr);
 		    assertx (ret,
-			     ADDR_FMT "@" ADDR_FMT
-			     " <- " ADDR_FMT "@" ADDR_FMT " (" CAP_FMT ")",
-			     ADDR_PRINTF (target_as_root_addr),
-			     ADDR_PRINTF (target_addr),
-			     ADDR_PRINTF (source_as_root_addr),
-			     ADDR_PRINTF (source_addr),
-			     CAP_PRINTF (&source_cap));
+			     VG_ADDR_FMT "@" VG_ADDR_FMT
+			     " <- " VG_ADDR_FMT "@" VG_ADDR_FMT " (" VG_CAP_FMT ")",
+			     VG_ADDR_PRINTF (target_as_root_addr),
+			     VG_ADDR_PRINTF (target_addr),
+			     VG_ADDR_PRINTF (source_as_root_addr),
+			     VG_ADDR_PRINTF (source_addr),
+			     VG_CAP_PRINTF (&source_cap));
 		  }));
 }
 
 #ifndef RM_INTERN
 static inline void
-as_insert (addr_t target_addr, 
-	   addr_t source_addr, struct cap source_cap)
+as_insert (vg_addr_t target_addr, 
+	   vg_addr_t source_addr, struct vg_cap source_cap)
 {
   as_insert_full (meta_data_activity,
-		  ADDR_VOID, &shadow_root, target_addr,
-		  ADDR_VOID, source_addr, source_cap,
+		  VG_ADDR_VOID, &shadow_root, target_addr,
+		  VG_ADDR_VOID, source_addr, source_cap,
 		  as_allocate_page_table);
 }
 #endif
@@ -445,26 +445,26 @@ as_insert (addr_t target_addr,
 #ifndef RM_INTERN
 /* Variant of as_ensure_full that doesn't assume the default shadow
    page table format but calls OBJECT_INDEX to index objects.  */
-extern struct cap *as_ensure_full_custom
+extern struct vg_cap *as_ensure_full_custom
   (activity_t activity,
-   addr_t as, struct cap *root, addr_t addr,
+   vg_addr_t as, struct vg_cap *root, vg_addr_t addr,
    as_allocate_page_table_t allocate_page_table,
    as_object_index_t object_index);
 
 /* Variant of as_insert that doesn't assume the default shadow page
    table format but calls OBJECT_INDEX to index objects.  */
-extern struct cap *as_insert_custom
+extern struct vg_cap *as_insert_custom
   (activity_t activity,
-   addr_t target_as, struct cap *t_as_cap, addr_t target,
-   addr_t source_as, struct cap c_cap, addr_t source,
+   vg_addr_t target_as, struct vg_cap *t_as_cap, vg_addr_t target,
+   vg_addr_t source_as, struct vg_cap c_cap, vg_addr_t source,
    as_allocate_page_table_t allocate_page_table,
    as_object_index_t object_index);
 #endif
 
 union as_lookup_ret
 {
-  struct cap cap;
-  struct cap *capp;
+  struct vg_cap cap;
+  struct vg_cap *capp;
 };
 
 enum as_lookup_mode
@@ -497,8 +497,8 @@ enum as_lookup_mode
    On success, whether the slot or the object is writable is returned
    in *WRITABLE.  */
 extern bool as_lookup_rel (activity_t activity,
-			   struct cap *as_root_cap, addr_t addr,
-			   enum cap_type type, bool *writable,
+			   struct vg_cap *as_root_cap, vg_addr_t addr,
+			   enum vg_cap_type type, bool *writable,
 			   enum as_lookup_mode mode,
 			   union as_lookup_ret *ret);
 
@@ -513,8 +513,8 @@ extern bool as_lookup_rel (activity_t activity,
 			       __alru_code)				\
   ({									\
     activity_t __alru_activity = (__alru_activity_);			\
-    struct cap *__alru_root = (__alru_root_);				\
-    addr_t __alru_addr = (__alru_addr_);				\
+    struct vg_cap *__alru_root = (__alru_root_);				\
+    vg_addr_t __alru_addr = (__alru_addr_);				\
 									\
     union as_lookup_ret __alru_ret_val;					\
 									\
@@ -527,7 +527,7 @@ extern bool as_lookup_rel (activity_t activity,
 				     &__alru_ret_val);			\
     if (__alru_ret)							\
       {									\
-	struct cap *slot __attribute__ ((unused)) = __alru_ret_val.capp; \
+	struct vg_cap *slot __attribute__ ((unused)) = __alru_ret_val.capp; \
 	(__alru_code);							\
 									\
 	AS_CHECK_SHADOW2(__alru_root, __alru_addr, slot, {});		\
@@ -553,15 +553,15 @@ extern bool as_lookup_rel (activity_t activity,
    space rooted by ROOT.
 
    TYPE is the required type.  If the type is incompatible
-   (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
+   (vg_cap_rcappage => vg_cap_cappage and vg_cap_rpage => vg_cap_page), bails.  If
    TYPE is -1, then any type is acceptable.  May cause paging.  If
    non-NULL, returns whether the slot is writable in *WRITABLE.
 
    This function locks (and unlocks) as_lock.  */
-static inline struct cap
+static inline struct vg_cap
 as_cap_lookup_rel (activity_t activity,
-		   struct cap *root, addr_t addr,
-		   enum cap_type type, bool *writable)
+		   struct vg_cap *root, vg_addr_t addr,
+		   enum vg_cap_type type, bool *writable)
 {
   union as_lookup_ret ret_val;
 
@@ -576,15 +576,15 @@ as_cap_lookup_rel (activity_t activity,
   as_unlock ();
 
   if (! ret)
-    return (struct cap) { .type = cap_void };
+    return (struct vg_cap) { .type = vg_cap_void };
 
   return ret_val.cap;
 }
 
 
 #ifndef RM_INTERN
-static inline struct cap
-as_cap_lookup (addr_t addr, enum cap_type type, bool *writable)
+static inline struct vg_cap
+as_cap_lookup (vg_addr_t addr, enum vg_cap_type type, bool *writable)
 {
   return as_cap_lookup_rel (meta_data_activity,
 			    &shadow_root, addr, -1, writable);
@@ -598,15 +598,15 @@ as_cap_lookup (addr_t addr, enum cap_type type, bool *writable)
    than the object itself.
 
    TYPE is the required type.  If the type is incompatible
-   (cap_rcappage => cap_cappage and cap_rpage => cap_page), bails.  If
+   (vg_cap_rcappage => vg_cap_cappage and vg_cap_rpage => vg_cap_page), bails.  If
    TYPE is -1, then any type is acceptable.  May cause paging.  If
    non-NULL, returns whether the object is writable in *WRITABLE.
 
    This function locks (and unlocks) as_lock.  */
-static inline struct cap
+static inline struct vg_cap
 as_object_lookup_rel (activity_t activity,
-		      struct cap *root, addr_t addr,
-		      enum cap_type type, bool *writable)
+		      struct vg_cap *root, vg_addr_t addr,
+		      enum vg_cap_type type, bool *writable)
 {
   union as_lookup_ret ret_val;
 
@@ -621,15 +621,15 @@ as_object_lookup_rel (activity_t activity,
   as_unlock ();
 
   if (! ret)
-    return (struct cap) { .type = cap_void };
+    return (struct vg_cap) { .type = vg_cap_void };
 
   return ret_val.cap;
 }
 
 
 #ifndef RM_INTERN
-static inline struct cap
-as_object_lookup (addr_t addr, enum cap_type type, bool *writable)
+static inline struct vg_cap
+as_object_lookup (vg_addr_t addr, enum vg_cap_type type, bool *writable)
 {
   return as_object_lookup_rel (meta_data_activity,
 			       &shadow_root, addr, -1, writable);
@@ -638,11 +638,11 @@ as_object_lookup (addr_t addr, enum cap_type type, bool *writable)
 
 /* Print the path taken to get to the slot at address ADDRESS.  */
 extern void as_dump_path_rel (activity_t activity,
-			      struct cap *root, addr_t addr);
+			      struct vg_cap *root, vg_addr_t addr);
 
 #ifndef RM_INTERN
 static inline void
-as_dump_path (addr_t addr)
+as_dump_path (vg_addr_t addr)
 {
   as_dump_path_rel (meta_data_activity, &shadow_root, addr);
 }
@@ -655,16 +655,16 @@ as_dump_path (addr_t addr)
    properties.  WRITABLE is whether the slot is writable.  If VISIT
    returns a non-zero value, the walk is aborted and that value is
    returned.  If the walk is not aborted, 0 is returned.  */
-extern int as_walk (int (*visit) (addr_t cap,
+extern int as_walk (int (*visit) (vg_addr_t cap,
 				  uintptr_t type,
-				  struct cap_properties properties,
+				  struct vg_cap_properties properties,
 				  bool writable,
 				  void *cookie),
 		    int types,
 		    void *cookie);
 
 /* AS_LOCK must not be held.  */
-extern void as_dump_from (activity_t activity, struct cap *root,
+extern void as_dump_from (activity_t activity, struct vg_cap *root,
 			  const char *prefix);
 
 #ifndef RM_INTERN
