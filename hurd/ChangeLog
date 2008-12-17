@@ -1,5 +1,12 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.h: Merge contents of this file...
+	* thread.h: ... into this one.  Update users.
+	* headers.m4: Don't link hurd/exceptions.h.
+	* Makefile.am (includehurd_HEADERS): Remove exceptions.h.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* rmutex.h (__need_vg_thread_id_t): Don't include <l4/thread.h>.
 	Define __need_vg_thread_id_t and include <viengoos/thread.h>.
 	(struct ss_rmutex): Change owner to a vg_thread_id_t.

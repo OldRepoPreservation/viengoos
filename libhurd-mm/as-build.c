@@ -25,7 +25,8 @@
 #include <viengoos/cap.h>
 #include <hurd/stddef.h>
 #include <viengoos/folio.h>
-#include <hurd/exceptions.h>
+#include <viengoos/thread.h>
+#include <viengoos/messenger.h>
 #include <hurd/as.h>
 #include <viengoos/misc.h>
 

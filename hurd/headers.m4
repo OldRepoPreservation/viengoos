@@ -13,7 +13,6 @@
 AC_CONFIG_LINKS([sysroot/include/hurd/stddef.h:hurd/stddef.h
 		 sysroot/include/hurd/types.h:hurd/types.h
 		 sysroot/include/hurd/startup.h:hurd/startup.h
-		 sysroot/include/hurd/exceptions.h:hurd/exceptions.h
 		 sysroot/include/hurd/thread.h:hurd/thread.h
 		 sysroot/include/hurd/lock.h:hurd/lock.h
 		 sysroot/include/hurd/trace.h:hurd/trace.h

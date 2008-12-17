@@ -1,5 +1,19 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.h: Don't include <hurd/exceptions.h>.
+	* as.h: Likewise.
+	* exceptions.c: Likewise.
+	* map.h: Likewise.
+	* message-buffer.c: Likewise.
+	* mm-init.c: Likewise.
+	* as-build.c: Don't include <hurd/exceptions.h>.  Include
+	<viengoos/thread.h> and <viengoos/messenger.h>.
+	* as-dump.c: Include <viengoos/thread.h> and
+	<viengoos/messenger.h>.
+	* as-lookup.c: Likewise.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* ia32-exception-entry.S: Don't include <hurd/exceptions.h>.
 	Include <hurd/stddef.h>.
 

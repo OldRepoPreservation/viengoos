@@ -32,7 +32,6 @@
     return count;
 
 #else
-# include <hurd/exceptions.h>
 # include <hurd/thread.h>
 # include <setjmp.h>
 

@@ -24,7 +24,6 @@
 
 #include <viengoos/addr.h>
 #include <viengoos/cap.h>
-#include <hurd/exceptions.h>
 #include <stdbool.h>
 #include <l4/types.h>
 

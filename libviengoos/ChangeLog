@@ -1,5 +1,9 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos/misc.h: Don't include <hurd/exceptions.h>.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos/activity.h: Add a "vg_" to public viengoos identifiers.
 	Update users.
 	* viengoos/addr-trans.h: Likewise.

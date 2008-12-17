@@ -20,7 +20,6 @@
 
 #include <hurd/startup.h>
 #include <hurd/stddef.h>
-#include <hurd/exceptions.h>
 #include <hurd/storage.h>
 #include <hurd/thread.h>
 #include <hurd/mm.h>

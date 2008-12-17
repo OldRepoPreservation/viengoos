@@ -18,6 +18,5 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 includehurddir = $(includedir)/hurd
-includehurd_HEADERS = startup.h stddef.h types.h \
-	exceptions.h thread.h \
+includehurd_HEADERS = startup.h stddef.h types.h thread.h \
 	lock.h mutex.h rmutex.h error.h trace.h

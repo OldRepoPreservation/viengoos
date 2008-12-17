@@ -1,5 +1,9 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* backtrace.c: Don't include <hurd/exceptions.h>.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* panic.c: Include <backtrace.h>
 	(panic_): Use backtrace print.
 	* _exit.c: Include <backtrace.h>

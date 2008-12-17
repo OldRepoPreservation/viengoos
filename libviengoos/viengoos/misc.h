@@ -23,7 +23,6 @@
 
 #include <hurd/startup.h>
 #include <viengoos/folio.h>
-#include <hurd/exceptions.h>
 #include <viengoos/thread.h>
 #include <viengoos/activity.h>
 #include <viengoos/futex.h>

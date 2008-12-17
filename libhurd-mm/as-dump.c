@@ -20,6 +20,8 @@
 
 #include <viengoos/cap.h>
 #include <viengoos/folio.h>
+#include <viengoos/thread.h>
+#include <viengoos/messenger.h>
 #include <hurd/as.h>
 #include <hurd/stddef.h>
 #include <assert.h>

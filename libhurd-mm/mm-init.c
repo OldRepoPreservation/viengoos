@@ -24,7 +24,6 @@
 #endif
 
 #include <hurd/startup.h>
-#include <hurd/exceptions.h>
 #include <hurd/thread.h>
 
 #ifdef i386

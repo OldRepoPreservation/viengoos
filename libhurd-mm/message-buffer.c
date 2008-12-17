@@ -24,7 +24,6 @@
 #include <hurd/as.h>
 #include <hurd/startup.h>
 #include <hurd/capalloc.h>
-#include <hurd/exceptions.h>
 
 extern struct hurd_startup_data *__hurd_startup_data;      
 

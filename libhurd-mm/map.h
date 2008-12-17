@@ -133,8 +133,6 @@ BTREE_CLASS (map, struct map, struct region, region, node,
    lock.  */
 extern hurd_btree_map_t maps;
 
-#include <hurd/exceptions.h>
-
 /* Ensure that using the next AMOUNT bytes of stack will not result in
    a fault.  */
 static void __attribute__ ((noinline))
