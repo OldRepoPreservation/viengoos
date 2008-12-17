@@ -22,7 +22,7 @@ viengoos_headers = addr.h addr-trans.h cap.h			\
 	thread.h folio.h activity.h futex.h messenger.h		\
 	message.h ipc.h						\
 	rpc.h							\
-	misc.h
+	math.h misc.h
 
 nobase_include_HEADERS = viengoos.h				\
 	$(addprefix viengoos/, $(viengoos_headers))

@@ -1,5 +1,12 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos/math.h: Move from ../hurd.  Rewrite to use gcc builtin
+	functions.
+	* Makefile.am (viengoos_headers): Add math.h.
+	* headers.m4: Link viengoos/math.h.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am: New file.
 	* headers.m4: Likewise.
 	* t-addr-trans.c: Move from ../hurd.

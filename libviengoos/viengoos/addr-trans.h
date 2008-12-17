@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 #include <hurd/stddef.h>
-#include <hurd/math.h>
+#include <viengoos/math.h>
 
 /* Capabilities have two primary functions: they designate objects and
    they participate in address translation.  This structure controls

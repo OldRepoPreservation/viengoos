@@ -23,6 +23,7 @@ AC_CONFIG_LINKS([
   sysroot/include/viengoos/message.h:libviengoos/viengoos/message.h
   sysroot/include/viengoos/ipc.h:libviengoos/viengoos/ipc.h
   sysroot/include/viengoos/rpc.h:libviengoos/viengoos/rpc.h
+  sysroot/include/viengoos/math.h:libviengoos/viengoos/math.h
   sysroot/include/viengoos/misc.h:libviengoos/viengoos/misc.h
 ])
 

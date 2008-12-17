@@ -23,7 +23,7 @@
 #define _VIENGOOS_ADDR_H 1
 
 #include <hurd/types.h>
-#include <hurd/math.h>
+#include <viengoos/math.h>
 #include <stdint.h>
 
 #include <assert.h>
