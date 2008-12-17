@@ -88,8 +88,8 @@ static int iter;
 
 #ifdef __gnu_hurd_viengoos__
 #include <hurd/storage.h>
-#include <hurd/cap.h>
-#include <hurd/activity.h>
+#include <viengoos/cap.h>
+#include <viengoos/activity.h>
 #include <pthread.h>
 #include <hurd/anonymous.h>
 #include <string.h>

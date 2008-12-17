@@ -24,9 +24,9 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
-#include <hurd/cap.h>
-#include <hurd/messenger.h>
-#include <hurd/message.h>
+#include <viengoos/cap.h>
+#include <viengoos/messenger.h>
+#include <viengoos/message.h>
 
 #ifndef NDEBUG
 #include "../viengoos/list.h"

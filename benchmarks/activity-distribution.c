@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <assert.h>
 
-#include <hurd/activity.h>
+#include <viengoos/activity.h>
 #include <hurd/storage.h>
 #include <hurd/startup.h>
 #include <hurd/anonymous.h>

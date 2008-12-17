@@ -1,3 +1,10 @@
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* libviengoos: New directory.
+	* Makefile.am (SUBDIRS): Add libviengoos.
+	* configure.ac: Include libviengoos/headers.m4.  Generate
+	libviengoos/Makefile.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* README: Move build requirements prior to build instructions.

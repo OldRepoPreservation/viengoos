@@ -19,8 +19,8 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#ifndef _HURD_ADDR_H
-#define _HURD_ADDR_H 1
+#ifndef _VIENGOOS_ADDR_H
+#define _VIENGOOS_ADDR_H 1
 
 #include <hurd/types.h>
 #include <hurd/math.h>

@@ -22,17 +22,17 @@
 #include <config.h>
 #endif
 
+#include <viengoos/cap.h>
+#include <viengoos/folio.h>
+#include <viengoos/activity.h>
+#include <viengoos/futex.h>
 #include <hurd/thread.h>
 #include <hurd/startup.h>
-#include <hurd/cap.h>
-#include <hurd/folio.h>
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 #include <hurd/stddef.h>
 #include <hurd/capalloc.h>
 #include <hurd/as.h>
 #include <hurd/storage.h>
-#include <hurd/activity.h>
-#include <hurd/futex.h>
 #include <hurd/anonymous.h>
 
 #include <bit-array.h>
@@ -1068,6 +1068,8 @@ main (int argc, char *argv[])
 	assert (! "Didn't fault!?");
       }
     assert (faulted);
+
+    printf ("ok.\n");
   }
 
   debug (1, DEBUG_BOLD ("\n\nAll tests ran successfully to completion!\n\n"));

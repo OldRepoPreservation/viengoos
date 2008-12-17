@@ -20,15 +20,15 @@
 
 #include <l4.h>
 #include <l4/pagefault.h>
-#include <hurd/cap.h>
+#include <viengoos/cap.h>
 #include <hurd/stddef.h>
 #include <hurd/exceptions.h>
-#include <hurd/thread.h>
-#include <hurd/activity.h>
-#include <hurd/futex.h>
+#include <viengoos/thread.h>
+#include <viengoos/activity.h>
+#include <viengoos/futex.h>
 #include <hurd/trace.h>
 #include <hurd/as.h>
-#include <hurd/ipc.h>
+#include <viengoos/ipc.h>
 
 #include "server.h"
 

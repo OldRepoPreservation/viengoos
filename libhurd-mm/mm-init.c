@@ -25,6 +25,7 @@
 
 #include <hurd/startup.h>
 #include <hurd/exceptions.h>
+#include <hurd/thread.h>
 
 #ifdef i386
 #include <hurd/pager.h>
@@ -87,7 +88,7 @@ mm_init (addr_t activity)
       assert (a == (void *) (fault_addr & ~(PAGESIZE - 1)));
       assert (count == 1);
 
-      struct vg_utcb *utcb = hurd_utcb ();
+      struct hurd_utcb *utcb = hurd_utcb ();
       struct activation_frame *activation_frame = utcb->activation_stack;
       debug (4, "Fault at %p (ip: %p, sp: %p, eax: %p, "
 	     "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, ebp: %p, "

@@ -23,8 +23,8 @@
 
 #include <l4.h>
 #include <errno.h>
-#include <hurd/cap.h>
-#include <hurd/thread.h>
+#include <viengoos/cap.h>
+#include <viengoos/thread.h>
 
 /* Forward.  */
 struct activity;

@@ -22,8 +22,8 @@
 #ifndef _HURD_STORAGE_H
 #define _HURD_STORAGE_H
 
-#include <hurd/addr.h>
-#include <hurd/cap.h>
+#include <viengoos/addr.h>
+#include <viengoos/cap.h>
 
 enum storage_expectancy
   {

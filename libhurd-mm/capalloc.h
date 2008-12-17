@@ -22,7 +22,7 @@
 #ifndef _HURD_CAP_ALLOC_H
 #define _HURD_CAP_ALLOC_H
 
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 
 /* Allocate a capability slot.  */
 extern addr_t capalloc (void);

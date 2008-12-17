@@ -23,7 +23,7 @@
 
 # include <stdint.h>
 # include <stdbool.h>
-# include <hurd/addr.h>
+# include <viengoos/addr.h>
 
 /* Forward.  */
 struct vg_message;

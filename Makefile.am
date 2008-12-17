@@ -31,7 +31,7 @@ else
 endif
 
 if TRAVERSE_HIERARCHY
-SUBDIRS = libl4 platform				\
+SUBDIRS = libl4 libviengoos platform			\
 	$(LIBC_SUBDIRS)	$(NEWLIB_SUBDIRS)		\
 	hurd libhurd-ihash libhurd-btree libbitarray	\
 	libhurd-slab					\

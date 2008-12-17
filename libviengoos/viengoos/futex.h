@@ -19,7 +19,7 @@
 #ifndef _HURD_FUTEX_H
 #define _HURD_FUTEX_H 1
 
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 #include <hurd/startup.h>
 #include <hurd/error.h>
 #include <stdbool.h>
@@ -39,7 +39,7 @@ enum
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
 
-#include <hurd/rpc.h>
+#include <viengoos/rpc.h>
 
 /* Operations.  */
 enum

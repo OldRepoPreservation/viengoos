@@ -1,3 +1,39 @@
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* activity.h: Move to ../libviengoos/viengoos.  Update references.
+	* addr-trans.h: Likewise.
+	* addr.h: Likewise.
+	* cap.h: Likewise.
+	* folio.h: Likewise.
+	* futex.h: Likewise.
+	* ipc.h: Likewise.
+	* message.h: Likewise.
+	* messenger.h: Likewise.
+	* rpc.h: Likewise.
+	* thread.h: Move viengoos specific bits...
+	* ../libviengoos/viengoos/thread.h: ... to this new file.
+	* thread.h (struct hurd_utcb): New structure.
+	* exceptions.h (hurd_utcb): Use a struct hurd_utcb *, not a
+	struct vg_utcb *.  Update users.
+	(hurd_activation_state_alloc): Likewise.
+	(hurd_activation_state_free): Likewise.
+	(hurd_activation_handler_activated): Likewise.
+	(hurd_activation_handler_normal): Likewise.
+	* t-addr-trans.c: Move to ../libviengoos.
+	* t-addr.c: Likewise.
+	* t-rpc.c: Likewise.
+	* Makefile.am (TESTS, check_PROGRAMS, t_addr_CPPFLAGS)
+	(t_addr_SOURCES, t_addr_trans_CPPFLAGS, t_addr_trans_SOURCES)
+	(t_rpc_CPPFLAGS, t_rpc_SOURCES): Move from this file...
+	* ../libviengoos/Makefile.am.
+	* Makefile.am (includehurd_HEADERS): Don't mention activity.h,
+	addr-trans.h, addr.h, cap.h, folio.h, futex.h, ipc.h, message.h or
+	messenger.h.
+	* headers.m4: Don't create a link to hurd/addr.h,
+	hurd/addr-trans.h, hurd/cap.h, hurd/folio.h, hurd/rpc.h,
+	hurd/activity.h, hurd/futex.h, hurd/message.h, hurd/messenger.h or
+	hurd/ipc.h.
+	
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (struct vg_utcb): Remove field saved_thread_state.

@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 
 #include "fd.h"
 

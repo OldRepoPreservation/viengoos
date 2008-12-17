@@ -18,8 +18,8 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#include <hurd/cap.h>
-#include <hurd/folio.h>
+#include <viengoos/cap.h>
+#include <viengoos/folio.h>
 #include <hurd/as.h>
 #include <hurd/stddef.h>
 #include <assert.h>

@@ -18,12 +18,10 @@
    License along with GNU Hurd.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#ifndef _HURD_ACTIVITY_H
-#define _HURD_ACTIVITY_H 1
+#ifndef _VIENGOOS_ACTIVITY_H
+#define _VIENGOOS_ACTIVITY_H 1
 
-#include <hurd/types.h>
-#include <hurd/startup.h>
-#include <hurd/addr.h>
+#include <stdint.h>
 
 enum
   {
@@ -170,7 +168,7 @@ struct activity_stats
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
 
-#include <hurd/rpc.h>
+#include <viengoos/rpc.h>
 
 enum
 {

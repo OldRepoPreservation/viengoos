@@ -23,10 +23,10 @@
 #include <hurd/stddef.h>
 #include <hurd/btree.h>
 #include <hurd/slab.h>
-#include <hurd/addr.h>
-#include <hurd/folio.h>
+#include <viengoos/addr.h>
+#include <viengoos/folio.h>
 #include <hurd/startup.h>
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 #include <hurd/mutex.h>
 #include <backtrace.h>
 

@@ -22,9 +22,9 @@
 #include <string.h>
 #include <hurd/stddef.h>
 #include <hurd/ihash.h>
-#include <hurd/folio.h>
-#include <hurd/thread.h>
-#include <hurd/messenger.h>
+#include <viengoos/folio.h>
+#include <viengoos/thread.h>
+#include <viengoos/messenger.h>
 #include <bit-array.h>
 #include <assert.h>
 

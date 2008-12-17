@@ -31,8 +31,8 @@
 
 #ifdef __gnu_hurd_viengoos__
 # include <l4.h>
-# include <hurd/rm.h>
-#  include <s-printf.h>
+# include <viengoos/misc.h>
+# include <s-printf.h>
 #else
 # include <pthread.h>
 # include <sys/time.h>

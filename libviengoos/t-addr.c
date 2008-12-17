@@ -20,7 +20,7 @@
 
 #include <hurd/stddef.h>
 #include <hurd/types.h>
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 #include <assert.h>
 #include <l4/math.h>
 

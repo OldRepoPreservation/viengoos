@@ -13,23 +13,13 @@
 AC_CONFIG_LINKS([sysroot/include/hurd/stddef.h:hurd/stddef.h
 		 sysroot/include/hurd/types.h:hurd/types.h
 		 sysroot/include/hurd/startup.h:hurd/startup.h
-		 sysroot/include/hurd/addr.h:hurd/addr.h
-		 sysroot/include/hurd/addr-trans.h:hurd/addr-trans.h
-		 sysroot/include/hurd/cap.h:hurd/cap.h
-		 sysroot/include/hurd/folio.h:hurd/folio.h
-		 sysroot/include/hurd/rpc.h:hurd/rpc.h
 		 sysroot/include/hurd/exceptions.h:hurd/exceptions.h
 		 sysroot/include/hurd/thread.h:hurd/thread.h
-		 sysroot/include/hurd/activity.h:hurd/activity.h
 		 sysroot/include/hurd/lock.h:hurd/lock.h
 		 sysroot/include/hurd/trace.h:hurd/trace.h
 		 sysroot/include/hurd/mutex.h:hurd/mutex.h
 		 sysroot/include/hurd/rmutex.h:hurd/rmutex.h
-		 sysroot/include/hurd/futex.h:hurd/futex.h
 		 sysroot/include/hurd/error.h:hurd/error.h
-		 sysroot/include/hurd/message.h:hurd/message.h
-		 sysroot/include/hurd/messenger.h:hurd/messenger.h
-		 sysroot/include/hurd/ipc.h:hurd/ipc.h
 		 sysroot/include/hurd/math.h:hurd/math.h
 		 sysroot/include/hurd/bits/math.h:hurd/bits/${arch}/math.h
 		])

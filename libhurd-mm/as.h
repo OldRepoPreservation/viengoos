@@ -22,8 +22,8 @@
 #ifndef _HURD_AS_H
 #define _HURD_AS_H
 
-#include <hurd/addr.h>
-#include <hurd/cap.h>
+#include <viengoos/addr.h>
+#include <viengoos/cap.h>
 #include <hurd/exceptions.h>
 #include <stdbool.h>
 #include <l4/types.h>

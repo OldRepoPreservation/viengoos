@@ -18,13 +18,13 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#include <hurd/activity.h>
-#include <hurd/folio.h>
+#include <viengoos/activity.h>
+#include <viengoos/folio.h>
+#include <viengoos/thread.h>
 #include <hurd/storage.h>
 #include <hurd/capalloc.h>
-#include <hurd/thread.h>
 #include <hurd/as.h>
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 #include <hurd/ihash.h>
 #include <process-spawn.h>
 

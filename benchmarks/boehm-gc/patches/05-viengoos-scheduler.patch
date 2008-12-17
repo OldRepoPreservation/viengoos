@@ -237,7 +237,7 @@ diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.su
   */
  
 +#ifdef __gnu_hurd_viengoos__
-+#include <hurd/activity.h>
++#include <viengoos/activity.h>
 +#include <hurd/as.h>
 +#endif
 +#include <stdint.h>
@@ -678,8 +678,8 @@ diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.su
  }
  
 +#ifdef __gnu_hurd_viengoos__
-+#include <hurd/cap.h>
-+#include <hurd/addr.h>
++#include <hurd/viengoosh>
++#include <hurd/viengoos.h>
 +#include <hurd/as.h>
 +
 +extern addr_t gc_activity __attribute__ ((weak));

@@ -22,7 +22,7 @@
 #define _VIENGOOS_MESSENGER_H 1
 
 #include <stdint.h>
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 
 /* A messenger references a message buffer.  It can transfer a message
    (contained in its message buffer) to another messenger.  It can
@@ -74,7 +74,7 @@ enum
 #define RPC_STUB_PREFIX vg
 #define RPC_ID_PREFIX VG
 
-#include <hurd/rpc.h>
+#include <viengoos/rpc.h>
 
 /* Set MESSENGER's ID to ID and return the old ID in OLD.  */
 RPC(messenger_id, 1, 1, 0,

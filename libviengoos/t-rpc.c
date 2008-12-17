@@ -8,7 +8,7 @@ int output_debug = 1;
 #define RPC_STUB_PREFIX rpc
 #define RPC_ID_PREFIX RPC
 
-#include <hurd/rpc.h>
+#include <viengoos/rpc.h>
 
 /* Exception message ids.  */
 enum

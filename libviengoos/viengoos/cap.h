@@ -18,13 +18,13 @@
    License along with GNU Hurd.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#ifndef _HURD_CAP_H
-#define _HURD_CAP_H 1
+#ifndef _VIENGOOS_CAP_H
+#define _VIENGOOS_CAP_H 1
 
 #include <hurd/types.h>
 #include <hurd/stddef.h>
-#include <hurd/addr.h>
-#include <hurd/addr-trans.h>
+#include <viengoos/addr.h>
+#include <viengoos/addr-trans.h>
 #include <hurd/startup.h>
 #include <hurd/error.h>
 #include <stdint.h>
@@ -382,7 +382,7 @@ struct cap
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
 
-#include <hurd/rpc.h>
+#include <viengoos/rpc.h>
 
 enum
   {

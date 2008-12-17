@@ -29,7 +29,7 @@
 #endif
 
 #include <stdarg.h>
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 
 #include "s-printf.h"
 

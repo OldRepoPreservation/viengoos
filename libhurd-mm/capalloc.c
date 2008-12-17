@@ -24,7 +24,7 @@
 #include "storage.h"
 #include "as.h"
 
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 #include <hurd/btree.h>
 #include <hurd/slab.h>
 #include <hurd/stddef.h>

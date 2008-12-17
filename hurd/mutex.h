@@ -39,7 +39,7 @@ typedef int ss_mutex_t;
 #include <l4/thread.h>
 #include <assert.h>
 #include <hurd/lock.h>
-#include <hurd/futex.h>
+#include <viengoos/futex.h>
 
 /* Unlocked.  */
 #define _MUTEX_UNLOCKED 0

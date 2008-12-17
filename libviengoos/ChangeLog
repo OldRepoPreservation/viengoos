@@ -1,0 +1,21 @@
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am: New file.
+	* headers.m4: Likewise.
+	* t-addr-trans.c: Move from ../hurd.
+	* t-addr.c: Likewise.
+	* t-rpc.c: Likewise.
+	* viengoos.h: Likewise.
+	* viengoos/activity.h: Likewise.
+	* viengoos/addr-trans.h: Likewise.
+	* viengoos/addr.h: Likewise.
+	* viengoos/cap.h: Likewise.
+	* viengoos/folio.h: Likewise.
+	* viengoos/futex.h: Likewise.
+	* viengoos/ipc.h: Likewise.
+	* viengoos/message.h: Likewise.
+	* viengoos/messenger.h: Likewise.
+	* viengoos/rpc.h: Likewise.
+	* viengoos/misc.h: Moved from ../viengoos/rm.h.
+	* viengoos/thread.h: New file split from ../hurd/thread.h.
+

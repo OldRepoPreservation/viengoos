@@ -45,8 +45,8 @@
 #define _HURD_RPC_H
 
 #include <hurd/stddef.h>
-#include <hurd/message.h>
-#include <hurd/ipc.h>
+#include <viengoos/message.h>
+#include <viengoos/ipc.h>
 #include <errno.h>
 
 #ifdef RM_INTERN

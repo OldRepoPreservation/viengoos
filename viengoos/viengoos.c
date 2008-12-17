@@ -39,7 +39,7 @@ int ss_lock_trace_count;
 
 #include <hurd/startup.h>
 #include <hurd/stddef.h>
-#include <hurd/thread.h>
+#include <viengoos/thread.h>
 #include <hurd/as.h>
 
 #include <process-spawn.h>

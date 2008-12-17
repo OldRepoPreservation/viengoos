@@ -24,7 +24,7 @@
 #include <stddef.h>
 
 #include <hurd/types.h>
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 
 #ifdef USE_L4
 # include <l4/types.h>

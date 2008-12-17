@@ -22,7 +22,7 @@
 #ifndef HURD_MM_MM_H
 #define HURD_MM_MM_H
 
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 
 /* Set to one by mm_init just before returning.  */
 extern int mm_init_done;

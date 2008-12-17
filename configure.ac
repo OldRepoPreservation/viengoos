@@ -185,6 +185,7 @@ m4_include([viengoos/config.m4])
 
 # Create links for header and library files.
 m4_include([libl4/headers.m4])
+m4_include([libviengoos/headers.m4])
 m4_include([platform/headers.m4])
 m4_include([hurd/headers.m4])
 m4_include([libhurd-ihash/headers.m4])
@@ -313,6 +314,7 @@ AC_CONFIG_FILES([Makefile
 		 libl4/v2/Makefile libl4/v2/ia32/Makefile
 		 libl4/x2/Makefile
 		 libl4/tests/Makefile libl4/Makefile
+		 libviengoos/Makefile
 		 platform/alpha/Makefile platform/amd64/Makefile
 		 platform/ia32/Makefile platform/ia64/Makefile
 		 platform/powerpc/Makefile platform/powerpc64/Makefile

@@ -18,8 +18,8 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#include <hurd/addr.h>
-#include <hurd/thread.h>
+#include <viengoos/addr.h>
+#include <viengoos/thread.h>
 
 /* Load a task.  Return a capability designating the main thread.  The
    slot is allocated with capalloc.  If MAKE_RUNNABLE is true, makes

@@ -24,7 +24,7 @@
 #include <hurd/storage.h>
 #include <hurd/thread.h>
 #include <hurd/mm.h>
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 #include <hurd/slab.h>
 #include <l4/thread.h>
 
@@ -38,7 +38,7 @@
 void
 hurd_fault_catcher_register (struct hurd_fault_catcher *catcher)
 {
-  struct vg_utcb *utcb = hurd_utcb ();
+  struct hurd_utcb *utcb = hurd_utcb ();
   assert (utcb);
   assert (catcher);
 
@@ -153,7 +153,7 @@ hurd_activation_message_register (struct hurd_message_buffer *message_buffer)
   if (unlikely (! mm_init_done))
     return;
 
-  struct vg_utcb *utcb = hurd_utcb ();
+  struct hurd_utcb *utcb = hurd_utcb ();
   assert (utcb);
   assert (message_buffer);
 
@@ -173,7 +173,7 @@ hurd_activation_message_unregister (struct hurd_message_buffer *message_buffer)
   if (unlikely (! mm_init_done))
     return;
 
-  struct vg_utcb *utcb = hurd_utcb ();
+  struct hurd_utcb *utcb = hurd_utcb ();
   assert (utcb);
   assert (message_buffer);
   assert (utcb->extant_message == message_buffer);
@@ -218,7 +218,7 @@ activation_frame_slab_dealloc (void *hook, void *buffer, size_t size)
 }
 
 static void
-check_activation_frame_reserve (struct vg_utcb *utcb)
+check_activation_frame_reserve (struct hurd_utcb *utcb)
 {
   if (unlikely (! utcb->activation_stack
 		|| ! utcb->activation_stack->prev))
@@ -244,7 +244,7 @@ check_activation_frame_reserve (struct vg_utcb *utcb)
 }
 
 static struct activation_frame *
-activation_frame_alloc (struct vg_utcb *utcb)
+activation_frame_alloc (struct hurd_utcb *utcb)
 {
   struct activation_frame *activation_frame;
 
@@ -272,7 +272,7 @@ activation_frame_alloc (struct vg_utcb *utcb)
 void
 hurd_activation_stack_dump (void)
 {
-  struct vg_utcb *utcb = hurd_utcb ();
+  struct hurd_utcb *utcb = hurd_utcb ();
 
   int depth = 0;
   struct activation_frame *activation_frame;
@@ -300,7 +300,7 @@ hurd_activation_stack_dump (void)
 
 void
 hurd_activation_handler_normal (struct activation_frame *activation_frame,
-				struct vg_utcb *utcb)
+				struct hurd_utcb *utcb)
 {
   assert (utcb == hurd_utcb ());
   assert (activation_frame->canary == ACTIVATION_FRAME_CANARY);
@@ -451,7 +451,7 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 
 #ifndef NDEBUG
 static uintptr_t
-crc (struct vg_utcb *utcb)
+crc (struct hurd_utcb *utcb)
 {
   uintptr_t crc = 0;
   uintptr_t *p;
@@ -463,15 +463,15 @@ crc (struct vg_utcb *utcb)
 #endif
 
 struct activation_frame *
-hurd_activation_handler_activated (struct vg_utcb *utcb)
+hurd_activation_handler_activated (struct hurd_utcb *utcb)
 {
   assert (((uintptr_t) utcb & (PAGESIZE - 1)) == 0);
   assert (utcb->canary0 == UTCB_CANARY0);
   assert (utcb->canary1 == UTCB_CANARY1);
-  assert (utcb->activated_mode);
+  assert (utcb->vg.activated_mode);
   /* XXX: Assumption that stack grows down...  */
-  assert (utcb->activation_handler_sp - PAGESIZE <= (uintptr_t) &utcb);
-  assert ((uintptr_t) &utcb <= utcb->activation_handler_sp);
+  assert (utcb->vg.activation_handler_sp - PAGESIZE <= (uintptr_t) &utcb);
+  assert ((uintptr_t) &utcb <= utcb->vg.activation_handler_sp);
 
   if (unlikely (! mm_init_done))
     /* Just returns: during initialization, we don't except any faults or
@@ -485,14 +485,14 @@ hurd_activation_handler_activated (struct vg_utcb *utcb)
   assertx (utcb == hurd_utcb (),
 	   "%p != %p (func: %p; ip: %p, sp: %p)",
 	   utcb, hurd_utcb (), hurd_utcb,
-	   (void *) utcb->saved_ip, (void *) utcb->saved_sp);
+	   (void *) utcb->vg.saved_ip, (void *) utcb->vg.saved_sp);
 
   debug (5, "Activation handler called (utcb: %p)", utcb);
 
   struct hurd_message_buffer *mb
-    = (struct hurd_message_buffer *) (uintptr_t) utcb->messenger_id;
+    = (struct hurd_message_buffer *) (uintptr_t) utcb->vg.messenger_id;
 
-  debug (5, "Got message %llx (utcb: %p)", utcb->messenger_id, utcb);
+  debug (5, "Got message %llx (utcb: %p)", utcb->vg.messenger_id, utcb);
 
   assert (mb->magic == HURD_MESSAGE_BUFFER_MAGIC);
 
@@ -608,7 +608,7 @@ hurd_activation_handler_activated (struct vg_utcb *utcb)
   else
     {
       panic ("Unknown messenger %llx (extant: %p; exception: %p) (label: %d)",
-	     utcb->messenger_id,
+	     utcb->vg.messenger_id,
 	     utcb->extant_message, utcb->exception_buffer,
 	     vg_message_word (mb->reply, 0));
     }
@@ -643,9 +643,9 @@ static char activation_handler_area0[PAGESIZE]
   __attribute__ ((aligned (PAGESIZE)));
 static char activation_handler_msg[PAGESIZE]
   __attribute__ ((aligned (PAGESIZE)));
-static struct vg_utcb *initial_utcb = (void *) &activation_handler_area0[0];
+static struct hurd_utcb *initial_utcb = (void *) &activation_handler_area0[0];
 
-static struct vg_utcb *
+static struct hurd_utcb *
 simple_utcb_fetcher (void)
 {
   assert (initial_utcb->canary0 == UTCB_CANARY0);
@@ -654,7 +654,7 @@ simple_utcb_fetcher (void)
   return initial_utcb;
 }
 
-struct vg_utcb *(*hurd_utcb) (void);
+struct hurd_utcb *(*hurd_utcb) (void);
 
 void
 hurd_activation_handler_init_early (void)
@@ -664,21 +664,21 @@ hurd_activation_handler_init_early (void)
 
   hurd_utcb = simple_utcb_fetcher;
 
-  struct vg_utcb *utcb = hurd_utcb ();
+  struct hurd_utcb *utcb = hurd_utcb ();
   assert (utcb == initial_utcb);
 
   /* XXX: We assume the stack grows down!  SP is set to the end of the
      exception page.  */
-  utcb->activation_handler_sp
+  utcb->vg.activation_handler_sp
     = (uintptr_t) activation_handler_area0 + sizeof (activation_handler_area0);
 
   /* The word beyond the base of the stack is interpreted as a pointer
      to the exception page.  Make it so.  */
-  utcb->activation_handler_sp -= sizeof (void *);
-  * (void **) utcb->activation_handler_sp = utcb;
+  utcb->vg.activation_handler_sp -= sizeof (void *);
+  * (void **) utcb->vg.activation_handler_sp = utcb;
 
-  utcb->activation_handler_ip = (uintptr_t) &hurd_activation_handler_entry;
-  utcb->activation_handler_end = (uintptr_t) &hurd_activation_handler_end;
+  utcb->vg.activation_handler_ip = (uintptr_t) &hurd_activation_handler_entry;
+  utcb->vg.activation_handler_end = (uintptr_t) &hurd_activation_handler_end;
 
   struct hurd_thread_exregs_in in;
   memset (&in, 0, sizeof (in));
@@ -703,14 +703,14 @@ hurd_activation_handler_init_early (void)
 		     0, 0, ADDR_VOID);
   if (err)
     panic ("Failed to send IPC: %d", err);
-  if (utcb->inline_words[0])
-    panic ("Failed to install utcb page: %d", utcb->inline_words[0]);
+  if (utcb->vg.inline_words[0])
+    panic ("Failed to install utcb page: %d", utcb->vg.inline_words[0]);
 }
 
 void
 hurd_activation_handler_init (void)
 {
-  struct vg_utcb *utcb;
+  struct hurd_utcb *utcb;
   error_t err = hurd_activation_state_alloc (__hurd_startup_data->thread,
 					     &utcb);
   if (err)
@@ -730,7 +730,7 @@ hurd_activation_handler_init (void)
 #define ACTIVATION_AREA_SIZE (1 << ACTIVATION_AREA_SIZE_LOG2)
 
 error_t
-hurd_activation_state_alloc (addr_t thread, struct vg_utcb **utcbp)
+hurd_activation_state_alloc (addr_t thread, struct hurd_utcb **utcbp)
 {
   debug (5, DEBUG_BOLD ("allocating activation state for " ADDR_FMT),
 	 ADDR_PRINTF (thread));
@@ -780,7 +780,7 @@ hurd_activation_state_alloc (addr_t thread, struct vg_utcb **utcbp)
   int page = SKIP;
 
   /* Allocate the utcb.  */
-  struct vg_utcb *utcb = activation_area_base + page * PAGESIZE;
+  struct hurd_utcb *utcb = activation_area_base + page * PAGESIZE;
   alloc (utcb);
   page += 1 + SKIP;
 
@@ -790,30 +790,31 @@ hurd_activation_state_alloc (addr_t thread, struct vg_utcb **utcbp)
      XXX: We assume the stack grows down!  */
 #ifndef NDEBUG
   /* Use a dedicated page.  */
-  utcb->activation_handler_sp
+  utcb->vg.activation_handler_sp
     = (uintptr_t) activation_area_base + page * PAGESIZE;
-  alloc ((void *) utcb->activation_handler_sp);
+  alloc ((void *) utcb->vg.activation_handler_sp);
 
-  utcb->activation_handler_sp += PAGESIZE;
+  utcb->vg.activation_handler_sp += PAGESIZE;
   page += 1 + SKIP;
 #else
   /* Use the end of the UTCB.  */
-  utcb->activation_handler_sp = utcb + PAGESIZE;
+  utcb->vg.activation_handler_sp = utcb + PAGESIZE;
 #endif
 
   /* At the top of the stack page, we use some space to remember the
      storage we allocate so that we can free it later.  */
-  utcb->activation_handler_sp
+  utcb->vg.activation_handler_sp
     -= sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE;
-  memset (utcb->activation_handler_sp, 0,
+  memset ((void *) utcb->vg.activation_handler_sp, 0,
 	  sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE);
-  memcpy (utcb->activation_handler_sp, pages, sizeof (addr_t) * page_count);
-  pages = (addr_t *) utcb->activation_handler_sp;
+  memcpy ((void *) utcb->vg.activation_handler_sp, pages,
+	  sizeof (addr_t) * page_count);
+  pages = (addr_t *) utcb->vg.activation_handler_sp;
 
   /* The word beyond the base of the stack is a pointer to the
      exception page.  */
-  utcb->activation_handler_sp -= sizeof (void *);
-  * (void **) utcb->activation_handler_sp = utcb;
+  utcb->vg.activation_handler_sp -= sizeof (void *);
+  * (void **) utcb->vg.activation_handler_sp = utcb;
 
 
   /* And a medium-sized alternate stack.  */
@@ -829,8 +830,8 @@ hurd_activation_state_alloc (addr_t thread, struct vg_utcb **utcbp)
   utcb->alternate_stack = a;
 
 
-  utcb->activation_handler_ip = (uintptr_t) &hurd_activation_handler_entry;
-  utcb->activation_handler_end = (uintptr_t) &hurd_activation_handler_end;
+  utcb->vg.activation_handler_ip = (uintptr_t) &hurd_activation_handler_entry;
+  utcb->vg.activation_handler_end = (uintptr_t) &hurd_activation_handler_end;
 
   utcb->exception_buffer = hurd_message_buffer_alloc_long ();
   utcb->extant_message = NULL;
@@ -841,7 +842,7 @@ hurd_activation_state_alloc (addr_t thread, struct vg_utcb **utcbp)
   debug (5, "Activation area: %p-%p; utcb: %p; stack: %p; alt stack: %p",
 	 (void *) activation_area_base,
 	 (void *) activation_area_base + ACTIVATION_AREA_SIZE - 1,
-	 utcb, (void *) utcb->activation_handler_sp, utcb->alternate_stack);
+	 utcb, (void *) utcb->vg.activation_handler_sp, utcb->alternate_stack);
 
 
   /* Unblock the exception handler messenger.  */
@@ -880,7 +881,7 @@ hurd_activation_state_alloc (addr_t thread, struct vg_utcb **utcbp)
 }
 
 void
-hurd_activation_state_free (struct vg_utcb *utcb)
+hurd_activation_state_free (struct hurd_utcb *utcb)
 {
   assert (utcb->canary0 == UTCB_CANARY0);
   assert (utcb->canary1 == UTCB_CANARY1);
@@ -902,7 +903,7 @@ hurd_activation_state_free (struct vg_utcb *utcb)
      in.  */
   addr_t pages[ACTIVATION_AREA_SIZE / PAGESIZE];
   memcpy (pages,
-	  utcb->activation_handler_sp + sizeof (uintptr_t),
+	  (void *) utcb->vg.activation_handler_sp + sizeof (uintptr_t),
 	  sizeof (addr_t) * ACTIVATION_AREA_SIZE / PAGESIZE);
 
   int i;

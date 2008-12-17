@@ -20,7 +20,7 @@
 
 #include <hurd/stddef.h>
 #include <hurd/startup.h>
-#include <hurd/folio.h>
+#include <viengoos/folio.h>
 
 int __global_zero;
 

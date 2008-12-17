@@ -6,7 +6,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include <hurd/activity.h>
+#include <viengoos/activity.h>
 #include <hurd/storage.h>
 #include <hurd/startup.h>
 

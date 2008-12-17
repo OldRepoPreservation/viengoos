@@ -18,15 +18,15 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#ifndef RM_RM_H
-#define RM_RM_H
+#ifndef _VIENGOOS_MISC_H
+#define _VIENGOOS_MISC_H
 
 #include <hurd/startup.h>
-#include <hurd/folio.h>
+#include <viengoos/folio.h>
 #include <hurd/exceptions.h>
-#include <hurd/thread.h>
-#include <hurd/activity.h>
-#include <hurd/futex.h>
+#include <viengoos/thread.h>
+#include <viengoos/activity.h>
+#include <viengoos/futex.h>
 #include <l4/message.h>
 
 enum rm_method_id
@@ -94,7 +94,7 @@ rm_method_id_string (int id)
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
 
-#include <hurd/rpc.h>
+#include <viengoos/rpc.h>
 
 struct io_buffer
 {

@@ -1,3 +1,10 @@
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* rm.h: Move from here...
+	* ../libviengoos/viengoos/misc.h: ... to here.  Update users.
+	* headers.m4: Don't link rm.h to hurd/rm.h.
+	* Makefile.am (viengoos_SOURCES): Remove rm.h.
+
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.c (thread_activate): Don't update

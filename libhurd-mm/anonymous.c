@@ -28,7 +28,7 @@
 #include <hurd/btree.h>
 #include <hurd/slab.h>
 
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 
 #include <profile.h>
 #include <backtrace.h>

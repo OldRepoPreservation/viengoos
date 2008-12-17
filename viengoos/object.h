@@ -25,8 +25,8 @@
 #include <hurd/error.h>
 #include <string.h>
 #include <assert.h>
-#include <hurd/cap.h>
-#include <hurd/folio.h>
+#include <viengoos/cap.h>
+#include <viengoos/folio.h>
 #include <hurd/btree.h>
 #include <stdint.h>
 

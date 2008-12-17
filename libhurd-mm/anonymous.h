@@ -23,7 +23,7 @@
 
 #include <hurd/pager.h>
 #include <hurd/btree.h>
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 #include <hurd/exceptions.h>
 #include <l4/thread.h>
 

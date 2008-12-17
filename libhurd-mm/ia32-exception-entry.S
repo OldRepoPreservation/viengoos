@@ -26,7 +26,7 @@
 #define UTCB_MODE (0*4)
 #define UTCB_SAVED_IP (1*4)
 #define UTCB_SAVED_SP (2*4)
-#define UTCB_ACTIVATION_FRAME_STACK (3*4)
+#define UTCB_ACTIVATION_FRAME_STACK (512 + 0*4)
 
 /* The bits of the mode word.  */
 #define ACTIVATED_MODE_BIT 0

@@ -20,11 +20,11 @@
 
 #include "as.h"
 #include "storage.h"
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 
 #include <pthread.h>
-#include <hurd/folio.h>
-#include <hurd/cap.h>
+#include <viengoos/folio.h>
+#include <viengoos/cap.h>
 #include <hurd/btree.h>
 #include <hurd/slab.h>
 #include <hurd/mutex.h>

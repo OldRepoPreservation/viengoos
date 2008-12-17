@@ -22,7 +22,7 @@
 #define _HURD_MAP_H
 
 #include <hurd/btree.h>
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 #include <hurd/mutex.h>
 #include <hurd/as.h>
 #include <stdint.h>

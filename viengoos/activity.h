@@ -21,7 +21,7 @@
 #ifndef RM_ACTIVITY_H
 #define RM_ACTIVITY_H
 
-#include <hurd/activity.h>
+#include <viengoos/activity.h>
 
 #include "cap.h"
 #include "object.h"

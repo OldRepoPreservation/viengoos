@@ -18,7 +18,7 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#include <hurd/folio.h>
+#include <viengoos/folio.h>
 
 struct as_guard_cappage
 {

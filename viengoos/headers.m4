@@ -1,5 +1,5 @@
 # headers.m4 - Autoconf snippets to install links for header files.
-# Copyright 2007 Free Software Foundation, Inc.
+# Copyright 2007, 2008 Free Software Foundation, Inc.
 # Written by Neal H. Walfield <neal@gnu.org>.
 #
 # This file is free software; as a special exception the author gives
@@ -10,7 +10,7 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-AC_CONFIG_LINKS([sysroot/include/hurd/rm.h:viengoos/rm.h])
+# AC_CONFIG_LINKS([])
 
 AC_CONFIG_COMMANDS_POST([
   mkdir -p sysroot/lib viengoos &&

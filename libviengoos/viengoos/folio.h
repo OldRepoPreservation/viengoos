@@ -18,14 +18,13 @@
    License along with GNU Hurd.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#ifndef _HURD_FOLIO_H
-#define _HURD_FOLIO_H 1
+#ifndef _VIENGOOS_FOLIO_H
+#define _VIENGOOS_FOLIO_H 1
 
-#include <hurd/types.h>
-#include <hurd/addr.h>
-#include <hurd/cap.h>
-#include <hurd/startup.h>
 #include <stdint.h>
+#include <bit-array.h>
+#include <viengoos/addr.h>
+#include <viengoos/cap.h>
 
 /* Number of user objects per folio.  */
 enum
@@ -374,7 +373,7 @@ folio_object_cap (struct folio *folio, int object)
 #define RPC_STUB_PREFIX rm
 #define RPC_ID_PREFIX RM
 
-#include <hurd/rpc.h>
+#include <viengoos/rpc.h>
 
 enum
   {

@@ -18,8 +18,8 @@
    License along with GNU Hurd.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#ifndef _HURD_ADDR_TRANS_H
-#define _HURD_ADDR_TRANS_H
+#ifndef _VIENGOOS_ADDR_TRANS_H
+#define _VIENGOOS_ADDR_TRANS_H
 
 #include <stdint.h>
 #include <hurd/stddef.h>

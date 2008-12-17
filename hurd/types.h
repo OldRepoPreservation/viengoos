@@ -22,6 +22,6 @@
 #ifndef _HURD_TYPES_H
 #define _HURD_TYPES_H	1
 
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 
 #endif	/* _HURD_TYPES_H */

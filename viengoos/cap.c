@@ -20,7 +20,7 @@
 
 #include <assert.h>
 #include <hurd/stddef.h>
-#include <hurd/messenger.h>
+#include <viengoos/messenger.h>
 
 #include "cap.h"
 #include "object.h"

@@ -18,9 +18,9 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#include <hurd/activity.h>
-#include <hurd/addr.h>
-#include <hurd/cap.h>
+#include <viengoos/activity.h>
+#include <viengoos/addr.h>
+#include <viengoos/cap.h>
 
 /* Expose as_slot_ensure_full_custom and as_insert_custom.  */
 #define ID_SUFFIX custom

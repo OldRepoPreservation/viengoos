@@ -23,10 +23,11 @@
 
 #include <stdint.h>
 #include <errno.h>
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 #include <hurd/stddef.h>
-#include <hurd/message.h>
+#include <viengoos/message.h>
 #include <assert.h>
+#include <hurd/startup.h>
 
 #ifdef USE_L4
 #include <l4.h>

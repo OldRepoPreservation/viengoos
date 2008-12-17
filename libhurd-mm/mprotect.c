@@ -19,7 +19,7 @@
    <http://www.gnu.org/licenses/>.  */
 
 #include <hurd/stddef.h>
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 #include <hurd/as.h>
 #include <hurd/storage.h>
 #include <hurd/anonymous.h>

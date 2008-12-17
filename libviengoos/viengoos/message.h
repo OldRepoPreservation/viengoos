@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 #include <assert.h>
-#include <hurd/addr.h>
+#include <viengoos/addr.h>
 #include <hurd/stddef.h>
 
 /* A message.

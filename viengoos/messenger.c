@@ -21,7 +21,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <assert.h>
-#include <hurd/cap.h>
+#include <viengoos/cap.h>
 #include <hurd/as.h>
 
 #include "messenger.h"

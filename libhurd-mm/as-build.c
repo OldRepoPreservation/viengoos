@@ -22,12 +22,12 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include <hurd/cap.h>
+#include <viengoos/cap.h>
 #include <hurd/stddef.h>
-#include <hurd/folio.h>
+#include <viengoos/folio.h>
 #include <hurd/exceptions.h>
 #include <hurd/as.h>
-#include <hurd/rm.h>
+#include <viengoos/misc.h>
 
 #ifndef RM_INTERN
 # include <hurd/storage.h>

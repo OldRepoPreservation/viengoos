@@ -20,7 +20,7 @@
 
 #include <errno.h>
 #include <assert.h>
-#include <hurd/cap.h>
+#include <viengoos/cap.h>
 
 #include "activity.h"
 #include "thread.h"
