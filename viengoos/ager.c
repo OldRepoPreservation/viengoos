@@ -427,7 +427,7 @@ update_stats (void)
 
 	  info.stats.count = ACTIVITY_STATS_PERIODS;
 
-	  rm_activity_info_reply (root_activity, messenger, info);
+	  vg_activity_info_reply (root_activity, messenger, info);
 	}
   }
 

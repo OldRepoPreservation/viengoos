@@ -1008,7 +1008,7 @@ server_loop (void)
 	case VG_write:
 	  {
 	    struct io_buffer buffer;
-	    err = rm_write_send_unmarshal (message, &buffer, NULL);
+	    err = vg_write_send_unmarshal (message, &buffer, NULL);
 	    if (! err)
 	      {
 		int i;
@@ -1016,13 +1016,13 @@ server_loop (void)
 		  putchar (buffer.data[i]);
 	      }
 
-	    rm_write_reply (activity, reply);
+	    vg_write_reply (activity, reply);
 	    break;
 	  }
 	case VG_read:
 	  {
 	    int max;
-	    err = rm_read_send_unmarshal (message, &max, NULL);
+	    err = vg_read_send_unmarshal (message, &max, NULL);
 	    if (err)
 	      {
 		DEBUG (0, "Read error!");
@@ -1038,7 +1038,7 @@ server_loop (void)
 		buffer.data[0] = getchar ();
 	      }
 
-	    rm_read_reply (activity, reply, buffer);
+	    vg_read_reply (activity, reply, buffer);
 	    break;
 	  }
 
@@ -1047,7 +1047,7 @@ server_loop (void)
 	    uintptr_t start;
 	    int max;
 
-	    err = rm_fault_send_unmarshal (message, &start, &max, NULL);
+	    err = vg_fault_send_unmarshal (message, &start, &max, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1055,7 +1055,7 @@ server_loop (void)
 
 	    start &= ~(PAGESIZE - 1);
 
-	    rm_fault_reply (activity, reply, 0);
+	    vg_fault_reply (activity, reply, 0);
 	    int limit = (L4_NUM_MRS - 1
 			 - l4_untyped_words (l4_msg_msg_tag (msg)))
 	      * sizeof (uintptr_t) / sizeof (l4_map_item_t);
@@ -1105,7 +1105,7 @@ server_loop (void)
 		     l4_untyped_words (l4_msg_msg_tag (msg)),
 		     l4_typed_words (l4_msg_msg_tag (msg)));
 
-	    rm_fault_reply (activity, reply, count);
+	    vg_fault_reply (activity, reply, count);
 	    int i;
 	    for (i = 0; i < count; i ++)
 	      l4_msg_append_map_item (msg, map_items[i]);
@@ -1126,7 +1126,7 @@ server_loop (void)
 	    struct activity *activity = (struct activity *) target;
 
 	    struct folio_policy policy;
-	    err = rm_folio_alloc_send_unmarshal (message, &policy, NULL);
+	    err = vg_folio_alloc_send_unmarshal (message, &policy, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1136,7 +1136,7 @@ server_loop (void)
 	    if (! folio)
 	      REPLY (ENOMEM);
 
-	    rm_folio_alloc_reply (principal, reply,
+	    vg_folio_alloc_reply (principal, reply,
 				  object_to_cap ((struct object *) folio));
 	    break;
 	  }
@@ -1148,7 +1148,7 @@ server_loop (void)
 
 	    struct folio *folio = (struct folio *) target;
 
-	    err = rm_folio_free_send_unmarshal (message, NULL);
+	    err = vg_folio_free_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1156,7 +1156,7 @@ server_loop (void)
 
 	    folio_free (principal, folio);
 
-	    rm_folio_free_reply (activity, reply);
+	    vg_folio_free_reply (activity, reply);
 	    break;
 	  }
 
@@ -1172,7 +1172,7 @@ server_loop (void)
 	    struct object_policy policy;
 	    uintptr_t return_code;
 
-	    err = rm_folio_object_alloc_send_unmarshal (message,
+	    err = vg_folio_object_alloc_send_unmarshal (message,
 							&idx, &type, &policy,
 							&return_code, NULL);
 	    if (err)
@@ -1203,7 +1203,7 @@ server_loop (void)
 	    struct vg_cap weak = cap;
 	    weak.type = vg_cap_type_weaken (cap.type);
 
-	    rm_folio_object_alloc_reply (activity, reply, cap, weak);
+	    vg_folio_object_alloc_reply (activity, reply, cap, weak);
 	    break;
 	  }
 
@@ -1217,7 +1217,7 @@ server_loop (void)
 	    uintptr_t flags;
 	    struct folio_policy in, out;
 
-	    err = rm_folio_policy_send_unmarshal (message, &flags, &in, NULL);
+	    err = vg_folio_policy_send_unmarshal (message, &flags, &in, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1226,7 +1226,7 @@ server_loop (void)
 
 	    folio_policy (principal, folio, flags, in, &out);
 
-	    rm_folio_policy_reply (activity, reply, out);
+	    vg_folio_policy_reply (activity, reply, out);
 	    break;
 	  }
 
@@ -1240,7 +1240,7 @@ server_loop (void)
 	    uint32_t flags;
 	    struct vg_cap_properties properties;
 
-	    err = rm_cap_copy_send_unmarshal (message,
+	    err = vg_cap_copy_send_unmarshal (message,
 					      &target_addr, 
 					      &source_as_addr, &source_addr,
 					      &flags, &properties, NULL);
@@ -1335,7 +1335,7 @@ server_loop (void)
 		  }
 	      }
 
-	    rm_cap_copy_reply (activity, reply);
+	    vg_cap_copy_reply (activity, reply);
 
 #if 0
 	    /* XXX: Surprisingly, it appears that this may be
@@ -1387,7 +1387,7 @@ server_loop (void)
 	  {
 	    vg_addr_t addr;
 
-	    err = rm_cap_rubout_send_unmarshal (message, &addr, NULL);
+	    err = vg_cap_rubout_send_unmarshal (message, &addr, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1403,7 +1403,7 @@ server_loop (void)
 
 	    memset (target, 0, sizeof (*slot));
 
-	    rm_cap_rubout_reply (activity, reply);
+	    vg_cap_rubout_reply (activity, reply);
 	    break;
 	  }
 
@@ -1411,7 +1411,7 @@ server_loop (void)
 	  {
 	    vg_addr_t cap_addr;
 
-	    err = rm_cap_read_send_unmarshal (message, &cap_addr, NULL);
+	    err = vg_cap_read_send_unmarshal (message, &cap_addr, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1425,7 +1425,7 @@ server_loop (void)
 	    if (cap.type != vg_cap_void)
 	      vg_cap_to_object (principal, &cap);
 
-	    rm_cap_read_reply (activity, reply, cap.type,
+	    vg_cap_read_reply (activity, reply, cap.type,
 			       VG_CAP_PROPERTIES_GET (cap));
 	    break;
 	  }
@@ -1434,7 +1434,7 @@ server_loop (void)
 	  {
 	    vg_addr_t object_addr;
 
-	    err = rm_object_discarded_clear_send_unmarshal
+	    err = vg_object_discarded_clear_send_unmarshal
 	      (message, &object_addr, NULL);
 	    if (err)
 	      REPLY (err);
@@ -1463,7 +1463,7 @@ server_loop (void)
 	    bool was_discarded = folio_object_discarded (folio, idx);
 	    folio_object_discarded_set (folio, idx, false);
 
-	    rm_object_discarded_clear_reply (activity, reply);
+	    vg_object_discarded_clear_reply (activity, reply);
 
 #if 0
 	    /* XXX: Surprisingly, it appears that this may be more
@@ -1512,7 +1512,7 @@ server_loop (void)
 
 	case VG_object_discard:
 	  {
-	    err = rm_object_discard_send_unmarshal (message, NULL);
+	    err = vg_object_discard_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1523,14 +1523,14 @@ server_loop (void)
 	    folio_object_content_set (folio,
 				      objects_folio_offset (target), false);
 
-	    rm_object_discard_reply (activity, reply);
+	    vg_object_discard_reply (activity, reply);
 	    break;
 	  }
 
 	case VG_object_status:
 	  {
 	    bool clear;
-	    err = rm_object_status_send_unmarshal (message, &clear, NULL);
+	    err = vg_object_status_send_unmarshal (message, &clear, NULL);
 	    if (err)
 	      REPLY (err);
 
@@ -1547,14 +1547,14 @@ server_loop (void)
 		desc->user_dirty = 0;
 	      }
 
-	    rm_object_status_reply (activity, reply, status);
+	    vg_object_status_reply (activity, reply, status);
 	    break;
 	  }
 
 	case VG_object_name:
 	  {
 	    struct object_name name;
-	    err = rm_object_name_send_unmarshal (message, &name, NULL);
+	    err = vg_object_name_send_unmarshal (message, &name, NULL);
 
 	    if (object_type (target) == vg_cap_activity_control)
 	      {
@@ -1571,7 +1571,7 @@ server_loop (void)
 		t->name.name[sizeof (t->name.name) - 1] = 0;
 	      }
 
-	    rm_object_name_reply (activity, reply);
+	    vg_object_name_reply (activity, reply);
 	    break;
 	  }
 
@@ -1587,7 +1587,7 @@ server_loop (void)
 	    vg_addr_t activity_addr;
 	    vg_addr_t utcb_addr;
 	    vg_addr_t exception_messenger_addr;
-	    err = rm_thread_exregs_send_unmarshal
+	    err = vg_thread_exregs_send_unmarshal
 	      (message, &control, &in,
 	       &aspace_addr, &activity_addr, &utcb_addr,
 	       &exception_messenger_addr,
@@ -1677,7 +1677,7 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    rm_thread_exregs_reply (activity, reply, out,
+	    vg_thread_exregs_reply (activity, reply, out,
 				    aspace_out, activity_out,
 				    utcb_out, exception_messenger_out);
 
@@ -1690,17 +1690,17 @@ server_loop (void)
 	      REPLY (EINVAL);
 	    struct thread *t = (struct thread *) target;
 
-	    err = rm_thread_id_send_unmarshal (message, NULL);
+	    err = vg_thread_id_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
-	    rm_thread_id_reply (activity, reply, t->tid);
+	    vg_thread_id_reply (activity, reply, t->tid);
 	    break;	    
 	  }
 
 	case VG_object_reply_on_destruction:
 	  {
-	    err = rm_object_reply_on_destruction_send_unmarshal (message,
+	    err = vg_object_reply_on_destruction_send_unmarshal (message,
 								 NULL);
 	    if (err)
 	      REPLY (err);
@@ -1726,7 +1726,7 @@ server_loop (void)
 	    uintptr_t flags;
 	    struct activity_policy in;
 
-	    err = rm_activity_policy_send_unmarshal (message, &flags, &in,
+	    err = vg_activity_policy_send_unmarshal (message, &flags, &in,
 						     NULL);
 	    if (err)
 	      REPLY (err);
@@ -1757,7 +1757,7 @@ server_loop (void)
 			     | VG_ACTIVITY_POLICY_SIBLING_REL_SET)))
 	      REPLY (EPERM);
 
-	    rm_activity_policy_reply (principal, reply, activity->policy);
+	    vg_activity_policy_reply (principal, reply, activity->policy);
 
 	    if ((flags & (VG_ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET
 			  | VG_ACTIVITY_POLICY_CHILD_REL_WEIGHT_SET
@@ -1795,7 +1795,7 @@ server_loop (void)
 	    uintptr_t flags;
 	    uintptr_t until_period;
 
-	    err = rm_activity_info_send_unmarshal (message,
+	    err = vg_activity_info_send_unmarshal (message,
 						   &flags, &until_period,
 						   NULL);
 	    if (err)
@@ -1836,7 +1836,7 @@ server_loop (void)
 
 		info.stats.count = ACTIVITY_STATS_PERIODS;
 
-		rm_activity_info_reply (principal, reply, info);
+		vg_activity_info_reply (principal, reply, info);
 	      }
 	    else if (flags)
 	      /* Queue thread on the activity.  */
@@ -1858,25 +1858,25 @@ server_loop (void)
 	    if (object_type (target) != vg_cap_thread)
 	      REPLY (EINVAL);
 
-	    err = rm_thread_activation_collect_send_unmarshal (message, NULL);
+	    err = vg_thread_activation_collect_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    thread_deliver_pending (principal, (struct thread *) target);
 
-	    rm_thread_activation_collect_reply (principal, reply);
+	    vg_thread_activation_collect_reply (principal, reply);
 	    break;
 	  }
 
 	case VG_as_dump:
 	  {
-	    err = rm_as_dump_send_unmarshal (message, NULL);
+	    err = vg_as_dump_send_unmarshal (message, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    as_dump_from (principal, target_root, "");
 
-	    rm_as_dump_reply (activity, reply);
+	    vg_as_dump_reply (activity, reply);
 
 	    break;
 	  }
@@ -1901,7 +1901,7 @@ server_loop (void)
 
 			debug (5, "Waking messenger");
 
-			err = rm_futex_reply (principal, m, 0);
+			err = vg_futex_reply (principal, m, 0);
 			if (err)
 			  panic ("Error vg_futex waking: %d", err);
 
@@ -1935,7 +1935,7 @@ server_loop (void)
 	    void *addr2;
 	    union futex_val3 val3;
 
-	    err = rm_futex_send_unmarshal (message,
+	    err = vg_futex_send_unmarshal (message,
 					   &addr1, &op, &val1,
 					   &timeout, &val2,
 					   &addr2, &val3, NULL);
@@ -2024,7 +2024,7 @@ server_loop (void)
 		  REPLY (EINVAL);
 
 		int count = wake (val1, object1, offset1, 0, 0, 0);
-		rm_futex_reply (activity, reply, count);
+		vg_futex_reply (activity, reply, count);
 		break;
 
 	      case FUTEX_WAKE_OP:
@@ -2082,7 +2082,7 @@ server_loop (void)
 		if (comparison)
 		  count += wake (val2.value, object2, offset2, 0, 0, 0);
 
-		rm_futex_reply (activity, reply, 0);
+		vg_futex_reply (activity, reply, 0);
 		break;
 
 	      case FUTEX_CMP_REQUEUE:
@@ -2102,7 +2102,7 @@ server_loop (void)
 
 		count = wake (val1, object1, offset1,
 			      val2.value, object2, offset2);
-		rm_futex_reply (activity, reply, count);
+		vg_futex_reply (activity, reply, count);
 		break;
 	      }
 

@@ -1,5 +1,66 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* ager.c (update_stats): Use vg_activity_info_reply, not
+	rm_activity_info_reply.
+	* pager.c (pager_collect): Likewise.
+	* object.c (folio_object_alloc): Use
+	vg_object_reply_on_destruction_reply, not
+	rm_object_reply_on_destruction_reply.
+	* server.c (server_loop): Use vg_write_send_unmarshal, not
+	rm_write_send_unmarshal.  Use vg_write_reply, not rm_write_reply.
+	Use VG_read_send_unmarshal, not rm_read_send_unmarshal. Use
+	VG_read_reply, not rm_read_reply. Use VG_fault_send_unmarshal, not
+	rm_fault_send_unmarshal. Use VG_fault_reply, not
+	rm_fault_reply. Use VG_fault_reply, not rm_fault_reply. Use
+	VG_folio_alloc_send_unmarshal, not
+	rm_folio_alloc_send_unmarshal. Use VG_folio_alloc_reply, not
+	rm_folio_alloc_reply. Use VG_folio_free_send_unmarshal, not
+	rm_folio_free_send_unmarshal. Use VG_folio_free_reply, not
+	rm_folio_free_reply. Use VG_folio_object_alloc_send_unmarshal, not
+	rm_folio_object_alloc_send_unmarshal. Use
+	VG_folio_object_alloc_reply, not rm_folio_object_alloc_reply. Use
+	VG_folio_policy_send_unmarshal, not
+	rm_folio_policy_send_unmarshal. Use VG_folio_policy_reply, not
+	rm_folio_policy_reply. Use VG_cap_copy_send_unmarshal, not
+	rm_cap_copy_send_unmarshal. Use VG_cap_copy_reply, not
+	rm_cap_copy_reply. Use VG_cap_rubout_send_unmarshal, not
+	rm_cap_rubout_send_unmarshal. Use VG_cap_rubout_reply, not
+	rm_cap_rubout_reply. Use VG_cap_read_send_unmarshal, not
+	rm_cap_read_send_unmarshal. Use VG_cap_read_reply, not
+	rm_cap_read_reply. Use VG_object_discarded_clear_send_unmarshal,
+	not rm_object_discarded_clear_send_unmarshal. Use
+	VG_object_discarded_clear_reply, not
+	rm_object_discarded_clear_reply. Use
+	VG_object_discard_send_unmarshal, not
+	rm_object_discard_send_unmarshal. Use VG_object_discard_reply, not
+	rm_object_discard_reply. Use VG_object_status_send_unmarshal, not
+	rm_object_status_send_unmarshal. Use VG_object_status_reply, not
+	rm_object_status_reply. Use VG_object_name_send_unmarshal, not
+	rm_object_name_send_unmarshal. Use VG_object_name_reply, not
+	rm_object_name_reply. Use VG_thread_exregs_send_unmarshal, not
+	rm_thread_exregs_send_unmarshal. Use VG_thread_exregs_reply, not
+	rm_thread_exregs_reply. Use VG_thread_id_send_unmarshal, not
+	rm_thread_id_send_unmarshal. Use VG_thread_id_reply, not
+	rm_thread_id_reply. Use
+	VG_object_reply_on_destruction_send_unmarshal, not
+	rm_object_reply_on_destruction_send_unmarshal. Use
+	VG_activity_policy_send_unmarshal, not
+	rm_activity_policy_send_unmarshal. Use VG_activity_policy_reply,
+	not rm_activity_policy_reply. Use VG_activity_info_send_unmarshal,
+	not rm_activity_info_send_unmarshal. Use VG_activity_info_reply,
+	not rm_activity_info_reply. Use
+	VG_thread_activation_collect_send_unmarshal, not
+	rm_thread_activation_collect_send_unmarshal. Use
+	VG_thread_activation_collect_reply, not
+	rm_thread_activation_collect_reply. Use VG_as_dump_send_unmarshal,
+	not rm_as_dump_send_unmarshal. Use VG_as_dump_reply, not
+	rm_as_dump_reply. Use VG_futex_reply, not rm_futex_reply. Use
+	VG_futex_send_unmarshal, not rm_futex_send_unmarshal. Use
+	VG_futex_reply, not rm_futex_reply. Use VG_futex_reply, not
+	rm_futex_reply. Use VG_futex_reply, not rm_futex_reply.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c: Don't include <hurd/exceptions.h>.
 	* thread.c: Likewise.
 

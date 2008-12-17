@@ -272,24 +272,27 @@ thread_exregs (struct activity *principal,
 
   if ((control & HURD_EXREGS_SET_ASPACE))
     vg_cap_copy_x (principal,
-		VG_ADDR_VOID, &thread->aspace, VG_ADDR_VOID,
-		VG_ADDR_VOID, aspace, VG_ADDR_VOID,
-		flags, properties);
+		   VG_ADDR_VOID, &thread->aspace, VG_ADDR_VOID,
+		   VG_ADDR_VOID, aspace, VG_ADDR_VOID,
+		   flags, properties);
 
   if ((control & HURD_EXREGS_SET_ACTIVITY))
-    vg_cap_copy (principal,
-	      VG_ADDR_VOID, &thread->activity, VG_ADDR_VOID,
-	      VG_ADDR_VOID, activity, VG_ADDR_VOID);
+    vg_cap_copy_simple
+      (principal,
+       VG_ADDR_VOID, &thread->activity, VG_ADDR_VOID,
+       VG_ADDR_VOID, activity, VG_ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_UTCB))
-    vg_cap_copy (principal,
-	      VG_ADDR_VOID, &thread->utcb, VG_ADDR_VOID,
-	      VG_ADDR_VOID, utcb, VG_ADDR_VOID);
+    vg_cap_copy_simple
+      (principal,
+       VG_ADDR_VOID, &thread->utcb, VG_ADDR_VOID,
+       VG_ADDR_VOID, utcb, VG_ADDR_VOID);
 
   if ((control & HURD_EXREGS_SET_EXCEPTION_MESSENGER))
-    vg_cap_copy (principal,
-	      VG_ADDR_VOID, &thread->exception_messenger, VG_ADDR_VOID,
-	      VG_ADDR_VOID, exception_messenger, VG_ADDR_VOID);
+    vg_cap_copy_simple
+      (principal,
+       VG_ADDR_VOID, &thread->exception_messenger, VG_ADDR_VOID,
+       VG_ADDR_VOID, exception_messenger, VG_ADDR_VOID);
 
   if (thread->commissioned)
     {

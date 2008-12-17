@@ -1,5 +1,13 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.c (hurd_activation_fetch): Use
+	vg_thread_activation_collect_send, not
+	rm_thread_activation_collect_send.
+	(hurd_activation_handler_init_early): Use
+	vg_thread_exregs_send_marshal, not rm_thread_exregs_send_marshal.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* anonymous.h: Don't include <hurd/exceptions.h>.
 	* as.h: Likewise.
 	* exceptions.c: Likewise.

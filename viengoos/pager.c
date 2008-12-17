@@ -533,7 +533,7 @@ pager_collect (int goal)
 		&& (m->wait_reason_arg & activity_info_pressure))
 	      {
 		object_wait_queue_unlink (victim, m);
-		rm_activity_info_reply (root_activity, m, info);
+		vg_activity_info_reply (root_activity, m, info);
 	      }
 	}
 

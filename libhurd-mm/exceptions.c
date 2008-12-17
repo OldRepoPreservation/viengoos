@@ -140,7 +140,7 @@ hurd_activation_fetch (void)
 
   /* Any reply will come in the form of a pending activation being
      delivered.  This RPC does not generate a response.  */
-  error_t err = rm_thread_activation_collect_send (VG_ADDR_VOID, VG_ADDR_VOID,
+  error_t err = vg_thread_activation_collect_send (VG_ADDR_VOID, VG_ADDR_VOID,
 						   VG_ADDR_VOID);
   if (err)
     panic ("Sending thread_activation_collect failed: %d", err);
@@ -683,7 +683,7 @@ hurd_activation_handler_init_early (void)
   memset (&in, 0, sizeof (in));
 
   struct vg_message *msg = (void *) &activation_handler_msg[0];
-  rm_thread_exregs_send_marshal (msg, HURD_EXREGS_SET_UTCB, in,
+  vg_thread_exregs_send_marshal (msg, HURD_EXREGS_SET_UTCB, in,
 				 VG_ADDR_VOID, VG_ADDR_VOID,
 				 VG_PTR_TO_PAGE (utcb), VG_ADDR_VOID,
 				 __hurd_startup_data->messengers[1]);

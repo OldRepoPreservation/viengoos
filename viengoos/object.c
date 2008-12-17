@@ -567,7 +567,7 @@ folio_object_alloc (struct activity *activity,
     {
       object_wait_queue_unlink (activity, messenger);
       if (messenger->wait_reason == MESSENGER_WAIT_DESTROY)
-	rm_object_reply_on_destruction_reply (activity,
+	vg_object_reply_on_destruction_reply (activity,
 					      messenger, return_code);
       else
 	rpc_error_reply (activity, messenger, EFAULT);
