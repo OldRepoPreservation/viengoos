@@ -1,5 +1,17 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos/futex.h (vg_futex_using): Rename from this...
+	(futex_using): ... to this.  Update users.  Use vg_futex_using,
+	not rm_futex_using.
+	(vg_futex): Rename from this...
+	(futex): ... to this.  Update users.
+	(vg_futex_wait_using): Rename from this...
+	(futex_wait_using): ... to this.  Update users.
+	(vg_futex_wake_using): Rename from this...
+	(futex_wake_using): ... to this.  Update users.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos/cap.h (vg_cap_copy): Rename from this...
 	(vg_cap_copy_simple): ... to this.  Update users.
 
