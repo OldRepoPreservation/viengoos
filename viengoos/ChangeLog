@@ -1,5 +1,9 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c: Don't include "rm.h" but <viengoos/misc.h>.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* rm.h: Move from here...
 	* ../libviengoos/viengoos/misc.h: ... to here.  Update users.
 	* headers.m4: Don't link rm.h to hurd/rm.h.

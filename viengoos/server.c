@@ -32,7 +32,7 @@
 
 #include "server.h"
 
-#include "rm.h"
+#include <viengoos/misc.h>
 
 #include "output.h"
 #include "cap.h"
