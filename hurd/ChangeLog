@@ -1,5 +1,11 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h: Include <hurd/exceptions.h>.
+	(struct hurd_utcb): Add field tid.
+	(hurd_myself): New function.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* math.h: Move to ../libviengoos/viengoos.  Update users.
 	* bits/ia32/math.h: Remove file.
 	* headers.m4: Don't link hurd/math.h or hurd/bits/math.h.

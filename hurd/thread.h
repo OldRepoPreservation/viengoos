@@ -93,6 +93,7 @@ struct activation_frame
 #include <viengoos/addr-trans.h>
 #include <viengoos/cap.h>
 #include <viengoos/messenger.h>
+#include <hurd/exceptions.h>
 #include <setjmp.h>
 
 /* The user thread control block.  */
@@ -124,6 +125,8 @@ struct hurd_utcb
   /* The alternate activation stack.  */
   void *alternate_stack;
   bool alternate_stack_inuse;
+
+  vg_thread_id_t tid;
 
 #define UTCB_CANARY0 0xCA17A1
 #define UTCB_CANARY1 0xDEADB15D
@@ -161,6 +164,17 @@ extern void hurd_fault_catcher_register (struct hurd_fault_catcher *catcher);
 
 /* Unregister a fault catch handler.  */
 extern void hurd_fault_catcher_unregister (struct hurd_fault_catcher *catcher);
+
+static inline vg_thread_id_t
+hurd_myself (void)
+{
+  struct hurd_utcb *utcb = hurd_utcb ();
+
+  if (unlikely (utcb->tid == 0))
+    utcb->tid = vg_myself ();
+
+  return utcb->tid;
+}
 
 #endif /* _HURD_THREAD_H */
 #endif /* __need_activation_frame */
