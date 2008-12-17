@@ -21,12 +21,11 @@
 #include <hurd/stddef.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <backtrace.h>
 
 extern char *program_name;
 
 extern void _exit (int);
-
-extern int backtrace (void **array, int size);
 
 void
 panic_ (const char *func, int line, const char *fmt, ...)
@@ -40,13 +39,7 @@ panic_ (const char *func, int line, const char *fmt, ...)
   s_printf ("\n");
   va_end (ap);
 
-  void *a[10];
-  int count = backtrace (a, sizeof (a) / sizeof (a[0]));
-  int i;
-  s_printf ("Backtrace: ");
-  for (i = 0; i < count; i ++)
-    s_printf ("%p ", a[i]);
-  s_printf ("\n");
+  backtrace_print ();
 
   _exit (127);
   for (;;)

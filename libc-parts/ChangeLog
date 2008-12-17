@@ -1,3 +1,10 @@
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* panic.c: Include <backtrace.h>
+	(panic_): Use backtrace print.
+	* _exit.c: Include <backtrace.h>
+	(_exit): Use backtrace print.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* t-setjmp.c (RM_INTERN): Define.

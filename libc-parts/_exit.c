@@ -21,6 +21,7 @@
 #include <hurd/stddef.h>
 #include <hurd/startup.h>
 #include <viengoos/folio.h>
+#include <backtrace.h>
 
 int __global_zero;
 
@@ -33,16 +34,7 @@ _exit (int ret)
   asm ("int $3");
 # endif
 #else
-  extern int backtrace (void **array, int size);
-
-  void *a[10];
-  int count = backtrace (a, sizeof (a) / sizeof (a[0]));
-  int i;
-  s_printf ("_exit called from: ");
-  for (i = 0; i < count; i ++)
-    s_printf ("%p ", a[i]);
-  s_printf ("\n");
-
+  backtrace_print ();
 
   extern struct hurd_startup_data *__hurd_startup_data;
 
