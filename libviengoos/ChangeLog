@@ -1,5 +1,12 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* ../hurd/exceptions.h (ACTIVATION_fault, activation_method_id_string)
+	(struct activation_fault_info, ACTIVATION_FAULT_INFO_FMT)
+	(ACTIVATION_FAULT_INFO_PRINTF, fault): Move from here...
+	* viengoos/thread.h: ... to here.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* t-addr.c: Don't include <l4/math.h>.  Include <viengoos/math.h>.
 	(main): Use vg_msb64 instead of l4_msb64 and vg_lsb64 instead of
 	l4_lsb64.

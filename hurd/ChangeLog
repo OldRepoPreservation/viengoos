@@ -1,5 +1,14 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.h: Don't include <viengoos/cap.h> or <l4/space.h>.
+	Include <viengoos/addr.h>.
+	(ACTIVATION_fault, activation_method_id_string)
+	(struct activation_fault_info, ACTIVATION_FAULT_INFO_FMT)
+	(ACTIVATION_FAULT_INFO_PRINTF, fault): Move from here...
+	* ../libviengoos/viengoos/thread.h: ... to here.
+	
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.h: Include <hurd/exceptions.h>.
 	(struct hurd_utcb): Add field tid.
 	(hurd_myself): New function.

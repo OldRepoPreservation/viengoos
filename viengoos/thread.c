@@ -23,7 +23,6 @@
 #include <hurd/ihash.h>
 #include <viengoos/cap.h>
 #include <hurd/stddef.h>
-#include <hurd/exceptions.h>
 #include <viengoos/thread.h>
 #include <bit-array.h>
 #include <backtrace.h>

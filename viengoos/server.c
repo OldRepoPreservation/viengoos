@@ -22,7 +22,6 @@
 #include <l4/pagefault.h>
 #include <viengoos/cap.h>
 #include <hurd/stddef.h>
-#include <hurd/exceptions.h>
 #include <viengoos/thread.h>
 #include <viengoos/activity.h>
 #include <viengoos/futex.h>

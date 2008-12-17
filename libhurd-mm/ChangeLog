@@ -1,3 +1,8 @@
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
+	* ia32-exception-entry.S: Don't include <hurd/exceptions.h>.
+	Include <hurd/stddef.h>.
+
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 
 	* ia32-exception-entry.S (UTCB_SAVED_THREAD_STATE): Don't define.

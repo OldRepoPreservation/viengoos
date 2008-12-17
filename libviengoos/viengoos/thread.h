@@ -276,6 +276,64 @@ vg_myself (void)
     return vg_niltid;
   return tid;
 }
+
+#define RPC_STUB_PREFIX activation
+#define RPC_ID_PREFIX ACTIVATION
+#include <viengoos/rpc.h>
+
+/* Activation message ids.  */
+enum
+  {
+    ACTIVATION_fault = 10,
+  };
+
+/* Return a string corresponding to a message id.  */
+static inline const char *
+activation_method_id_string (uintptr_t id)
+{
+  switch (id)
+    {
+    case ACTIVATION_fault:
+      return "fault";
+    default:
+      return "unknown";
+    }
+}
+
+struct activation_fault_info
+{
+  union
+  {
+    struct
+    {
+      /* Type of access.  */
+      uintptr_t access: 3;
+      /* Type of object that was attempting to be accessed.  */
+      uintptr_t type : CAP_TYPE_BITS;
+      /* Whether the page was discarded.  */
+      uintptr_t discarded : 1;
+    };
+    uintptr_t raw;
+  };
+};
+
+#define ACTIVATION_FAULT_INFO_FMT "%c%c%c %s%s"
+#define ACTIVATION_FAULT_INFO_PRINTF(info)		\
+  ((info).access & L4_FPAGE_READABLE ? 'r' : '~'),	\
+  ((info).access & L4_FPAGE_WRITABLE ? 'w' : '~'),	\
+  ((info).access & L4_FPAGE_EXECUTABLE ? 'x' : '~'),	\
+  cap_type_string ((info).type),			\
+  (info.discarded) ? " discarded" : ""
+
+/* Raise a fault at address FAULT_ADDRESS.  If IP is not 0, then IP is
+   the value of the IP of the faulting thread at the time of the fault
+   and SP the value of the stack pointer at the time of the fault.  */
+RPC (fault, 4, 0, 0,
+     addr_t, fault_address, uintptr_t, sp, uintptr_t, ip,
+     struct activation_fault_info, activation_fault_info)
+
+#undef RPC_STUB_PREFIX
+#undef RPC_ID_PREFIX
 
 #endif /* _VIENGOOS_THREAD_H */
 #endif /* __need_vg_thread_id_t */

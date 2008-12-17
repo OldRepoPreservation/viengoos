@@ -18,7 +18,7 @@
    along with this program.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
-#include <hurd/exceptions.h>
+#include <hurd/stddef.h>
 
 	.text
 

@@ -1,5 +1,10 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c: Don't include <hurd/exceptions.h>.
+	* thread.c: Likewise.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* zalloc.c: Don't include <l4/math.h>.  Include <viengoos/math.h>.
 	(zfree): Use vg_msb instead of l4_msb.
 	* ager.c (update_stats): Likewise.
