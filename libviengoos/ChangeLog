@@ -1,5 +1,13 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos.h: Include <viengoos/activity.h>, <viengoos/addr.h>,
+	<viengoos/addr-trans.h>, <viengoos/cap.h>, <viengoos/folio.h>,
+	<viengoos/futex.h>, <viengoos/ipc.h>, <viengoos/math.h>,
+	<viengoos/message.h>, <viengoos/messenger.h>, and
+	<viengoos/misc.h>.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* ../hurd/exceptions.h (ACTIVATION_fault, activation_method_id_string)
 	(struct activation_fault_info, ACTIVATION_FAULT_INFO_FMT)
 	(ACTIVATION_FAULT_INFO_PRINTF, fault): Move from here...
