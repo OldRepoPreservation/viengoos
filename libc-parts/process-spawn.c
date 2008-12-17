@@ -546,9 +546,9 @@ process_spawn (vg_addr_t activity,
   as_slot_lookup_use
     (thread,
      ({
-       r = vg_cap_copy (root_activity,
-		     VG_ADDR_VOID, slot, thread,
-		     VG_ADDR_VOID, rt.cap, rt.storage);
+       r = vg_cap_copy_simple (root_activity,
+			       VG_ADDR_VOID, slot, thread,
+			       VG_ADDR_VOID, rt.cap, rt.storage);
        assert (r);
      }));
 #endif
@@ -577,15 +577,16 @@ process_spawn (vg_addr_t activity,
 			allocate_page_table, do_index);
       
       if (ro)
-	as_slot_lookup_rel_use (root_activity, as_root_cap, addr,
-				({
-				  bool r = vg_cap_copy_x (root_activity,
-						       as_root, slot, addr,
-						       as_root, *slot, addr,
-						       VG_CAP_COPY_WEAKEN,
-						       VG_CAP_PROPERTIES_VOID);
-				  assert (r);
-				}));
+	as_slot_lookup_rel_use
+	  (root_activity, as_root_cap, addr,
+	   ({
+	     bool r = vg_cap_copy_x (root_activity,
+				     as_root, slot, addr,
+				     as_root, *slot, addr,
+				     VG_CAP_COPY_WEAKEN,
+				     VG_CAP_PROPERTIES_VOID);
+	     assert (r);
+	   }));
 
       void *local = rt_to_object (rt);
 

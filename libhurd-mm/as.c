@@ -437,7 +437,8 @@ as_alloc_slow (int width)
 
   struct vg_cap_properties properties = VG_CAP_PROPERTIES_DEFAULT;
   VG_CAP_ADDR_TRANS_SET_GUARD (&properties.addr_trans, 0, gbits);
-  err = vg_cap_copy (meta_data_activity, VG_ADDR_VOID, slot, VG_ADDR_VOID, slot,
+  err = vg_cap_copy (meta_data_activity,
+		     VG_ADDR_VOID, slot, VG_ADDR_VOID, slot,
 		     VG_CAP_COPY_COPY_ADDR_TRANS_GUARD, properties);
   if (err)
     panic ("failed to copy capability: %d", err);

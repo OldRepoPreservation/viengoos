@@ -1,5 +1,11 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* as-build-custom.c (as_insert_custom): Don't use vg_cap_copy but
+	vg_cap_copy_simple.
+	* as.h (as_insert_full): Likewise.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.c (hurd_activation_fetch): Use
 	vg_thread_activation_collect_send, not
 	rm_thread_activation_collect_send.

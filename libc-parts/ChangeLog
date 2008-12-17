@@ -1,5 +1,10 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* process-spawn.c (process_spawn): Don't use vg_cap_copy but
+	vg_cap_copy_simple.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* backtrace.c: Don't include <hurd/exceptions.h>.
 
 2008-12-17  Neal H. Walfield  <neal@gnu.org>

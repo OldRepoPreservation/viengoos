@@ -50,7 +50,8 @@ as_insert_custom (activity_t activity,
 				      as_allocate_page_table,
 				      object_index, false);
   assert (slot);
-  vg_cap_copy (activity, as_root_addr, slot, addr, entry_as, entry, entry_addr);
+  vg_cap_copy_simple (activity,
+		      as_root_addr, slot, addr, entry_as, entry, entry_addr);
 
   return slot;
 }

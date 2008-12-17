@@ -565,9 +565,9 @@ vg_cap_to_object (activity_t activity, struct vg_cap *vg_cap)
    capabilities.  */
 static inline bool
 vg_cap_copy_x (activity_t activity,
-	    vg_addr_t target_address_space, struct vg_cap *target, vg_addr_t target_addr,
-	    vg_addr_t source_address_space, struct vg_cap source, vg_addr_t source_addr,
-	    int flags, struct vg_cap_properties properties)
+	       vg_addr_t target_address_space, struct vg_cap *target, vg_addr_t target_addr,
+	       vg_addr_t source_address_space, struct vg_cap source, vg_addr_t source_addr,
+	       int flags, struct vg_cap_properties properties)
 {
   /* By default, we preserve SOURCE's subpage specification.  */
   int subpage = VG_CAP_SUBPAGE (&source);
@@ -717,14 +717,16 @@ vg_cap_copy_x (activity_t activity,
    SOURCE's subpage specification and TARGET's guard.  Copies SOURCE's
    policy.  */
 static inline bool
-vg_cap_copy (activity_t activity,
-	  vg_addr_t target_as, struct vg_cap *target, vg_addr_t target_addr,
-	  vg_addr_t source_as, struct vg_cap source, vg_addr_t source_addr)
+vg_cap_copy_simple (activity_t activity,
+		    vg_addr_t target_as,
+		    struct vg_cap *target, vg_addr_t target_addr,
+		    vg_addr_t source_as,
+		    struct vg_cap source, vg_addr_t source_addr)
 {
   return vg_cap_copy_x (activity, target_as, target, target_addr,
-		     source_as, source, source_addr,
-		     VG_CAP_COPY_DISCARDABLE_SET | VG_CAP_COPY_PRIORITY_SET,
-		     VG_CAP_PROPERTIES_GET (source));
+			source_as, source, source_addr,
+			VG_CAP_COPY_DISCARDABLE_SET | VG_CAP_COPY_PRIORITY_SET,
+			VG_CAP_PROPERTIES_GET (source));
 }
 
 #endif

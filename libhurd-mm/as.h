@@ -410,13 +410,13 @@ as_insert_full (activity_t activity,
 		  allocate_page_table,
 		  ({
 		    bool ret;
-		    ret = vg_cap_copy (activity,
-				    target_as_root_addr,
-				    slot,
-				    target_addr,
-				    source_as_root_addr,
-				    source_cap,
-				    source_addr);
+		    ret = vg_cap_copy_simple (activity,
+					      target_as_root_addr,
+					      slot,
+					      target_addr,
+					      source_as_root_addr,
+					      source_cap,
+					      source_addr);
 		    assertx (ret,
 			     VG_ADDR_FMT "@" VG_ADDR_FMT
 			     " <- " VG_ADDR_FMT "@" VG_ADDR_FMT " (" VG_CAP_FMT ")",
