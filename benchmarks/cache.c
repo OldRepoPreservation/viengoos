@@ -211,7 +211,7 @@ helper (void *arg)
     /* First the main thread.  */
     error_t err;
 
-    err = rm_activity_info (VG_ADDR_VOID, main_activity, activity_info_stats,
+    err = vg_activity_info (VG_ADDR_VOID, main_activity, activity_info_stats,
 			    stat_count == 0
 			    ? 0 : stats[stat_count - 1].period + 1,
 			    &info);
@@ -227,7 +227,7 @@ helper (void *arg)
     stats[stat_count].period = info.stats.stats[0].period;
 
     /* Then, the hog.  */
-    err = rm_activity_info (VG_ADDR_VOID, hog_activity, activity_info_stats,
+    err = vg_activity_info (VG_ADDR_VOID, hog_activity, activity_info_stats,
 			    stat_count == 0
 			    ? 0 : stats[stat_count - 1].period + 1,
 			    &info);
@@ -398,7 +398,7 @@ helper_fork (void)
 
   struct object_name name;
   snprintf (&name.name[0], sizeof (name.name), "main.%x", l4_myself ());
-  rm_object_name (VG_ADDR_VOID, main_activity, name);
+  vg_object_name (VG_ADDR_VOID, main_activity, name);
 
   hog_activity = storage_alloc (VG_ADDR_VOID,
 				vg_cap_activity_control, STORAGE_LONG_LIVED,
@@ -407,7 +407,7 @@ helper_fork (void)
     panic ("Failed to allocate hog activity");
 
   snprintf (&name.name[0], sizeof (name.name), "hog.%x", l4_myself ());
-  rm_object_name (VG_ADDR_VOID, hog_activity, name);
+  vg_object_name (VG_ADDR_VOID, hog_activity, name);
 
   /* We give the main thread and the hog the same priority and
      weight.  */  
@@ -419,15 +419,15 @@ helper_fork (void)
   in.child_rel.priority = 2;
   in.child_rel.weight = 20;
 
-  err = rm_activity_policy (VG_ADDR_VOID, meta_data_activity,
+  err = vg_activity_policy (VG_ADDR_VOID, meta_data_activity,
 			    VG_ACTIVITY_POLICY_CHILD_REL_SET, in, &out);
   assert (err == 0);
 
-  err = rm_activity_policy (VG_ADDR_VOID, hog_activity,
+  err = vg_activity_policy (VG_ADDR_VOID, hog_activity,
 			    VG_ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
   assert (err == 0);
 
-  err = rm_activity_policy (VG_ADDR_VOID, main_activity,
+  err = vg_activity_policy (VG_ADDR_VOID, main_activity,
 			    VG_ACTIVITY_POLICY_SIBLING_REL_SET, in, &out);
   assert (err == 0);
 

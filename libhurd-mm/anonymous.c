@@ -253,7 +253,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		 storage address as object_discarded_clear also
 		 returns a mapping and we are likely to access the
 		 data at the fault address.  */
-	      err = rm_object_discarded_clear (VG_ADDR_VOID, VG_ADDR_VOID,
+	      err = vg_object_discarded_clear (VG_ADDR_VOID, VG_ADDR_VOID,
 					       storage_desc->storage);
 	      assertx (err == 0, "%d", err);
 
@@ -327,7 +327,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
       int faulted;
       for (i = 0; i < count; i += faulted)
 	{
-	  error_t err = rm_fault (VG_ADDR_VOID, fault_addr + i * PAGESIZE,
+	  error_t err = vg_fault (VG_ADDR_VOID, fault_addr + i * PAGESIZE,
 				  count - i, &faulted);
 	  if (err || faulted == 0)
 	    break;
@@ -544,7 +544,7 @@ advise (struct pager *pager,
 		    break;
 
 		  error_t err;
-		  err = rm_object_discard (anon->activity,
+		  err = vg_object_discard (anon->activity,
 					   storage_desc->storage);
 		  if (err)
 		    panic ("err: %d", err);

@@ -203,7 +203,7 @@ extern struct vg_cap shadow_root;
       struct vg_cap_properties __acs_p;					\
       error_t __acs_err;						\
 									\
-      __acs_err = rm_cap_read (meta_data_activity,			\
+      __acs_err = vg_cap_read (meta_data_activity,			\
 			       (__acs_root_addr), (__acs_addr),		\
 			       &__acs_type, &__acs_p);			\
 									\

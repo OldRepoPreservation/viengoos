@@ -72,7 +72,7 @@ activity_alloc (struct activity_policy policy)
     panic ("Failed to allocate storage.");
 
   struct activity_policy out;
-  error_t err = rm_activity_policy (VG_ADDR_VOID, storage.addr,
+  error_t err = vg_activity_policy (VG_ADDR_VOID, storage.addr,
 				    VG_ACTIVITY_POLICY_STORAGE_SET
 				    | VG_ACTIVITY_POLICY_CHILD_REL_SET
 				    | VG_ACTIVITY_POLICY_SIBLING_REL_SET,
@@ -137,7 +137,7 @@ do_gather_stats (void *arg)
       for (i = 0; i < module_count; i ++, stat ++)
 	{
 	  error_t err;
-	  err = rm_activity_info (VG_ADDR_VOID, activities[i], activity_info_stats,
+	  err = vg_activity_info (VG_ADDR_VOID, activities[i], activity_info_stats,
 				  period, &info);
 	  assert_perror (err);
 	  assert (info.event == activity_info_stats);
@@ -192,7 +192,7 @@ main (int argc, char *argv[])
 
       struct object_name name;
       strncpy (&name.name[0], modules[i].name, sizeof (name.name));
-      rm_object_name (VG_ADDR_VOID, activities[i], name);
+      vg_object_name (VG_ADDR_VOID, activities[i], name);
     }
 
   bool gather_stats = false;
@@ -336,14 +336,14 @@ main (int argc, char *argv[])
   for (i = 0; i < module_count; i ++)
     {
       uintptr_t rt = -1;
-      rm_object_reply_on_destruction (root_activity,
+      vg_object_reply_on_destruction (root_activity,
 				      thread[i], &rt);
 
       vg_addr_t folio = vg_addr_chop (activities[i], VG_FOLIO_OBJECTS_LOG2);
       int index = vg_addr_extract (activities[i], VG_FOLIO_OBJECTS_LOG2);
 
       error_t err;
-      err = rm_folio_object_alloc (VG_ADDR_VOID, folio, index,
+      err = vg_folio_object_alloc (VG_ADDR_VOID, folio, index,
 				   vg_cap_void, VG_OBJECT_POLICY_VOID,
 				   (uintptr_t) rt,
 				   NULL, NULL);

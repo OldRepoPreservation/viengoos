@@ -437,7 +437,7 @@ as_alloc_slow (int width)
 
   struct vg_cap_properties properties = VG_CAP_PROPERTIES_DEFAULT;
   VG_CAP_ADDR_TRANS_SET_GUARD (&properties.addr_trans, 0, gbits);
-  err = rm_cap_copy (meta_data_activity, VG_ADDR_VOID, slot, VG_ADDR_VOID, slot,
+  err = vg_cap_copy (meta_data_activity, VG_ADDR_VOID, slot, VG_ADDR_VOID, slot,
 		     VG_CAP_COPY_COPY_ADDR_TRANS_GUARD, properties);
   if (err)
     panic ("failed to copy capability: %d", err);
@@ -504,11 +504,11 @@ as_init (void)
 
       uintptr_t type;
       struct vg_cap_properties properties;
-      err = rm_cap_read (meta_data_activity, VG_ADDR_VOID, addr,
+      err = vg_cap_read (meta_data_activity, VG_ADDR_VOID, addr,
 			 &type, &properties);
       assert (! err);
       if (! vg_cap_types_compatible (type, desc->type))
-	rm_as_dump (VG_ADDR_VOID, VG_ADDR_VOID);
+	vg_as_dump (VG_ADDR_VOID, VG_ADDR_VOID);
       assertx (vg_cap_types_compatible (type, desc->type),
 	       "Object at " VG_ADDR_FMT ": %s != %s",
 	       VG_ADDR_PRINTF (addr),
@@ -757,7 +757,7 @@ as_walk (int (*visit) (vg_addr_t addr,
       struct vg_cap_properties root_properties;
       uintptr_t root_type;
 
-      err = rm_cap_read (meta_data_activity, VG_ADDR_VOID,
+      err = vg_cap_read (meta_data_activity, VG_ADDR_VOID,
 			 VG_ADDR (0, 0), &root_type, &root_properties);
       assert (err == 0);
 
@@ -779,7 +779,7 @@ as_walk (int (*visit) (vg_addr_t addr,
 	    }
 	  else
 	    {
-	      err = rm_cap_read (meta_data_activity, VG_ADDR_VOID,
+	      err = vg_cap_read (meta_data_activity, VG_ADDR_VOID,
 				 addr, &type, &properties);
 	      assert (err == 0);
 	    }
@@ -832,14 +832,14 @@ as_walk (int (*visit) (vg_addr_t addr,
 	    }
 
 	  addr = vg_addr_extend (addr, child[d], slots_log2);
-	  err = rm_cap_read (meta_data_activity, VG_ADDR_VOID,
+	  err = vg_cap_read (meta_data_activity, VG_ADDR_VOID,
 			     addr, &type, &properties);
 	  assert (err == 0);
 	}
 
       for (;;)
 	{
-	  err = rm_cap_read (meta_data_activity, VG_ADDR_VOID,
+	  err = vg_cap_read (meta_data_activity, VG_ADDR_VOID,
 			     addr, &type, &properties);
 	  if (err)
 	    /* Dangling pointer.  */

@@ -318,7 +318,7 @@ profile_start (uintptr_t id, const char *name, const char *name2)
       else
 	{
 #ifdef __gnu_hurd_viengoos__
-	  site->name = rm_method_id_string (id);
+	  site->name = vg_method_id_string (id);
 #else
 	  site->name = "unknown";
 #endif

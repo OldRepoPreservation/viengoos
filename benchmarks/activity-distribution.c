@@ -47,7 +47,7 @@ main (int argc, char *argv[])
       in.sibling_rel.priority = i == 0 ? 2 : 1;
       in.sibling_rel.weight = i + 1;
       struct activity_policy out;
-      err = rm_activity_policy (activity, activities[i],
+      err = vg_activity_policy (activity, activities[i],
 				VG_ACTIVITY_POLICY_SIBLING_REL_SET, in,
 				&out);
       assert (err == 0);
@@ -62,7 +62,7 @@ main (int argc, char *argv[])
   {
     struct activity_info info;
 
-    err = rm_activity_info (activity, activity, activity_info_stats, 1, &info);
+    err = vg_activity_info (activity, activity, activity_info_stats, 1, &info);
     assert (err == 0);
     assert (info.event == activity_info_stats);
     assert (info.stats.count >= 1);
@@ -159,7 +159,7 @@ main (int argc, char *argv[])
 
       struct activity_info info;
 
-      rm_activity_info (activity, activity, activity_info_stats,
+      vg_activity_info (activity, activity, activity_info_stats,
 			next_period, &info);
       assert (info.event == activity_info_stats);
       assert (info.stats.count > 0);
@@ -173,7 +173,7 @@ main (int argc, char *argv[])
       int j;
       for (j = 0; j < THREADS; j ++)
 	{
-	  rm_activity_info (activity, activity, activity_info_stats,
+	  vg_activity_info (activity, activity, activity_info_stats,
 			    next_period, &info);
 	  assert (info.event == activity_info_stats);
 	  assert (info.stats.count > 0);

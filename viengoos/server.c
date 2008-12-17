@@ -61,12 +61,12 @@ struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
 			  thread->tid,					\
 			  l4_is_pagefault (msg_tag) ? "pagefault"	\
 			  : label == 8194 ? "IPC"			\
-			  : rm_method_id_string (label),		\
+			  : vg_method_id_string (label),		\
 			  label,					\
 			  ##args);					\
       debug (level, "(%x %s:%d %d) " format,				\
 	     thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"	\
-	     : label == 8194 ? "IPC" : rm_method_id_string (label),	\
+	     : label == 8194 ? "IPC" : vg_method_id_string (label),	\
 	     __LINE__, label,						\
 	     ##args);							\
     }									\
@@ -76,7 +76,7 @@ struct trace_buffer rpc_trace = TRACE_BUFFER_INIT ("rpcs", 0,
 # define DEBUG(level, format, args...)					\
       debug (level, "(%x %s:%d %d) " format,				\
 	     thread->tid, l4_is_pagefault (msg_tag) ? "pagefault"	\
-	     : label == 8194 ? "IPC" : rm_method_id_string (label),	\
+	     : label == 8194 ? "IPC" : vg_method_id_string (label),	\
 	     __LINE__, label,						\
 	     ##args)
 #endif
@@ -182,7 +182,7 @@ server_loop (void)
       debug (5, "%x (p: %d, %x) sent %s (%x)",
 	     from, l4_ipc_propagated (msg_tag), l4_actual_sender (),
 	     (l4_is_pagefault (msg_tag) ? "fault handler"
-	      : rm_method_id_string (label)),
+	      : vg_method_id_string (label)),
 	     label);
 
       if (l4_version (l4_myself ()) == l4_version (from))
@@ -190,7 +190,7 @@ server_loop (void)
 	panic ("Kernel thread %x (propagated: %d, actual: %x) sent %s? (%x)!",
 	       from, l4_ipc_propagated (msg_tag), l4_actual_sender (),
 	       (l4_is_pagefault (msg_tag) ? "fault handler"
-		      : rm_method_id_string (label)),
+		      : vg_method_id_string (label)),
 	       label);
 
       ss_mutex_lock (&kernel_lock);
@@ -204,7 +204,7 @@ server_loop (void)
 	method = label;
       profile_start (method,
 		     method == PAGEFAULT_METHOD ? "fault handler"
-		     : rm_method_id_string (method), NULL);
+		     : vg_method_id_string (method), NULL);
 
       /* Find the sender.  */
       struct thread *thread = thread_lookup (from);
@@ -1005,7 +1005,7 @@ server_loop (void)
 
       switch (label)
 	{
-	case RM_write:
+	case VG_write:
 	  {
 	    struct io_buffer buffer;
 	    err = rm_write_send_unmarshal (message, &buffer, NULL);
@@ -1019,7 +1019,7 @@ server_loop (void)
 	    rm_write_reply (activity, reply);
 	    break;
 	  }
-	case RM_read:
+	case VG_read:
 	  {
 	    int max;
 	    err = rm_read_send_unmarshal (message, &max, NULL);
@@ -1042,7 +1042,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_fault:
+	case VG_fault:
 	  {
 	    uintptr_t start;
 	    int max;
@@ -1113,7 +1113,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_folio_alloc:
+	case VG_folio_alloc:
 	  {
 	    if (object_type (target) != vg_cap_activity_control)
 	      {
@@ -1141,7 +1141,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_folio_free:
+	case VG_folio_free:
 	  {
 	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
@@ -1160,7 +1160,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_folio_object_alloc:
+	case VG_folio_object_alloc:
 	  {
 	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
@@ -1207,7 +1207,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_folio_policy:
+	case VG_folio_policy:
 	  {
 	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
@@ -1230,7 +1230,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_cap_copy:
+	case VG_cap_copy:
 	  {
 	    vg_addr_t source_as_addr;
 	    vg_addr_t source_addr;
@@ -1383,7 +1383,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_cap_rubout:
+	case VG_cap_rubout:
 	  {
 	    vg_addr_t addr;
 
@@ -1407,7 +1407,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_cap_read:
+	case VG_cap_read:
 	  {
 	    vg_addr_t cap_addr;
 
@@ -1430,7 +1430,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_object_discarded_clear:
+	case VG_object_discarded_clear:
 	  {
 	    vg_addr_t object_addr;
 
@@ -1510,7 +1510,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_object_discard:
+	case VG_object_discard:
 	  {
 	    err = rm_object_discard_send_unmarshal (message, NULL);
 	    if (err)
@@ -1527,7 +1527,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_object_status:
+	case VG_object_status:
 	  {
 	    bool clear;
 	    err = rm_object_status_send_unmarshal (message, &clear, NULL);
@@ -1551,7 +1551,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_object_name:
+	case VG_object_name:
 	  {
 	    struct object_name name;
 	    err = rm_object_name_send_unmarshal (message, &name, NULL);
@@ -1575,7 +1575,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_thread_exregs:
+	case VG_thread_exregs:
 	  {
 	    if (object_type (target) != vg_cap_thread)
 	      REPLY (EINVAL);
@@ -1684,7 +1684,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_thread_id:
+	case VG_thread_id:
 	  {
 	    if (object_type (target) != vg_cap_thread)
 	      REPLY (EINVAL);
@@ -1698,7 +1698,7 @@ server_loop (void)
 	    break;	    
 	  }
 
-	case RM_object_reply_on_destruction:
+	case VG_object_reply_on_destruction:
 	  {
 	    err = rm_object_reply_on_destruction_send_unmarshal (message,
 								 NULL);
@@ -1713,7 +1713,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_activity_policy:
+	case VG_activity_policy:
 	  {
 	    if (object_type (target) != vg_cap_activity_control)
 	      {
@@ -1786,7 +1786,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_activity_info:
+	case VG_activity_info:
 	  {
 	    if (object_type (target) != vg_cap_activity_control)
 	      REPLY (EINVAL);
@@ -1853,7 +1853,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_thread_activation_collect:
+	case VG_thread_activation_collect:
 	  {
 	    if (object_type (target) != vg_cap_thread)
 	      REPLY (EINVAL);
@@ -1868,7 +1868,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_as_dump:
+	case VG_as_dump:
 	  {
 	    err = rm_as_dump_send_unmarshal (message, NULL);
 	    if (err)
@@ -1881,7 +1881,7 @@ server_loop (void)
 	    break;
 	  }
 
-	case RM_futex:
+	case VG_futex:
 	  {
 	    /* Helper function to wake and requeue waiters.  */
 	    int wake (int to_wake, struct object *object1, int offset1,

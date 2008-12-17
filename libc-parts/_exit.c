@@ -61,7 +61,7 @@ _exit (int ret)
 	      int index = vg_addr_extract (desc->storage, VG_FOLIO_OBJECTS_LOG2);
 
 	      error_t err;
-	      err = rm_folio_object_alloc (VG_ADDR_VOID, folio, index,
+	      err = vg_folio_object_alloc (VG_ADDR_VOID, folio, index,
 					   vg_cap_void, VG_OBJECT_POLICY_VOID,
 					   (uintptr_t) ret,
 					   NULL, NULL);

@@ -62,7 +62,7 @@
 #ifdef RM_INTERN
 # define AS_DUMP_ as_dump_from (root_activity, as_root_cap, __func__)
 #else
-# define AS_DUMP_ rm_as_dump (VG_ADDR_VOID, as_root)
+# define AS_DUMP_ vg_as_dump (VG_ADDR_VOID, as_root)
 #endif
 #define AS_DUMP						\
   do							\
@@ -367,7 +367,7 @@ process_spawn (vg_addr_t activity,
 
 	  as_ensure (folio_local_addr);
 
-	  error_t err = rm_folio_alloc (activity, activity,
+	  error_t err = vg_folio_alloc (activity, activity,
 					VG_FOLIO_POLICY_DEFAULT,
 					&folio_local_addr);
 	  if (err)
@@ -421,7 +421,7 @@ process_spawn (vg_addr_t activity,
 				   vg_cap_type_strengthen (type),
 				   VG_OBJECT_POLICY_VOID, 0);
 #else
-      rm_folio_object_alloc (VG_ADDR_VOID,
+      vg_folio_object_alloc (VG_ADDR_VOID,
 			     folio_local_addr, index,
 			     vg_cap_type_strengthen (type),
 			     VG_OBJECT_POLICY_VOID, 0, NULL, NULL);
@@ -768,7 +768,7 @@ process_spawn (vg_addr_t activity,
   error_t err;
   struct hurd_thread_exregs_out out;
   /* XXX: Use a weakened activity.  */
-  err = rm_thread_exregs (VG_ADDR_VOID, thread,
+  err = vg_thread_exregs (VG_ADDR_VOID, thread,
 			  HURD_EXREGS_SET_SP_IP
 			  | HURD_EXREGS_SET_ASPACE
 			  | HURD_EXREGS_SET_ACTIVITY

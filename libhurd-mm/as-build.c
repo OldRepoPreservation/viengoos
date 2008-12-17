@@ -86,7 +86,7 @@ struct trace_buffer as_trace = TRACE_BUFFER_INIT ("as_trace", 0,
 #ifdef RM_INTERN
 # define AS_DUMP as_dump_from (activity, as_root, __func__)
 #else
-# define AS_DUMP rm_as_dump (VG_ADDR_VOID, as_root_addr)
+# define AS_DUMP vg_as_dump (VG_ADDR_VOID, as_root_addr)
 #endif
 
 /* The following macros allow providing specialized address-space

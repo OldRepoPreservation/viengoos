@@ -30,68 +30,68 @@
 
 enum rm_method_id
   {
-    RM_write = 100,
-    RM_read,
-    RM_as_dump,
-    RM_fault,
+    VG_write = 100,
+    VG_read,
+    VG_as_dump,
+    VG_fault,
   };
 
 static inline const char *
-rm_method_id_string (int id)
+vg_method_id_string (int id)
 {
   switch (id)
     {
-    case RM_write:
+    case VG_write:
       return "write";
-    case RM_read:
+    case VG_read:
       return "read";
-    case RM_as_dump:
+    case VG_as_dump:
       return "as_dump";
-    case RM_fault:
+    case VG_fault:
       return "fault";
-    case RM_folio_alloc:
+    case VG_folio_alloc:
       return "folio_alloc";
-    case RM_folio_free:
+    case VG_folio_free:
       return "folio_free";
-    case RM_folio_object_alloc:
+    case VG_folio_object_alloc:
       return "folio_object_alloc";
-    case RM_folio_policy:
+    case VG_folio_policy:
       return "folio_policy";
-    case RM_cap_copy:
+    case VG_cap_copy:
       return "cap_copy";
-    case RM_cap_rubout:
+    case VG_cap_rubout:
       return "cap_rubout";
-    case RM_cap_read:
+    case VG_cap_read:
       return "cap_read";
-    case RM_object_discarded_clear:
+    case VG_object_discarded_clear:
       return "object_discarded_clear";
-    case RM_object_discard:
+    case VG_object_discard:
       return "object_discard";
-    case RM_object_status:
+    case VG_object_status:
       return "object_status";
-    case RM_object_reply_on_destruction:
+    case VG_object_reply_on_destruction:
       return "object_reply_on_destruction";
-    case RM_object_name:
+    case VG_object_name:
       return "object_name";
-    case RM_thread_exregs:
+    case VG_thread_exregs:
       return "thread_exregs";
-    case RM_thread_id:
+    case VG_thread_id:
       return "thread_id";
-    case RM_thread_activation_collect:
+    case VG_thread_activation_collect:
       return "thread_activation_collect";
-    case RM_activity_policy:
+    case VG_activity_policy:
       return "activity_policy";
-    case RM_activity_info:
+    case VG_activity_info:
       return "activity_info";
-    case RM_futex:
+    case VG_futex:
       return "futex";
     default:
       return "unknown method id";
     }
 }
 
-#define RPC_STUB_PREFIX rm
-#define RPC_ID_PREFIX RM
+#define RPC_STUB_PREFIX vg
+#define RPC_ID_PREFIX VG
 
 #include <viengoos/rpc.h>
 

@@ -371,17 +371,17 @@ vg_folio_object_cap (struct folio *folio, int object)
 }
 #endif
 
-#define RPC_STUB_PREFIX rm
-#define RPC_ID_PREFIX RM
+#define RPC_STUB_PREFIX vg
+#define RPC_ID_PREFIX VG
 
 #include <viengoos/rpc.h>
 
 enum
   {
-    RM_folio_alloc = 200,
-    RM_folio_free,
-    RM_folio_object_alloc,
-    RM_folio_policy
+    VG_folio_alloc = 200,
+    VG_folio_free,
+    VG_folio_object_alloc,
+    VG_folio_policy
   };
 
 /* Allocate a folio against ACTIVITY.  Return a capability in the

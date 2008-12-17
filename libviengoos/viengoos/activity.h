@@ -25,8 +25,8 @@
 
 enum
   {
-    RM_activity_policy = 700,
-    RM_activity_info,
+    VG_activity_policy = 700,
+    VG_activity_info,
   };
 
 struct activity_memory_policy
@@ -165,8 +165,8 @@ struct activity_stats
 		  VG_ACTIVITY_MEMORY_POLICY_VOID,	\
 		  0)
 
-#define RPC_STUB_PREFIX rm
-#define RPC_ID_PREFIX RM
+#define RPC_STUB_PREFIX vg
+#define RPC_ID_PREFIX VG
 
 #include <viengoos/rpc.h>
 

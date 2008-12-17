@@ -523,7 +523,7 @@ hurd_activation_handler_activated (struct hurd_utcb *utcb)
 	    err = vg_message_word (mb->reply, 0);
 
 	  debug (5, "Extant RPC: %s (%d) -> %d",
-		 rm_method_id_string (label), label, err);
+		 vg_method_id_string (label), label, err);
 	}
 #endif
 
@@ -857,7 +857,7 @@ hurd_activation_state_alloc (vg_addr_t thread, struct hurd_utcb **utcbp)
   struct hurd_thread_exregs_in in;
   struct hurd_thread_exregs_out out;
 
-  err = rm_thread_exregs (VG_ADDR_VOID, thread,
+  err = vg_thread_exregs (VG_ADDR_VOID, thread,
 			  HURD_EXREGS_SET_UTCB
 			  | HURD_EXREGS_SET_EXCEPTION_MESSENGER,
 			  in, VG_ADDR_VOID, VG_ADDR_VOID,
@@ -866,7 +866,7 @@ hurd_activation_state_alloc (vg_addr_t thread, struct hurd_utcb **utcbp)
   if (err)
     panic ("Failed to install utcb");
 
-  err = rm_cap_copy (VG_ADDR_VOID,
+  err = vg_cap_copy (VG_ADDR_VOID,
 		     utcb->exception_buffer->receiver,
 		     VG_ADDR (VG_MESSENGER_THREAD_SLOT, VG_MESSENGER_SLOTS_LOG2),
 		     VG_ADDR_VOID, thread,

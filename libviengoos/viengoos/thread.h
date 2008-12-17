@@ -169,9 +169,9 @@ enum
 
 enum
   {
-    RM_thread_exregs = 600,
-    RM_thread_id,
-    RM_thread_activation_collect,
+    VG_thread_exregs = 600,
+    VG_thread_id,
+    VG_thread_activation_collect,
   };
 
 #ifdef RM_INTERN
@@ -181,8 +181,8 @@ typedef struct thread *vg_thread_t;
 typedef vg_addr_t vg_thread_t;
 #endif
 
-#define RPC_STUB_PREFIX rm
-#define RPC_ID_PREFIX RM
+#define RPC_STUB_PREFIX vg
+#define RPC_ID_PREFIX VG
 
 #include <viengoos/rpc.h>
 
@@ -221,7 +221,7 @@ vg_thread_start (vg_addr_t thread)
   struct hurd_thread_exregs_in in;
   struct hurd_thread_exregs_out out;
 
-  return rm_thread_exregs (VG_ADDR_VOID, thread,
+  return vg_thread_exregs (VG_ADDR_VOID, thread,
 			   HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC,
 			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
 			   &out, NULL, NULL, NULL, NULL);
@@ -236,7 +236,7 @@ vg_thread_start_sp_ip (vg_addr_t thread, uintptr_t sp, uintptr_t ip)
   in.sp = sp;
   in.ip = ip;
 
-  return rm_thread_exregs (VG_ADDR_VOID, thread,
+  return vg_thread_exregs (VG_ADDR_VOID, thread,
 			   HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC
 			   | HURD_EXREGS_SET_SP_IP,
 			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
@@ -249,7 +249,7 @@ vg_thread_stop (vg_addr_t thread)
   struct hurd_thread_exregs_in in;
   struct hurd_thread_exregs_out out;
 
-  return rm_thread_exregs (VG_ADDR_VOID, thread,
+  return vg_thread_exregs (VG_ADDR_VOID, thread,
 			   HURD_EXREGS_STOP | HURD_EXREGS_ABORT_IPC,
 			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
 			   &out, NULL, NULL, NULL, NULL);
@@ -271,7 +271,7 @@ static inline vg_thread_id_t
 vg_myself (void)
 {
   vg_thread_id_t tid;
-  error_t err = rm_thread_id (VG_ADDR_VOID, VG_ADDR_VOID, &tid);
+  error_t err = vg_thread_id (VG_ADDR_VOID, VG_ADDR_VOID, &tid);
   if (err)
     return vg_niltid;
   return tid;

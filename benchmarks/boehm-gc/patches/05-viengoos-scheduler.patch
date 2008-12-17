@@ -275,7 +275,7 @@ diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.su
 +  for (;;)
 +    {
 +      struct activity_info info;
-+      error_t err = rm_activity_info (ACTIVITY,
++      error_t err = vg_activity_info (ACTIVITY,
 +				      activity_info_stats
 +				      | activity_info_pressure,
 +				      period, &info);

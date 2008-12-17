@@ -138,7 +138,7 @@ mprotect (void *addr, size_t length, int prot)
 		     if (map->access == 0)
 		       {
 			 error_t err;
-			 err = rm_cap_rubout (meta_data_activity,
+			 err = vg_cap_rubout (meta_data_activity,
 					      VG_ADDR_VOID, addr);
 			 assert (! err);
 			 slot->type = vg_cap_void;

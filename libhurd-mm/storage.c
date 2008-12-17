@@ -253,7 +253,7 @@ shadow_setup (struct vg_cap *cap, struct storage_desc *desc)
       desc->free --;
       atomic_decrement (&free_count);
 
-      error_t err = rm_folio_object_alloc (meta_data_activity,
+      error_t err = vg_folio_object_alloc (meta_data_activity,
 					   desc->folio, idx, vg_cap_page,
 					   VG_OBJECT_POLICY_DEFAULT, 0,
 					   NULL, NULL);
@@ -465,7 +465,7 @@ storage_check_reserve_internal (bool force_allocate,
 
   /* And then the folio.  */
   vg_addr_t a = addr;
-  error_t err = rm_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT,
+  error_t err = vg_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT,
 				&a);
   assert (! err);
   assert (VG_ADDR_EQ (addr, a));
@@ -645,7 +645,7 @@ storage_alloc (vg_addr_t activity,
     }
 
   vg_addr_t a = addr;
-  error_t err = rm_folio_object_alloc (activity, folio, idx, type, policy, 0,
+  error_t err = vg_folio_object_alloc (activity, folio, idx, type, policy, 0,
 				       &a, NULL);
   assertx (! err,
 	   "Allocating object %d from " VG_ADDR_FMT " at " VG_ADDR_FMT ": %d!",
@@ -752,7 +752,7 @@ storage_free_ (vg_addr_t object, bool unmap_now)
 	  ss_mutex_unlock (&storage_descs_lock);
 
 
-	  error_t err = rm_folio_free (meta_data_activity, folio);
+	  error_t err = vg_folio_free (meta_data_activity, folio);
 	  assert (err == 0);
 
 	  as_slot_lookup_use (folio,
@@ -806,7 +806,7 @@ storage_free_ (vg_addr_t object, bool unmap_now)
   int idx = vg_addr_extract (object, VG_FOLIO_OBJECTS_LOG2);
   bit_dealloc (storage->alloced, idx);
 
-  error_t err = rm_folio_object_alloc (meta_data_activity,
+  error_t err = vg_folio_object_alloc (meta_data_activity,
 				       folio, idx, vg_cap_void,
 				       VG_OBJECT_POLICY_DEFAULT, 0,
 				       NULL, NULL);

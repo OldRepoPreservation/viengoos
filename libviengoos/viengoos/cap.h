@@ -379,22 +379,22 @@ struct vg_cap
 
 /* Capability-related methods.  */
 
-#define RPC_STUB_PREFIX rm
-#define RPC_ID_PREFIX RM
+#define RPC_STUB_PREFIX vg
+#define RPC_ID_PREFIX VG
 
 #include <viengoos/rpc.h>
 
 enum
   {
-    RM_cap_copy = 300,
-    RM_cap_rubout,
-    RM_cap_read,
+    VG_cap_copy = 300,
+    VG_cap_rubout,
+    VG_cap_read,
 
-    RM_object_discarded_clear = 400,
-    RM_object_discard,
-    RM_object_status,
-    RM_object_reply_on_destruction,
-    RM_object_name,
+    VG_object_discarded_clear = 400,
+    VG_object_discard,
+    VG_object_status,
+    VG_object_reply_on_destruction,
+    VG_object_name,
   };
 
 enum
@@ -694,7 +694,7 @@ vg_cap_copy_x (activity_t activity,
   assert (! VG_ADDR_IS_VOID (target_addr));
   assert (! VG_ADDR_IS_VOID (source_addr));
 
-  error_t err = rm_cap_copy (activity, target_address_space, target_addr,
+  error_t err = vg_cap_copy (activity, target_address_space, target_addr,
 			     source_address_space, source_addr,
 			     flags, properties);
   assert (err == 0);

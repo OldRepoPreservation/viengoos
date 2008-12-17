@@ -33,11 +33,11 @@
 
 enum
   {
-    RM_futex = 800,
+    VG_futex = 800,
   };
 
-#define RPC_STUB_PREFIX rm
-#define RPC_ID_PREFIX RM
+#define RPC_STUB_PREFIX vg
+#define RPC_ID_PREFIX VG
 
 #include <viengoos/rpc.h>
 
@@ -137,7 +137,7 @@ vg_futex_using (struct hurd_message_buffer *mb,
 			  addr1, op, val1, !! timespec, val2, addr2,
 			  (union futex_val3) val3, &ret);
   else
-    err = rm_futex (VG_ADDR_VOID, VG_ADDR_VOID,
+    err = vg_futex (VG_ADDR_VOID, VG_ADDR_VOID,
 		    addr1, op, val1, !! timespec, val2, addr2,
 		    (union futex_val3) val3, &ret);
   return (struct vg_futex_return) { err, ret };

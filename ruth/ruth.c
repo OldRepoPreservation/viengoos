@@ -118,7 +118,7 @@ main (int argc, char *argv[])
 
     vg_addr_t folio = capalloc ();
     assert (! VG_ADDR_IS_VOID (folio));
-    error_t err = rm_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT,
+    error_t err = vg_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT,
 				  &folio);
     assert (! err);
     assert (! VG_ADDR_IS_VOID (folio));
@@ -130,7 +130,7 @@ main (int argc, char *argv[])
 	if (VG_ADDR_IS_VOID (addr))
 	  panic ("capalloc");
 
-	err = rm_folio_object_alloc (activity, folio, i, vg_cap_page,
+	err = vg_folio_object_alloc (activity, folio, i, vg_cap_page,
 				     VG_OBJECT_POLICY_DEFAULT, 0,
 				     &addr, NULL);
 	assert ((err == 0) == (0 <= i && i < VG_FOLIO_OBJECTS));
@@ -140,14 +140,14 @@ main (int argc, char *argv[])
 	  {
 	    l4_word_t type;
 	    struct vg_cap_properties properties;
-	    err = rm_cap_read (activity, VG_ADDR_VOID, addr, &type, &properties);
+	    err = vg_cap_read (activity, VG_ADDR_VOID, addr, &type, &properties);
 	    assert (! err);
 	    assert (type == vg_cap_page);
 	  }
 	capfree (addr);
       }
 
-    err = rm_folio_free (activity, folio);
+    err = vg_folio_free (activity, folio);
     assert (! err);
     capfree (folio);
 
@@ -180,7 +180,7 @@ main (int argc, char *argv[])
 			 vg_cap_set_shadow (slot, shadow);
 		       }));
 
-	error_t err = rm_folio_alloc (activity, activity,
+	error_t err = vg_folio_alloc (activity, activity,
 				      VG_FOLIO_POLICY_DEFAULT, &f);
 	assert (! err);
 	assert (! VG_ADDR_IS_VOID (f));
@@ -191,7 +191,7 @@ main (int argc, char *argv[])
 	    l4_word_t type;
 	    struct vg_cap_properties properties;
 
-	    error_t err = rm_cap_read (activity, VG_ADDR_VOID,
+	    error_t err = vg_cap_read (activity, VG_ADDR_VOID,
 				       vg_addr_extend (root, j, bits),
 				       &type, &properties);
 	    assert (! err);
@@ -206,7 +206,7 @@ main (int argc, char *argv[])
       {
 	vg_addr_t f = vg_addr_extend (root, i, bits);
 
-	error_t err = rm_folio_free (activity, f);
+	error_t err = vg_folio_free (activity, f);
 	assert (! err);
 
 	void *shadow = NULL;
@@ -345,7 +345,7 @@ main (int argc, char *argv[])
 
     struct hurd_thread_exregs_out out;
 
-    rm_thread_exregs (activity, thread,
+    vg_thread_exregs (activity, thread,
 		      HURD_EXREGS_SET_ASPACE | HURD_EXREGS_SET_ACTIVITY
 		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START
 		      | HURD_EXREGS_ABORT_IPC,
@@ -657,7 +657,7 @@ main (int argc, char *argv[])
 	{
 	  /* Allocate a new activity.  */
 	  a[i].child = capalloc ();
-	  err = rm_folio_object_alloc (activity, folio, obj ++,
+	  err = vg_folio_object_alloc (activity, folio, obj ++,
 				       vg_cap_activity_control,
 				       VG_OBJECT_POLICY_DEFAULT, 0,
 				       &a[i].child, NULL);
@@ -666,13 +666,13 @@ main (int argc, char *argv[])
 
 	  /* Allocate a folio against the activity and use it.  */
 	  a[i].folio = capalloc ();
-	  err = rm_folio_alloc (activity, a[i].child, VG_FOLIO_POLICY_DEFAULT,
+	  err = vg_folio_alloc (activity, a[i].child, VG_FOLIO_POLICY_DEFAULT,
 				&a[i].folio);
 	  assert (err == 0);
 	  assert (! VG_ADDR_IS_VOID (a[i].folio));
 
 	  a[i].page = capalloc ();
-	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 0, vg_cap_page,
+	  err = vg_folio_object_alloc (a[i].child, a[i].folio, 0, vg_cap_page,
 				       VG_OBJECT_POLICY_DEFAULT, 0,
 				       &a[i].page, NULL);
 	  assert (err == 0);
@@ -681,7 +681,7 @@ main (int argc, char *argv[])
 	  l4_word_t type;
 	  struct vg_cap_properties properties;
 
-	  err = rm_cap_read (a[i].child, VG_ADDR_VOID,
+	  err = vg_cap_read (a[i].child, VG_ADDR_VOID,
 			     a[i].page, &type, &properties);
 	  assert (err == 0);
 	  assert (type == vg_cap_page);
@@ -697,7 +697,7 @@ main (int argc, char *argv[])
       for (i = 0; i < N / 2; i ++)
 	{
 	  /* Destroy the activity.  */
-          err = rm_folio_free (activity, a[i].folio);
+          err = vg_folio_free (activity, a[i].folio);
 	  assert (! err);
 
 	  /* To determine if the folio has been destroyed, we cannot simply
@@ -706,7 +706,7 @@ main (int argc, char *argv[])
 	     the object does not destroy the capability.  Instead, we try to
 	     use the object.  If this fails, we assume that the folio was
 	     destroyed.  */
-	  err = rm_folio_object_alloc (a[i].child, a[i].folio, 1, vg_cap_page,
+	  err = vg_folio_object_alloc (a[i].child, a[i].folio, 1, vg_cap_page,
 				       VG_OBJECT_POLICY_DEFAULT, 0,
 				       &a[i].page, NULL);
 	  assert (err);
@@ -719,13 +719,13 @@ main (int argc, char *argv[])
 
     error_t err;
     vg_addr_t folio = capalloc ();
-    err = rm_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT, &folio);
+    err = vg_folio_alloc (activity, activity, VG_FOLIO_POLICY_DEFAULT, &folio);
     assert (err == 0);
     assert (! VG_ADDR_IS_VOID (folio));
 
     test (activity, folio, 2);
 
-    err = rm_folio_free (activity, folio);
+    err = vg_folio_free (activity, folio);
     assert (err == 0);
 
     capfree (folio);
@@ -742,7 +742,7 @@ main (int argc, char *argv[])
 				    a).addr;
 
     vg_addr_t weak = capalloc ();
-    error_t err = rm_cap_copy (activity, VG_ADDR_VOID, weak, VG_ADDR_VOID, a,
+    error_t err = vg_cap_copy (activity, VG_ADDR_VOID, weak, VG_ADDR_VOID, a,
 			       VG_CAP_COPY_WEAKEN, VG_CAP_PROPERTIES_VOID);
     assert (! err);
 
@@ -752,14 +752,14 @@ main (int argc, char *argv[])
     in.child_rel = VG_ACTIVITY_MEMORY_POLICY_VOID;
     in.folios = 10000;
 
-    err = rm_activity_policy (a, a,
+    err = vg_activity_policy (a, a,
 			      VG_ACTIVITY_POLICY_SIBLING_REL_SET
 			      | VG_ACTIVITY_POLICY_STORAGE_SET,
 			      in,
 			      &out);
     assert (err == 0);
 			    
-    err = rm_activity_policy (a, a,
+    err = vg_activity_policy (a, a,
 			      0, VG_ACTIVITY_POLICY_VOID,
 			      &out);
     assert (err == 0);
@@ -771,7 +771,7 @@ main (int argc, char *argv[])
     in.sibling_rel.priority = 4;
     in.sibling_rel.weight = 5;
     in.folios = 10001;
-    err = rm_activity_policy (a, a,
+    err = vg_activity_policy (a, a,
 			      VG_ACTIVITY_POLICY_SIBLING_REL_SET
 			      | VG_ACTIVITY_POLICY_STORAGE_SET,
 			      in, &out);
@@ -782,13 +782,13 @@ main (int argc, char *argv[])
     assert (out.sibling_rel.weight == 3);
     assert (out.folios == 10000);
 
-    err = rm_activity_policy (a, weak,
+    err = vg_activity_policy (a, weak,
 			      VG_ACTIVITY_POLICY_SIBLING_REL_SET
 			      | VG_ACTIVITY_POLICY_STORAGE_SET,
 			      in, &out);
     assertx (err == EPERM, "%d", err);
 
-    err = rm_activity_policy (a, weak, 0, in, &out);
+    err = vg_activity_policy (a, weak, 0, in, &out);
     assert (err == 0);
 
     assert (out.sibling_rel.priority == 4);
@@ -891,7 +891,7 @@ main (int argc, char *argv[])
     {
       uintptr_t ret = 0;
       error_t err;
-      err = rm_object_reply_on_destruction (VG_ADDR_VOID, storage.addr, &ret);
+      err = vg_object_reply_on_destruction (VG_ADDR_VOID, storage.addr, &ret);
       debug (5, "object_reply_on_destruction: err: %d, ret: %d", err, ret);
       assert (err == 0);
       assert (ret == 10);
@@ -908,7 +908,7 @@ main (int argc, char *argv[])
 
     /* Deallocate the object.  */
     debug (5, "Destroying object");
-    rm_folio_object_alloc (VG_ADDR_VOID,
+    vg_folio_object_alloc (VG_ADDR_VOID,
 			   vg_addr_chop (storage.addr, VG_FOLIO_OBJECTS_LOG2),
 			   vg_addr_extract (storage.addr, VG_FOLIO_OBJECTS_LOG2),
 			   vg_cap_void,
@@ -981,7 +981,7 @@ main (int argc, char *argv[])
     do
       {
 	struct activity_info info;
-	error_t err = rm_activity_info (VG_ADDR_VOID, activity,
+	error_t err = vg_activity_info (VG_ADDR_VOID, activity,
 					activity_info_stats, 1, &info);
 	assert_perror (err);
 	assert (info.stats.count >= 1);
