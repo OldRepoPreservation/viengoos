@@ -24,16 +24,18 @@
 /* For ss_mutex_t.  */
 #define __need_ss_mutex_t
 #include <hurd/mutex.h>
-/* For l4_thread_id_t.  */
-#include <l4/thread.h>
+#define __need_vg_thread_id_t
+#include <viengoos/thread.h>
 
 struct ss_rmutex
 {
   ss_mutex_t lock;
   int count;
-  l4_thread_id_t owner;
+  vg_thread_id_t owner;
 };
 typedef struct ss_rmutex ss_rmutex_t;
+
+#define SS_RMUTEX_INIT { 0, 0, vg_niltid }
 
 #endif /* !__hurd_rmutex_have_type */
 
@@ -46,7 +48,7 @@ typedef struct ss_rmutex ss_rmutex_t;
 #ifndef _HURD_RMUTEX_H
 #define _HURD_RMUTEX_H
 
-#define SS_RMUTEX_INIT { 0, 0, l4_nilthread }
+#include <hurd/thread.h>
 
 static inline void
 ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lockp)
@@ -55,7 +57,7 @@ ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lockp)
     {
       ss_mutex_lock (&lockp->lock);
 
-      if (lockp->owner == l4_myself ())
+      if (lockp->owner == hurd_myself ())
 	{
 	  assert (lockp->count != 0);
 
@@ -71,14 +73,14 @@ ss_rmutex_lock (const char *caller, int line, ss_rmutex_t *lockp)
 	  return;
 	}
 
-      if (lockp->owner == l4_nilthread)
+      if (lockp->owner == vg_niltid)
 	{
 	  assert (lockp->count == 0);
 
 	  ss_mutex_trace_add (SS_RMUTEX_LOCK, caller, line, lockp);
 
 	  lockp->count = 1;
-	  lockp->owner = l4_myself ();
+	  lockp->owner = hurd_myself ();
 	  ss_mutex_unlock (&lockp->lock);
 	  return;
 	}
@@ -111,11 +113,11 @@ ss_rmutex_unlock (const char *caller, int line, ss_rmutex_t *lockp)
 {
   ss_mutex_lock (&lockp->lock);
 
-  if (lockp->owner != l4_myself ())
+  if (lockp->owner != hurd_myself ())
     ss_lock_trace_dump (lockp);
-  assertx (lockp->owner == l4_myself (),
+  assertx (lockp->owner == hurd_myself (),
 	   "%x != %x (count: %d, caller: %s:%d)",
-	   lockp->owner, l4_myself (), lockp->count, caller, line);
+	   lockp->owner, hurd_myself (), lockp->count, caller, line);
   assert (lockp->count != 0);
 
   int waiters = lockp->count < 0;
@@ -126,7 +128,7 @@ ss_rmutex_unlock (const char *caller, int line, ss_rmutex_t *lockp)
 
   bool released = lockp->count == 0;
   if (released)
-    lockp->owner = l4_nilthread;
+    lockp->owner = vg_niltid;
 
   if (lockp->count == 0)
     ss_mutex_trace_add (SS_RMUTEX_UNLOCK, caller, line, lockp);
@@ -160,7 +162,7 @@ ss_rmutex_trylock (const char *caller, int line, ss_rmutex_t *lockp)
       return false;
     }
 
-  if (lockp->owner == l4_myself ())
+  if (lockp->owner == hurd_myself ())
     {
       assert (lockp->count != 0);
 
@@ -176,13 +178,13 @@ ss_rmutex_trylock (const char *caller, int line, ss_rmutex_t *lockp)
       return true;
     }
 
-  if (lockp->owner == l4_nilthread)
+  if (lockp->owner == vg_niltid)
     {
       ss_mutex_trace_add (SS_RMUTEX_TRYLOCK, caller, line, lockp);
 
       assert (lockp->count == 0);
       lockp->count = 1;
-      lockp->owner = l4_myself ();
+      lockp->owner = hurd_myself ();
       ss_mutex_unlock (&lockp->lock);
       return true;
     }
