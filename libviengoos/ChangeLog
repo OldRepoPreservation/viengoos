@@ -1,5 +1,11 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* t-addr.c: Don't include <l4/math.h>.  Include <viengoos/math.h>.
+	(main): Use vg_msb64 instead of l4_msb64 and vg_lsb64 instead of
+	l4_lsb64.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos/math.h: Move from ../hurd.  Rewrite to use gcc builtin
 	functions.
 	* Makefile.am (viengoos_headers): Add math.h.

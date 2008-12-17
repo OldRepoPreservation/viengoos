@@ -22,7 +22,7 @@
 #include <hurd/types.h>
 #include <viengoos/addr.h>
 #include <assert.h>
-#include <l4/math.h>
+#include <viengoos/math.h>
 
 char *program_name = "t-addr";
 int output_debug = 0;
@@ -51,8 +51,8 @@ main (int argc, char *argv[])
     {
       addr = addr_extend (addr, 1, 1);
       assert (addr_depth (addr) == i);
-      assert (l4_msb64 (addr_prefix (addr)) == ADDR_BITS);
-      assert (l4_lsb64 (addr_prefix (addr)) == ADDR_BITS - i + 1);
+      assert (vg_msb64 (addr_prefix (addr)) == ADDR_BITS);
+      assert (vg_lsb64 (addr_prefix (addr)) == ADDR_BITS - i + 1);
     }
   printf ("ok.\n");
 

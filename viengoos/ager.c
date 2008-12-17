@@ -332,7 +332,7 @@ update_stats (void)
 		avail -= dec;
 
 		ACTIVITY_STATS (activity)->damping_factor
-		  = -l4_msb (1024 * 1024 / PAGESIZE);
+		  = -vg_msb (1024 * 1024 / PAGESIZE);
 	      }
 	    else if (activity->frames_total > 7 * (frames / 8))
 	      /* The allocated amount is close to the available frames.
@@ -341,7 +341,7 @@ update_stats (void)
 	    else
 	      /* It can allocate.  */
 	      ACTIVITY_STATS (activity)->damping_factor
-		= l4_msb (1024 * 1024 / PAGESIZE);
+		= vg_msb (1024 * 1024 / PAGESIZE);
 
 	    ACTIVITY_STATS (activity)->available_local = avail;
 	  }

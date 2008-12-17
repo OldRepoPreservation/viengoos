@@ -27,7 +27,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <hurd/stddef.h>
-#include <l4/math.h>
+#include <viengoos/math.h>
 
 #include "zalloc.h"
 
@@ -195,8 +195,8 @@ zfree (uintptr_t block, uintptr_t size)
   do
     {
       /* All blocks must be stored aligned to their size.  */
-      unsigned int block_align = l4_lsb (block) - 1;
-      unsigned int size_align = l4_msb (size) - 1;
+      unsigned int block_align = vg_lsb (block) - 1;
+      unsigned int size_align = vg_msb (size) - 1;
       unsigned int zone_nr = (block_align < size_align
 			      ? block_align : size_align) - PAGESIZE_LOG2;
 
@@ -232,7 +232,7 @@ zalloc_internal (uintptr_t size)
      case where only one bit is set.  To adjust for this border case,
      we subtract one from the argument to the MSB function).  Calculate
      the zone number by subtracting page shift.  */
-  zone_nr = l4_msb (size - 1) - PAGESIZE_LOG2;
+  zone_nr = vg_msb (size - 1) - PAGESIZE_LOG2;
 
   /* Find the smallest zone which fits the request and has memory
      available.  */

@@ -1,5 +1,11 @@
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
+	* zalloc.c: Don't include <l4/math.h>.  Include <viengoos/math.h>.
+	(zfree): Use vg_msb instead of l4_msb.
+	* ager.c (update_stats): Likewise.
+
+2008-12-17  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c: Don't include "rm.h" but <viengoos/misc.h>.
 
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
