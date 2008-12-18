@@ -1,5 +1,9 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* thread.h (hurd_myself): Assume UTCB->TID is set correctly.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* RPC: Move to ../libviengoos.
 
 2008-12-17  Neal H. Walfield  <neal@gnu.org>

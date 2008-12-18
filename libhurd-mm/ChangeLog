@@ -1,5 +1,20 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.c (hurd_activation_state_alloc): Set UTCB->TID.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
+	* storage.c (struct storage_desc): Add field owner.
+	(shadow_setup): Set DESC->OWNER appropriately.
+	(storage_alloc): Likewise.
+	(storage_free_): Likewise.
+	(storage_init): Likewise.
+	
+	(storage_alloc): Move code that updates DESC to before we call
+	rm_folio_object_alloc.  Unlock DESC->LOCK before calling it.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* message-buffer.c (num_threads): New function.
 	(BUFFERS_LOW_WATER): Define in terms of the number of threads.
 	(BUFFERS_HIGH_WATER): Likewise.
@@ -64,17 +79,6 @@
 	(FREE_PAGES_LOW_WATER): Make it a function of the number of
 	threads.
 	(FREE_PAGES_SERIALIZE): Likewise.
-
-2008-12-16  Neal H. Walfield  <neal@gnu.org>
-
-	* storage.c (struct storage_desc) [!NDEBUG]: Add field owner.
-	(shadow_setup): Set DESC->OWNER appropriately.
-	(storage_alloc): Likewise.
-	(storage_free_): Likewise.
-	(storage_init): Likewise.
-	
-	(storage_alloc): Move code that updates DESC to before we call
-	rm_folio_object_alloc.  Unlock DESC->LOCK before calling it.
 
 2008-12-16  Neal H. Walfield  <neal@gnu.org>
 

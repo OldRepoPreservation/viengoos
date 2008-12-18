@@ -246,9 +246,6 @@ hurd_myself (void)
 {
   struct hurd_utcb *utcb = hurd_utcb ();
 
-  if (unlikely (utcb->tid == 0))
-    utcb->tid = vg_myself ();
-
   return utcb->tid;
 }
 

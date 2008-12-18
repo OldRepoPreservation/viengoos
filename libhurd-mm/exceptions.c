@@ -861,7 +861,8 @@ hurd_activation_state_alloc (vg_addr_t thread, struct hurd_utcb **utcbp)
 			  VG_EXREGS_SET_UTCB
 			  | VG_EXREGS_SET_EXCEPTION_MESSENGER,
 			  in, VG_ADDR_VOID, VG_ADDR_VOID,
-			  VG_PTR_TO_PAGE (utcb), utcb->exception_buffer->receiver,
+			  VG_PTR_TO_PAGE (utcb),
+			  utcb->exception_buffer->receiver,
 			  &out, NULL, NULL, NULL, NULL);
   if (err)
     panic ("Failed to install utcb");
@@ -873,6 +874,10 @@ hurd_activation_state_alloc (vg_addr_t thread, struct hurd_utcb **utcbp)
 		     0, VG_CAP_PROPERTIES_DEFAULT);
   if (err)
     panic ("Failed to set messenger's thread");
+
+  err = vg_thread_id (VG_ADDR_VOID, thread, &utcb->tid);
+  if (err)
+    panic ("Failed to get thread id");
 
   check_activation_frame_reserve (utcb);
 
