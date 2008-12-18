@@ -381,7 +381,7 @@ memory_frame_allocate (struct activity *activity)
 	  assert (desc->live);
 	  assert (desc->eviction_candidate);
 	  assert (desc->activity);
-	  assert (object_type ((struct object *) desc->activity)
+	  assert (object_type ((struct vg_object *) desc->activity)
 		  == vg_cap_activity_control);
 	  assert (! desc->dirty || desc->policy.discardable);
 	  assert (! desc->mapped);
@@ -389,9 +389,9 @@ memory_frame_allocate (struct activity *activity)
 	  debug (5, "Reusing OID " VG_OID_FMT " (%s)",
 		 VG_OID_PRINTF (desc->oid), vg_cap_type_string (desc->type));
 
-	  struct object *object = object_desc_to_object (desc);
+	  struct vg_object *object = object_desc_to_object (desc);
 
-	  struct folio *folio = objects_folio (activity, object);
+	  struct vg_folio *folio = objects_folio (activity, object);
 	  int offset = objects_folio_offset (object);
 
 	  bool discarded = desc->dirty;

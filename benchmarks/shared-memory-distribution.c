@@ -101,18 +101,18 @@ main (int argc, char *argv[])
     }
 
 #define ITERATIONS 100
-  struct activity_stats stats[ITERATIONS][1 + THREADS];
+  struct vg_activity_stats stats[ITERATIONS][1 + THREADS];
 
   uintptr_t next_period = 0;
   for (i = 0; i < ITERATIONS; i ++)
     {
       debug (0, DEBUG_BOLD ("starting iteration %d (%x)"), i, l4_myself ());
 
-      struct activity_info info;
+      struct vg_activity_info info;
 
       vg_activity_info (activity, activity,
-			activity_info_stats, next_period, &info);
-      assert (info.event == activity_info_stats);
+			vg_activity_info_stats, next_period, &info);
+      assert (info.event == vg_activity_info_stats);
       assert (info.stats.count > 0);
       if (i != 0)
 	assertx (info.stats.stats[0].period != stats[i - 1][0].period,
@@ -125,8 +125,8 @@ main (int argc, char *argv[])
       for (j = 0; j < THREADS; j ++)
 	{
 	  vg_activity_info (activity, activity,
-			    activity_info_stats, next_period, &info);
-	  assert (info.event == activity_info_stats);
+			    vg_activity_info_stats, next_period, &info);
+	  assert (info.event == vg_activity_info_stats);
 	  assert (info.stats.count > 0);
 	  stats[i][1 + j] = info.stats.stats[0];
 	}

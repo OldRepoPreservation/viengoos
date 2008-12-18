@@ -44,9 +44,9 @@ messenger_load_internal (struct activity *activity,
 			 struct vg_message *smessage,
 			 bool may_block)
 {
-  assert (object_type ((struct object *) target) == vg_cap_messenger);
+  assert (object_type ((struct vg_object *) target) == vg_cap_messenger);
   if (source)
-    assert (object_type ((struct object *) source) == vg_cap_messenger);
+    assert (object_type ((struct vg_object *) source) == vg_cap_messenger);
 
   if (source)
     assert (! smessage);
@@ -77,7 +77,7 @@ messenger_load_internal (struct activity *activity,
 
       assert (source);
       source->wait_reason = MESSENGER_WAIT_TRANSFER_MESSAGE;
-      object_wait_queue_enqueue (activity, (struct object *) target, source);
+      object_wait_queue_enqueue (activity, (struct vg_object *) target, source);
 
       return true;
     }
@@ -308,10 +308,10 @@ messenger_message_deliver (struct activity *activity,
       return false;
     }
 
-  if (object_type ((struct object *) thread) != vg_cap_thread)
+  if (object_type ((struct vg_object *) thread) != vg_cap_thread)
     {
       debug (0, "Messenger's thread vg_cap does not designate a thread but a %s",
-	     vg_cap_type_string (object_type ((struct object *) thread)));
+	     vg_cap_type_string (object_type ((struct vg_object *) thread)));
       return false;
     }
 
@@ -327,7 +327,7 @@ messenger_unblock (struct activity *activity, struct messenger *messenger)
   messenger->blocked = 0;
 
   struct messenger *m;
-  object_wait_queue_for_each (activity, (struct object *) messenger, m)
+  object_wait_queue_for_each (activity, (struct vg_object *) messenger, m)
     if (m->wait_reason == MESSENGER_WAIT_TRANSFER_MESSAGE)
       {
 	object_wait_queue_unlink (activity, m);

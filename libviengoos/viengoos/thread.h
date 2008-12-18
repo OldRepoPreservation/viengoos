@@ -138,36 +138,6 @@ enum
 #define VG_THREAD_SLOTS_LOG2 2
 
 enum
-{
-  HURD_EXREGS_SET_UTCB = 0x2000,
-  HURD_EXREGS_SET_EXCEPTION_MESSENGER = 0x1000,
-  HURD_EXREGS_SET_ASPACE = 0x800,
-  HURD_EXREGS_SET_ACTIVITY = 0x400,
-  HURD_EXREGS_SET_SP = _L4_XCHG_REGS_SET_SP,
-  HURD_EXREGS_SET_IP = _L4_XCHG_REGS_SET_IP,
-  HURD_EXREGS_SET_SP_IP = _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP,
-  HURD_EXREGS_SET_EFLAGS = _L4_XCHG_REGS_SET_FLAGS,
-  HURD_EXREGS_SET_USER_HANDLE = _L4_XCHG_REGS_SET_USER_HANDLE,
-  HURD_EXREGS_SET_REGS = (HURD_EXREGS_SET_UTCB
-			  | HURD_EXREGS_SET_EXCEPTION_MESSENGER
-			  | HURD_EXREGS_SET_ASPACE
-			  | HURD_EXREGS_SET_ACTIVITY
-			  | HURD_EXREGS_SET_SP
-			  | HURD_EXREGS_SET_IP
-			  | HURD_EXREGS_SET_EFLAGS
-			  | HURD_EXREGS_SET_USER_HANDLE),
-
-  HURD_EXREGS_GET_REGS = _L4_XCHG_REGS_DELIVER,
-
-  HURD_EXREGS_START = _L4_XCHG_REGS_SET_HALT,
-  HURD_EXREGS_STOP = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_HALT,
-
-  HURD_EXREGS_ABORT_SEND = _L4_XCHG_REGS_CANCEL_SEND,
-  HURD_EXREGS_ABORT_RECEIVE = _L4_XCHG_REGS_CANCEL_RECV,
-  HURD_EXREGS_ABORT_IPC = HURD_EXREGS_ABORT_SEND | _L4_XCHG_REGS_CANCEL_RECV,
-};
-
-enum
   {
     VG_thread_exregs = 600,
     VG_thread_id,
@@ -186,7 +156,37 @@ typedef vg_addr_t vg_thread_t;
 
 #include <viengoos/rpc.h>
 
-struct hurd_thread_exregs_in
+enum
+{
+  VG_EXREGS_SET_UTCB = 0x2000,
+  VG_EXREGS_SET_EXCEPTION_MESSENGER = 0x1000,
+  VG_EXREGS_SET_ASPACE = 0x800,
+  VG_EXREGS_SET_ACTIVITY = 0x400,
+  VG_EXREGS_SET_SP = _L4_XCHG_REGS_SET_SP,
+  VG_EXREGS_SET_IP = _L4_XCHG_REGS_SET_IP,
+  VG_EXREGS_SET_SP_IP = _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP,
+  VG_EXREGS_SET_EFLAGS = _L4_XCHG_REGS_SET_FLAGS,
+  VG_EXREGS_SET_USER_HANDLE = _L4_XCHG_REGS_SET_USER_HANDLE,
+  VG_EXREGS_SET_REGS = (VG_EXREGS_SET_UTCB
+			| VG_EXREGS_SET_EXCEPTION_MESSENGER
+			| VG_EXREGS_SET_ASPACE
+			| VG_EXREGS_SET_ACTIVITY
+			| VG_EXREGS_SET_SP
+			| VG_EXREGS_SET_IP
+			| VG_EXREGS_SET_EFLAGS
+			| VG_EXREGS_SET_USER_HANDLE),
+
+  VG_EXREGS_GET_REGS = _L4_XCHG_REGS_DELIVER,
+
+  VG_EXREGS_START = _L4_XCHG_REGS_SET_HALT,
+  VG_EXREGS_STOP = _L4_XCHG_REGS_SET_HALT | _L4_XCHG_REGS_HALT,
+
+  VG_EXREGS_ABORT_SEND = _L4_XCHG_REGS_CANCEL_SEND,
+  VG_EXREGS_ABORT_RECEIVE = _L4_XCHG_REGS_CANCEL_RECV,
+  VG_EXREGS_ABORT_IPC = VG_EXREGS_ABORT_SEND | _L4_XCHG_REGS_CANCEL_RECV,
+};
+
+struct vg_thread_exregs_in
 {
   uintptr_t aspace_cap_properties_flags;
   struct vg_cap_properties aspace_cap_properties;
@@ -197,7 +197,7 @@ struct hurd_thread_exregs_in
   uintptr_t user_handle;
 };
 
-struct hurd_thread_exregs_out
+struct vg_thread_exregs_out
 {
   uintptr_t sp;
   uintptr_t ip;
@@ -208,50 +208,53 @@ struct hurd_thread_exregs_out
 /* l4_exregs wrapper.  */
 RPC (thread_exregs, 6, 1, 4,
      /* cap_t principal, cap_t thread, */
-     uintptr_t, control, struct hurd_thread_exregs_in, in,
+     uintptr_t, control, struct vg_thread_exregs_in, in,
      cap_t, aspace, cap_t, activity, cap_t, utcb, cap_t, exception_messenger,
      /* Out: */
-     struct hurd_thread_exregs_out, out,
+     struct vg_thread_exregs_out, out,
      cap_t, aspace_out, cap_t, activity_out, cap_t, utcb_out,
      cap_t, exception_messenger_out)
 
 static inline error_t
 vg_thread_start (vg_addr_t thread)
 {
-  struct hurd_thread_exregs_in in;
-  struct hurd_thread_exregs_out out;
+  struct vg_thread_exregs_in in;
+  struct vg_thread_exregs_out out;
 
   return vg_thread_exregs (VG_ADDR_VOID, thread,
-			   HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC,
-			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
+			   VG_EXREGS_START | VG_EXREGS_ABORT_IPC,
+			   in, VG_ADDR_VOID, VG_ADDR_VOID,
+			   VG_ADDR_VOID, VG_ADDR_VOID,
 			   &out, NULL, NULL, NULL, NULL);
 }
 
 static inline error_t
 vg_thread_start_sp_ip (vg_addr_t thread, uintptr_t sp, uintptr_t ip)
 {
-  struct hurd_thread_exregs_in in;
-  struct hurd_thread_exregs_out out;
+  struct vg_thread_exregs_in in;
+  struct vg_thread_exregs_out out;
 
   in.sp = sp;
   in.ip = ip;
 
   return vg_thread_exregs (VG_ADDR_VOID, thread,
-			   HURD_EXREGS_START | HURD_EXREGS_ABORT_IPC
-			   | HURD_EXREGS_SET_SP_IP,
-			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
+			   VG_EXREGS_START | VG_EXREGS_ABORT_IPC
+			   | VG_EXREGS_SET_SP_IP,
+			   in, VG_ADDR_VOID, VG_ADDR_VOID,
+			   VG_ADDR_VOID, VG_ADDR_VOID,
 			   &out, NULL, NULL, NULL, NULL);
 }
 
 static inline error_t
 vg_thread_stop (vg_addr_t thread)
 {
-  struct hurd_thread_exregs_in in;
-  struct hurd_thread_exregs_out out;
+  struct vg_thread_exregs_in in;
+  struct vg_thread_exregs_out out;
 
   return vg_thread_exregs (VG_ADDR_VOID, thread,
-			   HURD_EXREGS_STOP | HURD_EXREGS_ABORT_IPC,
-			   in, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID, VG_ADDR_VOID,
+			   VG_EXREGS_STOP | VG_EXREGS_ABORT_IPC,
+			   in, VG_ADDR_VOID, VG_ADDR_VOID,
+			   VG_ADDR_VOID, VG_ADDR_VOID,
 			   &out, NULL, NULL, NULL, NULL);
 }
 
@@ -266,7 +269,7 @@ RPC(thread_activation_collect, 0, 0, 0
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX
-
+
 static inline vg_thread_id_t
 vg_myself (void)
 {
@@ -277,14 +280,14 @@ vg_myself (void)
   return tid;
 }
 
-#define RPC_STUB_PREFIX activation
-#define RPC_ID_PREFIX ACTIVATION
+#define RPC_STUB_PREFIX vg_activation
+#define RPC_ID_PREFIX VG_ACTIVATION
 #include <viengoos/rpc.h>
 
 /* Activation message ids.  */
 enum
   {
-    ACTIVATION_fault = 10,
+    VG_ACTIVATION_fault = 10,
   };
 
 /* Return a string corresponding to a message id.  */
@@ -293,7 +296,7 @@ vg_activation_method_id_string (uintptr_t id)
 {
   switch (id)
     {
-    case ACTIVATION_fault:
+    case VG_ACTIVATION_fault:
       return "fault";
     default:
       return "unknown";

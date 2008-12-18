@@ -33,7 +33,7 @@ static void
 is_clean (struct object_desc *desc)
 {
 #ifndef NDEBUG
-  struct object *object = object_desc_to_object (desc);
+  struct vg_object *object = object_desc_to_object (desc);
   l4_fpage_t result = l4_unmap_fpage (l4_fpage ((l4_word_t) object,
 						PAGESIZE));
   assertx (! l4_was_written (result) && ! l4_was_referenced (result),
@@ -94,7 +94,7 @@ reclaim_from (struct activity *victim, int goal)
 
   debug (5, "Reclaiming %d from " OBJECT_NAME_FMT ", %d frames "
 	 "(global: avail: %d, laundry: %d)",
-	 goal, OBJECT_NAME_PRINTF ((struct object *) victim),
+	 goal, OBJECT_NAME_PRINTF ((struct vg_object *) victim),
 	 victim->frames_local,
 	 available_list_count (&available), laundry_list_count (&laundry));
 
@@ -197,7 +197,7 @@ reclaim_from (struct activity *victim, int goal)
   debug (5, "Reclaimed from " OBJECT_NAME_FMT ": goal: %d; %d frames; "
 	 DEBUG_BOLD ("%d in laundry, %d made available (%d discarded)") " "
 	 "(now: free: %d, avail: %d, laundry: %d)",
-	 OBJECT_NAME_PRINTF ((struct object *) victim), goal,
+	 OBJECT_NAME_PRINTF ((struct vg_object *) victim), goal,
 	 victim->frames_local,
 	 laundry_count, count - laundry_count, discarded,
 	 zalloc_memory, available_list_count (&available),
@@ -251,7 +251,7 @@ pager_collect (int goal)
   struct activity *victim;
   struct activity *parent;
 
-  struct activity_memory_policy victim_policy;
+  struct vg_activity_memory_policy victim_policy;
   int victim_frames;
 
   int total_freed = 0;
@@ -266,14 +266,14 @@ pager_collect (int goal)
       /* FRAMES is the number of frames allocated to the activity
 	 minus the number of active frames.  */
       bool process (struct activity *activity,
-		    struct activity_memory_policy activity_policy,
+		    struct vg_activity_memory_policy vg_activity_policy,
 		    int activity_frames)
       {
 	debug (5, "Considering " OBJECT_NAME_FMT
 	       ": policy: %d/%d; effective frames: %d (total: %d/%d; "
 	       "pending eviction: %d/%d, active: %d/%d, available: %d/%d)",
-	       OBJECT_NAME_PRINTF ((struct object *) activity),
-	       activity_policy.priority, activity_policy.weight,
+	       OBJECT_NAME_PRINTF ((struct vg_object *) activity),
+	       vg_activity_policy.priority, vg_activity_policy.weight,
 	       activity_frames,
 	       activity->frames_total, activity->frames_local,
 	       eviction_list_count (&activity->eviction_dirty),
@@ -287,7 +287,7 @@ pager_collect (int goal)
 	  /* ACTIVITY has no frames to yield; don't consider it.  */
 	  {
 	    debug (5, "Not choosing " OBJECT_NAME_FMT,
-		   OBJECT_NAME_PRINTF ((struct object *) activity));
+		   OBJECT_NAME_PRINTF ((struct vg_object *) activity));
 	    return false;
 	  }
 
@@ -295,10 +295,10 @@ pager_collect (int goal)
 	  {
 	    victim = activity;
 	    victim_frames = activity_frames;
-	    victim_policy = activity_policy;
+	    victim_policy = vg_activity_policy;
 
 	    /* Initialize the weight.  */
-	    weight = activity_policy.weight;
+	    weight = vg_activity_policy.weight;
 	    frames = activity_frames;
 
 	    return false;
@@ -306,8 +306,8 @@ pager_collect (int goal)
 
 	/* We should be processing the activities in reverse priority
 	   order.  */
-	assertx (activity_policy.priority >= victim_policy.priority,
-		 "%d < %d", activity_policy.priority, victim_policy.priority);
+	assertx (vg_activity_policy.priority >= victim_policy.priority,
+		 "%d < %d", vg_activity_policy.priority, victim_policy.priority);
 
 	if (activity->policy.sibling_rel.priority > victim_policy.priority)
 	  /* ACTIVITY has a higher absolute priority, we're done.  */
@@ -319,10 +319,10 @@ pager_collect (int goal)
 	assert (activity->policy.sibling_rel.priority
 		== victim_policy.priority);
 
-	weight += activity_policy.weight;
+	weight += vg_activity_policy.weight;
 	frames += activity_frames;
 
-	if (activity_policy.weight == victim_policy.weight)
+	if (vg_activity_policy.weight == victim_policy.weight)
 	  /* ACTIVITY and VICTIM have the same weight.  Prefer the one
 	     with more frames.  */
 	  {
@@ -330,16 +330,16 @@ pager_collect (int goal)
 	      {
 		victim = activity;
 		victim_frames = activity_frames;
-		victim_policy = activity_policy;
+		victim_policy = vg_activity_policy;
 	      }
 	  }
 	else
 	  {
 	    int f = activity_frames + victim_frames;
-	    int w = activity_policy.weight + victim_policy.weight;
+	    int w = vg_activity_policy.weight + victim_policy.weight;
 
 	    int activity_excess = activity_frames
-	      - (activity_policy.weight * f) / w;
+	      - (vg_activity_policy.weight * f) / w;
 	    int victim_excess = victim_frames
 	      - (victim_policy.weight * f) / w;
 
@@ -348,7 +348,7 @@ pager_collect (int goal)
 	      {
 		victim = activity;
 		victim_frames = activity_frames;
-		victim_policy = activity_policy;
+		victim_policy = vg_activity_policy;
 	      }
 	  }
 
@@ -361,7 +361,7 @@ pager_collect (int goal)
       do
 	{
 	  debug (5, "Current victim: " OBJECT_NAME_FMT,
-		 OBJECT_NAME_PRINTF ((struct object *) victim));
+		 OBJECT_NAME_PRINTF ((struct vg_object *) victim));
 
 	  parent = victim;
 	  victim = NULL;
@@ -405,7 +405,7 @@ pager_collect (int goal)
 		      else
 			debug (5, "Excluding " OBJECT_NAME_FMT
 			       ": %d free frames, %d excluded",
-			       OBJECT_NAME_PRINTF ((struct object *) parent),
+			       OBJECT_NAME_PRINTF ((struct vg_object *) parent),
 			       parent->free_allocations,
 			       parent->frames_excluded);
 		    }
@@ -473,7 +473,7 @@ pager_collect (int goal)
 	     DEBUG_BOLD ("Revoking from activity " OBJECT_NAME_FMT ", ")
 	     "%d/%d frames (pending eviction: %d/%d), share: %d, goal: %d",
 	     zalloc_memory + available_list_count (&available), memory_total,
-	     OBJECT_NAME_PRINTF ((struct object *) victim),
+	     OBJECT_NAME_PRINTF ((struct vg_object *) victim),
 	     victim->frames_local, victim->frames_total,
 	     eviction_list_count (&victim->eviction_dirty),
 	     victim->frames_pending_eviction,
@@ -486,9 +486,9 @@ pager_collect (int goal)
       bool need_reclaim = true;
 
       struct messenger *m;
-      object_wait_queue_for_each (victim, (struct object *) victim, m)
+      object_wait_queue_for_each (victim, (struct vg_object *) victim, m)
 	if (m->wait_reason == MESSENGER_WAIT_ACTIVITY_INFO
-	    && (m->wait_reason_arg & activity_info_pressure))
+	    && (m->wait_reason_arg & vg_activity_info_pressure))
 	  break;
 
       if (m)
@@ -496,7 +496,7 @@ pager_collect (int goal)
 	  debug (5, DEBUG_BOLD ("Requesting that " OBJECT_NAME_FMT " free "
 				"%d pages.")
 		 " Karma: %d, available: %d, frames: %d",
-		 OBJECT_NAME_PRINTF ((struct object *) victim),
+		 OBJECT_NAME_PRINTF ((struct vg_object *) victim),
 		 goal, victim->free_bad_karma,
 		 ACTIVITY_STATS_LAST (victim)->available_local,
 		 victim->frames_local);
@@ -522,15 +522,15 @@ pager_collect (int goal)
 
 	  total_freed += goal;
 
-	  struct activity_info info;
-	  info.event = activity_info_pressure;
+	  struct vg_activity_info info;
+	  info.event = vg_activity_info_pressure;
 	  info.pressure.amount = - goal;
 
 	  object_wait_queue_for_each (victim,
-				      (struct object *) victim,
+				      (struct vg_object *) victim,
 				      m)
 	    if (m->wait_reason == MESSENGER_WAIT_ACTIVITY_INFO
-		&& (m->wait_reason_arg & activity_info_pressure))
+		&& (m->wait_reason_arg & vg_activity_info_pressure))
 	      {
 		object_wait_queue_unlink (victim, m);
 		vg_activity_info_reply (root_activity, m, info);

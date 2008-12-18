@@ -150,7 +150,7 @@ struct object_desc
 
   /* The object's policy.  Set when the object is claimed using the
      value in the capability referencing the object.  */
-  struct object_policy policy;
+  struct vg_object_policy policy;
 
   /* The object's age.  */
   uint8_t age;
@@ -262,8 +262,8 @@ extern struct available_list available;
 
 /* Sort lower priority objects towards the start.  */
 static int
-priority_compare (const struct object_policy *a,
-		  const struct object_policy *b)
+priority_compare (const struct vg_object_policy *a,
+		  const struct vg_object_policy *b)
 {
   /* XXX: We should actually compare on priority and then on age.  To
      allowing finding an object with a particular priority but any
@@ -272,7 +272,7 @@ priority_compare (const struct object_policy *a,
 }
 
 BTREE_CLASS (priorities, struct object_desc,
-	     struct object_policy, policy, priority_node,
+	     struct vg_object_policy, policy, priority_node,
 	     priority_compare, true);
 
 /* Initialize the object sub-system.  Must be called after grabbing
@@ -281,14 +281,14 @@ extern void object_init (void);
 
 /* Return the address of the object corresponding to object OID,
    reading it from backing store if required.  */
-extern struct object *object_find (struct activity *activity, vg_oid_t oid,
-				   struct object_policy policy);
+extern struct vg_object *object_find (struct activity *activity, vg_oid_t oid,
+				      struct vg_object_policy policy);
 
 /* If the object corresponding to object OID is in-memory, return it.
    Otherwise, return NULL.  Does not go to disk.  */
-extern struct object *object_find_soft (struct activity *activity,
-					vg_oid_t oid,
-					struct object_policy policy);
+extern struct vg_object *object_find_soft (struct activity *activity,
+					   vg_oid_t oid,
+					   struct vg_object_policy policy);
 
 /* Destroy the object OBJECT.  Any changes must have already been
    flushed to disk.  LRU_LOCK must not be held, this function will
@@ -296,7 +296,7 @@ extern struct object *object_find_soft (struct activity *activity,
    responsibility to ensure that memory_frame_free is eventually
    called.  */
 extern void memory_object_destroy (struct activity *activity,
-				   struct object *object);
+				   struct vg_object *object);
 
 /* Return the object corresponding to the object descriptor DESC.  */
 #define object_desc_to_object(desc_)					\
@@ -310,7 +310,7 @@ extern void memory_object_destroy (struct activity *activity,
 	    <= (uintptr_t) &object_descs[(last_frame - first_frame)	\
 					 / PAGESIZE]);			\
 									\
-    (struct object *) (first_frame					\
+    (struct vg_object *) (first_frame					\
 		       + (((uintptr_t) (desc__) - (uintptr_t) object_descs) \
 			  / sizeof (struct object_desc)) * PAGESIZE);	\
   })
@@ -319,7 +319,7 @@ extern void memory_object_destroy (struct activity *activity,
    OBJECT.  */
 #define object_to_object_desc(object_)					\
   ({									\
-    struct object *object__ = (object_);				\
+    struct vg_object *object__ = (object_);				\
     /* Objects better be on a page boundary.  */			\
     assert (((uintptr_t) (object__) & (PAGESIZE - 1)) == 0);		\
     /* And they better be in memory.  */				\
@@ -352,19 +352,19 @@ object_desc_to_cap (struct object_desc *desc)
 
 /* Return a vg_cap referencing the object OBJECT.  */
 static inline struct vg_cap
-object_to_cap (struct object *object)
+object_to_cap (struct vg_object *object)
 {
   return object_desc_to_cap (object_to_object_desc (object));
 }
 
 static inline vg_oid_t
-object_oid (struct object *object)
+object_oid (struct vg_object *object)
 {
   return object_to_object_desc (object)->oid;
 }
 
 static inline enum vg_cap_type
-object_type (struct object *object)
+object_type (struct vg_object *object)
 {
   return object_to_object_desc (object)->type;
 }
@@ -378,7 +378,7 @@ object_desc_unmap (struct object_desc *desc)
   if (desc->mapped)
     {
 #ifndef _L4_TEST_ENVIRONMENT
-      struct object *object = object_desc_to_object (desc);
+      struct vg_object *object = object_desc_to_object (desc);
 
       l4_fpage_t fpage = l4_fpage ((l4_word_t) object, PAGESIZE);
       fpage = l4_fpage_add_rights (fpage, L4_FPAGE_FULLY_ACCESSIBLE);
@@ -406,7 +406,7 @@ object_desc_flush (struct object_desc *desc, bool clear_kernel)
     /* We only need to see if we dirtied or referenced it.  */
     {
 #ifndef _L4_TEST_ENVIRONMENT
-      struct object *object = object_desc_to_object (desc);
+      struct vg_object *object = object_desc_to_object (desc);
       l4_fpage_t fpage = l4_fpage ((l4_word_t) object, PAGESIZE);
 
       l4_fpage_t result = l4_flush (fpage);
@@ -427,13 +427,13 @@ object_desc_flush (struct object_desc *desc, bool clear_kernel)
    held.  */
 extern void object_desc_claim (struct activity *activity,
 			       struct object_desc *desc,
-			       struct object_policy policy,
+			       struct vg_object_policy policy,
 			       bool update_accounting);
 
 /* See object_desc_claim.  */
 static inline void
-object_claim (struct activity *activity, struct object *object,
-	      struct object_policy policy, bool update_accounting)
+object_claim (struct activity *activity, struct vg_object *object,
+	      struct vg_object_policy policy, bool update_accounting)
 {
   object_desc_claim (activity, object_to_object_desc (object), policy,
 		     update_accounting);
@@ -457,14 +457,14 @@ object_active (struct object_desc *desc)
 /* Allocate a folio to activity ACTIVITY.  POLICY is the new folio's
    initial storage policy.  Returns NULL if not possible.  Otherwise a
    pointer to the in-memory folio.  */
-extern struct folio *folio_alloc (struct activity *activity,
-				  struct folio_policy policy);
+extern struct vg_folio *folio_alloc (struct activity *activity,
+				     struct vg_folio_policy policy);
 
 /* Assign the storage designated by FOLIO to the activity ACTIVITY.  */
-extern void folio_parent (struct activity *activity, struct folio *folio);
+extern void folio_parent (struct activity *activity, struct vg_folio *folio);
 
 /* Destroy the folio FOLIO.  */
-extern void folio_free (struct activity *activity, struct folio *folio);
+extern void folio_free (struct activity *activity, struct vg_folio *folio);
 
 /* Allocate an object of type TYPE using the PAGE page from the folio
    FOLIO.  This implicitly destroys any existing object in that page.
@@ -474,15 +474,15 @@ extern void folio_free (struct activity *activity, struct folio *folio);
    then the in-memory location of the object is returned in
    *OBJECTP.  */
 extern struct vg_cap folio_object_alloc (struct activity *activity,
-				      struct folio *folio, int page,
-				      enum vg_cap_type type,
-				      struct object_policy policy,
-				      uintptr_t return_code);
+					 struct vg_folio *folio, int page,
+					 enum vg_cap_type type,
+					 struct vg_object_policy policy,
+					 uintptr_t return_code);
 
 /* Deallocate the object stored in page PAGE of folio FOLIO.  */
 static inline void
 folio_object_free (struct activity *activity,
-		   struct folio *folio, int page)
+		   struct vg_folio *folio, int page)
 {
   folio_object_alloc (activity, folio, page, vg_cap_void,
 		      VG_OBJECT_POLICY_VOID, 0);
@@ -490,7 +490,7 @@ folio_object_free (struct activity *activity,
 
 /* Return an object's position within its folio.  */
 static inline int
-objects_folio_offset (struct object *object)
+objects_folio_offset (struct vg_object *object)
 {
   struct object_desc *desc = object_to_object_desc (object);
 
@@ -498,8 +498,8 @@ objects_folio_offset (struct object *object)
 }
 
 /* Return the folio corresponding to the object OBJECT.  */
-static inline struct folio *
-objects_folio (struct activity *activity, struct object *object)
+static inline struct vg_folio *
+objects_folio (struct activity *activity, struct vg_object *object)
 {
   struct object_desc *odesc = object_to_object_desc (object);
 
@@ -509,20 +509,20 @@ objects_folio (struct activity *activity, struct object *object)
   if (odesc->maybe_folio_desc
       && odesc->maybe_folio_desc->live
       && odesc->maybe_folio_desc->oid == foid)
-    return (struct folio *) object_desc_to_object (odesc->maybe_folio_desc);
+    return (struct vg_folio *) object_desc_to_object (odesc->maybe_folio_desc);
 
-  struct folio *folio = (struct folio *) object_find (activity, foid,
+  struct vg_folio *folio = (struct vg_folio *) object_find (activity, foid,
 						      VG_OBJECT_POLICY_VOID);
   assert (folio);
 
-  odesc->maybe_folio_desc = object_to_object_desc ((struct object *) folio);
+  odesc->maybe_folio_desc = object_to_object_desc ((struct vg_object *) folio);
 
   return folio;
 }
 
 /* Deallocate the object OBJECT.  */
 static inline void
-object_free (struct activity *activity, struct object *object)
+object_free (struct activity *activity, struct vg_object *object)
 {
   folio_object_free (activity, objects_folio (activity, object),
 		     objects_folio_offset (object));
@@ -531,17 +531,17 @@ object_free (struct activity *activity, struct object *object)
 /* Get and set folio FOLIO's storage policy according to flags FLAGS,
    IN and OUT.  */
 extern void folio_policy (struct activity *activity,
-			  struct folio *folio,
-			  uintptr_t flags, struct folio_policy in,
-			  struct folio_policy *out);
+			  struct vg_folio *folio,
+			  uintptr_t flags, struct vg_folio_policy in,
+			  struct vg_folio_policy *out);
 
 /* Return the first waiter queued on object OBJECT.  */
 extern struct messenger *object_wait_queue_head (struct activity *activity,
-						 struct object *object);
+						 struct vg_object *object);
 
 /* Return the last waiter queued on object OBJECT.  */
 extern struct messenger *object_wait_queue_tail (struct activity *activity,
-						 struct object *object);
+						 struct vg_object *object);
 
 /* Return the waiter following MESSENGER.  */
 extern struct messenger *object_wait_queue_next (struct activity *activity,
@@ -554,13 +554,13 @@ extern struct messenger *object_wait_queue_prev (struct activity *activity,
 /* Push the messenger MESSENGER onto object OBJECT's wait queue (i.e.,
    add it to the front of the wait queue).  */
 extern void object_wait_queue_push (struct activity *activity,
-				    struct object *object,
+				    struct vg_object *object,
 				    struct messenger *messenger);
 
 /* Enqueue the messenger MESSENGER on object OBJECT's wait queue
    (i.e., add it to the end of the wait queue).  */
 extern void object_wait_queue_enqueue (struct activity *activity,
-				       struct object *object,
+				       struct vg_object *object,
 				       struct messenger *messenger);
 
 /* Unlink messenger MESSENGER from its wait queue.  */

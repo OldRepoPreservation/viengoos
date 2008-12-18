@@ -74,7 +74,7 @@ thread_lookup (l4_thread_id_t threadid)
     debug (1, "hash inconsistent: threadid: (%x.%x) "
 	   "!= thread (%llx/0x%p)->tid: (%x.%x)",
 	   l4_thread_no (threadid), l4_version (threadid),
-	   object_to_object_desc ((struct object *) thread)->oid, thread,
+	   object_to_object_desc ((struct vg_object *) thread)->oid, thread,
 	   l4_thread_no (thread->tid), l4_version (thread->tid));
   assert (thread->tid == threadid);
 
@@ -110,7 +110,7 @@ thread_init (struct thread *thread)
   thread->tid = l4_global_id (tid, THREAD_VERSION);
   debug (4, "Allocated thread 0x%x.%x (%llx/%p)",
 	 l4_thread_no (thread->tid), l4_version (thread->tid),
-	 object_to_object_desc ((struct object *) thread)->oid, thread);
+	 object_to_object_desc ((struct vg_object *) thread)->oid, thread);
 
   bool had_value;
   error_t err = hurd_ihash_replace (&tid_to_thread, tid, thread,
@@ -260,35 +260,35 @@ thread_exregs (struct activity *principal,
 	       uintptr_t *sp, uintptr_t *ip,
 	       uintptr_t *eflags, uintptr_t *user_handle)
 {
-  if ((control & ~(HURD_EXREGS_SET_REGS
-		   | HURD_EXREGS_GET_REGS
-		   | HURD_EXREGS_START
-		   | HURD_EXREGS_STOP
-		   | HURD_EXREGS_ABORT_IPC)))
+  if ((control & ~(VG_EXREGS_SET_REGS
+		   | VG_EXREGS_GET_REGS
+		   | VG_EXREGS_START
+		   | VG_EXREGS_STOP
+		   | VG_EXREGS_ABORT_IPC)))
     {
       debug (1, "Control word contains invalid bits");
       return EINVAL;
     }
 
-  if ((control & HURD_EXREGS_SET_ASPACE))
+  if ((control & VG_EXREGS_SET_ASPACE))
     vg_cap_copy_x (principal,
 		   VG_ADDR_VOID, &thread->aspace, VG_ADDR_VOID,
 		   VG_ADDR_VOID, aspace, VG_ADDR_VOID,
 		   flags, properties);
 
-  if ((control & HURD_EXREGS_SET_ACTIVITY))
+  if ((control & VG_EXREGS_SET_ACTIVITY))
     vg_cap_copy_simple
       (principal,
        VG_ADDR_VOID, &thread->activity, VG_ADDR_VOID,
        VG_ADDR_VOID, activity, VG_ADDR_VOID);
 
-  if ((control & HURD_EXREGS_SET_UTCB))
+  if ((control & VG_EXREGS_SET_UTCB))
     vg_cap_copy_simple
       (principal,
        VG_ADDR_VOID, &thread->utcb, VG_ADDR_VOID,
        VG_ADDR_VOID, utcb, VG_ADDR_VOID);
 
-  if ((control & HURD_EXREGS_SET_EXCEPTION_MESSENGER))
+  if ((control & VG_EXREGS_SET_EXCEPTION_MESSENGER))
     vg_cap_copy_simple
       (principal,
        VG_ADDR_VOID, &thread->exception_messenger, VG_ADDR_VOID,
@@ -299,7 +299,7 @@ thread_exregs (struct activity *principal,
       l4_thread_id_t tid = thread->tid;
 
       /* Clear hurd specific bits so that l4_exchange_registers works.  */
-      control = control & ~(HURD_EXREGS_SET_ACTIVITY | HURD_EXREGS_SET_ASPACE);
+      control = control & ~(VG_EXREGS_SET_ACTIVITY | VG_EXREGS_SET_ASPACE);
 
       do_debug (4)
 	{
@@ -335,32 +335,32 @@ thread_exregs (struct activity *principal,
   else
     {
       l4_word_t t = thread->sp;
-      if ((control & HURD_EXREGS_SET_SP))
+      if ((control & VG_EXREGS_SET_SP))
 	thread->sp = *sp;
-      if ((control & HURD_EXREGS_GET_REGS))
+      if ((control & VG_EXREGS_GET_REGS))
 	*sp = t;
 
       t = thread->ip;
-      if ((control & HURD_EXREGS_SET_IP))
+      if ((control & VG_EXREGS_SET_IP))
 	thread->ip = *ip;
-      if ((control & HURD_EXREGS_GET_REGS))
+      if ((control & VG_EXREGS_GET_REGS))
 	*ip = t;
 
       t = thread->eflags;
-      if ((control & HURD_EXREGS_SET_EFLAGS))
+      if ((control & VG_EXREGS_SET_EFLAGS))
 	thread->eflags = *eflags;
-      if ((control & HURD_EXREGS_GET_REGS))
+      if ((control & VG_EXREGS_GET_REGS))
 	*eflags = t;
 
       t = thread->user_handle;
-      if ((control & HURD_EXREGS_SET_USER_HANDLE))
+      if ((control & VG_EXREGS_SET_USER_HANDLE))
 	thread->user_handle = *user_handle;
-      if ((control & HURD_EXREGS_GET_REGS))
+      if ((control & VG_EXREGS_GET_REGS))
 	*user_handle = t;
 
-      if ((control & HURD_EXREGS_START) == HURD_EXREGS_START)
+      if ((control & VG_EXREGS_START) == VG_EXREGS_START)
 	{
-	  struct object *a = vg_cap_to_object (principal, &thread->activity);
+	  struct vg_object *a = vg_cap_to_object (principal, &thread->activity);
 	  if (! a)
 	    {
 	      debug (0, "Thread not schedulable: no activity");
@@ -385,12 +385,12 @@ thread_exregs (struct activity *principal,
 	    | _L4_XCHG_REGS_SET_FLAGS | _L4_XCHG_REGS_SET_USER_HANDLE
 	    | _L4_XCHG_REGS_SET_HALT;
 
-	  if ((control & HURD_EXREGS_STOP) == HURD_EXREGS_STOP)
+	  if ((control & VG_EXREGS_STOP) == VG_EXREGS_STOP)
 	    c |= _L4_XCHG_REGS_HALT;
-	  if ((control & HURD_EXREGS_ABORT_SEND) == HURD_EXREGS_ABORT_SEND)
+	  if ((control & VG_EXREGS_ABORT_SEND) == VG_EXREGS_ABORT_SEND)
 	    c |= _L4_XCHG_REGS_CANCEL_SEND;
-	  if ((control & HURD_EXREGS_ABORT_RECEIVE)
-	      == HURD_EXREGS_ABORT_RECEIVE)
+	  if ((control & VG_EXREGS_ABORT_RECEIVE)
+	      == VG_EXREGS_ABORT_RECEIVE)
 	    c |= _L4_XCHG_REGS_CANCEL_RECV;
 
 	  l4_thread_id_t targ = tid;
@@ -439,7 +439,7 @@ thread_activate (struct activity *activity,
 		 bool may_block)
 {
   assert (messenger);
-  assert (object_type ((struct object *) messenger) == vg_cap_messenger);
+  assert (object_type ((struct vg_object *) messenger) == vg_cap_messenger);
 
 
   uintptr_t ip = 0;
@@ -468,10 +468,10 @@ thread_activate (struct activity *activity,
       return false;
     }
 
-  if (object_type ((struct object *) utcb) != vg_cap_page)
+  if (object_type ((struct vg_object *) utcb) != vg_cap_page)
     {
       debug (0, "Malformed thread: utcb slot contains a %s, not a page",
-	     vg_cap_type_string (object_type ((struct object *) utcb)));
+	     vg_cap_type_string (object_type ((struct vg_object *) utcb)));
       return false;
     }
 
@@ -484,7 +484,7 @@ thread_activate (struct activity *activity,
 	return false;
 
       object_wait_queue_enqueue (activity,
-				 (struct object *) thread, messenger);
+				 (struct vg_object *) thread, messenger);
       messenger->wait_reason = MESSENGER_WAIT_TRANSFER_MESSAGE;
 
       utcb->pending_message = 1;
@@ -508,7 +508,7 @@ thread_activate (struct activity *activity,
       utcb->inline_cap_count = messenger->inline_cap_count;
     }
 
-  l4_word_t c = HURD_EXREGS_STOP | _L4_XCHG_REGS_DELIVER
+  l4_word_t c = VG_EXREGS_STOP | _L4_XCHG_REGS_DELIVER
     | _L4_XCHG_REGS_CANCEL_SEND | _L4_XCHG_REGS_CANCEL_RECV;
   do_debug (4)
     {
@@ -557,7 +557,7 @@ thread_activate (struct activity *activity,
       utcb->saved_ip = ip;
     }
 
-  c = HURD_EXREGS_START | _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP;
+  c = VG_EXREGS_START | _L4_XCHG_REGS_SET_SP | _L4_XCHG_REGS_SET_IP;
   sp = utcb->activation_handler_sp;
   ip = utcb->activation_handler_ip;
   targ = thread->tid;
@@ -604,9 +604,9 @@ thread_raise_exception (struct activity *activity,
       backtrace_print ();
       debug (0, "Thread %x has no exception handler.", thread->tid);
     }
-  else if (object_type ((struct object *) handler) != vg_cap_messenger)
+  else if (object_type ((struct vg_object *) handler) != vg_cap_messenger)
     debug (0, "%s is not a valid exception handler.",
-	   vg_cap_type_string (object_type ((struct object *) handler)));
+	   vg_cap_type_string (object_type ((struct vg_object *) handler)));
   else
     {
       if (! messenger_message_load (activity, handler, message))
@@ -628,10 +628,10 @@ thread_deliver_pending (struct activity *activity,
       return;
     }
 
-  if (object_type ((struct object *) utcb) != vg_cap_page)
+  if (object_type ((struct vg_object *) utcb) != vg_cap_page)
     {
       debug (0, "Malformed thread: utcb slot contains a %s, not a page",
-	     vg_cap_type_string (object_type ((struct object *) utcb)));
+	     vg_cap_type_string (object_type ((struct vg_object *) utcb)));
       return;
     }
 
@@ -643,7 +643,7 @@ thread_deliver_pending (struct activity *activity,
 
 
   struct messenger *m;
-  object_wait_queue_for_each (activity, (struct object *) thread, m)
+  object_wait_queue_for_each (activity, (struct vg_object *) thread, m)
     if (m->wait_reason == MESSENGER_WAIT_TRANSFER_MESSAGE)
       {
 	if (thread_activate (activity, thread, m, false))

@@ -63,7 +63,7 @@ struct thread
   /* Whether the thread has been commissioned (a tid allocated).  */
   uint32_t commissioned : 1;
 
-  struct object_name name;
+  struct vg_object_name name;
 };
 
 /* The hardwired base of the UTCB (2.5GB).  */

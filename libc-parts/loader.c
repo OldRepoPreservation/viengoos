@@ -133,7 +133,7 @@ loader_elf_load (loader_allocate_object_callback_t alloc,
       for (; addr < ph->p_paddr + ph->p_memsz; addr += PAGESIZE)
 	{
 	  /* Allocate a page.  */
-	  struct object *page = NULL;
+	  struct vg_object *page = NULL;
 
 	  if (ph->p_paddr + ph->p_memsz < addr + PAGESIZE)
 	    /* We have less than a page of data to process.  Another

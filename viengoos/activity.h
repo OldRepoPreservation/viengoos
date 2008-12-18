@@ -52,7 +52,7 @@ struct activity
   struct vg_cap folios;
 
   /* Policy.  */
-  struct activity_policy policy;
+  struct vg_activity_policy policy;
 
   /* Number of folios allocated to this activity (including
      children).  */
@@ -113,7 +113,7 @@ struct activity
   /* Statistics.  */
   /* The current period.  */
   unsigned char current_period;
-  struct activity_stats stats[ACTIVITY_STATS_PERIODS + 1];
+  struct vg_activity_stats stats[VG_ACTIVITY_STATS_PERIODS + 1];
 
   /* When an activity is choosen to yield pages, we first send it a
      signal asking it to free memory.  We exclude it from eviction for
@@ -130,7 +130,7 @@ struct activity
      when looking for a process to page.  */
   uintptr_t frames_excluded;
 
-  struct object_name name;
+  struct vg_object_name name;
 };
 
 LIST_CLASS(activity_children, struct activity, sibling, false)
@@ -187,7 +187,7 @@ extern void activity_deprepare (struct activity *principal,
 
 /* Set ACTIVITY's policy to POLICY.  */
 extern void activity_policy_update (struct activity *activity,
-				    struct activity_policy policy);
+				    struct vg_activity_policy policy);
 
 
 /* Starting with ACTIVITY and for each direct ancestor execute CODE.

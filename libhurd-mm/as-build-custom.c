@@ -29,7 +29,7 @@
 #include "as-build.c"
 
 struct vg_cap *
-as_ensure_full_custom (activity_t activity,
+as_ensure_full_custom (vg_activity_t activity,
 		       vg_addr_t as_root_addr, struct vg_cap *root, vg_addr_t addr,
 		       as_allocate_page_table_t as_allocate_page_table,
 		       as_object_index_t object_index)
@@ -40,7 +40,7 @@ as_ensure_full_custom (activity_t activity,
 }
 
 struct vg_cap *
-as_insert_custom (activity_t activity,
+as_insert_custom (vg_activity_t activity,
 		  vg_addr_t as_root_addr, struct vg_cap *root, vg_addr_t addr,
 		  vg_addr_t entry_as, struct vg_cap entry, vg_addr_t entry_addr,
 		  as_allocate_page_table_t as_allocate_page_table,

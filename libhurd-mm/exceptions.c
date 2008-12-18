@@ -339,7 +339,7 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
       uintptr_t label = vg_message_word (mb->reply, 0);
       switch (label)
 	{
-	case ACTIVATION_fault:
+	case VG_ACTIVATION_fault:
 	  {
 	    vg_addr_t fault;
 	    uintptr_t ip;
@@ -347,9 +347,9 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 	    struct vg_activation_fault_info info;
 
 	    error_t err;
-	    err = activation_fault_send_unmarshal (mb->reply,
-						   &fault, &sp, &ip, &info,
-						   NULL);
+	    err = vg_activation_fault_send_unmarshal (mb->reply,
+						      &fault, &sp, &ip, &info,
+						      NULL);
 	    if (err)
 	      panic ("Failed to unmarshal exception: %d", err);
 
@@ -542,7 +542,7 @@ hurd_activation_handler_activated (struct hurd_utcb *utcb)
       uintptr_t label = vg_message_word (mb->reply, 0);
       switch (label)
 	{
-	case ACTIVATION_fault:
+	case VG_ACTIVATION_fault:
 	  {
 	    vg_addr_t fault;
 	    uintptr_t ip;
@@ -550,9 +550,9 @@ hurd_activation_handler_activated (struct hurd_utcb *utcb)
 	    struct vg_activation_fault_info info;
 
 	    error_t err;
-	    err = activation_fault_send_unmarshal (mb->reply,
-						   &fault, &sp, &ip, &info,
-						   NULL);
+	    err = vg_activation_fault_send_unmarshal (mb->reply,
+						      &fault, &sp, &ip, &info,
+						      NULL);
 	    if (err)
 	      panic ("Failed to unmarshal exception: %d", err);
 
@@ -679,11 +679,11 @@ hurd_activation_handler_init_early (void)
   utcb->vg.activation_handler_ip = (uintptr_t) &hurd_activation_handler_entry;
   utcb->vg.activation_handler_end = (uintptr_t) &hurd_activation_handler_end;
 
-  struct hurd_thread_exregs_in in;
+  struct vg_thread_exregs_in in;
   memset (&in, 0, sizeof (in));
 
   struct vg_message *msg = (void *) &activation_handler_msg[0];
-  vg_thread_exregs_send_marshal (msg, HURD_EXREGS_SET_UTCB, in,
+  vg_thread_exregs_send_marshal (msg, VG_EXREGS_SET_UTCB, in,
 				 VG_ADDR_VOID, VG_ADDR_VOID,
 				 VG_PTR_TO_PAGE (utcb), VG_ADDR_VOID,
 				 __hurd_startup_data->messengers[1]);
@@ -854,12 +854,12 @@ hurd_activation_state_alloc (vg_addr_t thread, struct hurd_utcb **utcbp)
 
   *utcbp = utcb;
 
-  struct hurd_thread_exregs_in in;
-  struct hurd_thread_exregs_out out;
+  struct vg_thread_exregs_in in;
+  struct vg_thread_exregs_out out;
 
   err = vg_thread_exregs (VG_ADDR_VOID, thread,
-			  HURD_EXREGS_SET_UTCB
-			  | HURD_EXREGS_SET_EXCEPTION_MESSENGER,
+			  VG_EXREGS_SET_UTCB
+			  | VG_EXREGS_SET_EXCEPTION_MESSENGER,
 			  in, VG_ADDR_VOID, VG_ADDR_VOID,
 			  VG_PTR_TO_PAGE (utcb), utcb->exception_buffer->receiver,
 			  &out, NULL, NULL, NULL, NULL);

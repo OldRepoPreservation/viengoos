@@ -122,7 +122,7 @@ struct trace_buffer as_trace = TRACE_BUFFER_INIT ("as_trace", 0,
    implicit (in the case of a folio), return a fabricated capability
    in *FAKE_SLOT and return FAKE_SLOT.  Return NULL on failure.  */
 static inline struct vg_cap *
-do_index (activity_t activity, struct vg_cap *pte, vg_addr_t pt_addr, int idx,
+do_index (vg_activity_t activity, struct vg_cap *pte, vg_addr_t pt_addr, int idx,
 	  struct vg_cap *fake_slot)
 {
   assert (pte->type == vg_cap_cappage || pte->type == vg_cap_rcappage
@@ -131,7 +131,7 @@ do_index (activity_t activity, struct vg_cap *pte, vg_addr_t pt_addr, int idx,
 	  || pte->type == vg_cap_messenger || pte->type == vg_cap_rmessenger);
 
   /* Load the referenced object.  */
-  struct object *pt = vg_cap_to_object (activity, pte);
+  struct vg_object *pt = vg_cap_to_object (activity, pte);
   if (! pt)
     /* PTE's type was not void but its designation was invalid.  This
        can only happen if we inserted an object and subsequently
@@ -149,7 +149,7 @@ do_index (activity_t activity, struct vg_cap *pte, vg_addr_t pt_addr, int idx,
       return &pt->caps[VG_CAP_SUBPAGE_OFFSET (pte) + idx];
 
     case vg_cap_folio:;
-      struct folio *folio = (struct folio *) pt;
+      struct vg_folio *folio = (struct vg_folio *) pt;
 
       if (vg_folio_object_type (folio, idx) == vg_cap_void)
 	PANIC ("Can't use void object at " VG_ADDR_FMT " for address translation",
@@ -188,7 +188,7 @@ do_index (activity_t activity, struct vg_cap *pte, vg_addr_t pt_addr, int idx,
    capability.  Otherwise, only capability slots containing a void
    capability are used.  */
 struct vg_cap *
-ID (as_build) (activity_t activity,
+ID (as_build) (vg_activity_t activity,
 	       vg_addr_t as_root_addr, struct vg_cap *as_root, vg_addr_t addr,
 	       as_allocate_page_table_t allocate_page_table
 	       OBJECT_INDEX_PARAM,

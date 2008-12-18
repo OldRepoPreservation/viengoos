@@ -74,7 +74,7 @@ update_stats (void)
      damping factor and the pressure.  */
   void stats (struct activity *activity, uint32_t frames)
   {
-    struct activity_stats *s = ACTIVITY_STATS (activity);
+    struct vg_activity_stats *s = ACTIVITY_STATS (activity);
 
     s->period = period / FREQ;
 
@@ -102,7 +102,7 @@ update_stats (void)
 	debug (5, "Due to pressure (%d), decreasing frames available "
 	       "to " OBJECT_NAME_FMT " from %d to %d",
 	       ACTIVITY_STATS (activity)->pressure,
-	       OBJECT_NAME_PRINTF ((struct object *) activity),
+	       OBJECT_NAME_PRINTF ((struct vg_object *) activity),
 	       frames, frames - dec);
 
 	frames -= dec;
@@ -301,7 +301,7 @@ update_stats (void)
 		 "share: %d, excess: %d, unused: %d, "
 		 "could steal: %d, could use: %d, free: %d, avail: %d",
 		 period / FREQ,
-		 OBJECT_NAME_PRINTF ((struct object *) activity),
+		 OBJECT_NAME_PRINTF ((struct vg_object *) activity),
 		 my_alloced, alloced, priority, my_weight, weight, frames,
 		 my_claimed, my_disowned, share, excess, unused,
 		 could_steal, could_use, free, avail);
@@ -326,7 +326,7 @@ update_stats (void)
 		debug (5, "Due to local pressure (%d), decreasing frames "
 		       "available to " OBJECT_NAME_FMT " from %d to %d",
 		       ACTIVITY_STATS (activity)->pressure_local,
-		       OBJECT_NAME_PRINTF ((struct object *) activity),
+		       OBJECT_NAME_PRINTF ((struct vg_object *) activity),
 		       avail, avail - dec);
 
 		avail -= dec;
@@ -360,8 +360,8 @@ update_stats (void)
 				  ACTIVITY_STATS (p)->claimed,
 				  ACTIVITY_STATS (p)->disowned));
 
-	    struct activity_stats *stats = ACTIVITY_STATS (activity);
-	    struct activity_stats *cstats = ACTIVITY_STATS (activity);
+	    struct vg_activity_stats *stats = ACTIVITY_STATS (activity);
+	    struct vg_activity_stats *cstats = ACTIVITY_STATS (activity);
 
 	    stats->clean += cstats->clean;
 	    stats->dirty += cstats->dirty;
@@ -381,7 +381,7 @@ update_stats (void)
     debug (5, OBJECT_NAME_FMT " (s: %d/%d; c: %d/%d): "
 	   "%d/%d frames, %d/%d avail, %d free goal, %d bad_karma "
 	   "(" OBJECT_NAME_FMT ")",
-	   OBJECT_NAME_PRINTF ((struct object *) activity),
+	   OBJECT_NAME_PRINTF ((struct vg_object *) activity),
 	   activity->policy.sibling_rel.priority,
 	   activity->policy.sibling_rel.weight,
 	   activity->policy.child_rel.priority,
@@ -391,11 +391,11 @@ update_stats (void)
 	   ACTIVITY_STATS (activity)->available_local,
 	   ACTIVITY_STATS (activity)->available,
 	   activity->free_goal, activity->free_bad_karma,
-	   OBJECT_NAME_PRINTF ((struct object *) 
+	   OBJECT_NAME_PRINTF ((struct vg_object *) 
 			       (activity->parent ?: root_activity)));
 
     activity->current_period ++;
-    if (activity->current_period == ACTIVITY_STATS_PERIODS + 1)
+    if (activity->current_period == VG_ACTIVITY_STATS_PERIODS + 1)
       activity->current_period = 0;
 
     memset (ACTIVITY_STATS (activity),
@@ -403,29 +403,29 @@ update_stats (void)
 
     /* Wake anyone waiting for this statistic.  */
     struct messenger *messenger;
-    object_wait_queue_for_each (activity, (struct object *) activity,
+    object_wait_queue_for_each (activity, (struct vg_object *) activity,
 				messenger)
       if (messenger->wait_reason == MESSENGER_WAIT_ACTIVITY_INFO
-	  && (messenger->wait_reason_arg & activity_info_stats)
+	  && (messenger->wait_reason_arg & vg_activity_info_stats)
 	  && messenger->wait_reason_arg2 <= period / FREQ)
 	{
 	  object_wait_queue_unlink (activity, messenger);
 
 	  /* XXX: Only return valid stat buffers.  */
-	  struct activity_info info;
-	  info.event = activity_info_stats;
+	  struct vg_activity_info info;
+	  info.event = vg_activity_info_stats;
 
 	  int i;
-	  for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
+	  for (i = 0; i < VG_ACTIVITY_STATS_PERIODS; i ++)
 	    {
 	      int period = activity->current_period - 1 - i;
 	      if (period < 0)
-		period = (ACTIVITY_STATS_PERIODS + 1) + period;
+		period = (VG_ACTIVITY_STATS_PERIODS + 1) + period;
 
 	      info.stats.stats[i] = activity->stats[period];
 	    }
 
-	  info.stats.count = ACTIVITY_STATS_PERIODS;
+	  info.stats.count = VG_ACTIVITY_STATS_PERIODS;
 
 	  vg_activity_info_reply (root_activity, messenger, info);
 	}
@@ -454,7 +454,7 @@ ager_loop (void)
 
 #define BATCH_SIZE (L4_NUM_MRS / 2)
       struct object_desc *descs[BATCH_SIZE];
-      struct object *objects[BATCH_SIZE];
+      struct vg_object *objects[BATCH_SIZE];
       l4_fpage_t fpages[BATCH_SIZE];
 
       bool also_unmap;

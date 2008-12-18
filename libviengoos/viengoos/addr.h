@@ -45,13 +45,13 @@
 
    Leaves thus have a 1 in the least significant bit and nodes a
    0.  */
-struct addr
+struct vg_addr
 {
   uint64_t raw;
 };
 #define VG_ADDR_BITS 63
 /* Client-side capability handle.  */
-typedef struct addr vg_addr_t;
+typedef struct vg_addr vg_addr_t;
 
 #define VG_ADDR_FMT "%llx/%d"
 #define VG_ADDR_PRINTF(addr_) vg_addr_prefix ((addr_)), vg_addr_depth ((addr_))
@@ -64,7 +64,7 @@ typedef struct addr vg_addr_t;
     assert (0 <= d_ && d_ <= VG_ADDR_BITS); \
     assert ((p_ & ((1 << (VG_ADDR_BITS - d_)) - 1)) == 0); \
     assert (p_ < (1ULL << VG_ADDR_BITS)); \
-    (struct addr) { (p_ << 1ULL) | (1ULL << (VG_ADDR_BITS - d_)) }; \
+    (struct vg_addr) { (p_ << 1ULL) | (1ULL << (VG_ADDR_BITS - d_)) }; \
   })
 
 /* Create an address given a prefix and a depth.  Appropriate for use
@@ -72,7 +72,7 @@ typedef struct addr vg_addr_t;
 #define VG_ADDR_INIT(prefix_, depth_) \
   { .raw = ((((prefix_) << 1) | 1) << (VG_ADDR_BITS - (depth_))) }
 
-#define VG_ADDR_VOID ((struct addr) { 0ULL })
+#define VG_ADDR_VOID ((struct vg_addr) { 0ULL })
 #define VG_ADDR_EQ(a, b) (a.raw == b.raw)
 #define VG_ADDR_IS_VOID(a) (VG_ADDR_EQ (a, VG_ADDR_VOID))
 
@@ -110,16 +110,16 @@ vg_addr_extend (vg_addr_t addr, uint64_t prefix, int depth)
 #define vg_addr_extend(addr_, prefix_, depth_)				\
   ({									\
     vg_addr_t a__ = (addr_);						\
-    uint64_t p__ = (prefix_);					\
+    uint64_t p__ = (prefix_);						\
     int d__ = (depth_);							\
     assertx (d__ >= 0, "depth: %d", d__);				\
-    assertx (vg_addr_depth ((a__)) + (d__) <= VG_ADDR_BITS,			\
-	     "addr: " VG_ADDR_FMT "; depth: %d", VG_ADDR_PRINTF (a__), d__);	\
+    assertx (vg_addr_depth ((a__)) + (d__) <= VG_ADDR_BITS,		\
+	     "addr: " VG_ADDR_FMT "; depth: %d", VG_ADDR_PRINTF (a__), d__); \
     assertx (p__ < (1ULL << d__),					\
 	     "prefix: %llx; depth: %lld", p__, 1ULL << d__);		\
-    VG_ADDR (vg_addr_prefix ((a__))						\
-	  | ((p__) << (VG_ADDR_BITS - vg_addr_depth ((a__)) - (d__))),	\
-	  vg_addr_depth ((a__)) + (d__));					\
+    VG_ADDR (vg_addr_prefix ((a__))					\
+	     | ((p__) << (VG_ADDR_BITS - vg_addr_depth ((a__)) - (d__))), \
+	     vg_addr_depth ((a__)) + (d__));				\
   })
 #endif
 
@@ -130,7 +130,8 @@ vg_addr_chop (vg_addr_t addr, int depth)
   int d = vg_addr_depth (addr) - depth;
   assert (d >= 0);
 
-  return VG_ADDR (vg_addr_prefix (addr) & ~((1ULL << (VG_ADDR_BITS - d)) - 1), d);
+  return VG_ADDR (vg_addr_prefix (addr) & ~((1ULL << (VG_ADDR_BITS - d)) - 1),
+		  d);
 }
 
 /* Return the last WIDTH bits of address's VG_ADDR prefix.  */
@@ -146,19 +147,19 @@ vg_addr_extract (vg_addr_t addr, int width)
 /* Convert an address to a pointer.  The address must name an object
    mapped in the machine data instruction accessible part of the
    address space.  */
-#define VG_ADDR_TO_PTR(addr_) \
-  ({ \
+#define VG_ADDR_TO_PTR(addr_)				  \
+  ({							  \
     assert (vg_addr_prefix ((addr_)) < ((uintptr_t) -1)); \
-    assert (vg_addr_depth ((addr_)) == VG_ADDR_BITS); \
-    (void *) (uintptr_t) vg_addr_prefix ((addr_)); \
+    assert (vg_addr_depth ((addr_)) == VG_ADDR_BITS);	  \
+    (void *) (uintptr_t) vg_addr_prefix ((addr_));	  \
   })
 
 /* Convert a pointer to an address.  */
-#define VG_PTR_TO_ADDR(ptr_) \
+#define VG_PTR_TO_ADDR(ptr_)			\
   (VG_ADDR ((uintptr_t) (ptr_), VG_ADDR_BITS))
 
 /* Return the address of the page that would contain pointer PTR_.  */
-#define VG_PTR_TO_PAGE(ptr_) \
+#define VG_PTR_TO_PAGE(ptr_)						\
   vg_addr_chop (VG_ADDR ((uintptr_t) (ptr_), VG_ADDR_BITS), PAGESIZE_LOG2)
 
 static inline vg_addr_t

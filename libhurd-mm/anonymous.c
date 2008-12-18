@@ -579,7 +579,7 @@ advise (struct pager *pager,
 struct anonymous_pager *
 anonymous_pager_alloc (vg_addr_t activity,
 		       void *hint, uintptr_t length, enum map_access access,
-		       struct object_policy policy,
+		       struct vg_object_policy policy,
 		       uintptr_t flags, anonymous_pager_fill_t fill,
 		       void **addr_out)
 {

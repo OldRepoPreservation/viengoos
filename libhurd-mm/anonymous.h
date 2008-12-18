@@ -117,7 +117,7 @@ struct anonymous_pager
   vg_addr_t activity;
 
   /* The policy to use when allocating memory.  */
-  struct object_policy policy;
+  struct vg_object_policy policy;
 
 
   /* If not NULL, called when a fault is raised due to lack of storage
@@ -167,7 +167,7 @@ extern struct anonymous_pager *anonymous_pager_alloc (vg_addr_t activity,
 						      void *addr_hint,
 						      uintptr_t length,
 						      enum map_access access,
-						      struct object_policy p,
+						      struct vg_object_policy p,
 						      uintptr_t flags,
 						      anonymous_pager_fill_t f,
 						      void **addr_out);

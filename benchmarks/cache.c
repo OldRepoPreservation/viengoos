@@ -198,7 +198,7 @@ helper (void *arg)
 #ifdef __gnu_hurd_viengoos__
   pthread_setactivity_np (hog_activity);
 
-  struct activity_info info;
+  struct vg_activity_info info;
 #endif
 
   int hog_alloced = 0;
@@ -211,12 +211,12 @@ helper (void *arg)
     /* First the main thread.  */
     error_t err;
 
-    err = vg_activity_info (VG_ADDR_VOID, main_activity, activity_info_stats,
+    err = vg_activity_info (VG_ADDR_VOID, main_activity, vg_activity_info_stats,
 			    stat_count == 0
 			    ? 0 : stats[stat_count - 1].period + 1,
 			    &info);
     assert_perror (err);
-    assert (info.event == activity_info_stats);
+    assert (info.event == vg_activity_info_stats);
     assert (info.stats.count > 0);
 
     stats[stat_count].alloced[0]
@@ -227,12 +227,12 @@ helper (void *arg)
     stats[stat_count].period = info.stats.stats[0].period;
 
     /* Then, the hog.  */
-    err = vg_activity_info (VG_ADDR_VOID, hog_activity, activity_info_stats,
+    err = vg_activity_info (VG_ADDR_VOID, hog_activity, vg_activity_info_stats,
 			    stat_count == 0
 			    ? 0 : stats[stat_count - 1].period + 1,
 			    &info);
     assert_perror (err);
-    assert (info.event == activity_info_stats);
+    assert (info.event == vg_activity_info_stats);
     assert (info.stats.count > 0);
 
     stats[stat_count].alloced[1]
@@ -396,7 +396,7 @@ helper_fork (void)
   if (VG_ADDR_IS_VOID (main_activity))
     panic ("Failed to allocate main activity");
 
-  struct object_name name;
+  struct vg_object_name name;
   snprintf (&name.name[0], sizeof (name.name), "main.%x", l4_myself ());
   vg_object_name (VG_ADDR_VOID, main_activity, name);
 
@@ -411,7 +411,7 @@ helper_fork (void)
 
   /* We give the main thread and the hog the same priority and
      weight.  */  
-  struct activity_policy in, out;
+  struct vg_activity_policy in, out;
   memset (&in, 0, sizeof (in));
   in.sibling_rel.priority = 1;
   in.sibling_rel.weight = 10;

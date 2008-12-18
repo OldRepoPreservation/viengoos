@@ -201,7 +201,7 @@ vg_cap_type_strengthen (enum vg_cap_type type)
 #define VG_OBJECT_PRIORITY_DEFAULT (0)
 #define VG_OBJECT_PRIORITY_MAX ((1 << (VG_OBJECT_PRIORITY_BITS - 1)) - 1)
 
-struct object_policy
+struct vg_object_policy
 {
   union
   {
@@ -224,7 +224,7 @@ struct object_policy
 
 #define VG_OBJECT_POLICY_INIT { { raw: 0 } }
 #define VG_OBJECT_POLICY(__op_discardable, __op_priority) \
-  (struct object_policy) { { { (__op_discardable), (__op_priority) } } }
+  (struct vg_object_policy) { { { (__op_discardable), (__op_priority) } } }
 /* The default object policy: not discardable, managed by LRU.  */
 #define VG_OBJECT_POLICY_VOID \
   VG_OBJECT_POLICY (false,  VG_OBJECT_PRIORITY_DEFAULT)
@@ -235,7 +235,7 @@ struct object_policy
 
 struct vg_cap_properties
 {
-  struct object_policy policy;
+  struct vg_object_policy policy;
   struct vg_cap_addr_trans addr_trans;
 };
 
@@ -282,7 +282,7 @@ struct vg_cap
   uint64_t oid : 64 - VG_CAP_TYPE_BITS;
 #else
   /* The shadow object (only for cappages and folios).  */
-  struct object *shadow;
+  struct vg_object *shadow;
 
   uint32_t discardable : 1;
   int32_t priority : VG_OBJECT_PRIORITY_BITS;
@@ -470,8 +470,8 @@ RPC(object_discard, 0, 0, 0
 
 enum
 {
-  object_dirty = 1 << 0,
-  object_referenced = 1 << 1,
+  vg_object_dirty = 1 << 0,
+  vg_object_referenced = 1 << 1,
 };
 
 /* Returns whether OBJECT is dirty.  If CLEAR is set, the dirty bit is
@@ -490,7 +490,7 @@ RPC (object_reply_on_destruction, 0, 1, 0,
     /* Out: */
     uintptr_t, return_code);
 
-struct object_name
+struct vg_object_name
 {
   char name[12];
 };
@@ -499,7 +499,7 @@ struct object_name
    purposes and is only supported by some objects, in particular,
    activities and threads.  */
 RPC (object_name, 1, 0, 0,
-     /* cap_t activity, cap_t object, */ struct object_name, name);
+     /* cap_t activity, cap_t object, */ struct vg_object_name, name);
      
 
 #undef RPC_STUB_PREFIX
@@ -518,7 +518,7 @@ enum
     VG_CAPPAGE_SLOTS_LOG2 = PAGESIZE_LOG2 - 4,
   };
 
-struct object
+struct vg_object
 {
   union
   {
@@ -528,9 +528,9 @@ struct object
 };
 
 #ifdef RM_INTERN
-typedef struct activity *activity_t;
+typedef struct activity *vg_activity_t;
 #else
-typedef vg_addr_t activity_t;
+typedef vg_addr_t vg_activity_t;
 #endif
 
 #ifndef RM_INTERN
@@ -552,10 +552,10 @@ vg_cap_set_shadow (struct vg_cap *vg_cap, void *shadow)
 /* Given vg_cap CAP, return the corresponding object, or NULL, if there
    is none.  */
 #ifdef RM_INTERN
-extern struct object *vg_cap_to_object (activity_t activity, struct vg_cap *vg_cap);
+extern struct vg_object *vg_cap_to_object (vg_activity_t activity, struct vg_cap *vg_cap);
 #else
-static inline struct object *
-vg_cap_to_object (activity_t activity, struct vg_cap *vg_cap)
+static inline struct vg_object *
+vg_cap_to_object (vg_activity_t activity, struct vg_cap *vg_cap)
 {
   return vg_cap_get_shadow (vg_cap);
 }
@@ -564,9 +564,11 @@ vg_cap_to_object (activity_t activity, struct vg_cap *vg_cap)
 /* Wrapper for the vg_cap_copy method.  Also updates shadow
    capabilities.  */
 static inline bool
-vg_cap_copy_x (activity_t activity,
-	       vg_addr_t target_address_space, struct vg_cap *target, vg_addr_t target_addr,
-	       vg_addr_t source_address_space, struct vg_cap source, vg_addr_t source_addr,
+vg_cap_copy_x (vg_activity_t activity,
+	       vg_addr_t target_address_space,
+	       struct vg_cap *target, vg_addr_t target_addr,
+	       vg_addr_t source_address_space,
+	       struct vg_cap source, vg_addr_t source_addr,
 	       int flags, struct vg_cap_properties properties)
 {
   /* By default, we preserve SOURCE's subpage specification.  */
@@ -652,10 +654,12 @@ vg_cap_copy_x (activity_t activity,
       changes_translation = true;
     }
 
-  if (subpage != VG_CAP_SUBPAGE (target) || subpages != VG_CAP_SUBPAGES (target))
+  if (subpage != VG_CAP_SUBPAGE (target)
+      || subpages != VG_CAP_SUBPAGES (target))
     {
       debug (5, "Subpage specification differs %d/%d -> %d/%d.",
-	     subpage, subpages, VG_CAP_SUBPAGE (target), VG_CAP_SUBPAGES (target));
+	     subpage, subpages,
+	     VG_CAP_SUBPAGE (target), VG_CAP_SUBPAGES (target));
       changes_translation = true;
     }
 
@@ -676,7 +680,8 @@ vg_cap_copy_x (activity_t activity,
 
   if (changes_translation)
     {
-      extern void cap_shootdown (struct activity *activity, struct vg_cap *vg_cap);
+      extern void cap_shootdown (struct activity *activity,
+				 struct vg_cap *cap);
 
       debug (5, "Translation changed: " VG_CAP_FMT " -> " VG_CAP_FMT,
 	     VG_CAP_PRINTF (target), VG_CAP_PRINTF (&source));
@@ -717,7 +722,7 @@ vg_cap_copy_x (activity_t activity,
    SOURCE's subpage specification and TARGET's guard.  Copies SOURCE's
    policy.  */
 static inline bool
-vg_cap_copy_simple (activity_t activity,
+vg_cap_copy_simple (vg_activity_t activity,
 		    vg_addr_t target_as,
 		    struct vg_cap *target, vg_addr_t target_addr,
 		    vg_addr_t source_as,

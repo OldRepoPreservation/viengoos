@@ -58,7 +58,7 @@
 #endif
 
 static bool
-as_lookup_rel_internal (activity_t activity,
+as_lookup_rel_internal (vg_activity_t activity,
 			struct vg_cap *root, vg_addr_t address,
 			enum vg_cap_type type, bool *writable,
 			enum as_lookup_mode mode, union as_lookup_ret *rt,
@@ -185,7 +185,7 @@ as_lookup_rel_internal (activity_t activity,
 		DUMP_OR_RET (false);
 	      }
 
-	    struct object *object = vg_cap_to_object (activity, root);
+	    struct vg_object *object = vg_cap_to_object (activity, root);
 	    if (! object)
 	      {
 #ifdef RM_INTERN
@@ -219,7 +219,7 @@ as_lookup_rel_internal (activity_t activity,
 	      DUMP_OR_RET (false);
 	    }
 
-	  struct object *object = vg_cap_to_object (activity, root);
+	  struct vg_object *object = vg_cap_to_object (activity, root);
 	  if (! object)
 	      {
 #ifdef RM_INTERN
@@ -229,7 +229,7 @@ as_lookup_rel_internal (activity_t activity,
 		DUMP_OR_RET (false);
 	      }
 
-	  struct folio *folio = (struct folio *) object;
+	  struct vg_folio *folio = (struct vg_folio *) object;
 
 	  int i = extract_bits64_inv (addr, remaining - 1, VG_FOLIO_OBJECTS_LOG2);
 #ifdef RM_INTERN
@@ -274,7 +274,7 @@ as_lookup_rel_internal (activity_t activity,
 		DUMP_OR_RET (false);
 	      }
 
-	    struct object *object = vg_cap_to_object (activity, root);
+	    struct vg_object *object = vg_cap_to_object (activity, root);
 	    if (! object)
 	      {
 #ifdef RM_INTERN
@@ -391,7 +391,7 @@ as_lookup_rel_internal (activity_t activity,
 }
 
 bool
-as_lookup_rel (activity_t activity,
+as_lookup_rel (vg_activity_t activity,
 	       struct vg_cap *root, vg_addr_t address,
 	       enum vg_cap_type type, bool *writable,
 	       enum as_lookup_mode mode, union as_lookup_ret *rt)
@@ -412,7 +412,7 @@ as_lookup_rel (activity_t activity,
 }
 
 void
-as_dump_path_rel (activity_t activity, struct vg_cap *root, vg_addr_t addr)
+as_dump_path_rel (vg_activity_t activity, struct vg_cap *root, vg_addr_t addr)
 {
   union as_lookup_ret rt;
 

@@ -37,7 +37,7 @@ const int cap_type_num_slots[] = { [vg_cap_void] = 0,
 				   [vg_cap_activity_control] = 0,
 				   [vg_cap_thread] = VG_THREAD_SLOTS };
 
-static struct object *
+static struct vg_object *
 cap_to_object_internal (struct activity *activity, struct vg_cap *cap,
 			bool hard)
 {
@@ -46,7 +46,7 @@ cap_to_object_internal (struct activity *activity, struct vg_cap *cap,
 
   /* XXX: If CAP does not grant write access, then we need to flatten
      the discardable bit.  */
-  struct object *object;
+  struct vg_object *object;
   if (hard)
     {
       object = object_find (activity, cap->oid, VG_CAP_POLICY_GET (*cap));
@@ -73,13 +73,13 @@ cap_to_object_internal (struct activity *activity, struct vg_cap *cap,
   return object;
 }
 
-struct object *
+struct vg_object *
 vg_cap_to_object (struct activity *activity, struct vg_cap *cap)
 {
   return cap_to_object_internal (activity, cap, true);
 }
 
-struct object *
+struct vg_object *
 cap_to_object_soft (struct activity *activity, struct vg_cap *cap)
 {
   return cap_to_object_internal (activity, cap, false);
@@ -95,7 +95,7 @@ cap_shootdown (struct activity *activity, struct vg_cap *root)
   void doit (struct vg_cap *cap, int remaining)
     {
       int i;
-      struct object *object;
+      struct vg_object *object;
 
       remaining -= VG_CAP_GUARD_BITS (cap);
 
@@ -187,7 +187,7 @@ cap_shootdown (struct activity *activity, struct vg_cap *root)
 	  if (! object)
 	    return;
 
-	  struct folio *folio = (struct folio *) object;
+	  struct vg_folio *folio = (struct vg_folio *) object;
 	  struct object_desc *fdesc = object_to_object_desc (object);
 	  vg_oid_t foid = fdesc->oid;
 

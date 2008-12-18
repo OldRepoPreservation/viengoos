@@ -64,7 +64,7 @@ struct storage
 extern struct storage storage_alloc (vg_addr_t activity,
 				     enum vg_cap_type type,
 				     enum storage_expectancy expectancy,
-				     struct object_policy policy,
+				     struct vg_object_policy policy,
 				     vg_addr_t addr);
 #define storage_alloc(__sa_activity, __sa_type, __sa_expectancy,	\
 		      __sa_policy, __sa_addr)				\

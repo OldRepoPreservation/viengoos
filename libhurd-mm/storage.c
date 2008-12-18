@@ -58,7 +58,7 @@ struct storage_desc
   /* The address of the folio.  */
   vg_addr_t folio;
   /* The location of the shadow vg_cap designating this folio.  */
-  struct object *shadow;
+  struct vg_object *shadow;
 
   /* Which objects are allocated.  */
   unsigned char alloced[VG_FOLIO_OBJECTS / 8];
@@ -245,7 +245,7 @@ shadow_setup (struct vg_cap *cap, struct storage_desc *desc)
      storage descriptor, which is still unreachable from any other
      thread.  */
 
-  struct object *shadow;
+  struct vg_object *shadow;
 
   int idx = bit_alloc (desc->alloced, sizeof (desc->alloced), 0);
   if (likely (idx != -1))
@@ -531,7 +531,7 @@ storage_check_reserve (bool i_may_have_lock)
 struct storage
 storage_alloc (vg_addr_t activity,
 	       enum vg_cap_type type, enum storage_expectancy expectancy,
-	       struct object_policy policy,
+	       struct vg_object_policy policy,
 	       vg_addr_t addr)
 {
   assert (storage_init_done);
@@ -652,7 +652,7 @@ storage_alloc (vg_addr_t activity,
 	   idx, VG_ADDR_PRINTF (folio), VG_ADDR_PRINTF (addr), err);
   assert (VG_ADDR_EQ (a, addr));
 
-  struct object *shadow = desc->shadow;
+  struct vg_object *shadow = desc->shadow;
   struct vg_cap *cap = NULL;
   if (likely (!! shadow))
     {
@@ -729,7 +729,7 @@ storage_free_ (vg_addr_t object, bool unmap_now)
 
   storage->free ++;
 
-  struct object *shadow = storage->shadow;
+  struct vg_object *shadow = storage->shadow;
 
   if (storage->free == VG_FOLIO_OBJECTS
       || ((storage->free == VG_FOLIO_OBJECTS - 1)

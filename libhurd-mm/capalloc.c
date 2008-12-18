@@ -196,8 +196,9 @@ capalloc (void)
 	  return VG_ADDR_VOID;
 	}
 
-      struct object *shadow = VG_ADDR_TO_PTR (vg_addr_extend (shadow_storage.addr,
-							0, PAGESIZE_LOG2));
+      struct vg_object *shadow
+	= VG_ADDR_TO_PTR (vg_addr_extend (shadow_storage.addr,
+					  0, PAGESIZE_LOG2));
       memset (shadow, 0, PAGESIZE);
       vg_cap_set_shadow (area->cap, shadow);
 
@@ -270,7 +271,7 @@ capfree (vg_addr_t cap)
 	  list_unlink (desc);
 	  pthread_mutex_unlock (&cappage_descs_lock);
 
-	  struct object *shadow = vg_cap_get_shadow (desc->cap);
+	  struct vg_object *shadow = vg_cap_get_shadow (desc->cap);
 	  storage_free (vg_addr_chop (VG_PTR_TO_ADDR (shadow), PAGESIZE_LOG2),
 			false);
 	  vg_cap_set_shadow (desc->cap, NULL);

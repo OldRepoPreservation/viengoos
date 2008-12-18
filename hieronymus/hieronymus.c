@@ -63,7 +63,7 @@ extern struct hurd_startup_data *__hurd_startup_data;
 
 /* Allocate a new activity out of our storage.  */
 static struct storage
-activity_alloc (struct activity_policy policy)
+activity_alloc (struct vg_activity_policy policy)
 {
   struct storage storage
     = storage_alloc (root_activity, vg_cap_activity_control, STORAGE_LONG_LIVED,
@@ -71,7 +71,7 @@ activity_alloc (struct activity_policy policy)
   if (! storage.cap)
     panic ("Failed to allocate storage.");
 
-  struct activity_policy out;
+  struct vg_activity_policy out;
   error_t err = vg_activity_policy (VG_ADDR_VOID, storage.addr,
 				    VG_ACTIVITY_POLICY_STORAGE_SET
 				    | VG_ACTIVITY_POLICY_CHILD_REL_SET
@@ -115,7 +115,7 @@ do_gather_stats (void *arg)
 
   while (! all_done)
     {
-      struct activity_info info;
+      struct vg_activity_info info;
 
       if (size == stats_count)
 	{
@@ -137,10 +137,10 @@ do_gather_stats (void *arg)
       for (i = 0; i < module_count; i ++, stat ++)
 	{
 	  error_t err;
-	  err = vg_activity_info (VG_ADDR_VOID, activities[i], activity_info_stats,
+	  err = vg_activity_info (VG_ADDR_VOID, activities[i], vg_activity_info_stats,
 				  period, &info);
 	  assert_perror (err);
-	  assert (info.event == activity_info_stats);
+	  assert (info.event == vg_activity_info_stats);
 	  assert (info.stats.count > 0);
 	  if (err)
 	    {
@@ -184,13 +184,13 @@ main (int argc, char *argv[])
   int i;
   for (i = 0; i < module_count; i ++)
     {
-      struct activity_memory_policy sibling_policy
+      struct vg_activity_memory_policy sibling_policy
 	= VG_ACTIVITY_MEMORY_POLICY (modules[i].priority, modules[i].weight);
-      struct activity_policy policy
+      struct vg_activity_policy policy
 	= VG_ACTIVITY_POLICY (sibling_policy, VG_ACTIVITY_MEMORY_POLICY_VOID, 0);
       activities[i] = activity_alloc (policy).addr;
 
-      struct object_name name;
+      struct vg_object_name name;
       strncpy (&name.name[0], modules[i].name, sizeof (name.name));
       vg_object_name (VG_ADDR_VOID, activities[i], name);
     }

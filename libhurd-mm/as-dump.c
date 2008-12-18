@@ -66,7 +66,7 @@ print_nr (int width, int64_t nr, bool hex)
 }
 
 static void
-do_walk (activity_t activity, int index,
+do_walk (vg_activity_t activity, int index,
 	 struct vg_cap *root, vg_addr_t addr,
 	 int indent, bool descend, const char *output_prefix)
 {
@@ -115,7 +115,7 @@ do_walk (activity_t activity, int index,
 #ifdef RM_INTERN
   if (vg_cap.type == vg_cap_page || vg_cap.type == vg_cap_rpage)
     {
-      struct object *object = cap_to_object_soft (root_activity, &vg_cap);
+      struct vg_object *object = cap_to_object_soft (root_activity, &vg_cap);
       if (object)
 	{
 	  struct md5_ctx ctx;
@@ -207,7 +207,7 @@ do_walk (activity_t activity, int index,
 
 /* AS_LOCK must not be held.  */
 void
-as_dump_from (activity_t activity, struct vg_cap *root, const char *prefix)
+as_dump_from (vg_activity_t activity, struct vg_cap *root, const char *prefix)
 {
   debug (0, "Dumping address space.");
   backtrace_print ();

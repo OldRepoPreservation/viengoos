@@ -170,8 +170,9 @@ main (int argc, char *argv[])
 	struct storage shadow_storage
 	  = storage_alloc (activity, vg_cap_page, STORAGE_EPHEMERAL,
 			   VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
-	struct object *shadow = VG_ADDR_TO_PTR (vg_addr_extend (shadow_storage.addr,
-							  0, PAGESIZE_LOG2));
+	struct vg_object *shadow
+	  = VG_ADDR_TO_PTR (vg_addr_extend (shadow_storage.addr,
+					    0, PAGESIZE_LOG2));
 
 	vg_addr_t f = vg_addr_extend (root, i, bits);
 	as_ensure_use (f,
@@ -335,7 +336,7 @@ main (int argc, char *argv[])
     vg_addr_t storage = storage_alloc (activity, vg_cap_thread, STORAGE_LONG_LIVED,
 				    VG_OBJECT_POLICY_DEFAULT, thread).addr;
 
-    struct hurd_thread_exregs_in in;
+    struct vg_thread_exregs_in in;
 
     in.aspace_cap_properties = VG_CAP_PROPERTIES_DEFAULT;
     in.aspace_cap_properties_flags = VG_CAP_COPY_COPY_SOURCE_GUARD;
@@ -343,12 +344,12 @@ main (int argc, char *argv[])
     in.sp = (l4_word_t) ((void *) stack + sizeof (stack));
     in.ip = (l4_word_t) &start;
 
-    struct hurd_thread_exregs_out out;
+    struct vg_thread_exregs_out out;
 
     vg_thread_exregs (activity, thread,
-		      HURD_EXREGS_SET_ASPACE | HURD_EXREGS_SET_ACTIVITY
-		      | HURD_EXREGS_SET_SP_IP | HURD_EXREGS_START
-		      | HURD_EXREGS_ABORT_IPC,
+		      VG_EXREGS_SET_ASPACE | VG_EXREGS_SET_ACTIVITY
+		      | VG_EXREGS_SET_SP_IP | VG_EXREGS_START
+		      | VG_EXREGS_ABORT_IPC,
 		      in, VG_ADDR (0, 0), activity, VG_ADDR_VOID, VG_ADDR_VOID,
 		      &out, NULL, NULL, NULL, NULL);
 
@@ -746,7 +747,7 @@ main (int argc, char *argv[])
 			       VG_CAP_COPY_WEAKEN, VG_CAP_PROPERTIES_VOID);
     assert (! err);
 
-    struct activity_policy in, out;
+    struct vg_activity_policy in, out;
     in.sibling_rel.priority = 2;
     in.sibling_rel.weight = 3;
     in.child_rel = VG_ACTIVITY_MEMORY_POLICY_VOID;
@@ -980,9 +981,9 @@ main (int argc, char *argv[])
     uint32_t frames;
     do
       {
-	struct activity_info info;
+	struct vg_activity_info info;
 	error_t err = vg_activity_info (VG_ADDR_VOID, activity,
-					activity_info_stats, 1, &info);
+					vg_activity_info_stats, 1, &info);
 	assert_perror (err);
 	assert (info.stats.count >= 1);
 

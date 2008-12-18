@@ -141,9 +141,9 @@ process_spawn (vg_addr_t activity,
      bind them to the page table.  That is, if there is a page table
      at X, and we index it, we don't refer to X but simply extend its
      address and return the shadow pte at that address.  */
-  struct vg_cap *do_index (activity_t activity,
-			struct vg_cap *pt, vg_addr_t pt_addr, int idx,
-			struct vg_cap *fake_slot)
+  struct vg_cap *do_index (vg_activity_t activity,
+			   struct vg_cap *pt, vg_addr_t pt_addr, int idx,
+			   struct vg_cap *fake_slot)
   {
     assert (pt->type == vg_cap_cappage || pt->type == vg_cap_rcappage
 	    || pt->type == vg_cap_folio);
@@ -501,9 +501,9 @@ process_spawn (vg_addr_t activity,
   /* We know that we are the only one who can access the data
      structure, however, the object_claim asserts that this lock is
      held.  */
-  object_claim (root_activity, (struct object *) root_activity,
+  object_claim (root_activity, (struct vg_object *) root_activity,
 		VG_OBJECT_POLICY_VOID, true);
-  object_claim (root_activity, (struct object *) folio_local_addr,
+  object_claim (root_activity, (struct vg_object *) folio_local_addr,
 		VG_OBJECT_POLICY_VOID, true);
 #else
   struct hurd_object_desc *desc;
@@ -666,7 +666,7 @@ process_spawn (vg_addr_t activity,
 	    {
 	      struct vg_cap cap;
 #ifdef RM_INTERN
-	      cap = object_to_cap ((struct object *) (uintptr_t)
+	      cap = object_to_cap ((struct vg_object *) (uintptr_t)
 				   desc->storage.raw);
 	      assert (cap.type == vg_cap_folio);
 #else
@@ -745,21 +745,21 @@ process_spawn (vg_addr_t activity,
 
 #ifdef RM_INTERN
   thread->aspace = *as_root_cap;
-  thread->activity = object_to_cap ((struct object *) root_activity);
+  thread->activity = object_to_cap ((struct vg_object *) root_activity);
 
   l4_word_t sp = STARTUP_DATA_ADDR;
 
   error_t err;
   err = thread_exregs (root_activity, thread,
-		       HURD_EXREGS_SET_SP_IP
-		       | (make_runnable ? HURD_EXREGS_START : 0)
-		       | HURD_EXREGS_ABORT_IPC,
+		       VG_EXREGS_SET_SP_IP
+		       | (make_runnable ? VG_EXREGS_START : 0)
+		       | VG_EXREGS_ABORT_IPC,
 		       VG_CAP_VOID, 0, VG_CAP_PROPERTIES_VOID,
 		       VG_CAP_VOID, VG_CAP_VOID, VG_CAP_VOID,
 		       &sp, &ip, NULL, NULL);
 #else
   /* Start thread.  */
-  struct hurd_thread_exregs_in in;
+  struct vg_thread_exregs_in in;
   /* Per the API (cf. <hurd/startup.h>).  */
   in.sp = STARTUP_DATA_ADDR;
   in.ip = ip;
@@ -767,14 +767,14 @@ process_spawn (vg_addr_t activity,
   in.aspace_cap_properties_flags = VG_CAP_COPY_COPY_SOURCE_GUARD;
 
   error_t err;
-  struct hurd_thread_exregs_out out;
+  struct vg_thread_exregs_out out;
   /* XXX: Use a weakened activity.  */
   err = vg_thread_exregs (VG_ADDR_VOID, thread,
-			  HURD_EXREGS_SET_SP_IP
-			  | HURD_EXREGS_SET_ASPACE
-			  | HURD_EXREGS_SET_ACTIVITY
-			  | (make_runnable ? HURD_EXREGS_START : 0)
-			  | HURD_EXREGS_ABORT_IPC,
+			  VG_EXREGS_SET_SP_IP
+			  | VG_EXREGS_SET_ASPACE
+			  | VG_EXREGS_SET_ACTIVITY
+			  | (make_runnable ? VG_EXREGS_START : 0)
+			  | VG_EXREGS_ABORT_IPC,
 			  in, vg_addr_extend (as_root, VG_THREAD_ASPACE_SLOT,
 					   VG_THREAD_SLOTS_LOG2),
 			  activity, VG_ADDR_VOID, VG_ADDR_VOID,

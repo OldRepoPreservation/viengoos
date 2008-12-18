@@ -13,7 +13,7 @@
 struct activity *root_activity;
 
 /* Current working folio.  */
-static struct folio *folio;
+static struct vg_folio *folio;
 static int object;
 
 static struct as_allocate_pt_ret
@@ -59,7 +59,7 @@ test (void)
   folio_parent (root_activity, folio);
 
 #define N 20
-  void try (struct activity *activity, struct folio *folio, int depth)
+  void try (struct activity *activity, struct vg_folio *folio, int depth)
   {
     int i;
     int obj = 0;
@@ -67,8 +67,8 @@ test (void)
     struct
     {
       struct activity *child;
-      struct folio *folio;
-      struct object *page;
+      struct vg_folio *folio;
+      struct vg_object *page;
     } a[N];
 
     for (i = 0; i < N; i ++)
@@ -100,7 +100,7 @@ test (void)
     for (i = 0; i < N / 2; i ++)
       {
 	struct vg_cap cap = object_to_cap (a[i].page);
-	struct object *o = vg_cap_to_object (activity, &cap);
+	struct vg_object *o = vg_cap_to_object (activity, &cap);
 	assert (o == a[i].page);
 
 	/* Destroy the activity.  */
@@ -114,7 +114,7 @@ test (void)
   int i;
   for (i = 0; i < 10; i ++)
     {
-      struct folio *f = folio_alloc (root_activity, VG_FOLIO_POLICY_DEFAULT);
+      struct vg_folio *f = folio_alloc (root_activity, VG_FOLIO_POLICY_DEFAULT);
       assert (f);
 
       try (root_activity, f, 4);

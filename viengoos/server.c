@@ -225,11 +225,13 @@ server_loop (void)
 	  DEBUG (1, "Caller has no assigned activity");
 	  continue;
 	}
-      if (object_type ((struct object *) activity) != vg_cap_activity_control)
+      if (object_type ((struct vg_object *) activity)
+	  != vg_cap_activity_control)
 	{
 	  DEBUG (1, "Caller's activity slot contains a %s,"
 		 "not an activity_control",
-		 vg_cap_type_string (object_type ((struct object *) activity)));
+		 vg_cap_type_string
+		  (object_type ((struct vg_object *) activity)));
 	  continue;
 	}
 
@@ -275,18 +277,18 @@ server_loop (void)
 	      cap.discardable = false;
 	    }
 
-	  struct object *page = vg_cap_to_object (activity, &cap);
+	  struct vg_object *page = vg_cap_to_object (activity, &cap);
 	  if (! page && cap.type != vg_cap_void)
 	    /* It's not in-memory.  See if it was discarded.  If not,
 	       load it using vg_cap_to_object.  */
 	    {
 	      int object = (cap.oid % (VG_FOLIO_OBJECTS + 1)) - 1;
 	      vg_oid_t foid = cap.oid - object - 1;
-	      struct folio *folio
-		= (struct folio *) object_find (activity, foid,
+	      struct vg_folio *folio
+		= (struct vg_folio *) object_find (activity, foid,
 						VG_OBJECT_POLICY_DEFAULT);
 	      assert (folio);
-	      assert (object_type ((struct object *) folio) == vg_cap_folio);
+	      assert (object_type ((struct vg_object *) folio) == vg_cap_folio);
 
 	      if (cap.version == folio_object_version (folio, object))
 		{
@@ -326,8 +328,9 @@ server_loop (void)
 
 	      info.discarded = discarded;
 
-	      activation_fault_send_marshal (reply_buffer, VG_PTR_TO_ADDR (fault),
-					     sp, ip, info, VG_ADDR_VOID);
+	      vg_activation_fault_send_marshal (reply_buffer,
+						VG_PTR_TO_ADDR (fault),
+						sp, ip, info, VG_ADDR_VOID);
 	      thread_raise_exception (activity, thread, reply_buffer);
 
 	      continue;
@@ -373,7 +376,7 @@ server_loop (void)
 	      if (! writable && cap.discardable)
 		cap.discardable = false;
 
-	      struct object *page = vg_cap_to_object (activity, &cap);
+	      struct vg_object *page = vg_cap_to_object (activity, &cap);
 	      if (! page)
 		break;
 
@@ -501,7 +504,7 @@ server_loop (void)
 
       error_t OBJECT_ (struct vg_cap *root,
 		       vg_addr_t addr, int type, bool require_writable,
-		       struct object **objectp, bool *writable)
+		       struct vg_object **objectp, bool *writable)
 	{
 	  bool w = true;
 	  struct vg_cap cap;
@@ -539,7 +542,7 @@ server_loop (void)
 	}
 #define OBJECT(root_, addr_, type_, require_writable_, writablep_)	\
       ({								\
-	struct object *OBJECT_ret;					\
+	struct vg_object *OBJECT_ret;					\
 	error_t err = OBJECT_ (root_, addr_, type_, require_writable_,	\
 			       &OBJECT_ret, writablep_);		\
 	if (err)							\
@@ -561,7 +564,7 @@ server_loop (void)
 	    /* This is annoying: 1) a thread could be in a folio so we  \
 	       can't directly lookup the slot, 2) we only want the      \
 	       thread if it matches the guard exactly.  */		\
-	    struct object *t_;						\
+	    struct vg_object *t_;						\
 	    error_t err = OBJECT_ (&thread->aspace, root_addr_,		\
 				   vg_cap_thread, true, &t_, NULL);	\
 	    if (! err)							\
@@ -655,7 +658,7 @@ server_loop (void)
 		CAP_ (&thread->aspace, send_buf, vg_cap_page, true, &cap);
 	      else
 		{
-		  struct object *object = NULL;
+		  struct vg_object *object = NULL;
 		  OBJECT_ (&thread->aspace, send_messenger,
 			   vg_cap_messenger, true, &object, NULL);
 		  if (object)
@@ -744,7 +747,7 @@ server_loop (void)
 	    }
 
 	  if (unlikely ((flags & VG_IPC_RECEIVE_SET_THREAD_TO_CALLER)))
-	    messenger->thread = object_to_cap ((struct object *) thread);
+	    messenger->thread = object_to_cap ((struct vg_object *) thread);
 
 	  if (unlikely ((flags & VG_IPC_RECEIVE_SET_ASROOT_TO_CALLERS)))
 	    messenger->as_root = thread->aspace;
@@ -755,7 +758,7 @@ server_loop (void)
 	     MESSENGER.  */
 	  struct messenger *sender;
 	  object_wait_queue_for_each (principal,
-				      (struct object *) messenger, sender)
+				      (struct vg_object *) messenger, sender)
 	    if (sender->wait_reason == MESSENGER_WAIT_TRANSFER_MESSAGE)
 	      /* There is.  Transfer SENDER's message to MESSENGER.  */
 	      {
@@ -836,7 +839,7 @@ server_loop (void)
 	source->buffer = CAP (&thread->aspace, send_buf, vg_cap_page, true);
 
       if (unlikely ((flags & VG_IPC_SEND_SET_THREAD_TO_CALLER)))
-	source->thread = object_to_cap ((struct object *) thread);
+	source->thread = object_to_cap ((struct vg_object *) thread);
 
       if (unlikely ((flags & VG_IPC_SEND_SET_ASROOT_TO_CALLERS)))
 	source->as_root = thread->aspace;
@@ -844,10 +847,10 @@ server_loop (void)
       source->activate_on_send = (flags & VG_IPC_SEND_ACTIVATE);
 
       bool target_writable = true;
-      struct object *target;
+      struct vg_object *target;
       /* We special case VOID to mean the current thread.  */
       if (VG_ADDR_IS_VOID (target_messenger))
-	target = (struct object *) thread;
+	target = (struct vg_object *) thread;
       else
 	target = OBJECT (&thread->aspace, target_messenger, -1, false,
 			 &target_writable);
@@ -862,8 +865,8 @@ server_loop (void)
 	   message.  */
 	{
 	  DEBUG (5, "IPC: " VG_OID_FMT " -> " VG_OID_FMT,
-		 VG_OID_PRINTF (object_oid ((struct object *) source)),
-		 VG_OID_PRINTF (object_oid ((struct object *) target)));
+		 VG_OID_PRINTF (object_oid ((struct vg_object *) source)),
+		 VG_OID_PRINTF (object_oid ((struct vg_object *) target)));
 
 	  if ((flags & VG_IPC_SEND_INLINE))
 	    {
@@ -980,7 +983,7 @@ server_loop (void)
 	 them.  */
       struct vg_cap target_root_cap;
       struct vg_cap *target_root;
-      if (likely (target == (struct object *) thread))
+      if (likely (target == (struct vg_object *) thread))
 	target_root = &thread->aspace;
       else if (object_type (target) == vg_cap_thread)
 	target_root = &((struct thread *) target)->aspace;
@@ -991,16 +994,16 @@ server_loop (void)
 	}
 
       DEBUG (4, VG_OID_FMT " %s(%llx) -> " VG_OID_FMT " %s(%llx)",
-	     VG_OID_PRINTF (object_oid ((struct object *) source)),
-	     vg_cap_type_string (object_type ((struct object *) source)),
+	     VG_OID_PRINTF (object_oid ((struct vg_object *) source)),
+	     vg_cap_type_string (object_type ((struct vg_object *) source)),
 	     source->id,
-	     VG_OID_PRINTF (object_oid ((struct object *) target)),
+	     VG_OID_PRINTF (object_oid ((struct vg_object *) target)),
 	     vg_cap_type_string (object_type (target)),
 	     object_type (target) == vg_cap_messenger
 	     ? ((struct messenger *) target)->id : 0);
       if (reply)
 	DEBUG (4, "reply to: " VG_OID_FMT "(%llx)",
-	       VG_OID_PRINTF (object_oid ((struct object *) reply)),
+	       VG_OID_PRINTF (object_oid ((struct vg_object *) reply)),
 	       reply->id);
 
       switch (label)
@@ -1079,7 +1082,7 @@ server_loop (void)
 		if (! writable && cap.discardable)
 		  cap.discardable = false;
 
-		struct object *page = vg_cap_to_object (activity, &cap);
+		struct vg_object *page = vg_cap_to_object (activity, &cap);
 		if (! page)
 		  break;
 
@@ -1125,19 +1128,19 @@ server_loop (void)
 
 	    struct activity *activity = (struct activity *) target;
 
-	    struct folio_policy policy;
+	    struct vg_folio_policy policy;
 	    err = vg_folio_alloc_send_unmarshal (message, &policy, NULL);
 	    if (err)
 	      REPLY (err);
 
 	    DEBUG (4, "(" VG_ADDR_FMT ")", VG_ADDR_PRINTF (target_messenger));
 
-	    struct folio *folio = folio_alloc (activity, policy);
+	    struct vg_folio *folio = folio_alloc (activity, policy);
 	    if (! folio)
 	      REPLY (ENOMEM);
 
 	    vg_folio_alloc_reply (principal, reply,
-				  object_to_cap ((struct object *) folio));
+				  object_to_cap ((struct vg_object *) folio));
 	    break;
 	  }
 
@@ -1146,7 +1149,7 @@ server_loop (void)
 	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
 
-	    struct folio *folio = (struct folio *) target;
+	    struct vg_folio *folio = (struct vg_folio *) target;
 
 	    err = vg_folio_free_send_unmarshal (message, NULL);
 	    if (err)
@@ -1165,11 +1168,11 @@ server_loop (void)
 	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
 
-	    struct folio *folio = (struct folio *) target;
+	    struct vg_folio *folio = (struct vg_folio *) target;
 
 	    uint32_t idx;
 	    uint32_t type;
-	    struct object_policy policy;
+	    struct vg_object_policy policy;
 	    uintptr_t return_code;
 
 	    err = vg_folio_object_alloc_send_unmarshal (message,
@@ -1212,10 +1215,10 @@ server_loop (void)
 	    if (object_type (target) != vg_cap_folio)
 	      REPLY (EINVAL);
 
-	    struct folio *folio = (struct folio *) target;
+	    struct vg_folio *folio = (struct vg_folio *) target;
 
 	    uintptr_t flags;
-	    struct folio_policy in, out;
+	    struct vg_folio_policy in, out;
 
 	    err = vg_folio_policy_send_unmarshal (message, &flags, &in, NULL);
 	    if (err)
@@ -1311,14 +1314,14 @@ server_loop (void)
 	      /* The caller changed the policy.  Also change it on the
 		 object.  */
 	      {
-		struct object *object = cap_to_object_soft (principal,
+		struct vg_object *object = cap_to_object_soft (principal,
 							    target);
 		if (object)
 		  {
 		    struct object_desc *desc
 		      = object_to_object_desc (object);
 
-		    struct object_policy p = desc->policy;
+		    struct vg_object_policy p = desc->policy;
 
 		    /* XXX: This should only be allowed if TARGET
 		       grants writable access to the object.  */
@@ -1357,7 +1360,7 @@ server_loop (void)
 		if (target->type == vg_cap_rpage)
 		  cap.discardable = false;
 
-		struct object *page = cap_to_object_soft (principal, &cap);
+		struct vg_object *page = cap_to_object_soft (principal, &cap);
 		if (page)
 		  {
 		    object_to_object_desc (page)->mapped = true;
@@ -1454,7 +1457,7 @@ server_loop (void)
 	    int idx = (cap.oid % (1 + VG_FOLIO_OBJECTS)) - 1;
 	    vg_oid_t foid = cap.oid - idx - 1;
 
-	    struct folio *folio = (struct folio *)
+	    struct vg_folio *folio = (struct vg_folio *)
 	      object_find (activity, foid, VG_OBJECT_POLICY_VOID);
 
 	    if (folio_object_version (folio, idx) != cap.version)
@@ -1481,7 +1484,7 @@ server_loop (void)
 	      {
 		profile_region ("object_discard-prefault");
 
-		struct object *page = vg_cap_to_object (principal, &cap);
+		struct vg_object *page = vg_cap_to_object (principal, &cap);
 		if (page)
 		  {
 		    object_to_object_desc (page)->mapped = true;
@@ -1518,7 +1521,7 @@ server_loop (void)
 
 	    DEBUG (4, VG_ADDR_FMT, VG_ADDR_PRINTF (target_messenger));
 
-	    struct folio *folio = objects_folio (principal, target);
+	    struct vg_folio *folio = objects_folio (principal, target);
 
 	    folio_object_content_set (folio,
 				      objects_folio_offset (target), false);
@@ -1538,8 +1541,8 @@ server_loop (void)
 		   VG_ADDR_PRINTF (target_messenger), clear ? "" : "no ");
 
 	    struct object_desc *desc = object_to_object_desc (target);
-	    uintptr_t status = (desc->user_referenced ? object_referenced : 0)
-	      | (desc->user_dirty ? object_dirty : 0);
+	    uintptr_t status = (desc->user_referenced ? vg_object_referenced : 0)
+	      | (desc->user_dirty ? vg_object_dirty : 0);
 
 	    if (clear)
 	      {
@@ -1553,7 +1556,7 @@ server_loop (void)
 
 	case VG_object_name:
 	  {
-	    struct object_name name;
+	    struct vg_object_name name;
 	    err = vg_object_name_send_unmarshal (message, &name, NULL);
 
 	    if (object_type (target) == vg_cap_activity_control)
@@ -1581,7 +1584,7 @@ server_loop (void)
 	      REPLY (EINVAL);
 	    struct thread *t = (struct thread *) target;
 
-	    struct hurd_thread_exregs_in in;
+	    struct vg_thread_exregs_in in;
 	    uintptr_t control;
 	    vg_addr_t aspace_addr;
 	    vg_addr_t activity_addr;
@@ -1600,44 +1603,44 @@ server_loop (void)
 		   t->name.name[0] ? t->name.name : "",
 		   t->name.name[0] ? ": " : "",
 		   VG_ADDR_PRINTF (target_messenger), t->tid,
-		   (control & HURD_EXREGS_SET_UTCB) ? "U" : "-",
-		   (control & HURD_EXREGS_SET_EXCEPTION_MESSENGER) ? "E" : "-",
-		   (control & HURD_EXREGS_SET_ASPACE) ? "R" : "-",
-		   (control & HURD_EXREGS_SET_ACTIVITY) ? "A" : "-",
-		   (control & HURD_EXREGS_SET_SP) ? "S" : "-",
-		   (control & HURD_EXREGS_SET_IP) ? "I" : "-",
-		   (control & HURD_EXREGS_SET_EFLAGS) ? "F" : "-",
-		   (control & HURD_EXREGS_SET_USER_HANDLE) ? "U" : "-",
+		   (control & VG_EXREGS_SET_UTCB) ? "U" : "-",
+		   (control & VG_EXREGS_SET_EXCEPTION_MESSENGER) ? "E" : "-",
+		   (control & VG_EXREGS_SET_ASPACE) ? "R" : "-",
+		   (control & VG_EXREGS_SET_ACTIVITY) ? "A" : "-",
+		   (control & VG_EXREGS_SET_SP) ? "S" : "-",
+		   (control & VG_EXREGS_SET_IP) ? "I" : "-",
+		   (control & VG_EXREGS_SET_EFLAGS) ? "F" : "-",
+		   (control & VG_EXREGS_SET_USER_HANDLE) ? "U" : "-",
 		   (control & _L4_XCHG_REGS_CANCEL_RECV) ? "R" : "-",
 		   (control & _L4_XCHG_REGS_CANCEL_SEND) ? "S" : "-",
 		   (control & _L4_XCHG_REGS_CANCEL_IPC) ? "I" : "-",
 		   (control & _L4_XCHG_REGS_HALT) ? "H" : "-",
 		   (control & _L4_XCHG_REGS_SET_HALT) ? "Y" : "N");
 
-	    if ((control & HURD_EXREGS_SET_UTCB))
+	    if ((control & VG_EXREGS_SET_UTCB))
 	      DEBUG (d, "utcb: " VG_ADDR_FMT, VG_ADDR_PRINTF (utcb_addr));
-	    if ((control & HURD_EXREGS_SET_EXCEPTION_MESSENGER))
+	    if ((control & VG_EXREGS_SET_EXCEPTION_MESSENGER))
 	      DEBUG (d, "exception messenger: " VG_ADDR_FMT,
 		     VG_ADDR_PRINTF (exception_messenger_addr));
-	    if ((control & HURD_EXREGS_SET_ASPACE))
+	    if ((control & VG_EXREGS_SET_ASPACE))
 	      DEBUG (d, "aspace: " VG_ADDR_FMT, VG_ADDR_PRINTF (aspace_addr));
-	    if ((control & HURD_EXREGS_SET_ACTIVITY))
+	    if ((control & VG_EXREGS_SET_ACTIVITY))
 	      DEBUG (d, "activity: " VG_ADDR_FMT, VG_ADDR_PRINTF (activity_addr));
-	    if ((control & HURD_EXREGS_SET_SP))
+	    if ((control & VG_EXREGS_SET_SP))
 	      DEBUG (d, "sp: %p", (void *) in.sp);
-	    if ((control & HURD_EXREGS_SET_IP))
+	    if ((control & VG_EXREGS_SET_IP))
 	      DEBUG (d, "ip: %p", (void *) in.ip);
-	    if ((control & HURD_EXREGS_SET_EFLAGS))
+	    if ((control & VG_EXREGS_SET_EFLAGS))
 	      DEBUG (d, "eflags: %p", (void *) in.eflags);
-	    if ((control & HURD_EXREGS_SET_USER_HANDLE))
+	    if ((control & VG_EXREGS_SET_USER_HANDLE))
 	      DEBUG (d, "user_handle: %p", (void *) in.user_handle);
 
 	    struct vg_cap aspace = VG_CAP_VOID;
-	    if ((HURD_EXREGS_SET_ASPACE & control))
+	    if ((VG_EXREGS_SET_ASPACE & control))
 	      aspace = CAP (&thread->aspace, aspace_addr, -1, false);
 
 	    struct vg_cap a = VG_CAP_VOID;
-	    if ((HURD_EXREGS_SET_ACTIVITY & control))
+	    if ((VG_EXREGS_SET_ACTIVITY & control))
 	      {
 		/* XXX: Remove this hack... */
 		if (VG_ADDR_IS_VOID (activity_addr))
@@ -1648,11 +1651,11 @@ server_loop (void)
 	      }
 
 	    struct vg_cap utcb = VG_CAP_VOID;
-	    if ((HURD_EXREGS_SET_UTCB & control))
+	    if ((VG_EXREGS_SET_UTCB & control))
 	      utcb = CAP (&thread->aspace, utcb_addr, vg_cap_page, true);
 
 	    struct vg_cap exception_messenger = VG_CAP_VOID;
-	    if ((HURD_EXREGS_SET_EXCEPTION_MESSENGER & control))
+	    if ((VG_EXREGS_SET_EXCEPTION_MESSENGER & control))
 	      exception_messenger
 		= CAP (&thread->aspace, exception_messenger_addr,
 		       vg_cap_rmessenger, false);
@@ -1662,7 +1665,7 @@ server_loop (void)
 	    struct vg_cap utcb_out = thread->utcb;
 	    struct vg_cap exception_messenger_out = thread->exception_messenger;
 
-	    struct hurd_thread_exregs_out out;
+	    struct vg_thread_exregs_out out;
 	    out.sp = in.sp;
 	    out.ip = in.ip;
 	    out.eflags = in.eflags;
@@ -1724,7 +1727,7 @@ server_loop (void)
 	    struct activity *activity = (struct activity *) target;
 
 	    uintptr_t flags;
-	    struct activity_policy in;
+	    struct vg_activity_policy in;
 
 	    err = vg_activity_policy_send_unmarshal (message, &flags, &in,
 						     NULL);
@@ -1765,7 +1768,7 @@ server_loop (void)
 			  | VG_ACTIVITY_POLICY_SIBLING_REL_WEIGHT_SET
 			  | VG_ACTIVITY_POLICY_STORAGE_SET)))
 	      {
-		struct activity_policy p = principal->policy;
+		struct vg_activity_policy p = principal->policy;
 
 		if ((flags & VG_ACTIVITY_POLICY_CHILD_REL_PRIORITY_SET))
 		  p.child_rel.priority = in.child_rel.priority;
@@ -1803,38 +1806,38 @@ server_loop (void)
 
 	    int period = activity->current_period - 1;
 	    if (period < 0)
-	      period = (ACTIVITY_STATS_PERIODS + 1) + period;
+	      period = (VG_ACTIVITY_STATS_PERIODS + 1) + period;
 
 	    DEBUG (4, OBJECT_NAME_FMT ": %s%s%s(%d), "
 		   "period: %d (current: %d)",
-		   OBJECT_NAME_PRINTF ((struct object *) activity),
-		   flags & activity_info_stats ? "stats" : "",
-		   (flags == (activity_info_pressure|activity_info_stats))
+		   OBJECT_NAME_PRINTF ((struct vg_object *) activity),
+		   flags & vg_activity_info_stats ? "stats" : "",
+		   (flags == (vg_activity_info_pressure|vg_activity_info_stats))
 		   ? ", " : "",
-		   flags & activity_info_pressure ? "pressure" : "",
+		   flags & vg_activity_info_pressure ? "pressure" : "",
 		   flags,
 		   until_period, activity->stats[period].period);
 	    
-	    if ((flags & activity_info_stats)
+	    if ((flags & vg_activity_info_stats)
 		&& activity->stats[period].period > 0
 		&& activity->stats[period].period >= until_period)
 	      /* Return the available statistics.  */
 	      {
 		/* XXX: Only return valid stat buffers.  */
-		struct activity_info info;
-		info.event = activity_info_stats;
+		struct vg_activity_info info;
+		info.event = vg_activity_info_stats;
 
 		int i;
-		for (i = 0; i < ACTIVITY_STATS_PERIODS; i ++)
+		for (i = 0; i < VG_ACTIVITY_STATS_PERIODS; i ++)
 		  {
 		    period = activity->current_period - 1 - i;
 		    if (period < 0)
-		      period = (ACTIVITY_STATS_PERIODS + 1) + period;
+		      period = (VG_ACTIVITY_STATS_PERIODS + 1) + period;
 
 		    info.stats.stats[i] = activity->stats[period];
 		  }
 
-		info.stats.count = ACTIVITY_STATS_PERIODS;
+		info.stats.count = VG_ACTIVITY_STATS_PERIODS;
 
 		vg_activity_info_reply (principal, reply, info);
 	      }
@@ -1884,8 +1887,8 @@ server_loop (void)
 	case VG_futex:
 	  {
 	    /* Helper function to wake and requeue waiters.  */
-	    int wake (int to_wake, struct object *object1, int offset1,
-		      int to_requeue, struct object *object2, int offset2)
+	    int wake (int to_wake, struct vg_object *object1, int offset1,
+		      int to_requeue, struct vg_object *object2, int offset2)
 	    {
 	      int count = 0;
 	      struct messenger *m;
@@ -1962,7 +1965,7 @@ server_loop (void)
 
 	      char *mode = "unknown";
 
-	      struct object *page = vg_cap_to_object (principal, &thread->utcb);
+	      struct vg_object *page = vg_cap_to_object (principal, &thread->utcb);
 	      if (page && object_type (page) == vg_cap_page)
 		{
 		  struct vg_utcb *utcb = (struct vg_utcb *) page;
@@ -1990,7 +1993,7 @@ server_loop (void)
 	      };
 
 	    vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (addr1), PAGESIZE_LOG2);
-	    struct object *object1 = OBJECT (&thread->aspace,
+	    struct vg_object *object1 = OBJECT (&thread->aspace,
 					     addr, vg_cap_page, true, NULL);
 	    int offset1 = (uintptr_t) addr1 & (PAGESIZE - 1);
 	    int *vaddr1 = (void *) object1 + offset1;
@@ -2029,7 +2032,7 @@ server_loop (void)
 
 	      case FUTEX_WAKE_OP:
 		addr = vg_addr_chop (VG_PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
-		struct object *object2 = OBJECT (&thread->aspace,
+		struct vg_object *object2 = OBJECT (&thread->aspace,
 						 addr, vg_cap_page, true, NULL);
 		int offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 		int *vaddr2 = (void *) object2 + offset2;

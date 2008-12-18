@@ -35,7 +35,7 @@ void
 activity_create (struct activity *parent,
 		 struct activity *child)
 {
-  struct object *old_parent = vg_cap_to_object (parent, &child->parent_cap);
+  struct vg_object *old_parent = vg_cap_to_object (parent, &child->parent_cap);
   if (old_parent)
     /* CHILD is live.  Destroy it first.  */
     {
@@ -50,14 +50,14 @@ activity_create (struct activity *parent,
     }
 
   /* Set child's parent pointer.  */
-  child->parent_cap = object_to_cap ((struct object *) parent);
+  child->parent_cap = object_to_cap ((struct vg_object *) parent);
 
   /* Connect to PARENT's activity list.  */
   child->sibling_next_cap = parent->children_cap;
   child->sibling_prev_cap.type = vg_cap_void;
-  parent->children_cap = object_to_cap ((struct object *) child);
+  parent->children_cap = object_to_cap ((struct vg_object *) child);
 
-  struct object *old_head = vg_cap_to_object (parent, &child->sibling_next_cap);
+  struct vg_object *old_head = vg_cap_to_object (parent, &child->sibling_next_cap);
   if (old_head)
     {
       assert (object_type (old_head) == vg_cap_activity_control);
@@ -66,7 +66,7 @@ activity_create (struct activity *parent,
 	      (parent, &((struct activity *) old_head)->sibling_prev_cap));
 
       ((struct activity *) old_head)->sibling_prev_cap
-	= object_to_cap ((struct object *) child);
+	= object_to_cap ((struct vg_object *) child);
     }
 
   activity_prepare (parent, child);
@@ -76,10 +76,10 @@ void
 activity_destroy (struct activity *activity, struct activity *victim)
 {
   debug (0, "Destroying activity " OBJECT_NAME_FMT,
-	 OBJECT_NAME_PRINTF ((struct object *) victim));
+	 OBJECT_NAME_PRINTF ((struct vg_object *) victim));
 
-  assert (object_type ((struct object *) activity) == vg_cap_activity_control);
-  assert (object_type ((struct object *) victim) == vg_cap_activity_control);
+  assert (object_type ((struct vg_object *) activity) == vg_cap_activity_control);
+  assert (object_type ((struct vg_object *) victim) == vg_cap_activity_control);
 
   profile_stats_dump ();
 
@@ -108,7 +108,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
   /* XXX: Rewrite this to avoid recusion!!!  */
 
   /* Destroy all folios allocated to this activity.  */
-  struct object *o;
+  struct vg_object *o;
   while ((o = vg_cap_to_object (activity, &victim->folios)))
     {
       /* If O was destroyed, it should have been removed from its
@@ -118,7 +118,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
       struct object_desc *desc = object_to_object_desc (o);
       assert (desc->type == vg_cap_folio);
 
-      folio_free (activity, (struct folio *) o);
+      folio_free (activity, (struct vg_folio *) o);
     }
 
   /* Activities that are sub-activities of ACTIVITY are not
@@ -208,8 +208,8 @@ activity_destroy (struct activity *activity, struct activity *victim)
 	assert (desc->eviction_candidate);
 #ifndef NDEBUG
 	struct object_desc *adesc, *vdesc;
-	adesc = object_to_object_desc ((struct object *) desc->activity);
-	vdesc = object_to_object_desc ((struct object *) victim);
+	adesc = object_to_object_desc ((struct vg_object *) desc->activity);
+	vdesc = object_to_object_desc ((struct vg_object *) victim);
 
 	assertx (desc->activity == victim,
 		 VG_OID_FMT " != " VG_OID_FMT,
@@ -228,7 +228,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
       if (victim->frames_total != count || victim->frames_local != count)
 	{
 	  debug (0, "activity (%llx), total = %d, local: %d, count: %d",
-		 object_to_object_desc ((struct object *) victim)->oid,
+		 object_to_object_desc ((struct vg_object *) victim)->oid,
 		 victim->frames_total, victim->frames_local, count);
 	  activity_dump (root_activity);
 	}
@@ -242,16 +242,16 @@ activity_destroy (struct activity *activity, struct activity *victim)
 
   /* Remove from parent's activity list.  */
   struct activity *parent = victim->parent;
-  assert ((struct object *) parent
+  assert ((struct vg_object *) parent
 	  == vg_cap_to_object (activity, &victim->parent_cap));
 
-  struct object *prev_object = vg_cap_to_object (activity,
+  struct vg_object *prev_object = vg_cap_to_object (activity,
 					      &victim->sibling_prev_cap);
   assert (! prev_object
 	  || object_to_object_desc (prev_object)->type == vg_cap_activity_control);
   struct activity *prev = (struct activity *) prev_object;
 
-  struct object *next_object = vg_cap_to_object (activity,
+  struct vg_object *next_object = vg_cap_to_object (activity,
 					      &victim->sibling_next_cap);
   assert (! next_object
 	  || object_to_object_desc (next_object)->type == vg_cap_activity_control);
@@ -263,7 +263,7 @@ activity_destroy (struct activity *activity, struct activity *victim)
     /* VICTIM is the head of PARENT's child list.  */
     {
       assert (vg_cap_to_object (activity, &parent->children_cap)
-	      == (struct object *) victim);
+	      == (struct vg_object *) victim);
       parent->children_cap = victim->sibling_next_cap;
     }
 
@@ -379,7 +379,7 @@ activity_deprepare (struct activity *principal, struct activity *victim)
 
 void
 activity_policy_update (struct activity *activity,
-			struct activity_policy policy)
+			struct vg_activity_policy policy)
 {
   int priority = policy.sibling_rel.priority;
 
@@ -453,7 +453,7 @@ do_activity_dump (struct activity *activity, int indent)
 	  "pending eviction: %d/%d); total: %d; "
 	  "%d free allocs, %d karma, %d excluded, s:%d/%d; c:%d/%d\n",
 	  indent_string,
-	  OBJECT_NAME_PRINTF ((struct object *) activity),
+	  OBJECT_NAME_PRINTF ((struct vg_object *) activity),
 	  activity->frames_local, active, inactive, clean, dirty,
 	  activity->frames_total,
 	  activity->free_allocations,

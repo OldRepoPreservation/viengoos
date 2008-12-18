@@ -43,10 +43,10 @@ main (int argc, char *argv[])
 				     VG_OBJECT_POLICY_DEFAULT,
 				     VG_ADDR_VOID).addr;
 
-      struct activity_policy in;
+      struct vg_activity_policy in;
       in.sibling_rel.priority = i == 0 ? 2 : 1;
       in.sibling_rel.weight = i + 1;
-      struct activity_policy out;
+      struct vg_activity_policy out;
       err = vg_activity_policy (activity, activities[i],
 				VG_ACTIVITY_POLICY_SIBLING_REL_SET, in,
 				&out);
@@ -60,11 +60,11 @@ main (int argc, char *argv[])
 
   int available;
   {
-    struct activity_info info;
+    struct vg_activity_info info;
 
-    err = vg_activity_info (activity, activity, activity_info_stats, 1, &info);
+    err = vg_activity_info (activity, activity, vg_activity_info_stats, 1, &info);
     assert (err == 0);
-    assert (info.event == activity_info_stats);
+    assert (info.event == vg_activity_info_stats);
     assert (info.stats.count >= 1);
 
     available = info.stats.stats[0].available * PAGESIZE;
@@ -150,18 +150,18 @@ main (int argc, char *argv[])
     }
 
 #define ITERATIONS 200
-  struct activity_stats stats[ITERATIONS][1 + THREADS];
+  struct vg_activity_stats stats[ITERATIONS][1 + THREADS];
 
   uintptr_t next_period = 0;
   for (i = 0; i < ITERATIONS; i ++)
     {
       printf ("Iteration: %d\n", i);
 
-      struct activity_info info;
+      struct vg_activity_info info;
 
-      vg_activity_info (activity, activity, activity_info_stats,
+      vg_activity_info (activity, activity, vg_activity_info_stats,
 			next_period, &info);
-      assert (info.event == activity_info_stats);
+      assert (info.event == vg_activity_info_stats);
       assert (info.stats.count > 0);
       if (i != 0)
 	assertx (info.stats.stats[0].period != stats[i - 1][0].period,
@@ -173,9 +173,9 @@ main (int argc, char *argv[])
       int j;
       for (j = 0; j < THREADS; j ++)
 	{
-	  vg_activity_info (activity, activity, activity_info_stats,
+	  vg_activity_info (activity, activity, vg_activity_info_stats,
 			    next_period, &info);
-	  assert (info.event == activity_info_stats);
+	  assert (info.event == vg_activity_info_stats);
 	  assert (info.stats.count > 0);
 	  stats[i][1 + j] = info.stats.stats[0];
 	}

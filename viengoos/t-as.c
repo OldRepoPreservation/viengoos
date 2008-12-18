@@ -13,7 +13,7 @@
 struct activity *root_activity;
 
 /* Current working folio.  */
-static struct folio *folio;
+static struct vg_folio *folio;
 static int object;
 
 static struct as_allocate_pt_ret
@@ -64,7 +64,7 @@ try (struct alloc *allocs, int count, bool dump)
 
 	  assert (cap->type == caps[i].type);
 
-	  struct object *object = vg_cap_to_object (root_activity, cap);
+	  struct vg_object *object = vg_cap_to_object (root_activity, cap);
 	  struct object_desc *odesc = object_to_object_desc (object);
 	  if (caps[i].type != vg_cap_void)
 	    assert (odesc->oid == caps[i].oid);
@@ -76,7 +76,7 @@ try (struct alloc *allocs, int count, bool dump)
 	{
 	  if (cap)
 	    {
-	      struct object *object = vg_cap_to_object (root_activity, cap);
+	      struct vg_object *object = vg_cap_to_object (root_activity, cap);
 	      assert (! object);
 	      /* This assertion relies on the fact that the
 		 implementation will clear the type field on a failed
@@ -92,7 +92,7 @@ try (struct alloc *allocs, int count, bool dump)
       switch (allocs[i].type)
 	{
 	case vg_cap_folio:
-	  caps[i] = object_to_cap ((struct object *)
+	  caps[i] = object_to_cap ((struct vg_object *)
 				   folio_alloc (root_activity,
 						VG_FOLIO_POLICY_DEFAULT));
 	  break;
@@ -109,7 +109,7 @@ try (struct alloc *allocs, int count, bool dump)
 	  assert (! " Bad type");
 	}
 
-      struct object *object = vg_cap_to_object (root_activity, &caps[i]);
+      struct vg_object *object = vg_cap_to_object (root_activity, &caps[i]);
       if (caps[i].type == vg_cap_page)
 	memset (object, i, PAGESIZE);
 
@@ -203,7 +203,7 @@ try (struct alloc *allocs, int count, bool dump)
 	{
 	case vg_cap_folio:
 	  folio_free (root_activity,
-		      (struct folio *) vg_cap_to_object (root_activity,
+		      (struct vg_folio *) vg_cap_to_object (root_activity,
 						      &caps[i]));
 	  break;
 	case vg_cap_void:

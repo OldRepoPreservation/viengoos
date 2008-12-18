@@ -274,21 +274,21 @@ diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.su
 +  int period = 0;
 +  for (;;)
 +    {
-+      struct activity_info info;
++      struct vg_activity_info info;
 +      error_t err = vg_activity_info (ACTIVITY,
-+				      activity_info_stats
-+				      | activity_info_pressure,
++				      vg_activity_info_stats
++				      | vg_activity_info_pressure,
 +				      period, &info);
 +      assert_perror (err);
 +
 +      switch (info.event)
 +	{
-+	case activity_info_stats:
++	case vg_activity_info_stats:
 +	  GC_available_bytes = info.stats.stats[0].available_local * PAGESIZE;
 +	  period = info.stats.stats[0].period + 1;
 +	  break;
 +
-+	case activity_info_pressure:
++	case vg_activity_info_pressure:
 +	  if (-info.pressure.amount * PAGESIZE < GC_available_bytes)
 +	    GC_available_bytes -= -info.pressure.amount * PAGESIZE;
 +	  else
@@ -305,9 +305,9 @@ diff -uprN -x '*.applied' -x config.guess -x '*~' -x autom4te.cache -x config.su
 +		"mapped:%d, unmapped: %d, available: %d, "
 +		"low-water: %d\n",
 +		l4_myself (),
-+		info.event == activity_info_stats
++		info.event == vg_activity_info_stats
 +		? "Period" : DEBUG_BOLD ("PRESSURE"),
-+		(int) (info.event == activity_info_stats
++		(int) (info.event == vg_activity_info_stats
 +		       ? period : info.pressure.amount),
 +		(int) GC_adj_bytes_allocd() / PAGESIZE,
 +		(int) GC_get_heap_size () / PAGESIZE,

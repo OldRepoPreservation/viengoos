@@ -183,7 +183,7 @@ as_unlock (void)
    running in a particular address space, all metadata is built from a
    single activity.  This should dominate all activities running in
    this address space to avoid priority inversion.  */
-extern activity_t meta_data_activity;
+extern vg_activity_t meta_data_activity;
 
 /* The root of the shadow page tables.  */
 extern struct vg_cap shadow_root;
@@ -293,7 +293,7 @@ extern struct as_allocate_pt_ret as_allocate_page_table (vg_addr_t addr);
 
    Must be called with a write lock on AS_LOCK.  Must be called with
    8kb of stack that will not fault.  */
-struct vg_cap *as_build (activity_t activity,
+struct vg_cap *as_build (vg_activity_t activity,
 		      vg_addr_t as_root_addr, struct vg_cap *as_root_cap,
 		      vg_addr_t addr,
 		      as_allocate_page_table_t allocate_page_table,
@@ -305,14 +305,14 @@ struct vg_cap *as_build (activity_t activity,
    is implicit (in the case of a folio), return a fabricated
    capability in *FAKE_SLOT and return FAKE_SLOT.  Return NULL on
    failure.  */
-typedef struct vg_cap *(*as_object_index_t) (activity_t activity,
+typedef struct vg_cap *(*as_object_index_t) (vg_activity_t activity,
 					  struct vg_cap *pt,
 					  vg_addr_t pt_addr, int idx,
 					  struct vg_cap *fake_slot);
 
 /* Like as_buildup, but using a custom shadow page table
    implementation.  */
-struct vg_cap *as_build_custom (activity_t activity,
+struct vg_cap *as_build_custom (vg_activity_t activity,
 			     vg_addr_t as_root_addr, struct vg_cap *as_root_cap,
 			     vg_addr_t addr,
 			     as_allocate_page_table_t allocate_page_table,
@@ -332,7 +332,7 @@ struct vg_cap *as_build_custom (activity_t activity,
 		       __asef_code)					\
   do									\
     {									\
-      activity_t __asef_activity = (__asef_activity_);			\
+      vg_activity_t __asef_activity = (__asef_activity_);			\
       vg_addr_t __asef_as_root_addr = (__asef_as_root_addr_);		\
       struct vg_cap *__asef_as_root_cap = (__asef_as_root_cap_);		\
       vg_addr_t __asef_addr = (__asef_addr_);				\
@@ -395,7 +395,7 @@ struct vg_cap *as_build_custom (activity_t activity,
    ALLOCATE_PAGE_TABLE is a callback to allocate page tables and any
    accompanying shadow page tables.  See as_build for details.  */
 static inline void
-as_insert_full (activity_t activity,
+as_insert_full (vg_activity_t activity,
 		vg_addr_t target_as_root_addr, struct vg_cap *target_as_root_cap,
 		vg_addr_t target_addr,
 		vg_addr_t source_as_root_addr, 
@@ -445,7 +445,7 @@ as_insert (vg_addr_t target_addr,
 /* Variant of as_ensure_full that doesn't assume the default shadow
    page table format but calls OBJECT_INDEX to index objects.  */
 extern struct vg_cap *as_ensure_full_custom
-  (activity_t activity,
+  (vg_activity_t activity,
    vg_addr_t as, struct vg_cap *root, vg_addr_t addr,
    as_allocate_page_table_t allocate_page_table,
    as_object_index_t object_index);
@@ -453,7 +453,7 @@ extern struct vg_cap *as_ensure_full_custom
 /* Variant of as_insert that doesn't assume the default shadow page
    table format but calls OBJECT_INDEX to index objects.  */
 extern struct vg_cap *as_insert_custom
-  (activity_t activity,
+  (vg_activity_t activity,
    vg_addr_t target_as, struct vg_cap *t_as_cap, vg_addr_t target,
    vg_addr_t source_as, struct vg_cap c_cap, vg_addr_t source,
    as_allocate_page_table_t allocate_page_table,
@@ -495,7 +495,7 @@ enum as_lookup_mode
 
    On success, whether the slot or the object is writable is returned
    in *WRITABLE.  */
-extern bool as_lookup_rel (activity_t activity,
+extern bool as_lookup_rel (vg_activity_t activity,
 			   struct vg_cap *as_root_cap, vg_addr_t addr,
 			   enum vg_cap_type type, bool *writable,
 			   enum as_lookup_mode mode,
@@ -511,7 +511,7 @@ extern bool as_lookup_rel (activity_t activity,
 			       __alru_root_, __alru_addr_,		\
 			       __alru_code)				\
   ({									\
-    activity_t __alru_activity = (__alru_activity_);			\
+    vg_activity_t __alru_activity = (__alru_activity_);			\
     struct vg_cap *__alru_root = (__alru_root_);				\
     vg_addr_t __alru_addr = (__alru_addr_);				\
 									\
@@ -558,7 +558,7 @@ extern bool as_lookup_rel (activity_t activity,
 
    This function locks (and unlocks) as_lock.  */
 static inline struct vg_cap
-as_cap_lookup_rel (activity_t activity,
+as_cap_lookup_rel (vg_activity_t activity,
 		   struct vg_cap *root, vg_addr_t addr,
 		   enum vg_cap_type type, bool *writable)
 {
@@ -603,7 +603,7 @@ as_cap_lookup (vg_addr_t addr, enum vg_cap_type type, bool *writable)
 
    This function locks (and unlocks) as_lock.  */
 static inline struct vg_cap
-as_object_lookup_rel (activity_t activity,
+as_object_lookup_rel (vg_activity_t activity,
 		      struct vg_cap *root, vg_addr_t addr,
 		      enum vg_cap_type type, bool *writable)
 {
@@ -636,7 +636,7 @@ as_object_lookup (vg_addr_t addr, enum vg_cap_type type, bool *writable)
 #endif
 
 /* Print the path taken to get to the slot at address ADDRESS.  */
-extern void as_dump_path_rel (activity_t activity,
+extern void as_dump_path_rel (vg_activity_t activity,
 			      struct vg_cap *root, vg_addr_t addr);
 
 #ifndef RM_INTERN
@@ -663,7 +663,7 @@ extern int as_walk (int (*visit) (vg_addr_t cap,
 		    void *cookie);
 
 /* AS_LOCK must not be held.  */
-extern void as_dump_from (activity_t activity, struct vg_cap *root,
+extern void as_dump_from (vg_activity_t activity, struct vg_cap *root,
 			  const char *prefix);
 
 #ifndef RM_INTERN

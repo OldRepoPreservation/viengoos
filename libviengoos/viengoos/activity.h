@@ -29,23 +29,23 @@ enum
     VG_activity_info,
   };
 
-struct activity_memory_policy
+struct vg_activity_memory_policy
 {
   uint16_t priority;
   uint16_t weight;
 };
 
 #define VG_ACTIVITY_MEMORY_POLICY(__amp_priority, __amp_weight)		\
-  (struct activity_memory_policy) { __amp_priority, __amp_weight }
+  (struct vg_activity_memory_policy) { __amp_priority, __amp_weight }
 #define VG_ACTIVITY_MEMORY_POLICY_VOID VG_ACTIVITY_MEMORY_POLICY(0, 0)
 
-struct activity_policy
+struct vg_activity_policy
 {
   /* This policy is typically set by the parent to reflect how
      available memory should be distributed among its immediate
      children.  It may only be set via an activity control
      capability.  */
-  struct activity_memory_policy sibling_rel;
+  struct vg_activity_memory_policy sibling_rel;
 
   /* This policy is typically set by the activity user and controls
      how the memory allocated *directly* to this activity is managed
@@ -54,7 +54,7 @@ struct activity_policy
      provides a policy to determine whether the memory allocated
      directly to the activity or that to a child activity should be
      evicted.  */
-  struct activity_memory_policy child_rel;
+  struct vg_activity_memory_policy child_rel;
 
   /* Number of folios.  Zero means no limit.  (This does not mean that
      there is no limit, just that this activity does not impose a
@@ -65,8 +65,8 @@ struct activity_policy
 
 /* Activity statistics.  These are approximate and in some cases
    represent averages.  */
-#define ACTIVITY_STATS_PERIODS 2
-struct activity_stats
+#define VG_ACTIVITY_STATS_PERIODS 2
+struct vg_activity_stats
 {
   /* The period during which this statistic was generated.  */
   uint32_t period;
@@ -159,7 +159,7 @@ struct activity_stats
 };
 
 #define VG_ACTIVITY_POLICY(__ap_sibling_rel, __ap_child_rel, __ap_storage) \
-  (struct activity_policy) { __ap_sibling_rel, __ap_child_rel, __ap_storage }
+  (struct vg_activity_policy) { __ap_sibling_rel, __ap_child_rel, __ap_storage }
 #define VG_ACTIVITY_POLICY_VOID			\
   VG_ACTIVITY_POLICY(VG_ACTIVITY_MEMORY_POLICY_VOID,	\
 		  VG_ACTIVITY_MEMORY_POLICY_VOID,	\
@@ -188,32 +188,32 @@ enum
 /* Get ACTIVITY's policy and set according to FLAGS and IN.  */
 RPC (activity_policy, 2, 1, 0,
      /* cap_t principal, cap_t activity */
-     uintptr_t, flags, struct activity_policy, in,
+     uintptr_t, flags, struct vg_activity_policy, in,
      /* Out: */
-     struct activity_policy, out);
+     struct vg_activity_policy, out);
 
 enum
   {
     /* Return statistics.  */
-    activity_info_stats = 1 << 0,
+    vg_activity_info_stats = 1 << 0,
     /* Asynchronous change in availability.  */
-    activity_info_pressure = 1 << 1,
+    vg_activity_info_pressure = 1 << 1,
   };
 
-struct activity_info
+struct vg_activity_info
 {
   /* The returned event.  */
   uintptr_t event;
   union
   {
-    /* If EVENT is activity_info_stats.  */
+    /* If EVENT is vg_activity_info_stats.  */
     struct
     {
       /* The number of samples.  */
       int count;
       /* Samples are ordered by recency with the youngest towards the
 	 start of the buffer.  */
-      struct activity_stats stats[ACTIVITY_STATS_PERIODS];
+      struct vg_activity_stats stats[VG_ACTIVITY_STATS_PERIODS];
     } stats;
 
     /* If EVENT is activity_info_free.  */
@@ -230,7 +230,7 @@ struct activity_info
    bit-wise or of events the caller is interested.  Only one event
    will be returned.
 
-   If FLAGS contains activity_info_stats, may return the next
+   If FLAGS contains vg_activity_info_stats, may return the next
    statistic that comes at or after UNTIL_PERIOD.  (This can be used
    to register a callback that is sent when the statistics are next
    available.  For example, call with UNTIL_PERIOD equal to 0 to get
@@ -245,7 +245,7 @@ RPC (activity_info, 2, 1, 0,
      /* cap_t principal, cap_t activity, */
      uintptr_t, flags, uintptr_t, until_period,
      /* Out: */
-     struct activity_info, info)
+     struct vg_activity_info, info)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

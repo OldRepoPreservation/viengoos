@@ -51,7 +51,7 @@ enum
 #define VG_FOLIO_GROUP_MIN 0
 #define VG_FOLIO_GROUP_MAX ((1 << FOLIO_BITS) - 1)
 
-struct folio_policy
+struct vg_folio_policy
 {
   union
   {
@@ -82,13 +82,13 @@ struct folio_policy
 };
 
 #define VG_FOLIO_POLICY_INIT { { raw: 0 } }
-#define VG_FOLIO_POLICY_VOID (struct folio_policy) VG_FOLIO_POLICY_INIT
+#define VG_FOLIO_POLICY_VOID (struct vg_folio_policy) VG_FOLIO_POLICY_INIT
 /* The default policy is not discardable.  */
 #define VG_FOLIO_POLICY_DEFAULT VG_FOLIO_POLICY_VOID
 
 /* The format of the first page of a folio.  This page is followed (on
    disk) by VG_FOLIO_OBJECTS pages.  */
-struct folio
+struct vg_folio
 {
 #ifdef RM_INTERN
   /* Folios are the unit of storage accounting.  Every folio belongs
@@ -100,7 +100,7 @@ struct folio
   struct vg_cap prev;
 
   /* The storage policy.  */
-  struct folio_policy policy;
+  struct vg_folio_policy policy;
 
   struct
   {
@@ -146,14 +146,14 @@ struct folio
 };
 
 #ifdef RM_INTERN
-typedef struct folio *vg_folio_t;
+typedef struct vg_folio *vg_folio_t;
 #else
 typedef vg_addr_t vg_folio_t;
 #endif
 
 /* OBJECT is from -1 to VG_FOLIO_OBJECTS.  */
 static inline enum vg_cap_type
-vg_folio_object_type (struct folio *folio, int object)
+vg_folio_object_type (struct vg_folio *folio, int object)
 {
 #ifdef RM_INTERN
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
@@ -168,7 +168,7 @@ vg_folio_object_type (struct folio *folio, int object)
 }
 
 static inline void
-vg_folio_object_type_set (struct folio *folio, int object,
+vg_folio_object_type_set (struct vg_folio *folio, int object,
 			  enum vg_cap_type type)
 {
   assert (object >= 0 && object < VG_FOLIO_OBJECTS);
@@ -180,10 +180,10 @@ vg_folio_object_type_set (struct folio *folio, int object,
 #endif
 }
 
-static inline struct object_policy
-vg_folio_object_policy (struct folio *folio, int object)
+static inline struct vg_object_policy
+vg_folio_object_policy (struct vg_folio *folio, int object)
 {
-  struct object_policy policy;
+  struct vg_object_policy policy;
 
 #ifdef RM_INTERN
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
@@ -201,8 +201,8 @@ vg_folio_object_policy (struct folio *folio, int object)
 }
 
 static inline void
-vg_folio_object_policy_set (struct folio *folio, int object,
-			    struct object_policy policy)
+vg_folio_object_policy_set (struct vg_folio *folio, int object,
+			    struct vg_object_policy policy)
 {
 #ifdef RM_INTERN
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
@@ -221,7 +221,7 @@ vg_folio_object_policy_set (struct folio *folio, int object,
 #include <bit-array.h>
 
 static inline bool
-folio_object_wait_queue_p (struct folio *folio, int object)
+folio_object_wait_queue_p (struct vg_folio *folio, int object)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
 
@@ -229,7 +229,7 @@ folio_object_wait_queue_p (struct folio *folio, int object)
 }
 
 static inline void
-folio_object_wait_queue_p_set (struct folio *folio, int object,
+folio_object_wait_queue_p_set (struct vg_folio *folio, int object,
 			       bool valid)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
@@ -239,7 +239,7 @@ folio_object_wait_queue_p_set (struct folio *folio, int object,
 }
 
 static inline vg_oid_t
-folio_object_wait_queue (struct folio *folio, int object)
+folio_object_wait_queue (struct vg_folio *folio, int object)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
 
@@ -247,7 +247,7 @@ folio_object_wait_queue (struct folio *folio, int object)
 }
 
 static inline void
-folio_object_wait_queue_set (struct folio *folio, int object,
+folio_object_wait_queue_set (struct vg_folio *folio, int object,
 			     vg_oid_t head)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
@@ -256,7 +256,7 @@ folio_object_wait_queue_set (struct folio *folio, int object,
 }
 
 static inline uint32_t
-folio_object_version (struct folio *folio, int object)
+folio_object_version (struct vg_folio *folio, int object)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
 
@@ -264,7 +264,7 @@ folio_object_version (struct folio *folio, int object)
 }
 
 static inline void
-folio_object_version_set (struct folio *folio, int object,
+folio_object_version_set (struct vg_folio *folio, int object,
 			  uint32_t version)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
@@ -273,7 +273,7 @@ folio_object_version_set (struct folio *folio, int object,
 }
 
 static inline bool
-folio_object_content (struct folio *folio, int object)
+folio_object_content (struct vg_folio *folio, int object)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
 
@@ -281,7 +281,7 @@ folio_object_content (struct folio *folio, int object)
 }
 
 static inline void
-folio_object_content_set (struct folio *folio, int object,
+folio_object_content_set (struct vg_folio *folio, int object,
 			  bool content)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
@@ -290,7 +290,7 @@ folio_object_content_set (struct folio *folio, int object,
 }
 
 static inline bool
-folio_object_discarded (struct folio *folio, int object)
+folio_object_discarded (struct vg_folio *folio, int object)
 {
   assert (object >= 0 && object < VG_FOLIO_OBJECTS);
 
@@ -298,7 +298,7 @@ folio_object_discarded (struct folio *folio, int object)
 }
 
 static inline void
-folio_object_discarded_set (struct folio *folio, int object, bool valid)
+folio_object_discarded_set (struct vg_folio *folio, int object, bool valid)
 {
   assert (object >= 0 && object < VG_FOLIO_OBJECTS);
 
@@ -307,7 +307,7 @@ folio_object_discarded_set (struct folio *folio, int object, bool valid)
 }
 
 static inline bool
-folio_object_referenced (struct folio *folio, int object)
+folio_object_referenced (struct vg_folio *folio, int object)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
 
@@ -315,7 +315,7 @@ folio_object_referenced (struct folio *folio, int object)
 }
 
 static inline void
-folio_object_referenced_set (struct folio *folio, int object, bool p)
+folio_object_referenced_set (struct vg_folio *folio, int object, bool p)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
 
@@ -323,7 +323,7 @@ folio_object_referenced_set (struct folio *folio, int object, bool p)
 }
 
 static inline bool
-folio_object_dirty (struct folio *folio, int object)
+folio_object_dirty (struct vg_folio *folio, int object)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
 
@@ -331,7 +331,7 @@ folio_object_dirty (struct folio *folio, int object)
 }
 
 static inline void
-folio_object_dirty_set (struct folio *folio, int object, bool p)
+folio_object_dirty_set (struct vg_folio *folio, int object, bool p)
 {
   assert (object >= -1 && object < VG_FOLIO_OBJECTS);
 
@@ -351,20 +351,20 @@ folio_object_dirty_set (struct folio *folio, int object, bool p)
     __foc_cap.version = folio_object_version (__foc_folio,		\
 						 __foc_object);		\
     									\
-    struct vg_cap_properties __foc_cap_properties				\
+    struct vg_cap_properties __foc_cap_properties			\
       = VG_CAP_PROPERTIES (vg_folio_object_policy (__foc_folio, __foc_object), \
 			   VG_CAP_ADDR_TRANS_VOID);			\
     VG_CAP_PROPERTIES_SET (&__foc_cap, __foc_cap_properties);		\
 									\
     __foc_cap.oid							\
-      = object_to_object_desc ((struct object *) __foc_folio)->oid	\
+      = object_to_object_desc ((struct vg_object *) __foc_folio)->oid	\
       + 1 + __foc_object;						\
 									\
     __foc_cap;								\
   })
 #else
 static inline struct vg_cap
-vg_folio_object_cap (struct folio *folio, int object)
+vg_folio_object_cap (struct vg_folio *folio, int object)
 {
   assert (0 <= object && object < VG_FOLIO_OBJECTS);
   return folio->objects[object];
@@ -389,7 +389,7 @@ enum
    policy.  */
 RPC(folio_alloc, 1, 0, 1,
     /* cap_t, principal, cap_t, activity, */
-    struct folio_policy, policy, cap_t, folio)
+    struct vg_folio_policy, policy, cap_t, folio)
   
 /* Free the folio designated by FOLIO.  */
 RPC(folio_free, 0, 0, 0
@@ -407,7 +407,7 @@ RPC(folio_free, 0, 0, 0
 RPC(folio_object_alloc, 4, 0, 2,
     /* cap_t, principal, cap_t, folio, */
     uintptr_t, index, uintptr_t, type,
-    struct object_policy, policy, uintptr_t, return_code,
+    struct vg_object_policy, policy, uintptr_t, return_code,
     /* Out: */
     cap_t, object, cap_t, object_weak)
 
@@ -432,9 +432,9 @@ enum
    set, set the corresponding values based on the value of POLICY.  */
 RPC(folio_policy, 2, 1, 0,
     /* cap_t, principal, cap_t, folio, */
-    uintptr_t, flags, struct folio_policy, policy,
+    uintptr_t, flags, struct vg_folio_policy, policy,
     /* Out: */
-    struct folio_policy, old)
+    struct vg_folio_policy, old)
 
 #undef RPC_STUB_PREFIX
 #undef RPC_ID_PREFIX

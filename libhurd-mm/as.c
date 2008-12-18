@@ -555,7 +555,7 @@ as_init (void)
 			     VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
 	  if (VG_ADDR_IS_VOID (shadow_storage.addr))
 	    panic ("Out of space.");
-	  struct object *shadow
+	  struct vg_object *shadow
 	    = VG_ADDR_TO_PTR (vg_addr_extend (shadow_storage.addr,
 					0, PAGESIZE_LOG2));
 	  as_slot_lookup_use (addr,
@@ -981,7 +981,7 @@ as_walk (int (*visit) (vg_addr_t addr,
       if (vg_addr_depth (addr) + slots_log2 > VG_ADDR_BITS)
 	return 0;
 
-      struct object *shadow = NULL;
+      struct vg_object *shadow = NULL;
       if (as_init_done)
 	shadow = vg_cap_to_object (meta_data_activity, cap);
 

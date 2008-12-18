@@ -62,9 +62,9 @@ static struct hurd_ihash objects;
 void
 object_init (void)
 {
-  build_assert (sizeof (struct folio) <= PAGESIZE);
+  build_assert (sizeof (struct vg_folio) <= PAGESIZE);
   build_assert (sizeof (struct activity) <= PAGESIZE);
-  build_assert (sizeof (struct object) <= PAGESIZE);
+  build_assert (sizeof (struct vg_object) <= PAGESIZE);
   build_assert (sizeof (struct thread) <= PAGESIZE);
   /* Assert that the size of a vg_cap is a power of 2.  */
   build_assert ((sizeof (struct vg_cap) & (sizeof (struct vg_cap) - 1)) == 0);
@@ -103,11 +103,11 @@ object_init (void)
 
 /* Allocate and set up a memory object.  TYPE, OID and VERSION must
    correspond to the values storage on disk.  */
-static struct object *
+static struct vg_object *
 memory_object_alloc (struct activity *activity,
 		     enum vg_cap_type type,
 		     vg_oid_t oid, l4_word_t version,
-		     struct object_policy policy)
+		     struct vg_object_policy policy)
 {
   debug (5, "Allocating %llx(%d), %s", oid, version, vg_cap_type_string (type));
 
@@ -115,7 +115,7 @@ memory_object_alloc (struct activity *activity,
   assert (type != vg_cap_void);
   assert ((type == vg_cap_folio) == ((oid % (VG_FOLIO_OBJECTS + 1)) == 0));
 
-  struct object *object = (struct object *) memory_frame_allocate (activity);
+  struct vg_object *object = (struct vg_object *) memory_frame_allocate (activity);
   if (! object)
     {
       /* XXX: Do some garbage collection.  */
@@ -160,7 +160,7 @@ memory_object_alloc (struct activity *activity,
 }
 
 void
-memory_object_destroy (struct activity *activity, struct object *object)
+memory_object_destroy (struct activity *activity, struct vg_object *object)
 {
   assert (activity);
 
@@ -206,21 +206,21 @@ memory_object_destroy (struct activity *activity, struct object *object)
 #endif
 }
 
-struct object *
+struct vg_object *
 object_find_soft (struct activity *activity, vg_oid_t oid,
-		  struct object_policy policy)
+		  struct vg_object_policy policy)
 {
   struct object_desc *odesc = hurd_ihash_find (&objects, oid);
   if (! odesc)
     return NULL;
 
-  struct object *object = object_desc_to_object (odesc);
+  struct vg_object *object = object_desc_to_object (odesc);
   assert (oid == odesc->oid);
 
   if (oid % (VG_FOLIO_OBJECTS + 1) != 0)
     {
 #ifndef NDEBUG
-      struct folio *folio = objects_folio (activity, object);
+      struct vg_folio *folio = objects_folio (activity, object);
       int i = objects_folio_offset (object);
 
       assertx (vg_folio_object_type (folio, i) == odesc->type,
@@ -258,15 +258,15 @@ object_find_soft (struct activity *activity, vg_oid_t oid,
   return object;
 }
 
-struct object *
+struct vg_object *
 object_find (struct activity *activity, vg_oid_t oid,
-	     struct object_policy policy)
+	     struct vg_object_policy policy)
 {
-  struct object *obj = object_find_soft (activity, oid, policy);
+  struct vg_object *obj = object_find_soft (activity, oid, policy);
   if (obj)
     return obj;
 
-  struct folio *folio;
+  struct vg_folio *folio;
 
   int page = (oid % (VG_FOLIO_OBJECTS + 1)) - 1;
   if (page == -1)
@@ -286,7 +286,7 @@ object_find (struct activity *activity, vg_oid_t oid,
   else
     {
       /* Find the folio corresponding to the object.  */
-      folio = (struct folio *) object_find (activity, oid - page - 1,
+      folio = (struct vg_folio *) object_find (activity, oid - page - 1,
 					    VG_OBJECT_POLICY_DEFAULT);
       assertx (folio,
 	       "Didn't find folio " VG_OID_FMT,
@@ -315,12 +315,12 @@ object_find (struct activity *activity, vg_oid_t oid,
 }
 
 void
-folio_parent (struct activity *activity, struct folio *folio)
+folio_parent (struct activity *activity, struct vg_folio *folio)
 {
   /* Some sanity checks.  */
   assert (({
 	struct object_desc *desc;
-	desc = object_to_object_desc ((struct object *) folio);
+	desc = object_to_object_desc ((struct vg_object *) folio);
 	assert (desc->oid % (VG_FOLIO_OBJECTS + 1) == 0);
 	true;
       }));
@@ -329,7 +329,7 @@ folio_parent (struct activity *activity, struct folio *folio)
   assert (! vg_cap_to_object (activity, &folio->prev));
   assert (({
 	struct object_desc *desc;
-	desc = object_to_object_desc ((struct object *) folio);
+	desc = object_to_object_desc ((struct vg_object *) folio);
 	if (desc->oid != 0)
 	  /* Only the very first folio may have objects allocated out
 	     of it before it is parented.  */
@@ -343,20 +343,20 @@ folio_parent (struct activity *activity, struct folio *folio)
       }));
 
   /* Record the owner.  */
-  folio->activity = object_to_cap ((struct object *) activity);
+  folio->activity = object_to_cap ((struct vg_object *) activity);
 
   /* Add FOLIO to ACTIVITY's folio list.  */
 
   /* Update the old head's previous pointer.  */
-  struct object *head = vg_cap_to_object (activity, &activity->folios);
+  struct vg_object *head = vg_cap_to_object (activity, &activity->folios);
   if (head)
     {
       /* It shouldn't have a previous pointer.  */
-      struct object *prev = vg_cap_to_object (activity,
-					   &((struct folio *) head)->prev);
+      struct vg_object *prev = vg_cap_to_object (activity,
+					   &((struct vg_folio *) head)->prev);
       assert (! prev);
 
-      ((struct folio *) head)->prev = object_to_cap ((struct object *) folio);
+      ((struct vg_folio *) head)->prev = object_to_cap ((struct vg_object *) folio);
     }
 
   /* Point FOLIO->NEXT to the old head.  */
@@ -366,13 +366,13 @@ folio_parent (struct activity *activity, struct folio *folio)
   folio->prev.type = vg_cap_void;
 
   /* Finally, set ACTIVITY->FOLIOS to the new head.  */
-  activity->folios = object_to_cap ((struct object *) folio);
+  activity->folios = object_to_cap ((struct vg_object *) folio);
   assert (vg_cap_to_object (activity, &activity->folios)
-	  == (struct object *) folio);
+	  == (struct vg_object *) folio);
 }
 
-struct folio *
-folio_alloc (struct activity *activity, struct folio_policy policy)
+struct vg_folio *
+folio_alloc (struct activity *activity, struct vg_folio_policy policy)
 {
   if (! activity)
     assert (! root_activity);
@@ -414,7 +414,7 @@ folio_alloc (struct activity *activity, struct folio_policy policy)
 
   /* We can't just allocate a fresh page: we need to preserve the
      version information for the folio as well as the objects.  */
-  struct folio *folio = (struct folio *) object_find (activity, foid,
+  struct vg_folio *folio = (struct vg_folio *) object_find (activity, foid,
 						      VG_OBJECT_POLICY_DEFAULT);
 
   if (activity)
@@ -426,19 +426,19 @@ folio_alloc (struct activity *activity, struct folio_policy policy)
 }
 
 void
-folio_free (struct activity *activity, struct folio *folio)
+folio_free (struct activity *activity, struct vg_folio *folio)
 {
   /* Make sure that FOLIO appears on its owner's folio list.  */
   assert (({
 	struct activity *owner
 	  = (struct activity *) vg_cap_to_object (activity, &folio->activity);
 	assert (owner);
-	assert (object_type ((struct object *) owner) == vg_cap_activity_control);
-	struct folio *f;
-	for (f = (struct folio *) vg_cap_to_object (activity, &owner->folios);
-	     f; f = (struct folio *) vg_cap_to_object (activity, &f->next))
+	assert (object_type ((struct vg_object *) owner) == vg_cap_activity_control);
+	struct vg_folio *f;
+	for (f = (struct vg_folio *) vg_cap_to_object (activity, &owner->folios);
+	     f; f = (struct vg_folio *) vg_cap_to_object (activity, &f->next))
 	  {
-	    assert (object_type ((struct object *) folio) == vg_cap_folio);
+	    assert (object_type ((struct vg_object *) folio) == vg_cap_folio);
 	    if (f == folio)
 	      break;
 	  }
@@ -450,7 +450,7 @@ folio_free (struct activity *activity, struct folio *folio)
      the storage for it.  We use it as the entity who should pay for
      the paging activity, etc.  */
 
-  struct object_desc *fdesc = object_to_object_desc ((struct object *) folio);
+  struct object_desc *fdesc = object_to_object_desc ((struct vg_object *) folio);
   assert (fdesc->type == vg_cap_folio);
   assert (fdesc->oid % (VG_FOLIO_OBJECTS + 1) == 0);
 
@@ -477,8 +477,8 @@ folio_free (struct activity *activity, struct folio *folio)
   folio->activity.type = vg_cap_void;
 
   /* Remove FOLIO from its owner's folio list.  */
-  struct folio *next = (struct folio *) vg_cap_to_object (activity, &folio->next);
-  struct folio *prev = (struct folio *) vg_cap_to_object (activity, &folio->prev);
+  struct vg_folio *next = (struct vg_folio *) vg_cap_to_object (activity, &folio->next);
+  struct vg_folio *prev = (struct vg_folio *) vg_cap_to_object (activity, &folio->prev);
 
   if (prev)
     prev->next = folio->next;
@@ -504,17 +504,17 @@ folio_free (struct activity *activity, struct folio *folio)
 
 struct vg_cap
 folio_object_alloc (struct activity *activity,
-		    struct folio *folio,
+		    struct vg_folio *folio,
 		    int idx,
 		    enum vg_cap_type type,
-		    struct object_policy policy,
+		    struct vg_object_policy policy,
 		    uintptr_t return_code)
 {
   assert (0 <= idx && idx < VG_FOLIO_OBJECTS);
 
   type = vg_cap_type_strengthen (type);
 
-  struct object_desc *fdesc = object_to_object_desc ((struct object *) folio);
+  struct object_desc *fdesc = object_to_object_desc ((struct vg_object *) folio);
   assert (fdesc->type == vg_cap_folio);
   assert (fdesc->oid % (1 + VG_FOLIO_OBJECTS) == 0);
 
@@ -524,7 +524,7 @@ folio_object_alloc (struct activity *activity,
 
   vg_oid_t oid = fdesc->oid + 1 + idx;
 
-  struct object *object = NULL;
+  struct vg_object *object = NULL;
 
   /* Deallocate any existing object.  */
 
@@ -667,9 +667,9 @@ folio_object_alloc (struct activity *activity,
 
 void
 folio_policy (struct activity *activity,
-	      struct folio *folio,
-	      uintptr_t flags, struct folio_policy in,
-	      struct folio_policy *out)
+	      struct vg_folio *folio,
+	      uintptr_t flags, struct vg_folio_policy in,
+	      struct vg_folio_policy *out)
 {
   if ((flags & VG_FOLIO_POLICY_DELIVER) && out)
     {
@@ -696,11 +696,11 @@ folio_policy (struct activity *activity,
 
 void
 object_desc_claim (struct activity *activity, struct object_desc *desc,
-		   struct object_policy policy, bool update_accounting)
+		   struct vg_object_policy policy, bool update_accounting)
 {
   assert (desc->activity || activity);
 
-  struct object_policy o = desc->policy;
+  struct vg_object_policy o = desc->policy;
   bool ec = desc->eviction_candidate;
 
 #ifndef NDEBUG
@@ -775,14 +775,14 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   if (desc->activity)
     {
       debug (5, VG_OID_FMT " claims from " VG_OID_FMT,
-	     VG_OID_PRINTF (object_to_object_desc ((struct object *) desc
+	     VG_OID_PRINTF (object_to_object_desc ((struct vg_object *) desc
 						->activity)->oid),
 	     VG_OID_PRINTF (activity
-			 ? object_to_object_desc ((struct object *)
+			 ? object_to_object_desc ((struct vg_object *)
 						  activity)->oid
 			 : 0));
 
-      assert (object_type ((struct object *) desc->activity)
+      assert (object_type ((struct vg_object *) desc->activity)
 	      == vg_cap_activity_control);
 
       if (desc->eviction_candidate)
@@ -838,7 +838,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 	    /* The activity met the free goal!  */
 	    {
 	      debug (0, DEBUG_BOLD (OBJECT_NAME_FMT " met goal."),
-		     OBJECT_NAME_PRINTF ((struct object *) desc->activity));
+		     OBJECT_NAME_PRINTF ((struct vg_object *) desc->activity));
 
 	      struct activity *ancestor = desc->activity;
 	      activity_for_each_ancestor
@@ -884,7 +884,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 
 		  debug (0, DEBUG_BOLD (OBJECT_NAME_FMT
 					" failed to free %d pages."),
-			 OBJECT_NAME_PRINTF ((struct object *) activity),
+			 OBJECT_NAME_PRINTF ((struct vg_object *) activity),
 			 activity->free_goal);
 		}
 
@@ -906,7 +906,7 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
   desc->policy.discardable = policy.discardable;
 
   debug (5, VG_OID_FMT " claimed " VG_OID_FMT " (%s): %s",
-	 VG_OID_PRINTF (object_to_object_desc ((struct object *) activity)->oid),
+	 VG_OID_PRINTF (object_to_object_desc ((struct vg_object *) activity)->oid),
 	 VG_OID_PRINTF (desc->oid),
 	 vg_cap_type_string (desc->type),
 	 desc->policy.discardable ? "discardable" : "precious");
@@ -968,16 +968,16 @@ object_desc_claim (struct activity *activity, struct object_desc *desc,
 
 /* Return the first waiter queued on object OBJECT.  */
 struct messenger *
-object_wait_queue_head (struct activity *activity, struct object *object)
+object_wait_queue_head (struct activity *activity, struct vg_object *object)
 {
-  struct folio *folio = objects_folio (activity, object);
+  struct vg_folio *folio = objects_folio (activity, object);
   int i = objects_folio_offset (object);
 
   if (! folio_object_wait_queue_p (folio, i))
     return NULL;
 
   vg_oid_t h = folio_object_wait_queue (folio, i);
-  struct object *head = object_find (activity, h, VG_OBJECT_POLICY_DEFAULT);
+  struct vg_object *head = object_find (activity, h, VG_OBJECT_POLICY_DEFAULT);
   assert (head);
   assert (object_type (head) == vg_cap_messenger);
   assert (((struct messenger *) head)->wait_queue_p);
@@ -988,7 +988,7 @@ object_wait_queue_head (struct activity *activity, struct object *object)
 
 /* Return the last waiter queued on object OBJECT.  */
 struct messenger *
-object_wait_queue_tail (struct activity *activity, struct object *object)
+object_wait_queue_tail (struct activity *activity, struct vg_object *object)
 {
   struct messenger *head = object_wait_queue_head (activity, object);
   if (! head)
@@ -1002,7 +1002,7 @@ object_wait_queue_tail (struct activity *activity, struct object *object)
   tail = (struct messenger *) object_find (activity, head->wait_queue.prev,
 					   VG_OBJECT_POLICY_DEFAULT);
   assert (tail);
-  assert (object_type ((struct object *) tail) == vg_cap_messenger);
+  assert (object_type ((struct vg_object *) tail) == vg_cap_messenger);
   assert (tail->wait_queue_p);
   assert (tail->wait_queue_tail);
 
@@ -1020,7 +1020,7 @@ object_wait_queue_next (struct activity *activity, struct messenger *m)
   next = (struct messenger *) object_find (activity, m->wait_queue.next,
 					   VG_OBJECT_POLICY_DEFAULT);
   assert (next);
-  assert (object_type ((struct object *) next) == vg_cap_messenger);
+  assert (object_type ((struct vg_object *) next) == vg_cap_messenger);
   assert (next->wait_queue_p);
   assert (! next->wait_queue_head);
 
@@ -1038,7 +1038,7 @@ object_wait_queue_prev (struct activity *activity, struct messenger *m)
   prev = (struct messenger *) object_find (activity, m->wait_queue.prev,
 					   VG_OBJECT_POLICY_DEFAULT);
   assert (prev);
-  assert (object_type ((struct object *) prev) == vg_cap_messenger);
+  assert (object_type ((struct vg_object *) prev) == vg_cap_messenger);
   assert (prev->wait_queue_p);
   assert (! prev->wait_queue_tail);
 
@@ -1064,16 +1064,16 @@ object_wait_queue_check (struct activity *activity, struct messenger *messenger)
       assert (m);
       assert (m->wait_queue_p);
       assert (! m->wait_queue_head);
-      struct object *p = object_find (activity, m->wait_queue.prev,
+      struct vg_object *p = object_find (activity, m->wait_queue.prev,
 					VG_OBJECT_POLICY_DEFAULT);
-      assert (p == (struct object *) last);
+      assert (p == (struct vg_object *) last);
       
       last = m;
     }
 
   assert (last->wait_queue_tail);
 
-  struct object *o = object_find (activity, last->wait_queue.next,
+  struct vg_object *o = object_find (activity, last->wait_queue.next,
 				  VG_OBJECT_POLICY_DEFAULT);
   assert (o);
   assert (folio_object_wait_queue_p (objects_folio (activity, o),
@@ -1103,9 +1103,9 @@ object_wait_queue_check (struct activity *activity, struct messenger *messenger)
       assert (m->wait_queue_p);
       assert (! m->wait_queue_head);
 
-      struct object *p = object_find (activity, m->wait_queue.prev,
+      struct vg_object *p = object_find (activity, m->wait_queue.prev,
 				      VG_OBJECT_POLICY_DEFAULT);
-      assert (p == (struct object *) last);
+      assert (p == (struct vg_object *) last);
       
       last = m;
     }
@@ -1114,10 +1114,10 @@ object_wait_queue_check (struct activity *activity, struct messenger *messenger)
 
 void
 object_wait_queue_push (struct activity *activity,
-			struct object *object, struct messenger *messenger)
+			struct vg_object *object, struct messenger *messenger)
 {
   debug (5, "Pushing " VG_OID_FMT " onto %p",
-	 VG_OID_PRINTF (object_to_object_desc ((struct object *) messenger)->oid),
+	 VG_OID_PRINTF (object_to_object_desc ((struct vg_object *) messenger)->oid),
 	 object);
 
   object_wait_queue_check (activity, messenger);
@@ -1134,10 +1134,10 @@ object_wait_queue_push (struct activity *activity,
 
       /* OLDHEAD->PREV = MESSENGER.  */
       oldhead->wait_queue_head = 0;
-      oldhead->wait_queue.prev = object_oid ((struct object *) messenger);
+      oldhead->wait_queue.prev = object_oid ((struct vg_object *) messenger);
 
       /* MESSENGER->NEXT = OLDHEAD.  */
-      messenger->wait_queue.next = object_oid ((struct object *) oldhead);
+      messenger->wait_queue.next = object_oid ((struct vg_object *) oldhead);
 
       messenger->wait_queue_tail = 0;
     }
@@ -1149,7 +1149,7 @@ object_wait_queue_push (struct activity *activity,
 				     true);
 
       /* MESSENGER->PREV = MESSENGER.  */
-      messenger->wait_queue.prev = object_oid ((struct object *) messenger);
+      messenger->wait_queue.prev = object_oid ((struct vg_object *) messenger);
 
       /* MESSENGER->NEXT = OBJECT.  */
       messenger->wait_queue_tail = 1;
@@ -1162,17 +1162,18 @@ object_wait_queue_push (struct activity *activity,
   messenger->wait_queue_head = 1;
   folio_object_wait_queue_set (objects_folio (activity, object),
 			       objects_folio_offset (object),
-			       object_oid ((struct object *) messenger));
+			       object_oid ((struct vg_object *) messenger));
 
   object_wait_queue_check (activity, messenger);
 }
 
 void
 object_wait_queue_enqueue (struct activity *activity,
-			   struct object *object, struct messenger *messenger)
+			   struct vg_object *object, struct messenger *messenger)
 {
   debug (5, "Enqueueing " VG_OID_FMT " on %p",
-	 VG_OID_PRINTF (object_to_object_desc ((struct object *) messenger)->oid),
+	 VG_OID_PRINTF (object_to_object_desc
+			((struct vg_object *) messenger)->oid),
 	 object);
 
   object_wait_queue_check (activity, messenger);
@@ -1184,16 +1185,16 @@ object_wait_queue_enqueue (struct activity *activity,
     {
       /* HEAD->PREV = MESSENGER.  */
       struct messenger *head = object_wait_queue_head (activity, object);
-      head->wait_queue.prev = object_oid ((struct object *) messenger);
+      head->wait_queue.prev = object_oid ((struct vg_object *) messenger);
 
       assert (oldtail->wait_queue_tail);
 
       /* MESSENGER->PREV = OLDTAIL.  */
-      messenger->wait_queue.prev = object_oid ((struct object *) oldtail);
+      messenger->wait_queue.prev = object_oid ((struct vg_object *) oldtail);
 
       /* OLDTAIL->NEXT = MESSENGER.  */
       oldtail->wait_queue_tail = 0;
-      oldtail->wait_queue.next = object_oid ((struct object *) messenger);
+      oldtail->wait_queue.next = object_oid ((struct vg_object *) messenger);
 
       /* MESSENGER->NEXT = OBJECT.  */
       messenger->wait_queue.next = object_oid (object);
@@ -1209,7 +1210,7 @@ object_wait_queue_enqueue (struct activity *activity,
 				     true);
 
       /* MESSENGER->PREV = MESSENGER.  */
-      messenger->wait_queue.prev = object_oid ((struct object *) messenger);
+      messenger->wait_queue.prev = object_oid ((struct vg_object *) messenger);
 
       /* MESSENGER->NEXT = OBJECT.  */
       messenger->wait_queue_tail = 1;
@@ -1219,7 +1220,7 @@ object_wait_queue_enqueue (struct activity *activity,
       messenger->wait_queue_head = 1;
       folio_object_wait_queue_set (objects_folio (activity, object),
 				   objects_folio_offset (object),
-				   object_oid ((struct object *) messenger));
+				   object_oid ((struct vg_object *) messenger));
     }
 
   messenger->wait_queue_p = true;
@@ -1233,7 +1234,8 @@ object_wait_queue_unlink (struct activity *activity,
 			  struct messenger *messenger)
 {
   debug (5, "Removing " VG_OID_FMT,
-	 VG_OID_PRINTF (object_to_object_desc ((struct object *) messenger)->oid));
+	 VG_OID_PRINTF (object_to_object_desc
+			((struct vg_object *) messenger)->oid));
 
   assert (messenger->wait_queue_p);
 
@@ -1243,7 +1245,7 @@ object_wait_queue_unlink (struct activity *activity,
     /* MESSENGER is the tail.  MESSENGER->NEXT must be the object on which
        we are queued.  */
     {
-      struct object *object;
+      struct vg_object *object;
       object = object_find (activity, messenger->wait_queue.next,
 			    VG_OBJECT_POLICY_DEFAULT);
       assert (object);
@@ -1257,7 +1259,7 @@ object_wait_queue_unlink (struct activity *activity,
 	{
 	  assert (object_find (activity, messenger->wait_queue.prev,
 			       VG_OBJECT_POLICY_DEFAULT)
-		  == (struct object *) messenger);
+		  == (struct vg_object *) messenger);
 
 	  folio_object_wait_queue_p_set (objects_folio (activity, object),
 					 objects_folio_offset (object),
@@ -1271,7 +1273,7 @@ object_wait_queue_unlink (struct activity *activity,
 	  /* HEAD->PREV == TAIL.  */
 	  assert (object_find (activity, head->wait_queue.prev,
 			       VG_OBJECT_POLICY_DEFAULT)
-		  == (struct object *) messenger);
+		  == (struct vg_object *) messenger);
 
 	  /* HEAD->PREV = TAIL->PREV.  */
 	  head->wait_queue.prev = messenger->wait_queue.prev;
@@ -1282,7 +1284,7 @@ object_wait_queue_unlink (struct activity *activity,
 						messenger->wait_queue.prev,
 						VG_OBJECT_POLICY_DEFAULT);
 	  assert (prev);
-	  assert (object_type ((struct object *) prev) == vg_cap_messenger);
+	  assert (object_type ((struct vg_object *) prev) == vg_cap_messenger);
 
 	  prev->wait_queue_tail = 1;
 	  prev->wait_queue.next = messenger->wait_queue.next;
@@ -1294,8 +1296,8 @@ object_wait_queue_unlink (struct activity *activity,
       struct messenger *next = object_wait_queue_next (activity, messenger);
       assert (next);
 
-      struct object *p = object_find (activity, messenger->wait_queue.prev,
-				      VG_OBJECT_POLICY_DEFAULT);
+      struct vg_object *p = object_find (activity, messenger->wait_queue.prev,
+					 VG_OBJECT_POLICY_DEFAULT);
       assert (p);
       assert (object_type (p) == vg_cap_messenger);
       struct messenger *prev = (struct messenger *) p;
@@ -1306,8 +1308,9 @@ object_wait_queue_unlink (struct activity *activity,
 	  /* MESSENGER->PREV is the tail, TAIL->NEXT the object.  */
 	  struct messenger *tail = prev;
 
-	  struct object *object = object_find (activity, tail->wait_queue.next,
-					       VG_OBJECT_POLICY_DEFAULT);
+	  struct vg_object *object
+	    = object_find (activity, tail->wait_queue.next,
+			   VG_OBJECT_POLICY_DEFAULT);
 	  assert (object);
 	  assert (object_wait_queue_head (activity, object) == messenger);
 
