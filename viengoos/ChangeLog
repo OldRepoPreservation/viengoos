@@ -1,5 +1,10 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Handle multiple objects in
+	object_discarded_clear.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Set SLOT to 0, not TARGET.
 
 2008-12-18  Neal H. Walfield  <neal@gnu.org>

@@ -1449,71 +1449,83 @@ server_loop (void)
 
 	    DEBUG (4, VG_ADDR_FMT, VG_ADDR_PRINTF (object_addr));
 
-	    /* We can't look up the object use OBJECT as object_lookup
-	       returns NULL if the object's discardable bit is set!
-	       Instead, we lookup the capability, find the object's
-	       folio and then clear its discarded bit.  */
-	    struct vg_cap cap = CAP (&thread->aspace, object_addr, -1, true);
-	    if (cap.type == vg_cap_void)
-	      REPLY (ENOENT);
-	    if (vg_cap_type_weak_p (cap.type))
-	      REPLY (EPERM);
+	    vg_addr_t *addr = (void *) vg_message_data (message)
+	      + sizeof (uintptr_t);
+	    int count = ((vg_message_data_count (message) - sizeof (uintptr_t))
+			 / sizeof (vg_addr_t));
+	    int i;
+	    for (i = 0; i < count; i ++)
+	      {
+		/* We can't look up the object use OBJECT as object_lookup
+		   returns NULL if the object's discardable bit is set!
+		   Instead, we lookup the capability, find the object's
+		   folio and then clear its discarded bit.  */
+		struct vg_cap cap = CAP (target_root, addr[i], -1, true);
+		if (cap.type == vg_cap_void)
+		  REPLY (ENOENT);
+		if (vg_cap_type_weak_p (cap.type))
+		  REPLY (EPERM);
 
-	    int idx = (cap.oid % (1 + VG_FOLIO_OBJECTS)) - 1;
-	    vg_oid_t foid = cap.oid - idx - 1;
+		int idx = (cap.oid % (1 + VG_FOLIO_OBJECTS)) - 1;
+		vg_oid_t foid = cap.oid - idx - 1;
 
-	    struct vg_folio *folio = (struct vg_folio *)
-	      object_find (activity, foid, VG_OBJECT_POLICY_VOID);
+		struct vg_folio *folio = (struct vg_folio *)
+		  object_find (activity, foid, VG_OBJECT_POLICY_VOID);
 
-	    if (folio_object_version (folio, idx) != cap.version)
-	      REPLY (ENOENT);
+		if (folio_object_version (folio, idx) != cap.version)
+		  REPLY (ENOENT);
 
-	    bool was_discarded = folio_object_discarded (folio, idx);
-	    folio_object_discarded_set (folio, idx, false);
-
-	    vg_object_discarded_clear_reply (activity, reply);
+		bool was_discarded = folio_object_discarded (folio, idx);
+		folio_object_discarded_set (folio, idx, false);
 
 #if 0
-	    /* XXX: Surprisingly, it appears that this may be more
-	       expensive than just faulting the pages normally.  This
-	       needs more investivation.  */
-	    if (was_discarded
-		&& cap.type == vg_cap_page
-		&& VG_CAP_GUARD_BITS (&cap) == 0
-		&& (vg_addr_depth (object_addr) == VG_ADDR_BITS - PAGESIZE_LOG2))
-	      /* The target object was discarded, appears to be a page
-		 and seems to be installed at a point where it would
-		 appear in the hardware address space.  If this is
-		 really the case, then we can map it now and save a
-		 fault later.  */
-	      {
-		profile_region ("object_discard-prefault");
-
-		struct vg_object *page = vg_cap_to_object (principal, &cap);
-		if (page)
+		/* XXX: Surprisingly, it appears that this may be more
+		   expensive than just faulting the pages normally.  This
+		   needs more investigation.  */
+		if (target == thread
+		    && was_discarded
+		    && cap.type == vg_cap_page
+		    && VG_CAP_GUARD_BITS (&cap) == 0
+		    && (vg_addr_depth (object_addr)
+			== VG_ADDR_BITS - PAGESIZE_LOG2))
+		  /* The target object was discarded, appears to be a page
+		     and seems to be installed at a point where it would
+		     appear in the hardware address space.  If this is
+		     really the case, then we can map it now and save a
+		     fault later.  */
 		  {
-		    object_to_object_desc (page)->mapped = true;
+		    profile_region ("object_discard-prefault");
 
-		    l4_fpage_t fpage = l4_fpage ((uintptr_t) page, PAGESIZE);
-		    fpage = l4_fpage_add_rights (fpage,
-						 L4_FPAGE_READABLE
-						 | L4_FPAGE_WRITABLE);
+		    struct vg_object *page = vg_cap_to_object (principal, &cap);
+		    if (page)
+		      {
+			object_to_object_desc (page)->mapped = true;
 
-		    uintptr_t page_addr = vg_addr_prefix (object_addr);
+			l4_fpage_t fpage = l4_fpage ((uintptr_t) page,
+						     PAGESIZE);
+			fpage = l4_fpage_add_rights (fpage,
+						     L4_FPAGE_READABLE
+						     | L4_FPAGE_WRITABLE);
 
-		    l4_map_item_t map_item = l4_map_item (fpage, page_addr);
+			uintptr_t page_addr = vg_addr_prefix (object_addr);
 
-		    l4_msg_append_map_item (msg, map_item);
+			l4_map_item_t map_item = l4_map_item (fpage, page_addr);
 
-		    DEBUG (4, "Prefaulting "VG_ADDR_FMT"(%x) <- %p (%x/%x/%x)",
-			   VG_ADDR_PRINTF (object_addr), page_addr,
-			   page, l4_address (fpage), l4_size (fpage),
-			   l4_rights (fpage));
+			l4_msg_append_map_item (msg, map_item);
+
+			DEBUG (4, "Prefaulting "VG_ADDR_FMT
+			       "(%x) <- %p (%x/%x/%x)",
+			       VG_ADDR_PRINTF (object_addr), page_addr,
+			       page, l4_address (fpage), l4_size (fpage),
+			       l4_rights (fpage));
+		      }
+
+		    profile_region_end ();
 		  }
-
-		profile_region_end ();
-	      }
 #endif
+	      }
+
+	    vg_object_discarded_clear_reply (activity, reply, i);
 
 	    break;
 	  }

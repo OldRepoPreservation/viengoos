@@ -229,6 +229,59 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
       hurd_btree_storage_desc_t *storage_descs;
       storage_descs = (hurd_btree_storage_desc_t *) &anon->storage;
 
+      struct hurd_message_buffer *mb = NULL;
+      int discards = 0;
+      void queue_clear (vg_addr_t addr)
+      {
+	if (mb
+	    && (VG_ADDR_IS_VOID (addr)
+		|| vg_message_space (mb->request) < sizeof (vg_addr_t)))
+	  {
+	    hurd_activation_message_register (mb);
+	    error_t err = vg_ipc (VG_IPC_RECEIVE | VG_IPC_SEND
+				  | VG_IPC_RECEIVE_ACTIVATE
+				  | VG_IPC_SEND_SET_THREAD_TO_CALLER
+				  | VG_IPC_SEND_SET_ASROOT_TO_CALLERS
+				  | VG_IPC_RECEIVE_SET_THREAD_TO_CALLER
+				  | VG_IPC_RECEIVE_SET_ASROOT_TO_CALLERS,
+				  VG_ADDR_VOID,
+				  mb->receiver_strong, VG_ADDR_VOID,
+				  VG_ADDR_VOID, VG_ADDR_VOID,
+				  mb->sender, VG_ADDR_VOID);
+	    if (err)
+	      hurd_activation_message_unregister (mb);
+	    else
+	      {
+		int i;
+		err = vg_object_discarded_clear_reply_unmarshal (mb->reply, &i);
+		assert (! err);
+		assert (i == discards);
+	      }
+
+	    hurd_message_buffer_free (mb);
+	    mb = NULL;
+	    discards = 0;
+	  }
+
+	if (VG_ADDR_IS_VOID (addr))
+	  return;
+
+	if (! mb)
+	  {
+	    mb = hurd_message_buffer_alloc ();
+
+	    vg_object_discarded_clear_receive_marshal (mb->reply);
+	    vg_object_discarded_clear_send_marshal (mb->request, addr,
+						    mb->receiver);
+	    discards = 1;
+	  }
+	else
+	  {
+	    vg_message_append_data (mb->request, sizeof (addr), (void *) &addr);
+	    discards ++;
+	  }
+      }
+
       int i;
       for (i = 0; i < count; i ++)
 	{
@@ -248,14 +301,11 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	      assert (storage_desc);
 	      assert (anon->policy.discardable);
 
-	      error_t err;
 	      /* We pass the fault address and not the underlying
 		 storage address as object_discarded_clear also
 		 returns a mapping and we are likely to access the
 		 data at the fault address.  */
-	      err = vg_object_discarded_clear (VG_ADDR_VOID, VG_ADDR_VOID,
-					       storage_desc->storage);
-	      assertx (err == 0, "%d", err);
+	      queue_clear (storage_desc->storage);
 
 	      debug (5, "Clearing discarded bit for %p / " VG_ADDR_FMT,
 		     (void *) fault_addr + i * PAGESIZE,
@@ -300,8 +350,9 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	      page.type = vg_cap_page;
 	      VG_CAP_POLICY_SET (&page, anon->policy);
 
-	      vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (fault_addr + i * PAGESIZE),
-				       PAGESIZE_LOG2);
+	      vg_addr_t addr
+		= vg_addr_chop (VG_PTR_TO_ADDR (fault_addr + i * PAGESIZE),
+				PAGESIZE_LOG2);
 
 	      as_ensure_use
 		(addr,
@@ -322,6 +373,9 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 	    pages[i] = VG_ADDR_TO_PTR (vg_addr_extend (storage_desc->storage,
 						 0, PAGESIZE_LOG2));
 	}
+
+      /* Flush any pending discards.  */
+      queue_clear (VG_ADDR_VOID);
 
 #if 0
       int faulted;

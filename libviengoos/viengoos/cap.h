@@ -417,7 +417,7 @@ enum
   VG_CAP_COPY_PRIORITY_SET = 1 << 5,
 };
 
-/* Copy the capability in capability slot SOURCE to the slot at VG_ADDR
+/* Copy the capability in capability slot SOURCE to the slot at ADDR
    in the object OBJECT.  If OBJECT is VG_ADDR_VOID, then the calling
    thread's address space root is used.
 
@@ -445,21 +445,26 @@ RPC(cap_copy, 5, 0, 0,
     cap_t, source_object, vg_addr_t, source_addr,
     uintptr_t, flags, struct vg_cap_properties, properties)
 
-/* Overwrite the capability slot at VG_ADDR in the object OBJECT with a
+/* Overwrite the capability slot at ADDR in the object OBJECT with a
    void capability.  */
 RPC(cap_rubout, 1, 0, 0,
     /* cap_t activity, cap_t object, */ vg_addr_t, addr)
 
-/* Returns the public bits of the capability at address VG_ADDR in OBJECT
+/* Returns the public bits of the capability at address ADDR in OBJECT
    in TYPE and VG_CAP_PROPERTIES.  */
 RPC(cap_read, 1, 2, 0,
     /* cap_t activity, cap_t object, */ vg_addr_t, addr,
     /* Out: */
     uintptr_t, type, struct vg_cap_properties, properties)
 
-/* Clear the discarded bit of the object at VG_ADDR in object OBJECT.  */
-RPC(object_discarded_clear, 1, 0, 0,
-    /* cap_t activity, cap_t object, */ vg_addr_t, addr)
+/* Clear the discarded bit of the objects at ADDR in object OBJECT.
+   Note: this function takes multiple addresses.  Add further
+   addresses manually using vg_message_add.  COUNT indicates the
+   number of objects successfully discarded.  Stops after the first
+   error.  */
+RPC(object_discarded_clear, 1, 1, 0,
+    /* cap_t activity, cap_t object, */ vg_addr_t, addr,
+    int, count)
 
 /* If the object designated by OBJECT is in memory, discard it.
    OBJECT must have write authority.  This does not set the object's

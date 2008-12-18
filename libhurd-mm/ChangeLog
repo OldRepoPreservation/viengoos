@@ -1,5 +1,9 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.c (fault): Batch object discard requests.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.c (hurd_activation_state_alloc): Cast UTCB to a void *.
 
 2008-12-18  Neal H. Walfield  <neal@gnu.org>

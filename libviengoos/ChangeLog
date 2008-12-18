@@ -1,5 +1,10 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos/cap.h (object_discarded_clear): Take additional
+	parameter count.  Take multiple object addresses.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos/misc.h (vg_method_id_string): Handle VG_messenger_id.
 
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
