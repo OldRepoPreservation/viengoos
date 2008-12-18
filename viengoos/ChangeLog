@@ -1,5 +1,11 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* server.c (server_loop): Look up capability addresses relative to
+	TARGET_ROOT, not THREAD->ASPACE in fault and futex.  In
+	thread_exregs, look them up relative to SOURCE->AS_ROOT.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* server.c (server_loop): Use the first capability as the reply
 	messenger.
 

@@ -1070,7 +1070,7 @@ server_loop (void)
 	      {
 		struct vg_cap cap;
 		bool writable;
-		cap = as_object_lookup_rel (activity, &thread->aspace,
+		cap = as_object_lookup_rel (activity, target_root,
 					    vg_addr_chop (VG_PTR_TO_ADDR (start),
 						       PAGESIZE_LOG2),
 					    vg_cap_rpage, &writable);
@@ -1252,8 +1252,10 @@ server_loop (void)
 	    DEBUG (4, "(" VG_ADDR_FMT "@" VG_ADDR_FMT " <- "
 		   VG_ADDR_FMT "@" VG_ADDR_FMT ", %s%s%s%s%s%s, %s/%d %lld/%d %d/%d",
 
-		   VG_ADDR_PRINTF (target_messenger), VG_ADDR_PRINTF (target_addr),
-		   VG_ADDR_PRINTF (source_as_addr), VG_ADDR_PRINTF (source_addr),
+		   VG_ADDR_PRINTF (target_messenger),
+		   VG_ADDR_PRINTF (target_addr),
+		   VG_ADDR_PRINTF (source_as_addr),
+		   VG_ADDR_PRINTF (source_addr),
 		   
 		   VG_CAP_COPY_COPY_ADDR_TRANS_SUBPAGE & flags
 		   ? "copy subpage/" : "",
@@ -1289,8 +1291,10 @@ server_loop (void)
 	    DEBUG (4, "(target: (" VG_ADDR_FMT ") " VG_ADDR_FMT ", "
 		   "source: (" VG_ADDR_FMT ") " VG_ADDR_FMT ", "
 		   "%s|%s, %s {%llx/%d %d/%d})",
-		   VG_ADDR_PRINTF (target_as_addr), VG_ADDR_PRINTF (target_addr),
-		   VG_ADDR_PRINTF (source_as_addr), VG_ADDR_PRINTF (source_addr),
+		   VG_ADDR_PRINTF (target_as_addr),
+		   VG_ADDR_PRINTF (target_addr),
+		   VG_ADDR_PRINTF (source_as_addr),
+		   VG_ADDR_PRINTF (source_addr),
 		   flags & VG_CAP_COPY_COPY_ADDR_TRANS_GUARD ? "copy trans"
 		   : (flags & VG_CAP_COPY_COPY_SOURCE_GUARD ? "source"
 		      : "preserve"),
@@ -1309,12 +1313,13 @@ server_loop (void)
 	    if (! r)
 	      REPLY (EINVAL);
 
-	    if ((flags & (VG_CAP_COPY_DISCARDABLE_SET | VG_CAP_COPY_PRIORITY_SET)))
+	    if ((flags & (VG_CAP_COPY_DISCARDABLE_SET
+			  | VG_CAP_COPY_PRIORITY_SET)))
 	      /* The caller changed the policy.  Also change it on the
 		 object.  */
 	      {
 		struct vg_object *object = cap_to_object_soft (principal,
-							    target);
+							       target);
 		if (object)
 		  {
 		    struct object_desc *desc
@@ -1418,7 +1423,8 @@ server_loop (void)
 	      REPLY (err);
 
 	    DEBUG (4, VG_ADDR_FMT "@" VG_ADDR_FMT,
-		   VG_ADDR_PRINTF (target_messenger), VG_ADDR_PRINTF (cap_addr));
+		   VG_ADDR_PRINTF (target_messenger),
+		   VG_ADDR_PRINTF (cap_addr));
 
 	    struct vg_cap cap = CAP (target_root, cap_addr, -1, false);
 	    /* Even if CAP.TYPE is not void, the cap may not designate
@@ -1540,7 +1546,8 @@ server_loop (void)
 		   VG_ADDR_PRINTF (target_messenger), clear ? "" : "no ");
 
 	    struct object_desc *desc = object_to_object_desc (target);
-	    uintptr_t status = (desc->user_referenced ? vg_object_referenced : 0)
+	    uintptr_t status = (desc->user_referenced
+				? vg_object_referenced : 0)
 	      | (desc->user_dirty ? vg_object_dirty : 0);
 
 	    if (clear)
@@ -1624,7 +1631,8 @@ server_loop (void)
 	    if ((control & VG_EXREGS_SET_ASPACE))
 	      DEBUG (d, "aspace: " VG_ADDR_FMT, VG_ADDR_PRINTF (aspace_addr));
 	    if ((control & VG_EXREGS_SET_ACTIVITY))
-	      DEBUG (d, "activity: " VG_ADDR_FMT, VG_ADDR_PRINTF (activity_addr));
+	      DEBUG (d, "activity: " VG_ADDR_FMT,
+		     VG_ADDR_PRINTF (activity_addr));
 	    if ((control & VG_EXREGS_SET_SP))
 	      DEBUG (d, "sp: %p", (void *) in.sp);
 	    if ((control & VG_EXREGS_SET_IP))
@@ -1636,7 +1644,7 @@ server_loop (void)
 
 	    struct vg_cap aspace = VG_CAP_VOID;
 	    if ((VG_EXREGS_SET_ASPACE & control))
-	      aspace = CAP (&thread->aspace, aspace_addr, -1, false);
+	      aspace = CAP (&source->as_root, aspace_addr, -1, false);
 
 	    struct vg_cap a = VG_CAP_VOID;
 	    if ((VG_EXREGS_SET_ACTIVITY & control))
@@ -1645,24 +1653,24 @@ server_loop (void)
 		if (VG_ADDR_IS_VOID (activity_addr))
 		  a = thread->activity;
 		else
-		  a = CAP (&thread->aspace,
+		  a = CAP (&source->as_root,
 			   activity_addr, vg_cap_activity, false);
 	      }
 
 	    struct vg_cap utcb = VG_CAP_VOID;
 	    if ((VG_EXREGS_SET_UTCB & control))
-	      utcb = CAP (&thread->aspace, utcb_addr, vg_cap_page, true);
+	      utcb = CAP (&source->as_root, utcb_addr, vg_cap_page, true);
 
 	    struct vg_cap exception_messenger = VG_CAP_VOID;
 	    if ((VG_EXREGS_SET_EXCEPTION_MESSENGER & control))
 	      exception_messenger
-		= CAP (&thread->aspace, exception_messenger_addr,
+		= CAP (&source->as_root, exception_messenger_addr,
 		       vg_cap_rmessenger, false);
 
-	    struct vg_cap aspace_out = thread->aspace;
-	    struct vg_cap activity_out = thread->activity;
-	    struct vg_cap utcb_out = thread->utcb;
-	    struct vg_cap exception_messenger_out = thread->exception_messenger;
+	    struct vg_cap aspace_out = t->aspace;
+	    struct vg_cap activity_out = t->activity;
+	    struct vg_cap utcb_out = t->utcb;
+	    struct vg_cap exception_messenger_out = t->exception_messenger;
 
 	    struct vg_thread_exregs_out out;
 	    out.sp = in.sp;
@@ -1944,41 +1952,43 @@ server_loop (void)
 	    if (err)
 	      REPLY (err);
 
-	    {
-	      const char *op_string = "unknown";
-	      switch (op)
-		{
-		case FUTEX_WAIT:
-		  op_string = "wait";
-		  break;
-		case FUTEX_WAKE_OP:
-		  op_string = "wake op";
-		  break;
-		case FUTEX_WAKE:
-		  op_string = "wake";
-		  break;
-		case FUTEX_CMP_REQUEUE:
-		  op_string = "cmp requeue";
-		  break;
-		}
+	    do_debug (4)
+	      {
+		const char *op_string = "unknown";
+		switch (op)
+		  {
+		  case FUTEX_WAIT:
+		    op_string = "wait";
+		    break;
+		  case FUTEX_WAKE_OP:
+		    op_string = "wake op";
+		    break;
+		  case FUTEX_WAKE:
+		    op_string = "wake";
+		    break;
+		  case FUTEX_CMP_REQUEUE:
+		    op_string = "cmp requeue";
+		    break;
+		  }
 
-	      char *mode = "unknown";
+		char *mode = "unknown";
 
-	      struct vg_object *page = vg_cap_to_object (principal, &thread->utcb);
-	      if (page && object_type (page) == vg_cap_page)
-		{
-		  struct vg_utcb *utcb = (struct vg_utcb *) page;
+		struct vg_object *page = vg_cap_to_object (principal,
+							   &thread->utcb);
+		if (page && object_type (page) == vg_cap_page)
+		  {
+		    struct vg_utcb *utcb = (struct vg_utcb *) page;
 
-		  if (utcb->activated_mode)
-		    mode = "activated";
-		  else
-		    mode = "normal";
-		}
+		    if (utcb->activated_mode)
+		      mode = "activated";
+		    else
+		      mode = "normal";
+		  }
 
-	      DEBUG (4, "(%p, %s, 0x%x, %d, %p, %d) (thread in %s)",
-		     addr1, op_string, val1, val2.value, addr2, val3.value,
-		     mode);
-	    }
+		DEBUG (0, "(%p, %s, 0x%x, %d, %p, %d) (thread in %s)",
+		       addr1, op_string, val1, val2.value, addr2, val3.value,
+		       mode);
+	      }
 
 	    switch (op)
 	      {
@@ -1991,9 +2001,10 @@ server_loop (void)
 		REPLY (ENOSYS);
 	      };
 
-	    vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (addr1), PAGESIZE_LOG2);
-	    struct vg_object *object1 = OBJECT (&thread->aspace,
-					     addr, vg_cap_page, true, NULL);
+	    vg_addr_t addr = vg_addr_chop (VG_PTR_TO_ADDR (addr1),
+					   PAGESIZE_LOG2);
+	    struct vg_object *object1 = OBJECT (target_root,
+						addr, vg_cap_page, true, NULL);
 	    int offset1 = (uintptr_t) addr1 & (PAGESIZE - 1);
 	    int *vaddr1 = (void *) object1 + offset1;
 
@@ -2031,8 +2042,9 @@ server_loop (void)
 
 	      case FUTEX_WAKE_OP:
 		addr = vg_addr_chop (VG_PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
-		struct vg_object *object2 = OBJECT (&thread->aspace,
-						 addr, vg_cap_page, true, NULL);
+		struct vg_object *object2 = OBJECT (target_root,
+						    addr, vg_cap_page,
+						    true, NULL);
 		int offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 		int *vaddr2 = (void *) object2 + offset2;
 
@@ -2099,7 +2111,7 @@ server_loop (void)
 
 		/* Get the second object.  */
 		addr = vg_addr_chop (VG_PTR_TO_ADDR (addr2), PAGESIZE_LOG2);
-		object2 = OBJECT (&thread->aspace, addr, vg_cap_page, true, NULL);
+		object2 = OBJECT (target_root, addr, vg_cap_page, true, NULL);
 		offset2 = (uintptr_t) addr2 & (PAGESIZE - 1);
 
 		count = wake (val1, object1, offset1,
