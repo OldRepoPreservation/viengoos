@@ -190,6 +190,14 @@ vg_message_word_set (struct vg_message *msg, int pos, uintptr_t word)
   ((uintptr_t *) vg_message_data (msg))[pos] = word;
 }
 
+/* Return the amount of space (in bytes) remaining in MSG.  */
+static inline int
+vg_message_space (struct vg_message *msg)
+{
+  return PAGESIZE - __builtin_offsetof (struct vg_message, caps)
+    - msg->data_count - msg->cap_count * sizeof (vg_addr_t);
+}
+
 #include <s-printf.h>
 
 static inline void

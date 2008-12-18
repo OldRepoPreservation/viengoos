@@ -1,5 +1,9 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos/message.h (vg_message_space): New function.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos/rpc.h (RPC_SEND_MARSHAL): Make the reply messenger the
 	first capability.
 	(RPC_SEND_UNMARSHAL): Likewise.
