@@ -1,5 +1,11 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* message-buffer.c (num_threads): New function.
+	(BUFFERS_LOW_WATER): Define in terms of the number of threads.
+	(BUFFERS_HIGH_WATER): Likewise.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* message-buffer.c (hurd_message_buffer_alloc): Fix compare and
 	swap logic.
 

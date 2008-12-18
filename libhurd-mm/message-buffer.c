@@ -268,8 +268,19 @@ hurd_message_buffer_free (struct hurd_message_buffer *buffer)
     }
 }
 
-#define BUFFERS_LOW_WATER 4
-#define BUFFERS_HIGH_WATER 8
+static int
+num_threads (void)
+{
+  extern int __pthread_num_threads __attribute__ ((weak));
+
+  if (&__pthread_num_threads)
+    return __pthread_num_threads;
+  else
+    return 1;
+}
+
+#define BUFFERS_LOW_WATER (4 + num_threads () * 2)
+#define BUFFERS_HIGH_WATER (8 + num_threads () * 3)
 
 struct hurd_message_buffer *
 hurd_message_buffer_alloc (void)
