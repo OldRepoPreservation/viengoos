@@ -85,6 +85,8 @@ vg_method_id_string (int id)
       return "activity_info";
     case VG_futex:
       return "futex";
+    case VG_messenger_id:
+      return "messenger id";
     default:
       return "unknown method id";
     }

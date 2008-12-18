@@ -1,5 +1,9 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos/misc.h (vg_method_id_string): Handle VG_messenger_id.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos/rpc.h (RPC_SEND_UNMARSHAL): Don't error out if there is
 	more data than we strictly require.
 	(RPC_REPLY_UNMARSHAL): Likewise.
