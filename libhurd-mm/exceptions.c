@@ -797,7 +797,7 @@ hurd_activation_state_alloc (vg_addr_t thread, struct hurd_utcb **utcbp)
   page += 1 + SKIP;
 #else
   /* Use the end of the UTCB.  */
-  utcb->vg.activation_handler_sp = utcb + PAGESIZE;
+  utcb->vg.activation_handler_sp = (void *) utcb + PAGESIZE;
 #endif
 
   /* At the top of the stack page, we use some space to remember the

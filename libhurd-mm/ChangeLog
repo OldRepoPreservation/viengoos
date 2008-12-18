@@ -1,5 +1,9 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.c (hurd_activation_state_alloc): Cast UTCB to a void *.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* storage.c (struct storage_desc): Add field owner.
 	(shadow_setup): Set DESC->OWNER appropriately.
 	(storage_alloc): Likewise.
