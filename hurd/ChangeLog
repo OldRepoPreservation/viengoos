@@ -1,3 +1,7 @@
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
+	* RPC: Move to ../libviengoos.
+
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
 	* exceptions.h: Merge contents of this file...

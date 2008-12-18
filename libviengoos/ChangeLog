@@ -1,5 +1,9 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* RPC: Move here from ../hurd.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos/activity.h (struct activity_memory_policy): Rename from
 	this...
 	(struct vg_activity_memory_policy): ... to this.  Update users.
