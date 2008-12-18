@@ -282,7 +282,7 @@ hurd_message_buffer_alloc (void)
       if (likely (mm_init_done)
 	  && unlikely (buffers_count <= BUFFERS_LOW_WATER)
 	  && ! allocating
-	  && __sync_val_compare_and_swap (&allocating, 0, 1) == 1)
+	  && __sync_val_compare_and_swap (&allocating, 0, 1) == 0)
 	{
 	  for (;;)
 	    {

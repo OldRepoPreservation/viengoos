@@ -1,5 +1,10 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* message-buffer.c (hurd_message_buffer_alloc): Fix compare and
+	swap logic.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* message-buffer.c: Include <hurd/mm.h>.
 	(hurd_message_buffer_free_internal): Remove function.  Move body
 	to...
