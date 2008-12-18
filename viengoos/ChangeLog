@@ -1,3 +1,8 @@
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
+	* server.c (server_loop): Use the first capability as the reply
+	messenger.
+
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
 	* ager.c (update_stats): Use vg_activity_info_reply, not

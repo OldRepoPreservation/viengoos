@@ -385,10 +385,10 @@ typedef vg_addr_t cap_t;
     vg_message_clear (msg);						\
     /* Add the label.  */						\
     vg_message_append_word (msg, RPC_ID_PREFIX_(id));			\
-    /* Then load the arguments.  */					\
-    RPCLOAD (icount, ##__VA_ARGS__);					\
-    /* Finally, add the reply messenger.  */				\
+    /* The reply messenger.  */						\
     vg_message_append_cap (msg, reply_messenger);			\
+    /* And finally, load the arguments.  */				\
+    RPCLOAD (icount, ##__VA_ARGS__);					\
   }
 
 /* Unmarshal a request.  */
@@ -410,8 +410,11 @@ typedef vg_addr_t cap_t;
 	return EINVAL;							\
       }									\
     									\
+    if (reply_messenger)						\
+      *reply_messenger = vg_message_cap (msg, 0);			\
+									\
     int __rsu_data_idx __attribute__ ((unused)) = 1;			\
-    int __rsu_cap_idx __attribute__ ((unused)) = 0;			\
+    int __rsu_cap_idx __attribute__ ((unused)) = 1;			\
     error_t __rsu_err = 0;						\
     RPCSTORE (icount, ##__VA_ARGS__);					\
     if (unlikely (__rsu_err						\
@@ -427,8 +430,6 @@ typedef vg_addr_t cap_t;
 	return EINVAL;							\
       }									\
 									\
-    if (reply_messenger)						\
-      *reply_messenger = vg_message_cap (msg, __rsu_cap_idx);		\
     return 0;								\
   }
 

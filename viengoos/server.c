@@ -974,8 +974,7 @@ server_loop (void)
 	   object will just result in a discarded EINVAL.  */
 	reply = (struct messenger *)
 	  OBJECT (&thread->aspace,
-		  vg_message_cap (message,
-				  vg_message_cap_count (message) - 1),
+		  vg_message_cap (message, 0),
 		  vg_cap_rmessenger, false, NULL);
 
       /* There are a number of methods that look up an object relative
