@@ -1,9 +1,5 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
-	* exceptions.c (hurd_activation_state_alloc): Set UTCB->TID.
-
-2008-12-18  Neal H. Walfield  <neal@gnu.org>
-
 	* storage.c (struct storage_desc): Add field owner.
 	(shadow_setup): Set DESC->OWNER appropriately.
 	(storage_alloc): Likewise.
@@ -12,6 +8,10 @@
 	
 	(storage_alloc): Move code that updates DESC to before we call
 	rm_folio_object_alloc.  Unlock DESC->LOCK before calling it.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
+	* exceptions.c (hurd_activation_state_alloc): Set UTCB->TID.
 
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
