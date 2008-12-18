@@ -1408,7 +1408,7 @@ server_loop (void)
 
 	    cap_shootdown (principal, slot);
 
-	    memset (target, 0, sizeof (*slot));
+	    memset (slot, 0, sizeof (*slot));
 
 	    vg_cap_rubout_reply (activity, reply);
 	    break;
