@@ -24,6 +24,7 @@
 #include <hurd/as.h>
 #include <hurd/startup.h>
 #include <hurd/capalloc.h>
+#include <hurd/mm.h>
 
 extern struct hurd_startup_data *__hurd_startup_data;      
 
@@ -48,7 +49,8 @@ slab_alloc (void *hook, size_t size, void **ptr)
 
   struct storage storage = storage_alloc (meta_data_activity, vg_cap_page,
 					  STORAGE_LONG_LIVED,
-					  VG_OBJECT_POLICY_DEFAULT, VG_ADDR_VOID);
+					  VG_OBJECT_POLICY_DEFAULT,
+					  VG_ADDR_VOID);
   if (VG_ADDR_IS_VOID (storage.addr))
     panic ("Out of space.");
   *ptr = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
@@ -154,8 +156,8 @@ hurd_message_buffer_alloc_hard (void)
   /* Weaken it.  */
 #if 0
   mb->receiver = capalloc ();
-  struct vg_cap receiver_cap = as_cap_lookup (mb->receiver_strong, vg_cap_messenger,
-					   NULL);
+  struct vg_cap receiver_cap = as_cap_lookup (mb->receiver_strong,
+					      vg_cap_messenger, NULL);
   assert (receiver_cap.type == vg_cap_messenger);
   as_slot_lookup_use
     (mb->receiver,
@@ -181,7 +183,8 @@ hurd_message_buffer_alloc_hard (void)
       if (VG_ADDR_IS_VOID (storage.addr))
 	panic ("Out of space.");
 
-      mb->request = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+      mb->request = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr,
+						    0, PAGESIZE_LOG2));
     }
 
   /* And the receive buffer.  */
@@ -195,7 +198,8 @@ hurd_message_buffer_alloc_hard (void)
       if (VG_ADDR_IS_VOID (storage.addr))
 	panic ("Out of space.");
 
-      mb->reply = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr, 0, PAGESIZE_LOG2));
+      mb->reply = VG_ADDR_TO_PTR (vg_addr_extend (storage.addr,
+						  0, PAGESIZE_LOG2));
     }
 
 
@@ -244,9 +248,8 @@ hurd_message_buffer_alloc_hard (void)
 static struct hurd_message_buffer *buffers;
 static int buffers_count;
 
-static void
-hurd_message_buffer_free_internal (struct hurd_message_buffer *buffer,
-				   bool already_accounted)
+void
+hurd_message_buffer_free (struct hurd_message_buffer *buffer)
 {
   /* XXX We should perhaps free some buffers if we go over a high
      water mark.  */
@@ -259,20 +262,14 @@ hurd_message_buffer_free_internal (struct hurd_message_buffer *buffer,
       if (__sync_val_compare_and_swap (&buffers, buffer->next, buffer)
 	  == buffer->next)
 	{
-	  if (! already_accounted)
-	    __sync_fetch_and_add (&buffers_count, 1);
+	  __sync_fetch_and_add (&buffers_count, 1);
 	  return;
 	}
     }
 }
 
-void
-hurd_message_buffer_free (struct hurd_message_buffer *buffer)
-{
-  hurd_message_buffer_free_internal (buffer, false);
-}
-
 #define BUFFERS_LOW_WATER 4
+#define BUFFERS_HIGH_WATER 8
 
 struct hurd_message_buffer *
 hurd_message_buffer_alloc (void)
@@ -280,19 +277,26 @@ hurd_message_buffer_alloc (void)
   struct hurd_message_buffer *mb;
   do
     {
-#if 0
+      static int allocating;
+
       if (likely (mm_init_done)
-	  && unlikely (buffers_count <= BUFFERS_LOW_WATER))
+	  && unlikely (buffers_count <= BUFFERS_LOW_WATER)
+	  && ! allocating
+	  && __sync_val_compare_and_swap (&allocating, 0, 1) == 1)
 	{
-	  int i = BUFFERS_LOW_WATER;
-	    mb = hurd_message_buffer_alloc_hard ();
+	  for (;;)
+	    {
+	      mb = hurd_message_buffer_alloc_hard ();
 
-	    if (buffers_count == BUFFERS_LOW_WATER)
-	      return mb;
+	      if (buffers_count == BUFFERS_HIGH_WATER)
+		break;
 
-	    hurd_message_buffer_free_internal (buffer, true);
-	  }
-#endif
+	      hurd_message_buffer_free (mb);
+	    }
+
+	  allocating = 0;
+	  return mb;
+	}
 
       mb = buffers;
       if (! mb)

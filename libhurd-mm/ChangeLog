@@ -1,3 +1,14 @@
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
+	* message-buffer.c: Include <hurd/mm.h>.
+	(hurd_message_buffer_free_internal): Remove function.  Move body
+	to...
+	(hurd_message_buffer_free): ... this function.  Update users.
+	(BUFFERS_HIGH_WATER): New define.
+	(hurd_message_buffer_alloc): If the number of buffers in the
+	reserve dips below BUFFERS_LOW_WATER, allocate enough to
+	BUFFERS_HIGH_WATER.
+
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
 	* as-build-custom.c (as_insert_custom): Don't use vg_cap_copy but
