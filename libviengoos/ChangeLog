@@ -1,5 +1,11 @@
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
+	* viengoos/rpc.h (RPC_SEND_UNMARSHAL): Don't error out if there is
+	more data than we strictly require.
+	(RPC_REPLY_UNMARSHAL): Likewise.
+
+2008-12-18  Neal H. Walfield  <neal@gnu.org>
+
 	* viengoos/message.h (vg_message_space): New function.
 
 2008-12-18  Neal H. Walfield  <neal@gnu.org>

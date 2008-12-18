@@ -417,12 +417,10 @@ typedef vg_addr_t cap_t;
     int __rsu_cap_idx __attribute__ ((unused)) = 1;			\
     error_t __rsu_err = 0;						\
     RPCSTORE (icount, ##__VA_ARGS__);					\
-    if (unlikely (__rsu_err						\
-		  || (__rsu_data_idx * sizeof (uintptr_t)		\
-		      != vg_message_data_count (msg)			\
-		      && __rsu_cap_idx + 1 != vg_message_cap_count (msg)))) \
+    /* Note: we do not error out if there are too many arguments.  */	\
+    if (unlikely (__rsu_err))						\
       {									\
-	debug (1, #id " has wrong number of arguments: "		\
+	debug (1, #id " has too little data: "				\
 	       "got %d bytes and %d caps; expected %d/%d",		\
 	       __rsu_data_idx * sizeof (uintptr_t), __rsu_cap_idx + 1,	\
 	       vg_message_data_count (msg),				\
@@ -493,12 +491,10 @@ typedef vg_addr_t cap_t;
     int __rsu_data_idx __attribute__ ((unused)) = 1;			\
     int __rsu_cap_idx __attribute__ ((unused)) = 0;			\
     RPCSTORE (CPP_ADD (out_count, ret_cap_count), ##__VA_ARGS__);	\
-    if (unlikely (__rsu_err						\
-		  || (__rsu_data_idx * sizeof (uintptr_t)		\
-		      != vg_message_data_count (msg)			\
-		      || __rsu_cap_idx != vg_message_cap_count (msg)))) \
+    /* Note: we do not error out if there are too many arguments.  */	\
+    if (unlikely (__rsu_err))						\
       {									\
-	debug (1, #id " has wrong number of arguments: "		\
+	debug (1, #id " has too little data: "				\
 	       "got %d bytes and %d caps; expected %d/%d",		\
 	       __rsu_data_idx * sizeof (uintptr_t), __rsu_cap_idx,	\
 	       vg_message_data_count (msg),				\
