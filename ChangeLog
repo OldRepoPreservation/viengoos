@@ -1,3 +1,12 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* configure.ac (--enable-l4-abi): Replace option with...
+	(--enable-l4): ... this option.
+	(l4_abi): Set appropriately.
+	(USE_L4): Define as a preprocessor macro (if appropriate) and an
+	automake conditional.
+	* README: Update build instructions.
+
 2008-11-19  Neal H. Walfield  <neal@gnu.org>
 
 	* configure.ac: Rename amd64 to x86_64.  Update users.

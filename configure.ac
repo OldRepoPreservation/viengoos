@@ -153,32 +153,31 @@ AM_CONDITIONAL([ARCH_IA64], $arch_ia64)
 AM_CONDITIONAL([ARCH_POWERPC], $arch_powerpc)
 AM_CONDITIONAL([ARCH_POWERPC64], $arch_powerpc64)
 
-l4_abi_v2=false
+# Whether to use L4.
+l4_abi=false
 l4_abi_x2=false
-AC_ARG_ENABLE([l4-abi],
-	      AC_HELP_STRING([--enable-l4-abi=abi],
-		             [L4 ABI to use (supported are: v2, x2)]),
-	      [ac_cv_use_l4_abi=$enableval], [ac_cv_use_l4_abi=no])
-AC_DEFINE([USE_L4], [], [Whether to use L4.])
-case $ac_cv_use_l4_abi in
-  v2)
-    l4_abi=v2
-    l4_abi_v2=true
-    ;;
-  x2)
+AC_ARG_ENABLE([l4],
+	      AC_HELP_STRING([--enable-l4=yes],
+		             [Use L4 as a hardware abstraction layer.]),
+	      [ac_cv_use_l4=$enableval], [ac_cv_use_l4=no])
+case $ac_cv_use_l4 in
+  yes|true)
     l4_abi=x2
     l4_abi_x2=true
     ;;
   no)
-    AC_MSG_ERROR([L4 ABI not specified; select an ABI using --enable-l4-abi])
+    l4_abi=false
     ;;
   *)
-    AC_MSG_ERROR([unsupported L4 ABI $ac_cv_use_l4_abi])
+    AC_MSG_ERROR([invalid value passed to --enable-l4])
     ;;
 esac
-AM_CONDITIONAL([L4_ABI_V2], $l4_abi_v2)
+AM_CONDITIONAL([USE_L4], test x$l4_abi != xfalse)
 AM_CONDITIONAL([L4_ABI_X2], $l4_abi_x2)
-AC_MSG_NOTICE([compiling for L4 ABI $l4_abi])
+if test $l4_abi != false
+then
+  AC_MSG_NOTICE([compiling for L4.])
+fi
 
 # Configure components.
 m4_include([laden/config.m4])
@@ -263,17 +262,22 @@ case $ac_cv_runtime_checks in
        ;;
 esac
 
+if test $l4_abi != false
+then
+  USE_L4="-DUSE_L4=1"
+fi
+
 USER_CPPFLAGS=" \
-	$CPP_CHECKS  \
-	-D_GNU_SOURCE -DUSE_L4 \
+	$CPP_CHECKS $USE_L4 \
+	-D_GNU_SOURCE \
 	-I${LIBC}/include \
 	-I${ABS_SRCDIR}/libc-parts"
 USER_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline $C_CHECKS"
 USER_LDFLAGS="-u_start -e_start"
 
 KERNEL_CPPFLAGS="\
-	$CPP_CHECKS \
-	-D_GNU_SOURCE -DRM_INTERN -DUSE_L4 \
+	$CPP_CHECKS $USE_L4 \
+	-D_GNU_SOURCE -DRM_INTERN \
 	-I${ABS_SRCDIR}/libc-parts"
 KERNEL_CFLAGS="-std=gnu99 -Wall -g -O2 $libc_cv_gnu89_inline $C_CHECKS"
 

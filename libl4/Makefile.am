@@ -24,9 +24,6 @@ endif
 if ARCH_POWERPC
   ARCH_SUBDIR = powerpc
 endif
-if L4_ABI_V2
-  L4_ABI_SUBDIR = v2
-endif
 if L4_ABI_X2
   L4_ABI_SUBDIR = x2
 endif

@@ -32,12 +32,12 @@ Building the code is straightforward:
 $ autoreconf -i
 $ mkdir test build
 $ cd test/
-$ ../configure --enable-l4-abi=x2 \
-	--host=i686-pc-viengoos-gnu --enable-tests
+$ ../configure --enable-l4 --host=i686-pc-viengoos-gnu \
+	--enable-tests
 $ make check
 $ cd ../build/
-$ ../configure --enable-l4-abi=x2 \
-	--host=i686-pc-viengoos-gnu --with-newlib
+$ ../configure --enable-l4 --host=i686-pc-viengoos-gnu \
+	--with-newlib
 $ make [to build the cross compiler]
 $ make [to build Viengoos proper]
 $ mkdir /l4/boot
