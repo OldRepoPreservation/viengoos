@@ -1,5 +1,11 @@
 2009-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* exceptions.c (hurd_activation_stack_dump): Use AF_REGS_FMT and
+	AF_REGS_PRINTF rather than naming the registers explicitly.
+	(hurd_activation_handler_normal): Likewise.
+
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* mm-init.c (mm_init) [!NDEBUG && i386]: Clear STORAGE and assert
 	that it is not VG_ADDR_VOID before freeing the associated storage.
 	Assert that the fault callback was called.

@@ -280,20 +280,8 @@ hurd_activation_stack_dump (void)
        activation_frame = activation_frame->next)
     {
       depth ++;
-      debug (0, "%d (%p): ip: %p, sp: %p, eax: %p, ebx: %p, ecx: %p, "
-	     "edx: %p, edi: %p, esi: %p, ebp: %p, eflags: %p",
-	     depth, activation_frame,
-	     (void *) activation_frame->eip,
-	     (void *) activation_frame->esp,
-	     (void *) activation_frame->eax,
-	     (void *) activation_frame->ebx,
-	     (void *) activation_frame->ecx,
-	     (void *) activation_frame->edx,
-	     (void *) activation_frame->edi,
-	     (void *) activation_frame->esi,
-	     (void *) activation_frame->ebp,
-	     (void *) activation_frame->eflags);
-
+      debug (0, "%d (%p): " AF_REGS_FMT,
+	     depth, activation_frame, AF_REGS_PRINTF (activation_frame));
     }
 }
 
@@ -353,19 +341,9 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 	    if (err)
 	      panic ("Failed to unmarshal exception: %d", err);
 
-	    debug (5, "Fault at " VG_ADDR_FMT " (ip: %p, sp: %p, eax: %p, "
-		   "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, ebp: %p, "
-		   "eflags: %p)",
+	    debug (5, "Fault at " VG_ADDR_FMT " " AF_REGS_FMT,
 		   VG_ADDR_PRINTF (fault),
-		   (void *) ip, (void *) sp,
-		   (void *) activation_frame->eax,
-		   (void *) activation_frame->ebx,
-		   (void *) activation_frame->ecx,
-		   (void *) activation_frame->edx,
-		   (void *) activation_frame->edi,
-		   (void *) activation_frame->esi,
-		   (void *) activation_frame->ebp,
-		   (void *) activation_frame->eflags);
+		   AF_REGS_PRINTF (activation_frame));
 
 	    extern l4_thread_id_t as_rwlock_owner;
 
@@ -403,19 +381,9 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 		    if (as_rwlock_owner == l4_myself ())
 		      debug (0, "I hold as_rwlock!");
 
-		    debug (0, "SIGSEGV at " VG_ADDR_FMT " "
-			   "(ip: %p, sp: %p, eax: %p, ebx: %p, ecx: %p, "
-			   "edx: %p, edi: %p, esi: %p, ebp: %p, eflags: %p)",
+		    debug (0, "SIGSEGV at " VG_ADDR_FMT " " AF_REGS_FMT,
 			   VG_ADDR_PRINTF (fault),
-			   (void *) ip, (void *) sp,
-			   (void *) activation_frame->eax,
-			   (void *) activation_frame->ebx,
-			   (void *) activation_frame->ecx,
-			   (void *) activation_frame->edx,
-			   (void *) activation_frame->edi,
-			   (void *) activation_frame->esi,
-			   (void *) activation_frame->ebp,
-			   (void *) activation_frame->eflags);
+			   AF_REGS_PRINTF (activation_frame));
 
 		    backtrace_print ();
 

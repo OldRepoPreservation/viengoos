@@ -37,6 +37,21 @@ struct activation_frame
     uintptr_t regs[10];
     struct
     {
+#define AF_REGS_FMT					\
+      "ip: %p, sp: %p, eax: %p, ebx: %p, ecx: %p, "	\
+      "edx: %p, edi: %p, esi: %p, ebp: %p, eflags: %p"
+#define AF_REGS_PRINTF(activation_frame)		\
+      (void *) activation_frame->eip,			\
+      (void *) activation_frame->esp,			\
+      (void *) activation_frame->eax,			\
+      (void *) activation_frame->ebx,			\
+      (void *) activation_frame->ecx,			\
+      (void *) activation_frame->edx,			\
+      (void *) activation_frame->edi,			\
+      (void *) activation_frame->esi,			\
+      (void *) activation_frame->ebp,			\
+      (void *) activation_frame->eflags
+
       uintptr_t eax;
       uintptr_t ecx;
       uintptr_t edx;

@@ -1,3 +1,8 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* thread.h (AF_REGS_FMT): New macro.
+	(AF_REGS_PRINTF): Likewise.
+
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
 	* thread.h (hurd_myself): Assume UTCB->TID is set correctly.
