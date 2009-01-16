@@ -19,20 +19,28 @@
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
 # USA.  */
 
-lib_LIBRARIES = libhurd-btree.a
+lib_LIBRARIES = libhurd-btree.a libhurd-btree-kernel.a
 
 includehurddir = $(includedir)/hurd
 includehurd_HEADERS = btree.h
 
-libhurd_btree_a_CPPFLAGS = -DNCHECKS
 if ENABLE_TESTS
-libhurd_btree_a_CPPFLAGS += $(CHECK_CPPFLAGS)
+libhurd_btree_a_CPPFLAGS = $(CHECK_CPPFLAGS)
 libhurd_btree_a_CFLAGS = $(CHECK_CFLAGS)
 else
-libhurd_btree_a_CPPFLAGS += $(USER_CPPFLAGS)
+libhurd_btree_a_CPPFLAGS = $(USER_CPPFLAGS)
 libhurd_btree_a_CFLAGS = $(USER_CFLAGS)
 endif
 libhurd_btree_a_SOURCES = btree.h btree.c
+
+if ENABLE_TESTS
+libhurd_btree_kernel_a_CPPFLAGS = $(CHECK_CPPFLAGS)
+libhurd_btree_kernel_a_CFLAGS = $(CHECK_CFLAGS)
+else
+libhurd_btree_kernel_a_CPPFLAGS = $(KERNEL_CPPFLAGS)
+libhurd_btree_kernel_a_CFLAGS = $(KERNEL_CFLAGS)
+endif
+libhurd_btree_kernel_a_SOURCES = btree.h btree.c
 
 TESTS = btree-test t-find-first
 

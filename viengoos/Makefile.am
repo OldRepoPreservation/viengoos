@@ -56,7 +56,7 @@ viengoos_SOURCES = $(ARCH_SOURCES)		\
 	list.h
 
 viengoos_LDADD = \
-	../libhurd-btree/libhurd-btree.a \
+	../libhurd-btree/libhurd-btree-kernel.a \
 	../libhurd-ihash/libhurd-ihash-nomalloc.a \
 	../libhurd-mm/libas-kernel.a \
 	../libc-parts/libc-kernel.a \

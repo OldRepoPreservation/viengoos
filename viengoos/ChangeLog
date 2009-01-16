@@ -1,3 +1,9 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (viengoos_LDADD): Link to
+	../libhurd-btree/libhurd-btree-kernel.a, not
+	../libhurd-btree/libhurd-btree.a.
+
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
 	* server.c (server_loop): Handle multiple objects in

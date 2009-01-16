@@ -1,5 +1,13 @@
 2009-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (lib_LIBRARIES): Add libhurd-btree-kernel.a.
+	(libhurd_btree_a_CPPFLAGS): Don't include -DNCHECKS.
+	(libhurd_btree_kernel_a_CPPFLAGS): New variable.
+	(libhurd_btree_kernel_a_CFLAGS): Likewise.
+	(libhurd_btree_kernel_a_SOURCES): Likewise.
+
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* btree.h (BTREE_NP): Cast (__BN_NODE_PTR).PTR to a uintptr_t
 	before using it.
 
