@@ -161,7 +161,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
       if (! ss_mutex_trylock (&anon->fill_lock))
 	/* The fill lock is held.  */
 	{
-	  if (anon->fill_thread == l4_myself ())
+	  if (anon->fill_thread == hurd_myself ())
 	    /* By us!  */
 	    recursive = true;
 
@@ -172,8 +172,8 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 
       /* We have the lock.  */
       if (! recursive)
-	assert (anon->fill_thread == l4_nilthread);
-      anon->fill_thread = l4_myself ();
+	assert (anon->fill_thread == vg_niltid);
+      anon->fill_thread = hurd_myself ();
 
       if (! recursive && (anon->flags & ANONYMOUS_THREAD_SAFE))
 	/* Revoke access to the visible region.  */
@@ -424,7 +424,7 @@ fault (struct pager *pager, uintptr_t offset, int count, bool read_only,
 		 }));
 	    }
 
-	  anon->fill_thread = l4_nilthread;
+	  anon->fill_thread = vg_niltid;
 	  ss_mutex_unlock (&anon->fill_lock);
 	}
     }

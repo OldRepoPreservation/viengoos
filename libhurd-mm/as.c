@@ -28,18 +28,26 @@
 #include <hurd/btree.h>
 #include <hurd/slab.h>
 #include <hurd/mutex.h>
-#include <l4/types.h>
-#include <l4/kip.h>
+
+#ifdef USE_L4
+#  include <l4/types.h>
+#  include <l4/kip.h>
+#endif
 
 #include <string.h>
 
 extern struct hurd_startup_data *__hurd_startup_data;
 
 /* The top of the data address space.  */
-#if L4_WORDSIZE == 32
-#define DATA_ADDR_MAX (0xC0000000ULL)
+#include <bits/wordsize.h>
+#if __WORDSIZE == 32
+# define DATA_ADDR_MAX (0xC0000000ULL)
+#elif __WORDSIZE == 64
+/* XXX: For now, assume that we have 48 bits of virtual address
+   space.  */
+# define DATA_ADDR_MAX (1ULL << 48)
 #else
-#error define DATA_ADDR_MAX
+# error __WORDSIZE not defined or invalid.
 #endif
 
 /* Set to true before as_init returns.  Indicates that the shadow page
@@ -47,7 +55,7 @@ extern struct hurd_startup_data *__hurd_startup_data;
 bool as_init_done;
 
 pthread_rwlock_t as_rwlock;
-l4_thread_id_t as_rwlock_owner;
+vg_thread_id_t as_rwlock_owner;
 
 /* We keep track of the regions which are unallocated.  These regions
    are kept in a btree allowing for fast allocation, fast searching
@@ -399,6 +407,7 @@ as_alloc_slow (int width)
     if (end >= DATA_ADDR_MAX)
       return 0;
 
+#ifdef USE_L4
     if (! (end < (uintptr_t) l4_kip ()
 	   || (uintptr_t) l4_kip () + l4_kip_area_size () <= start))
       /* Overlaps the KIP.  */
@@ -408,6 +417,7 @@ as_alloc_slow (int width)
 	   || ((uintptr_t) _L4_utcb () + l4_utcb_size () <= start)))
       /* Overlaps the UTCB.  */
       return 0;
+#endif
 
     /* Be sure we haven't already given this address out.  */
     int i;
@@ -615,9 +625,11 @@ as_init (void)
 	}
     }
 
+#ifdef USE_L4
   /* Reserve the kip and the utcb.  */
   as_alloc_at (VG_ADDR ((uintptr_t) l4_kip (), VG_ADDR_BITS), l4_kip_area_size ());
   as_alloc_at (VG_ADDR ((uintptr_t) _L4_utcb (), VG_ADDR_BITS), l4_utcb_size ());
+#endif
 
   /* And the page at 0.  */
   as_alloc_at (vg_addr_chop (VG_PTR_TO_ADDR (0), PAGESIZE_LOG2), 1);

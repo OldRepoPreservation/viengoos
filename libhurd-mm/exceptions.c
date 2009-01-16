@@ -25,7 +25,10 @@
 #include <hurd/mm.h>
 #include <viengoos/misc.h>
 #include <hurd/slab.h>
-#include <l4/thread.h>
+
+#ifdef USE_L4
+# include <l4/thread.h>
+#endif
 
 #include <signal.h>
 #include <string.h>
@@ -102,6 +105,7 @@ hurd_activation_frame_longjmp (struct activation_frame *activation_frame,
 #endif
 }
 
+#ifdef USE_L4
 static void
 l4_utcb_state_save (struct activation_frame *activation_frame)
 {
@@ -131,6 +135,10 @@ l4_utcb_state_restore (struct activation_frame *activation_frame)
   memcpy (&utcb[_L4_UTCB_MR0], &activation_frame->saved_message,
 	  L4_NUM_MRS * sizeof (uintptr_t));
 }
+#else
+# define l4_utcb_state_save(f)
+# define l4_utcb_state_restore(f)
+#endif
 
 /* Fetch any pending activation.  */
 void
@@ -345,10 +353,10 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 		   VG_ADDR_PRINTF (fault),
 		   AF_REGS_PRINTF (activation_frame));
 
-	    extern l4_thread_id_t as_rwlock_owner;
+	    extern vg_thread_id_t as_rwlock_owner;
 
 	    bool r = false;
-	    if (likely (as_rwlock_owner != l4_myself ()))
+	    if (likely (as_rwlock_owner != hurd_myself ()))
 	      r = map_fault (fault, ip, info);
 	    if (! r)
 	      {
@@ -378,7 +386,7 @@ hurd_activation_handler_normal (struct activation_frame *activation_frame,
 
 		if (! catcher)
 		  {
-		    if (as_rwlock_owner == l4_myself ())
+		    if (as_rwlock_owner == hurd_myself ())
 		      debug (0, "I hold as_rwlock!");
 
 		    debug (0, "SIGSEGV at " VG_ADDR_FMT " " AF_REGS_FMT,

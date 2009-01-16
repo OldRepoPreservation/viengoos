@@ -1,5 +1,21 @@
 2009-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* cap.h: Don't include <l4.h>.
+	* mutex.h [USE_L4]: Only include <l4/thread.h> in this case.
+	(ss_mutex_t) [! USE_L4]: Define to be an int.
+	(ss_mutex_lock) [! USE_L4]: Make a no-op.
+	(ss_mutex_unlock) [! USE_L4]: Likewise.
+	(ss_mutex_trylock) [! USE_L4]: Likewise.
+	* object.h [USE_L4]: Only include <l4.h> in this case.
+	(object_desc_unmap) [! USE_L4]: Make a no-op.
+	(object_desc_flush) [! USE_L4]: Likewise.
+	* thread.h: Don't include <l4.h>.
+	(struct thread): Make tid a vg_thread_id_t, not an l4_thread_id_t.
+	(thread_lookup): Make threadid a vg_thread_id_t, not an
+	l4_thread_id_t.
+
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* Makefile.am (viengoos_LDADD): Link to
 	../libhurd-btree/libhurd-btree-kernel.a, not
 	../libhurd-btree/libhurd-btree.a.

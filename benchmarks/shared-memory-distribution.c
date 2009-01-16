@@ -46,15 +46,15 @@ main (int argc, char *argv[])
 				   VG_ADDR_VOID).addr;
 
   bool terminate = false;
-  l4_thread_id_t tids[THREADS];
+  vg_thread_id_t tids[THREADS];
   for (i = 0; i < THREADS; i ++)
-    tids[i] = l4_nilthread;
+    tids[i] = vg_niltid;
 
   void *worker (void *arg)
   {
     int w = (intptr_t) arg;
 
-    tids[w] = l4_myself ();
+    tids[w] = hurd_myself ();
 
     pthread_setactivity_np (activities[w]);
 
@@ -77,7 +77,7 @@ main (int argc, char *argv[])
 #if 0
 	/* ~128Hz.  */
 	l4_sleep (l4_time_period (1 << 13));
-#elif 1
+#elif 0
 	l4_thread_switch (tids[rand () % THREADS]);
 #endif
       }
@@ -106,7 +106,7 @@ main (int argc, char *argv[])
   uintptr_t next_period = 0;
   for (i = 0; i < ITERATIONS; i ++)
     {
-      debug (0, DEBUG_BOLD ("starting iteration %d (%x)"), i, l4_myself ());
+      debug (0, DEBUG_BOLD ("starting iteration %d (%x)"), i, hurd_myself ());
 
       struct vg_activity_info info;
 

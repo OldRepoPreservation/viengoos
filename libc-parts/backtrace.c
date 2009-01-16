@@ -17,7 +17,13 @@
    <http://www.gnu.org/licenses/>.  */
 
 #include <s-printf.h>
-#include <l4.h>
+
+#ifndef RM_INTERN
+# include <hurd/thread.h>
+#endif
+#ifdef USE_L4
+# include <l4.h>
+#endif
 
 #ifdef RM_INTERN
 # define RA(level)							\
@@ -134,7 +140,17 @@ backtrace_print (void)
   void *bt[20];
   int count = backtrace (bt, sizeof (bt) / sizeof (bt[0]));
 
+#ifdef USE_L4
   s_printf ("Backtrace for %x: ", l4_myself ());
+#else
+# ifndef RM_INTERN
+  s_printf ("Backtrace for %x: ", hurd_myself ());
+# else
+#  warning Don't know how to get tid.
+  s_printf ("Backtrace: ");
+# endif
+#endif
+
   int i;
   for (i = 0; i < count; i ++)
     s_printf ("%p ", bt[i]);

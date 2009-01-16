@@ -397,7 +397,7 @@ helper_fork (void)
     panic ("Failed to allocate main activity");
 
   struct vg_object_name name;
-  snprintf (&name.name[0], sizeof (name.name), "main.%x", l4_myself ());
+  snprintf (&name.name[0], sizeof (name.name), "main.%x", hurd_myself ());
   vg_object_name (VG_ADDR_VOID, main_activity, name);
 
   hog_activity = storage_alloc (VG_ADDR_VOID,
@@ -406,7 +406,7 @@ helper_fork (void)
   if (VG_ADDR_IS_VOID (hog_activity))
     panic ("Failed to allocate hog activity");
 
-  snprintf (&name.name[0], sizeof (name.name), "hog.%x", l4_myself ());
+  snprintf (&name.name[0], sizeof (name.name), "hog.%x", hurd_myself ());
   vg_object_name (VG_ADDR_VOID, hog_activity, name);
 
   /* We give the main thread and the hog the same priority and
@@ -1034,7 +1034,9 @@ main (int argc, char *argv[])
 		printf ("Object %d is at: %p (%d/%d)\n",
 			id, object, i[0], i[1]);
 	      }
+#ifdef USE_L4
 	    _L4_kdb ("");
+#endif
 	    abort ();
 	  }
 

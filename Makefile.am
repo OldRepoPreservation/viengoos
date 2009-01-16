@@ -30,15 +30,23 @@ else
   NEWLIB_SUBDIRS =
 endif
 
+if USE_L4
+  L4_SUBDIRS = libl4 laden
+else
+  L4_SUBDIRS =
+endif
+
 if TRAVERSE_HIERARCHY
-SUBDIRS = libl4 libviengoos platform			\
+SUBDIRS = libviengoos platform				\
 	$(LIBC_SUBDIRS)	$(NEWLIB_SUBDIRS)		\
-	hurd libhurd-ihash libhurd-btree libbitarray	\
+	libhurd-ihash libhurd-btree libbitarray		\
+	hurd						\
+	libc-parts					\
+	$(L4_SUBDIRS)					\
 	libhurd-slab					\
 	libpthread					\
 	libhurd-mm					\
-	libc-parts					\
-	laden viengoos					\
+	viengoos					\
 	.						\
 	ruth						\
 	benchmarks					\

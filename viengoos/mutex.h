@@ -21,12 +21,18 @@
 #ifndef _MUTEX_H
 #define _MUTEX_H
 
-#include <l4/thread.h>
+#ifdef USE_L4
+# include <l4/thread.h>
+#endif
 #include <atomic.h>
 #include <assert.h>
 #include <hurd/lock.h>
 
+#ifdef USE_L4
 typedef l4_thread_id_t ss_mutex_t;
+#else
+typedef int ss_mutex_t;
+#endif
 
 /* Used by the atomic operations.  */
 extern void abort (void);
@@ -34,6 +40,7 @@ extern void abort (void);
 static inline void
 ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lock)
 {
+#ifdef USE_L4
   l4_thread_id_t owner;
 
   for (;;)
@@ -53,6 +60,9 @@ ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lock)
 
       __ss_lock_wait (l4_anylocalthread);
     }
+#else
+# warning Unimplemened on this platform.
+#endif
 }
 
 #define ss_mutex_lock(__sml_lockp)					\
@@ -66,6 +76,7 @@ ss_mutex_lock (__const char *caller, int line, ss_mutex_t *lock)
 static inline void
 ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lock)
 {
+#ifdef USE_L4
   l4_thread_id_t waiter;
 
   waiter = atomic_exchange_acq (lock, l4_nilthread);
@@ -80,6 +91,9 @@ ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lock)
 
   /* Signal the waiter.  */
   __ss_lock_wakeup (waiter);
+#else
+# warning Unimplemened on this platform.
+#endif
 }
 
 #define ss_mutex_unlock(__smu_lockp)					\
@@ -93,6 +107,7 @@ ss_mutex_unlock (__const char *caller, int line, ss_mutex_t *lock)
 static inline bool
 ss_mutex_trylock (__const char *caller, int line, ss_mutex_t *lock)
 {
+#ifdef USE_L4
   l4_thread_id_t owner;
 
   owner = atomic_compare_and_exchange_val_acq (lock, l4_myself (),
@@ -106,6 +121,10 @@ ss_mutex_trylock (__const char *caller, int line, ss_mutex_t *lock)
   // ss_mutex_trace_add (SS_MUTEX_TRYLOCK_BLOCKED, caller, line, lock);
 
   return false;
+#else
+# warning Unimplemened on this platform.
+  return true;
+#endif
 }
 
 #define ss_mutex_trylock(__sml_lockp)					\

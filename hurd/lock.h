@@ -141,7 +141,11 @@ ss_mutex_trace_add (int func, __const char *caller, int line, void *lock)
   ss_lock_trace[i].caller = caller;
   ss_lock_trace[i].line = line;
   ss_lock_trace[i].lock = lock;
+# ifdef USE_L4
   ss_lock_trace[i].tid = l4_myself ();
+# else
+  ss_lock_trace[i].tid = 0;
+# endif
 #endif  /* NDEBUG */
 }
 

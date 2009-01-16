@@ -1,3 +1,32 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* _exit.c (_exit): Use sched_yield, not l4_yield.
+	* backtrace.c [USE_L4]: Only include <l4.h> in this case.
+	[! RM_INTERN]: Include <hurd/thread.h>.
+	(backtrace_print) [! USE_L4 && ! RM_INTERN]: Use hurd_myself to
+	get the caller's tid.
+	[! USE_L4 && RM_INTERN]: Don't print a tid.
+	* ia32-cmain.c [! USE_L4]: Don't include <l4/globals.h>,
+	<l4/init.h>, <l4/stubs.h>, or <l4/stubs-init.h>.
+	(cmain) [! USE_L4]: Don't call l4_init or l4_init_stubs.
+	* loader.c: Don't include <l4.h>.  Include <bits/wordsize.h> and
+	<endian.h>.
+	(loader_elf_load): Use __WORDSIZE, __BYTE_ORDER, __LITTLE_ENDIAN
+	and __BIG_ENDIAN instead of their L4 names.
+	* panic.c: Include <viengoos/thread.h>.
+	[! RM_INTERN]: Include <hurd/thread.h>.
+	(panic_) [! USE_L4 && ! RM_INTERN]: Use hurd_myself, not
+	l4_myself.
+	[! USE_L4 && RM_INTERN]: Don't print a tid.
+	(panic_): Call sched_yield, not l4_yield.
+	* process-spawn.c (process_spawn) [! USE_L4]: Don't pass utcb and
+	kip information.  Change sp from a l4_word_to to a uintptr_t.
+	* profile.c [! USE_L4]: Don't include <l4.h>.
+	(now) [__gnu_hurd_viengoos__ && ! USE_L4]: Just return 0.
+	(struct profile_block): Change tid to a vg_thread_id_t.
+	(MYSELF) [__gnu_hurd_viengoos__ && ! USE_L4]: Just return 0.
+	* s_printf.c (io_buffer_flush) [! USE_L4]: Abort.
+
 2008-12-17  Neal H. Walfield  <neal@gnu.org>
 
 	* process-spawn.c (process_spawn): Don't use vg_cap_copy but

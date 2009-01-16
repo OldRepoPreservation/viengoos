@@ -268,16 +268,18 @@ process_spawn (vg_addr_t activity,
 
   startup_data->version_major = HURD_STARTUP_VERSION_MAJOR;
   startup_data->version_minor = HURD_STARTUP_VERSION_MINOR;
-#ifdef RM_INTERN
+#ifdef USE_L4
+# ifdef RM_INTERN
   startup_data->utcb_area = UTCB_AREA_BASE;
   startup_data->rm = l4_myself ();
-#else
+# else
   {
     extern struct hurd_startup_data *__hurd_startup_data;
 
     startup_data->utcb_area = __hurd_startup_data->utcb_area;
     startup_data->rm = __hurd_startup_data->rm;
   }
+# endif
 #endif
   startup_data->descs = (void *) STARTUP_DATA_ADDR + descs_offset;
 
@@ -747,7 +749,7 @@ process_spawn (vg_addr_t activity,
   thread->aspace = *as_root_cap;
   thread->activity = object_to_cap ((struct vg_object *) root_activity);
 
-  l4_word_t sp = STARTUP_DATA_ADDR;
+  uintptr_t sp = STARTUP_DATA_ADDR;
 
   error_t err;
   err = thread_exregs (root_activity, thread,

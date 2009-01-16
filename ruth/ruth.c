@@ -22,6 +22,10 @@
 #include <config.h>
 #endif
 
+#ifdef USE_L4
+# include <l4.h>
+#endif
+
 #include <viengoos/cap.h>
 #include <viengoos/folio.h>
 #include <viengoos/activity.h>
@@ -44,8 +48,6 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <setjmp.h>
-
-#include <l4.h>
 
 extern int output_debug;
 
@@ -70,8 +72,10 @@ main (int argc, char *argv[])
   printf ("%s " PACKAGE_VERSION "\n", program_name);
   printf ("Hello, here is Ruth, your friendly root server!\n");
 
+#ifdef USE_L4
   debug (2, "RM: %x.%x", l4_thread_no (__hurd_startup_data->rm),
 	 l4_version (__hurd_startup_data->rm));
+#endif
 
   activity = __hurd_startup_data->activity;
 
@@ -79,7 +83,7 @@ main (int argc, char *argv[])
     printf ("Checking shadow page tables... ");
 
     int visit (vg_addr_t addr,
-	       l4_word_t type, struct vg_cap_properties properties,
+	       uintptr_t type, struct vg_cap_properties properties,
 	       bool writable,
 	       void *cookie)
       {
@@ -138,7 +142,7 @@ main (int argc, char *argv[])
 
 	if (0 <= i && i < VG_FOLIO_OBJECTS)
 	  {
-	    l4_word_t type;
+	    uintptr_t type;
 	    struct vg_cap_properties properties;
 	    err = vg_cap_read (activity, VG_ADDR_VOID, addr, &type, &properties);
 	    assert (! err);
@@ -189,7 +193,7 @@ main (int argc, char *argv[])
 	int j;
 	for (j = 0; j <= i; j ++)
 	  {
-	    l4_word_t type;
+	    uintptr_t type;
 	    struct vg_cap_properties properties;
 
 	    error_t err = vg_cap_read (activity, VG_ADDR_VOID,
@@ -319,13 +323,11 @@ main (int argc, char *argv[])
       do_debug (4)
 	as_dump ("thread");
 
-      debug (4, "I'm running (%x.%x)!",
-	     l4_thread_no (l4_myself ()),
-	     l4_version (l4_myself ()));
+      debug (4, "I'm running (%x)!", hurd_myself ());
 
       done = 1;
       do
-	l4_yield ();
+	sched_yield ();
       while (1);
     }
 
@@ -341,8 +343,8 @@ main (int argc, char *argv[])
     in.aspace_cap_properties = VG_CAP_PROPERTIES_DEFAULT;
     in.aspace_cap_properties_flags = VG_CAP_COPY_COPY_SOURCE_GUARD;
 
-    in.sp = (l4_word_t) ((void *) stack + sizeof (stack));
-    in.ip = (l4_word_t) &start;
+    in.sp = (uintptr_t) ((void *) stack + sizeof (stack));
+    in.ip = (uintptr_t) &start;
 
     struct vg_thread_exregs_out out;
 
@@ -355,7 +357,7 @@ main (int argc, char *argv[])
 
     debug (5, "Waiting for thread");
     while (done == 0)
-      l4_yield ();
+      sched_yield ();
     debug (5, "Thread done!");
 
     storage_free (storage, true);
@@ -380,22 +382,21 @@ main (int argc, char *argv[])
     {
       uintptr_t i = (uintptr_t) arg;
 
-      debug (5, "%d (%x.%x) started", (int) i,
-	     l4_thread_no (l4_myself ()), l4_version (l4_myself ()));
+      debug (5, "%d (%x) started", (int) i, hurd_myself ());
 
       int c;
       for (c = 0; c < FACTOR; c ++)
 	{
 	  int w;
 	  for (w = 0; w < 10; w ++)
-	    l4_yield ();
+	    sched_yield ();
 
 	  pthread_mutex_lock (&mutex);
 
 	  debug (5, "%d calling, count=%d", (int) i, shared_resource);
 
 	  for (w = 0; w < 10; w ++)
-	    l4_yield ();
+	    sched_yield ();
 
 	  shared_resource ++;
 
@@ -497,7 +498,7 @@ main (int argc, char *argv[])
 
 	  /* Block.  */
 	  while (i != 1)
-	    l4_yield ();
+	    sched_yield ();
 
 	  i = 0;
 
@@ -679,7 +680,7 @@ main (int argc, char *argv[])
 	  assert (err == 0);
 	  assert (! VG_ADDR_IS_VOID (a[i].page));
 
-	  l4_word_t type;
+	  uintptr_t type;
 	  struct vg_cap_properties properties;
 
 	  err = vg_cap_read (a[i].child, VG_ADDR_VOID,
@@ -888,8 +889,11 @@ main (int argc, char *argv[])
 					    VG_ADDR_VOID);
     assert (! VG_ADDR_IS_VOID (storage.addr));
 
+    volatile int in = 0;
     void *start (void *arg)
     {
+      __sync_fetch_and_add (&in, 1);
+
       uintptr_t ret = 0;
       error_t err;
       err = vg_object_reply_on_destruction (VG_ADDR_VOID, storage.addr, &ret);
@@ -903,9 +907,8 @@ main (int argc, char *argv[])
     error_t err = pthread_create (&tid, NULL, start, 0);
     assert (err == 0);
 
-    int i;
-    for (i = 0; i < 100; i ++)
-      l4_yield ();
+    while (! in)
+      sched_yield ();
 
     /* Deallocate the object.  */
     debug (5, "Destroying object");

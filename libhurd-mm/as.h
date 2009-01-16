@@ -24,8 +24,8 @@
 
 #include <viengoos/addr.h>
 #include <viengoos/cap.h>
+#include <hurd/thread.h>
 #include <stdbool.h>
-#include <l4/types.h>
 
 /* The address space allocator keeps track of which addresses are
    allocated and which are available.  The allocator supports the
@@ -104,7 +104,7 @@ static inline void
 as_lock (void)
 {
   extern pthread_rwlock_t as_rwlock;
-  extern l4_thread_id_t as_rwlock_owner;
+  extern vg_thread_id_t as_rwlock_owner;
 
   as_lock_ensure_stack (AS_STACK_SPACE);
 
@@ -112,10 +112,10 @@ as_lock (void)
 
   for (;;)
     {
-      assert (as_rwlock_owner != l4_myself ());
+      assert (as_rwlock_owner != hurd_myself ());
       pthread_rwlock_wrlock (&as_rwlock);
       assert (as_rwlock_owner == 0);
-      as_rwlock_owner = l4_myself ();
+      as_rwlock_owner = hurd_myself ();
 
       if (! storage_have_reserve ())
 	{
@@ -133,7 +133,7 @@ static inline void
 as_lock_readonly (void)
 {
   extern pthread_rwlock_t as_rwlock;
-  extern l4_thread_id_t as_rwlock_owner;
+  extern vg_thread_id_t as_rwlock_owner;
 
   as_lock_ensure_stack (AS_STACK_SPACE);
 
@@ -141,7 +141,7 @@ as_lock_readonly (void)
 
   for (;;)
     {
-      assert (as_rwlock_owner != l4_myself ());
+      assert (as_rwlock_owner != hurd_myself ());
       pthread_rwlock_rdlock (&as_rwlock);
       assert (as_rwlock_owner == 0);
 
@@ -160,12 +160,12 @@ static inline void
 as_unlock (void)
 {
   extern pthread_rwlock_t as_rwlock;
-  extern l4_thread_id_t as_rwlock_owner;
+  extern vg_thread_id_t as_rwlock_owner;
 
   if (as_rwlock_owner)
     /* Only set for a write lock.  */
     {
-      assert (as_rwlock_owner == l4_myself ());
+      assert (as_rwlock_owner == hurd_myself ());
       as_rwlock_owner = 0;
     }
 

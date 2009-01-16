@@ -1,3 +1,13 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* activity-distribution.c (main): Use vg_thread_id_t and
+	hurd_myself, not l4_thread_id_t and l4_myself.
+	[USE_L4]: Only l4_sleep in this case.
+	* cache.c (helper_fork): Use hurd_myself, not l4_myself.
+	(main) [USE_L4]: Only call _L4_kdb in this case.
+	* shared-memory-distribution.c (main): Use vg_thread_id_t and
+	hurd_myself, not l4_thread_id_t and l4_myself.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* cache.c (object_fill): Replace use of `struct exception_info'

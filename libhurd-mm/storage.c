@@ -390,7 +390,7 @@ storage_check_reserve_internal (bool force_allocate,
        pages and if not to call some as-yet unwritten function
        which forces the reserve to grow.  */
     {
-      extern l4_thread_id_t as_rwlock_owner;
+      extern vg_thread_id_t as_rwlock_owner;
       if (as_rwlock_owner)
 	{
 	  if (as_rwlock_owner == hurd_myself ())
@@ -738,23 +738,6 @@ storage_free_ (vg_addr_t object, bool unmap_now)
 
   ss_mutex_lock (&storage_descs_lock);
 
-  {
-    int cnt = 0;
-    struct storage_desc *desc;
-    for (desc = hurd_btree_storage_desc_first (&storage_descs);
-	 desc;
-	 desc = hurd_btree_storage_desc_next (desc))
-      cnt += desc->free;
-
-    if (cnt != free_count)
-      for (desc = hurd_btree_storage_desc_first (&storage_descs);
-	   desc;
-	   desc = hurd_btree_storage_desc_next (desc))
-	debug (0, "Folio at " VG_ADDR_FMT " %d free",
-	       VG_ADDR_PRINTF (desc->folio), desc->free);
-    assertx (cnt == free_count, "%d != %d", cnt, free_count);
-  }
-
   /* Find the storage descriptor.  */
   struct storage_desc *storage;
   storage = hurd_btree_storage_desc_find (&storage_descs, &folio);
@@ -810,7 +793,8 @@ storage_free_ (vg_addr_t object, bool unmap_now)
 	      vg_addr_t shadow_addr = vg_addr_chop (VG_PTR_TO_ADDR (shadow),
 					      PAGESIZE_LOG2);
 
-	      if (VG_ADDR_EQ (vg_addr_chop (shadow_addr, VG_FOLIO_OBJECTS_LOG2), folio))
+	      if (VG_ADDR_EQ (vg_addr_chop (shadow_addr,
+					    VG_FOLIO_OBJECTS_LOG2), folio))
 		{
 		  /* The shadow was allocate from ourself, which we
 		     already freed.  */
@@ -848,11 +832,18 @@ storage_free_ (vg_addr_t object, bool unmap_now)
   int idx = vg_addr_extract (object, VG_FOLIO_OBJECTS_LOG2);
   bit_dealloc (storage->alloced, idx);
 
-  error_t err = vg_folio_object_alloc (meta_data_activity,
-				       folio, idx, vg_cap_void,
-				       VG_OBJECT_POLICY_DEFAULT, 0,
-				       NULL, NULL);
-  assert (err == 0);
+  if (unmap_now
+#ifndef NDEBUG
+      || 1
+#endif
+      )
+    {
+      error_t err = vg_folio_object_alloc (meta_data_activity,
+					   folio, idx, vg_cap_void,
+					   VG_OBJECT_POLICY_DEFAULT, 0,
+					   NULL, NULL);
+      assert (err == 0);
+    }
 
   if (likely (!! shadow))
     {

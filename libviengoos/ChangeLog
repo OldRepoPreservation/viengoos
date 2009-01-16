@@ -1,3 +1,10 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* viengoos/thread.h (VG_READ): Define.
+	(VG_WRITE): Define.
+	(VG_EXECUTE): Likewise.
+	(VG_ACTIVATION_FAULT_INFO_PRINTF): Use them.
+
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
 	* viengoos/cap.h (object_discarded_clear): Take additional

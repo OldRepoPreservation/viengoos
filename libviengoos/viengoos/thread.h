@@ -303,13 +303,24 @@ vg_activation_method_id_string (uintptr_t id)
     }
 }
 
+enum
+  {
+    VG_READ = 1 << 0,
+#define VG_READ VG_READ
+    VG_WRITE = 1 << 1,
+#define VG_WRITE VG_WRITE
+    VG_EXECUTE = 1 << 2,
+#define VG_EXECUTE VG_EXECUTE
+  };
+
 struct vg_activation_fault_info
 {
   union
   {
     struct
     {
-      /* Type of access.  */
+      /* Type of access.  A bitwise or of VG_READ, VG_WRITE and
+	 VG_EXECUTE.  */
       uintptr_t access: 3;
       /* Type of object that was attempting to be accessed.  */
       uintptr_t type : VG_CAP_TYPE_BITS;
@@ -322,9 +333,9 @@ struct vg_activation_fault_info
 
 #define VG_ACTIVATION_FAULT_INFO_FMT "%c%c%c %s%s"
 #define VG_ACTIVATION_FAULT_INFO_PRINTF(info)		\
-  ((info).access & L4_FPAGE_READABLE ? 'r' : '~'),	\
-  ((info).access & L4_FPAGE_WRITABLE ? 'w' : '~'),	\
-  ((info).access & L4_FPAGE_EXECUTABLE ? 'x' : '~'),	\
+  ((info).access & VG_READ ? 'r' : '~'),	\
+  ((info).access & VG_WRITE ? 'w' : '~'),	\
+  ((info).access & VG_EXECUTE ? 'x' : '~'),	\
   vg_cap_type_string ((info).type),			\
   (info.discarded) ? " discarded" : ""
 

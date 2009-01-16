@@ -1,5 +1,12 @@
 2009-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* Makefile.am (L4_SUBDIRS): New variable.  Set to l4 directories
+	if USE_L4 is true, otherwise leave empty.
+	(SUBDIRS): Remove libl4 and laden.  Replace with $(USE_L4).
+	Rearrange order.
+
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* configure.ac (--enable-l4-abi): Replace option with...
 	(--enable-l4): ... this option.
 	(l4_abi): Set appropriately.

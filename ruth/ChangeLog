@@ -1,3 +1,12 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* ruth.c [USE_L4]: Only include <l4.h> in this case.
+	(main) [! USE_L4]: Don't print resource manager's thread id.
+	(main): Use uintptr_t, not l4_word_t.  Use hurd_myself, not
+	l4_myself.  Use sched_yield, not l4_yield.  Improve
+	synchronization for object_reply_on_destruction test in case
+	sched_yield is a no-op.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	* ruth.c (main): When done with all tests, don't spin, just

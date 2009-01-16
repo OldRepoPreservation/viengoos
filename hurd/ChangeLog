@@ -1,5 +1,14 @@
 2009-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* lock.h (ss_mutex_trace_add) [! USE_L4]: Set SS_LOCK_TRACE[I].TID
+	to zero.
+	* thread.h (hurd_myself) [USE_L4]: Return l4_myself.
+	* trace.h (trace_buffer_add) [! USE_L4 && ! RM_INTERN]: Use
+	hurd_myself, not l4_myself.
+	[! USE_L4 && RM_INTERN]: Don't print a tid.
+
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* thread.h (AF_REGS_FMT): New macro.
 	(AF_REGS_PRINTF): Likewise.
 

@@ -24,8 +24,8 @@
 
 #include <hurd/stddef.h>
 #include <string.h>
-
-#include <l4.h>
+#include <bits/wordsize.h>
+#include <endian.h>
 
 #include "loader.h"
 #include "elf.h"
@@ -62,18 +62,18 @@ loader_elf_load (loader_allocate_object_callback_t alloc,
 
   /* FIXME: Some architectures support both word sizes.  */
   if (!((elf->e_ident[EI_CLASS] == ELFCLASS32
-	 && L4_WORDSIZE == 32)
+	 && __WORDSIZE == 32)
 	|| (elf->e_ident[EI_CLASS] == ELFCLASS64
-	    && L4_WORDSIZE == 64)))
+	    && __WORDSIZE == 64)))
     {
       debug (0, "Invalid word size");
       return false;
     }
 
   if (!((elf->e_ident[EI_DATA] == ELFDATA2LSB
-	 && L4_BYTE_ORDER == L4_LITTLE_ENDIAN)
+	 && __BYTE_ORDER == __LITTLE_ENDIAN)
 	|| (elf->e_ident[EI_DATA] == ELFDATA2MSB
-	    && L4_BYTE_ORDER == L4_BIG_ENDIAN)))
+	    && __BYTE_ORDER == __BIG_ENDIAN)))
     {
       debug (0, "Invalid byte order");
       return false;

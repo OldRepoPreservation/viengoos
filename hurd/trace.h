@@ -86,7 +86,15 @@ trace_buffer_add (const char *func, const int lineno,
     ss_mutex_lock (&buffer->lock);
 
   if (! buffer->notid)
-    s_cprintf (pc, "%x:", l4_myself ());
+    {
+#ifdef USE_L4
+      s_cprintf (pc, "%x:", l4_myself ());
+#elif !defined (RM_INTERN)
+      s_cprintf (pc, "%x:", hurd_myself ());
+#else
+# warning Don't know how to get tid.
+#endif
+    }
   s_cprintf (pc, "%s:%d: ", func, lineno);
 
   va_start (ap, fmt);

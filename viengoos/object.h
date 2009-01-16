@@ -21,7 +21,10 @@
 #ifndef RM_OBJECT_H
 #define RM_OBJECT_H
 
-#include <l4.h>
+#ifdef USE_L4
+# include <l4.h>
+#endif
+
 #include <hurd/error.h>
 #include <string.h>
 #include <assert.h>
@@ -377,7 +380,8 @@ object_desc_unmap (struct object_desc *desc)
 
   if (desc->mapped)
     {
-#ifndef _L4_TEST_ENVIRONMENT
+#ifdef USE_L4
+# ifndef _L4_TEST_ENVIRONMENT
       struct vg_object *object = object_desc_to_object (desc);
 
       l4_fpage_t fpage = l4_fpage ((l4_word_t) object, PAGESIZE);
@@ -389,6 +393,9 @@ object_desc_unmap (struct object_desc *desc)
 
       desc->user_referenced |= !!l4_was_referenced (result);
       desc->user_dirty |= !!l4_was_written (result);
+# endif
+#else
+# warning Unimplemened on this platform.
 #endif
 
       desc->mapped = false;
@@ -405,7 +412,8 @@ object_desc_flush (struct object_desc *desc, bool clear_kernel)
   if (clear_kernel || ! desc->dirty || ! desc->user_referenced)
     /* We only need to see if we dirtied or referenced it.  */
     {
-#ifndef _L4_TEST_ENVIRONMENT
+#ifdef USE_L4
+# ifndef _L4_TEST_ENVIRONMENT
       struct vg_object *object = object_desc_to_object (desc);
       l4_fpage_t fpage = l4_fpage ((l4_word_t) object, PAGESIZE);
 
@@ -415,6 +423,9 @@ object_desc_flush (struct object_desc *desc, bool clear_kernel)
 
       desc->user_referenced |= !!l4_was_referenced (result);
       desc->user_dirty |= !!l4_was_written (result);
+# endif
+#else
+# warning Unimplemened on this platform.
 #endif
     }
 }

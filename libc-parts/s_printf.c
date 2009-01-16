@@ -41,6 +41,7 @@ io_buffer_flush (struct io_buffer *buffer)
     return;
 
   // rm_write_send_nonblocking (VG_ADDR_VOID, VG_ADDR_VOID, *buffer, VG_ADDR_VOID);
+#ifdef USE_L4
   l4_msg_tag_t tag = l4_niltag;
   l4_msg_tag_set_label (&tag, 2132);
 
@@ -61,6 +62,10 @@ io_buffer_flush (struct io_buffer *buffer)
 
   extern struct hurd_startup_data *__hurd_startup_data;      
   l4_send (__hurd_startup_data->rm);
+#else
+# warning Not ported to this platform.
+  assert (0);
+#endif
 
   buffer->len = 0;
 }

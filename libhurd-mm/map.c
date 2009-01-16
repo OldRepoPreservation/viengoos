@@ -25,7 +25,6 @@
 #include <hurd/storage.h>
 #include <hurd/as.h>
 #include <hurd/slab.h>
-#include <l4.h>
 
 #include <string.h>
 
@@ -346,11 +345,11 @@ map_fault (vg_addr_t fault_addr, uintptr_t ip, struct vg_activation_fault_info i
     }
 
   /* Note: write access implies read access.  */
-  if (((info.access & L4_FPAGE_WRITABLE) && ! (map->access & MAP_ACCESS_WRITE))
+  if (((info.access & VG_WRITE) && ! (map->access & MAP_ACCESS_WRITE))
       || ! map->access)
     {
       debug (0, "Invalid %s access at " VG_ADDR_FMT ": " MAP_FMT,
-	     info.access & L4_FPAGE_WRITABLE ? "write" : "read",
+	     info.access & VG_WRITE ? "write" : "read",
 	     VG_ADDR_PRINTF (fault_addr), MAP_PRINTF (map));
 
       maps_lock_unlock ();

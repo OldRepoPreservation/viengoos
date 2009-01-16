@@ -30,7 +30,9 @@
 #include <string.h>
 
 #ifdef __gnu_hurd_viengoos__
-# include <l4.h>
+# ifdef USE_L4
+#  include <l4.h>
+# endif
 # include <viengoos/misc.h>
 # include <s-printf.h>
 #else
@@ -63,7 +65,12 @@ static inline uint64_t
 now (void)
 {
 #ifdef __gnu_hurd_viengoos__
+# ifdef USE_L4
   return l4_system_clock ();
+# else
+#  warning Not ported to this platform.
+  return 0;
+# endif
 #else
   struct timeval t;
   struct timezone tz;
@@ -93,8 +100,13 @@ static int thread_count;
 struct profile_block
 {
 #ifdef __gnu_hurd_viengoos__
-#define MYSELF() l4_myself ()
-  l4_thread_id_t tid;
+# ifdef USE_L4
+#  define MYSELF() l4_myself ()
+# else
+#  warning Profile code broken.
+#  define MYSELF() 0
+# endif
+  vg_thread_id_t tid;
 #else
 #define MYSELF() pthread_self ()
   pthread_t tid;

@@ -22,6 +22,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <backtrace.h>
+#include <viengoos/thread.h>
+
+#ifndef RM_INTERN
+# include <hurd/thread.h>
+#endif
 
 extern char *program_name;
 
@@ -34,7 +39,16 @@ panic_ (const char *func, int line, const char *fmt, ...)
 
   va_start (ap, fmt);
 
-  s_printf ("%s:%s:%d:%x: error: ", program_name, func, line, l4_myself ());
+  vg_thread_id_t tid = 0;
+#ifdef USE_L4
+  tid = l4_myself ();
+#elif !defined (RM_INTERN)
+  tid = hurd_myself ();
+#else
+# warning Unable to determine thread id for this platform.
+#endif
+
+  s_printf ("%s:%s:%d:%x: error: ", program_name, func, line, tid);
   s_vprintf (fmt, ap);
   s_printf ("\n");
   va_end (ap);
@@ -43,6 +57,6 @@ panic_ (const char *func, int line, const char *fmt, ...)
 
   _exit (127);
   for (;;)
-    l4_yield ();
+    sched_yield ();
 }
 

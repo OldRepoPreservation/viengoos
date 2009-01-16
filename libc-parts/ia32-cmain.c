@@ -26,10 +26,12 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef USE_L4
 #include <l4/globals.h>
 #include <l4/init.h>
 #include <l4/stubs.h>
 #include <l4/stubs-init.h>
+#endif
 
 #include <hurd/startup.h>
 #include <hurd/mm.h>
@@ -58,7 +60,7 @@ finish (void)
     /* We are not running on the initial stack.  Free it.  */
     {
       void *p;
-      for (p = &_stack; p < &_stack_end; p += PAGESIZE)
+      for (p = &_stack; p < (void *) &_stack_end; p += PAGESIZE)
 	{
 	  struct hurd_object_desc *desc;
 	  int i;
@@ -125,8 +127,10 @@ finish (void)
 void
 cmain (void)
 {
+#ifdef USE_L4
   l4_init ();
   l4_init_stubs ();
+#endif
 
   s_printf ("In cmain\n");
 

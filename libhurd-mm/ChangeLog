@@ -1,5 +1,35 @@
 2009-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* anonymous.h: Don't include <l4/thread.h>.  Include
+	<viengoos/thread.h>.
+	(struct anonymous_pager): Change fill_thread's type to
+	vg_thread_id_t.
+	* anonymous.c (fault): Use hurd_myself and vg_niltid, not
+	l4_myself and l4_nilthread.
+	* as-build.c: Don't include <l4.h>.
+	* as.h: Include <hurd/thread.h>.  Don't include <l4/types.h>.
+	(as_lock): Change as_rwlock_owner's type to vg_thread_id_t.  Use
+	hurd_myself, not l4_myself.
+	(as_lock_readonly): Likewise.
+	(as_unlock): Likewise.
+	* as.c [! USE_L4]: Don't include <l4/types.h> or <l4/kip.h>.
+	Include <bits/wordsize.h>.
+	(DATA_ADDR_MAX): Define for 64-bit virtual address spaces.
+	(as_rwlock_owner): Change type to vg_thread_id_t.
+	(as_alloc_slow) [USE_L4]: Only check for conflicts with the kip
+	and utcb in this case.
+	(as_init) [USE_L4]: Only reserve the kip and utcb in this case.
+	* exceptions.c [USE_L4]: Only include <l4/thread.h> in this case.
+	(l4_utcb_state_save) [! USE_L4]: Make a no-op.
+	(l4_utcb_state_restore) [! USE_L4]: Likewise.
+	(hurd_activation_handler_normal): Use hurd_myself, not l4_myself.
+	* map.c: Don't include <l4.h>.
+	(map_fault): Use VG_WRITE, not L4_FPAGE_WRITABLE.
+	* storage.c (storage_check_reserve_internal): Change
+	as_rwlock_owner's type to vg_thread_id_t.
+
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* exceptions.c (hurd_activation_stack_dump): Use AF_REGS_FMT and
 	AF_REGS_PRINTF rather than naming the registers explicitly.
 	(hurd_activation_handler_normal): Likewise.

@@ -54,9 +54,9 @@ main (int argc, char *argv[])
     }
 
   bool terminate = false;
-  l4_thread_id_t tids[THREADS];
+  vg_thread_id_t tids[THREADS];
   for (i = 0; i < THREADS; i ++)
-    tids[i] = l4_nilthread;
+    tids[i] = vg_niltid;
 
   int available;
   {
@@ -78,7 +78,7 @@ main (int argc, char *argv[])
   {
     uintptr_t *p = pages[0];
     p[0] = offset;
-    p[1] = l4_myself ();
+    p[1] = hurd_myself ();
     return true;
   }
 
@@ -86,7 +86,7 @@ main (int argc, char *argv[])
   {
     int w = (intptr_t) arg;
 
-    tids[w] = l4_myself ();
+    tids[w] = hurd_myself ();
 
     pthread_setactivity_np (activities[w]);
 
@@ -123,15 +123,19 @@ main (int argc, char *argv[])
 	for (j = 0; j < SIZE; j += PAGESIZE)
 	  {
 	    uintptr_t *p = buffers[i] + j;
-	    assertx (p[0] == j && p[1] == l4_myself (),
+	    assertx (p[0] == j && p[1] == hurd_myself (),
 		     "%x: %x =? %x, thread: %x",
 		     p, p[0], j, p[1]);
 
 	    t += * (int *) (buffers[i] + j);
 	  }
 
+#ifdef USE_L4
 	/* 100ms.  */
 	l4_sleep (l4_time_period (100 * 1000));
+#else
+# warning Need a sleep function.
+#endif
       }
 
     /* We need to return t, otherwise, the above loop will be

@@ -259,7 +259,15 @@ extern void hurd_fault_catcher_unregister (struct hurd_fault_catcher *catcher);
 static inline vg_thread_id_t
 hurd_myself (void)
 {
+#ifdef USE_L4
+  /* XXX: Annoyingly, we need the tid before UTCB->TID is initialized.
+     This needs to be fixed, but for now...  */
+  return l4_myself ();
+#endif
   struct hurd_utcb *utcb = hurd_utcb ();
+
+  assert (utcb);
+  assert (utcb->tid);
 
   return utcb->tid;
 }

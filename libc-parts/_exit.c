@@ -80,7 +80,7 @@ _exit (int ret)
       j --;
 #ifndef RM_INTERN
       /* XXX: This doesn't work for laden.  */
-      l4_yield ();
+      sched_yield ();
 #endif
     }
 }

@@ -293,7 +293,7 @@ main (int argc, char *argv[])
   int started = 0;
   while (started < module_count)
     {
-      l4_uint64_t start = now ();
+      uint64_t start = now ();
 
       uint64_t deadline = -1ULL;
       const char *next = NULL;
@@ -327,7 +327,11 @@ main (int argc, char *argv[])
 	  debug (0, "Waiting %llu seconds before starting %s",
 		 (deadline - (start - epoch)) / 1000000,
 		 next);
+#ifdef USE_L4
 	  l4_sleep (l4_time_period (deadline - (start - epoch)));
+#else
+# warning Need a sleep function.
+#endif
 	}
     }
 

@@ -21,7 +21,6 @@
 #ifndef RM_THREAD_H
 #define RM_THREAD_H
 
-#include <l4.h>
 #include <errno.h>
 #include <viengoos/cap.h>
 #include <viengoos/thread.h>
@@ -50,7 +49,7 @@ struct thread
   /* Non-user-accessible fields.  */
 
   /* Allocated thread id.  */
-  l4_thread_id_t tid;
+  vg_thread_id_t tid;
 
   /* XXX: Register state, blah, blah, blah.  */
   l4_word_t sp;
@@ -122,7 +121,7 @@ extern void thread_raise_exception (struct activity *activity,
 extern void thread_deliver_pending (struct activity *activity,
 				    struct thread *thread);
 
-/* Given the L4 thread id THREADID, find the associated thread.  */
-extern struct thread *thread_lookup (l4_thread_id_t threadid);
+/* Given the thread id THREADID, find the associated thread.  */
+extern struct thread *thread_lookup (vg_thread_id_t threadid);
 
 #endif

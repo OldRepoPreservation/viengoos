@@ -21,7 +21,6 @@
 #ifndef RM_CAP_H
 #define RM_CAP_H
 
-#include <l4.h>
 #include <viengoos/cap.h>
 
 /* The number of slots in a capability object of the given type.  */

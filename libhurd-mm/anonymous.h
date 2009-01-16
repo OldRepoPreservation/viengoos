@@ -24,7 +24,7 @@
 #include <hurd/pager.h>
 #include <hurd/btree.h>
 #include <viengoos/addr.h>
-#include <l4/thread.h>
+#include <viengoos/thread.h>
 
 /* Forward.  */
 struct anonymous_pager;
@@ -125,7 +125,7 @@ struct anonymous_pager
   anonymous_pager_fill_t fill;
 
   /* The thread in the fill function.  (If none, NULL.)  */
-  l4_thread_id_t fill_thread;
+  vg_thread_id_t fill_thread;
   /* Used to serialize the fill function.  Also protects FILL_THREAD.
      If ANONYMOUS_THREAD_SAFE is set, then this lock protects the
      staging area.  Must be taken while holding LOCK.  */

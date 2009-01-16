@@ -1,3 +1,8 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* hieronymus.c (main): Use uint64_t, not l4_uint64_t.
+	(main) [USE_L4]: Don't sleep in this case.
+
 2008-12-12  Neal H. Walfield  <neal@gnu.org>
 
 	Update according to new RPC interfaces.
