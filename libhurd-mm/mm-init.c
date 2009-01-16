@@ -71,6 +71,8 @@ mm_init (vg_addr_t activity)
      mode activation handler, call the call back functions, and then
      return to the interrupted code.  */
 #ifdef i386
+  int d = 5;
+
   void test (int nesting)
   {
     vg_addr_t addr = as_alloc (PAGESIZE_LOG2, 1, true);
@@ -78,7 +80,11 @@ mm_init (vg_addr_t activity)
 
     int recursed = false;
 
+    /* We allocate the storage in the fault handler.  */
     struct storage storage;
+    memset (&storage, 0, sizeof (storage));
+    int faulted = false;
+
     bool fault (struct pager *pager,
 		uintptr_t offset, int count, bool ro,
 		uintptr_t fault_addr, uintptr_t ip,
@@ -89,7 +95,7 @@ mm_init (vg_addr_t activity)
 
       struct hurd_utcb *utcb = hurd_utcb ();
       struct activation_frame *activation_frame = utcb->activation_stack;
-      debug (4, "Fault at %p (ip: %p, sp: %p, eax: %p, "
+      debug (d, "Fault at %p (ip: %p, sp: %p, eax: %p, "
 	     "ebx: %p, ecx: %p, edx: %p, edi: %p, esi: %p, ebp: %p, "
 	     "eflags: %p)",
 	     fault,
@@ -126,11 +132,13 @@ mm_init (vg_addr_t activity)
 	  int i;
 	  for (i = 0; i < 3; i ++)
 	    {
-	      debug (5, "Depth: %d; iter: %d", nesting - 1, i);
+	      debug (d, "Depth: %d; iter: %d", nesting - 1, i);
 	      test (nesting - 1);
-	      debug (5, "Depth: %d; iter: %d done", nesting - 1, i);
+	      debug (d, "Depth: %d; iter: %d done", nesting - 1, i);
 	    }
 	}
+
+      faulted = true;
 
       return true;
     }
@@ -211,7 +219,7 @@ mm_init (vg_addr_t activity)
        : [addr] "m" (a)
        : "%eax", "%ebx", "%ecx", "%edx", "%edi", "%esi");
 
-    debug (4, "Regsiter file: "
+    debug (d, "Regsiter file: "
 	   "eax: %p, ebx: %p, ecx: %p, edx: %p, "
 	   "edi: %p, esi: %p, ebp: %p -> %p, esp: %p -> %p, flags: %p -> %p",
 	   (void *) eax, (void *)  ebx, (void *)  ecx, (void *)  edx,
@@ -229,22 +237,24 @@ mm_init (vg_addr_t activity)
     assert (esp == pre_esp);
     assert (flags == pre_flags);
     assert (canary == 0xcab00d1e);
+    assert (faulted);
 
     maps_lock_lock ();
     map_disconnect (map);
     maps_lock_unlock ();
     map_destroy (map);
 
-    storage_free (storage.addr, false);
+    assert (! VG_ADDR_IS_VOID (storage.addr));
+    storage_free (storage.addr, true);
     as_free (addr, 1);
   }
 
   int i;
   for (i = 0; i < 3; i ++)
     {
-      debug (5, "Depth: %d; iter: %d", 3, i + 1);
+      debug (d, "Depth: %d; iter: %d", 3, i + 1);
       test (3);
-      debug (5, "Depth: %d; iter: %d done", 3, i + 1);
+      debug (d, "Depth: %d; iter: %d done", 3, i + 1);
     }
 #endif
 #endif

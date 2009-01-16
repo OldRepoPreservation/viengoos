@@ -1,5 +1,11 @@
 2009-01-16  Neal H. Walfield  <neal@gnu.org>
 
+	* mm-init.c (mm_init) [!NDEBUG && i386]: Clear STORAGE and assert
+	that it is not VG_ADDR_VOID before freeing the associated storage.
+	Assert that the fault callback was called.
+
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
 	* bits.h (extract_bits): Make W a uintptr_t, not an unsigned int.
 	(extract_bits_inv): Likewise.
 
