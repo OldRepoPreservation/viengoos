@@ -1,3 +1,8 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* bits.h (extract_bits): Make W a uintptr_t, not an unsigned int.
+	(extract_bits_inv): Likewise.
+
 2008-12-18  Neal H. Walfield  <neal@gnu.org>
 
 	* anonymous.c (fault): Batch object discard requests.

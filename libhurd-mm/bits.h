@@ -1,5 +1,5 @@
 /* bits.h - Bit manipulation functions.
-   Copyright (C) 2007 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2009 Free Software Foundation, Inc.
    Written by Neal H. Walfield <neal@gnu.org>.
 
    This file is part of the GNU Hurd.
@@ -25,15 +25,15 @@
 #include <assert.h>
 
 /* Return the C bits of word W starting a bit S.  (The LSB is 0 and
-   the MSB is L4_WORDSIZE.)  */
+   the MSB is WORDSIZE.)  */
 static inline unsigned int
-extract_bits (unsigned int w, int s, int c)
+extract_bits (uintptr_t w, int s, int c)
 {
-  assert (0 <= s && s < (sizeof (unsigned int) * 8));
-  assert (0 <= c && s + c <= (sizeof (unsigned int) * 8));
+  assert (0 <= s && s < (sizeof (uintptr_t) * 8));
+  assert (0 <= c && s + c <= (sizeof (uintptr_t) * 8));
 
   if (c == (sizeof (unsigned int) * 8))
-    /* 1U << (sizeof (unsigned int) * 8) is problematic: "If the value of
+    /* 1U << (sizeof (uintptr_t) * 8) is problematic: "If the value of
        the right operand is negative or is greater than or equal to
        the width of the promoted left operand, the behavior is
        undefined."  */
@@ -62,8 +62,8 @@ extract_bits64 (uint64_t w, int s, int c)
 
 /* Return the C bits of word W ending at bit E.  (The LSB is 0 and the
    MSB is (sizeof (unsigned int) * 8).)  */
-static inline unsigned int
-extract_bits_inv (unsigned int w, int e, int c)
+static inline uintptr_t
+extract_bits_inv (uintptr_t w, int e, int c)
 {
   /* We special case this check here to allow extract_bits_inv (w, 31,
      0).  */
