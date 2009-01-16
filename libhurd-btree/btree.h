@@ -158,7 +158,7 @@ typedef struct BTREE_(node) BTREE_(node_t);
    function does not distinguish between child links and thread
    links.  */
 #define BTREE_NP(__bn_node_ptr)				\
-  ((BTREE_(node_t) *) ((__bn_node_ptr).ptr << 1))
+  ((BTREE_(node_t) *) ((uintptr_t) (__bn_node_ptr).ptr << 1))
 /* Set a struct BTREE_(node_ptr) * to point to BTREE_(node_t).  */
 #define BTREE_NP_SET(__bnp_node_ptrp, __bnp_value)		\
   do								\

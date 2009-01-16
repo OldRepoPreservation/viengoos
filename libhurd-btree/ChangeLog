@@ -1,3 +1,8 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* btree.h (BTREE_NP): Cast (__BN_NODE_PTR).PTR to a uintptr_t
+	before using it.
+
 2008-11-12  Neal H. Walfield  <neal@gnu.org>
 
 	* btree.h (find_first): New function.
