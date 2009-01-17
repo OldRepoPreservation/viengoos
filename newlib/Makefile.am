@@ -155,11 +155,22 @@ newlib-build/configure.stamp: $(srcdir)/newlib/patch.stamp
 	)
 	touch $@
 
+if ARCH_X86_64
+  # Without -fPIC, when linking Viengoos against libc-routines, we get
+  # errors of the following form:
+  #
+  #   ../newlib/libc-routines.a(lib_a-strcpy.o):(.eh_frame+0x20): 
+  #         relocation truncated to fit: R_X86_64_32 against `.text'
+  EXTRA_CFLAGS = -fPIC
+else
+  EXTRA_CFLAGS =
+endif
+
 .PHONY: newlib-build/build.stamp
 newlib-build/build.stamp: newlib-build/configure.stamp
 	cd newlib-build && \
 	  make \
-	    TARGET_CFLAGS='$(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
+	    TARGET_CFLAGS='$(EXTRA_CFLAGS) $(USER_CPPFLAGS) $(USER_CFLAGS) $(USER_LDFLAGS)' \
 	    all
 	if test newlib-build/libc.a -nt newlib-build/build.stamp; then \
 	  ( cd newlib-build \
@@ -186,7 +197,7 @@ all-local: newlib-build/build.stamp libc.a libm.a libc-routines.a
 #	htonl htons ntohl ntohs ffs
 routines := \
 	memcpy memmove memset \
-	strcmp strncmp strlen
+	strcpy strcmp strncmp strlen
 # We have to find all modules in the archive which contain the above functions.
 routines_subexp := 's/^\($(shell echo $(routines) \
 	| $(SED) -e 's/ \+/\\|/g')\) in \(.*\)$$/\2/p'
