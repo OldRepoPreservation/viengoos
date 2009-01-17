@@ -1,3 +1,12 @@
+2009-01-16  Neal H. Walfield  <neal@gnu.org>
+
+	* Makefile.am (ARCH_COMMON_SOURCES) [ARCH_X86_64]: Define.
+	(ARCH_USER_SOURCES) [ARCH_X86_64]: Likewise.
+	(ARCH_KERNEL_SOURCES) [ARCH_X86_64]: Likewise.
+	* x86-64-crt0.S: New file.
+
+	* loader.c (loader_elf_load): Add support for ELF 64 and x86-64.
+
 2009-01-17  Neal H. Walfield  <neal@gnu.org>
 
 	* s_printf.c (FLAG_LONGLONG): Define.
