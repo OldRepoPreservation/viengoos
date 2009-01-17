@@ -134,13 +134,33 @@ s_puts (const char *str)
   return ret;
 }
 
+/* Output format flags.  */
+#define FLAG_LONGLONG	(1 << 0)
+#define FLAG_PAD_ZERO	(1 << 1)
+#define FLAG_BASE	(1 << 2)
+#define FLAG_UPPERCASE	(1 << 3)
+#define FLAG_LONG       (1 << 4)
 
 static void
-print_nr (int (*putchar) (int), unsigned long long nr, int base)
+print_nr (int (*putchar) (int),
+	  unsigned long long nr, int base, int precision, unsigned int flags)
 {
-  static char *digits = "0123456789abcdef";
+  static char *digits;
   char str[30];
   int i = 0;
+
+  digits = (flags & FLAG_UPPERCASE) ? "0123456789ABCDEF" : "0123456789abcdef";
+
+  if (flags & FLAG_BASE)
+    {
+      if (base == 16)
+	{
+	  putchar ('0');
+	  putchar ((flags & FLAG_UPPERCASE) ? 'X' : 'x');
+	}
+      else if (base == 8)
+	putchar ('0');
+    }
 
   do
     {
@@ -149,6 +169,12 @@ print_nr (int (*putchar) (int), unsigned long long nr, int base)
     }
   while (nr);
 
+  if (precision >= sizeof (str))
+    precision = sizeof (str);
+      
+  while (i < precision)
+    str[i++] = (flags & FLAG_PAD_ZERO) ? '0' : ' ';
+
   i--;
   while (i >= 0)
     putchar (str[i--]);
@@ -156,7 +182,8 @@ print_nr (int (*putchar) (int), unsigned long long nr, int base)
   
 
 static void
-print_signed_nr (int (*putchar) (int), long long nr, int base)
+print_signed_nr (int (*putchar) (int),
+		 long long nr, int base, int precision, unsigned int flags)
 {
   unsigned long long unr;
 
@@ -168,128 +195,186 @@ print_signed_nr (int (*putchar) (int), long long nr, int base)
   else
     unr = nr;
 
-  print_nr (putchar, unr, base);
+  print_nr (putchar, unr, base, precision, flags);
 }
-  
+
 
 int
 s_cvprintf (int (*putchar) (int), const char *fmt, va_list ap)
 {
+  int precision = 0;
+  unsigned int flags = 0;
+  bool done;
+
   const char *p = fmt;
 
   while (*p != '\0')
     {
+      const char *startp;
+
       if (*p != '%')
 	{
 	  putchar (*(p++));
 	  continue;
 	}
-
       p++;
-      switch (*p)
-	{
-	case '%':
-	  putchar ('%');
-	  p++;
-	  break;
 
-	case 'l':
-	  p++;
-	  if (*p != 'l')
-	    {
-	      putchar ('%');
-	      putchar ('l');
-	      putchar (*(p++));
-	      continue;
-	    }
-	  p++;
+      startp = p;
+      flags = 0;
+      precision = 0;
+      done = false;
+
+      while (*p && !done)
+	{  
 	  switch (*p)
 	    {
-	    case 'o':
-	      print_nr (putchar, va_arg (ap, unsigned long long), 8);
+	    case '%':
+	      putchar ('%');
+	      p++;
+	      done = true;
+	      break;
+
+	    case '#':
+	      flags |= FLAG_BASE;
 	      p++;
 	      break;
 
+	    case '0':
+	      flags |= FLAG_PAD_ZERO;
+	      p++;
+	      break;
+
+	    case '1':
+	    case '2':
+	    case '3':
+	    case '4':
+	    case '5':
+	    case '6':
+	    case '7':
+	    case '8':
+	    case '9':
+	      while (*p >= '0' && *p <= '9')
+		{
+		  precision = precision * 10;
+		  precision += *(p++) - '0';
+		}
+	      break;
+
+	    case 'l':
+	      p++;
+	      if (*p == 'l')
+		{
+		  p++;
+		  flags |= FLAG_LONGLONG;
+		}
+	      else
+		flags |= FLAG_LONG;
+	      break;
+
+	    case 'o':
+	      if (flags & FLAG_LONGLONG)
+		print_nr (putchar,
+			  va_arg (ap, unsigned long long), 8,
+			  precision, flags);
+	      else if (flags & FLAG_LONG)
+		print_nr (putchar,
+			  va_arg (ap, unsigned long), 8,
+			  precision, flags);
+	      else
+		print_nr (putchar,
+			  va_arg (ap, unsigned int), 8, precision, flags);
+	      p++;
+	      done = true;
+	      break;
+	      
 	    case 'd':
 	    case 'i':
-	      print_signed_nr (putchar, va_arg (ap, long long), 10);
+	      if (flags & FLAG_LONGLONG)
+		print_signed_nr (putchar,
+				 va_arg (ap, long long), 10,
+				 precision, flags);
+	      else if (flags & FLAG_LONG)
+		print_signed_nr (putchar,
+				 va_arg (ap, long), 10,
+				 precision, flags);
+	      else
+		print_signed_nr (putchar,
+				 va_arg (ap, int), 10, precision, flags);
 	      p++;
+	      done = true;
 	      break;
-
-	    case 'x':
+	      
 	    case 'X':
-	      print_nr (putchar, va_arg (ap, unsigned long long), 16);
+	      flags |= FLAG_UPPERCASE;
+	      /* Fall-through.  */
+	    case 'x':
+	      if (flags & FLAG_LONGLONG)
+		print_nr (putchar,
+			  va_arg (ap, unsigned long long), 16,
+			  precision, flags);
+	      else if (flags & FLAG_LONG)
+		print_nr (putchar,
+			  va_arg (ap, unsigned long), 16,
+			  precision, flags);
+	      else
+		print_nr (putchar,
+			  va_arg (ap, unsigned int), 16, precision, flags);
 	      p++;
+	      done = true;
 	      break;
-
+	      
 	    case 'u':
-	      print_nr (putchar, va_arg (ap, unsigned long long), 10);
+	      if (flags & FLAG_LONGLONG)
+		print_nr (putchar,
+			  va_arg (ap, unsigned long long), 10,
+			  precision, flags);
+	      else if (flags & FLAG_LONG)
+		print_nr (putchar,
+			  va_arg (ap, unsigned long), 10,
+			  precision, flags);
+	      else
+		print_nr (putchar,
+			  va_arg (ap, unsigned int), 10, precision, flags);
 	      p++;
+	      done = true;
 	      break;
-
+	      
+	    case 'c':
+	      putchar (va_arg (ap, int));
+	      p++;
+	      done = true;
+	      break;
+	      
+	    case 's':
+	      {
+		char *str = va_arg (ap, char *);
+		while (*str)
+		  putchar (*(str++));
+	      }
+	      p++;
+	      done = true;
+	      break;
+	      
+	    case 'P':
+	      flags |= FLAG_UPPERCASE;
+	      /* Fall-through.  */
+	    case 'p':
+	      flags |= FLAG_BASE;
+	      print_nr (putchar,
+			(uintptr_t) va_arg (ap, void *), 16,
+			precision, flags);
+	      p++;
+	      done = true;
+	      break;
+	      
 	    default:
 	      putchar ('%');
-	      putchar ('l');
-	      putchar ('l');
-	      putchar (*(p++));
+	      p++;
+	      while (startp < p)
+		putchar (*(startp++));
+	      done = true;
 	      break;
 	    }
-	  break;
-
-	case 'o':
-	  print_nr (putchar, va_arg (ap, unsigned int), 8);
-	  p++;
-	  break;
-
-	case 'd':
-	case 'i':
-	  print_signed_nr (putchar, va_arg (ap, int), 10);
-	  p++;
-	  break;
-
-	case 'x':
-	case 'X':
-	  print_nr (putchar, va_arg (ap, unsigned int), 16);
-	  p++;
-	  break;
-
-	case 'u':
-	  print_nr (putchar, va_arg (ap, unsigned int), 10);
-	  p++;
-	  break;
-
-	case 'c':
-	  putchar (va_arg (ap, int));
-	  p++;
-	  break;
-
-	case 's':
-	  {
-	    char *str = va_arg (ap, char *);
-	    if (str)
-	      while (*str)
-		putchar (*(str++));
-	    else
-	      {
-		putchar ('N');
-		putchar ('U');
-		putchar ('L');
-		putchar ('L');
-	      }
-	  }
-	  p++;
-	  break;
-
-	case 'p':
-	  print_nr (putchar, (unsigned int) va_arg (ap, void *), 16);
-	  p++;
-	  break;
-
-	default:
-	  putchar ('%');
-	  putchar (*p);
-	  p++;
-	  break;
 	}
     }
 
