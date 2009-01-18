@@ -1,3 +1,7 @@
+2009-01-18  Neal H. Walfield  <neal@gnu.org>
+
+	* inttypes.h: New file.
+
 2009-01-16  Neal H. Walfield  <neal@gnu.org>
 
 	* Makefile.am (ARCH_COMMON_SOURCES) [ARCH_X86_64]: Define.

@@ -1,0 +1,97 @@
+#! /bin/sh
+patch -p1 -f $* < $0
+exit $?
+
+Bug fix.  Wrong printf format specifier for standard types on systems
+with 64-bit longs and long longs.
+
+diff -c newlib/newlib/libc/include/inttypes.h.orig newlib/newlib/libc/include/inttypes.h
+--- newlib/newlib/libc/include/inttypes.h.orig	2009-01-17 21:26:49.000000000 +0100
++++ newlib/newlib/libc/include/inttypes.h	2009-01-17 21:41:31.000000000 +0100
+@@ -163,12 +163,12 @@
+ 
+ 
+ /* 64-bit types */
+-#if __have_longlong64
+-#define __PRI64(x) __STRINGIFY(ll##x)
+-#define __SCN64(x) __STRINGIFY(ll##x)
+-#elif __have_long64
++#if __have_long64
+ #define __PRI64(x) __STRINGIFY(l##x)
+ #define __SCN64(x) __STRINGIFY(l##x)
++#elif __have_longlong64
++#define __PRI64(x) __STRINGIFY(ll##x)
++#define __SCN64(x) __STRINGIFY(ll##x)
+ #else
+ #define __PRI64(x) __STRINGIFY(x)
+ #define __SCN64(x) __STRINGIFY(x)
+@@ -217,12 +217,12 @@
+ #endif
+ 
+ /* max-bit types */
+-#if __have_longlong64
+-#define __PRIMAX(x) __STRINGIFY(ll##x)
+-#define __SCNMAX(x) __STRINGIFY(ll##x)
+-#elif __have_long64
++#if __have_long64
+ #define __PRIMAX(x) __STRINGIFY(l##x)
+ #define __SCNMAX(x) __STRINGIFY(l##x)
++#elif __have_longlong64
++#define __PRIMAX(x) __STRINGIFY(ll##x)
++#define __SCNMAX(x) __STRINGIFY(ll##x)
+ #else
+ #define __PRIMAX(x) __STRINGIFY(x)
+ #define __SCNMAX(x) __STRINGIFY(x)
+@@ -242,12 +242,12 @@
+ #define SCNxMAX		__SCNMAX(x)
+ 
+ /* ptr types */
+-#if __have_longlong64
+-#define __PRIPTR(x) __STRINGIFY(ll##x)
+-#define __SCNPTR(x) __STRINGIFY(ll##x)
+-#elif __have_long64
++#if __have_long64
+ #define __PRIPTR(x) __STRINGIFY(l##x)
+ #define __SCNPTR(x) __STRINGIFY(l##x)
++#elif __have_longlong64
++#define __PRIPTR(x) __STRINGIFY(ll##x)
++#define __SCNPTR(x) __STRINGIFY(ll##x)
+ #else
+ #define __PRIPTR(x) __STRINGIFY(x)
+ #define __SCNPTR(x) __STRINGIFY(x)
+
+
+diff -c newlib/newlib/libc/include/stdint.h newlib/newlib/libc/include/stdint.h.orig
+--- newlib/newlib/libc/include/stdint.h.orig	2006-08-16 23:39:43.000000000 +0200
++++ newlib/newlib/libc/include/stdint.h	2009-01-17 22:20:26.000000000 +0100
+@@ -375,22 +375,22 @@
+ #endif
+ 
+ #if __int64_t_defined
+-#if __have_longlong64
+-#define INT64_C(x)	x##LL
+-#define UINT64_C(x)	x##ULL
+-#else
++#if __have_long64
+ #define INT64_C(x)	x##L
+ #define UINT64_C(x)	x##UL
++#else
++#define INT64_C(x)	x##LL
++#define UINT64_C(x)	x##ULL
+ #endif
+ #endif
+ 
+ /** Macros for greatest-width integer constant expression */
+-#if __have_longlong64
+-#define INTMAX_C(x)	x##LL
+-#define UINTMAX_C(x)	x##ULL
+-#else
++#if __have_long64
+ #define INTMAX_C(x)	x##L
+ #define UINTMAX_C(x)	x##UL
++#else
++#define INTMAX_C(x)	x##LL
++#define UINTMAX_C(x)	x##ULL
+ #endif
+ 
+ 

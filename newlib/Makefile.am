@@ -34,7 +34,8 @@ patch_files = \
 	04-newlib-newlib-configure-ac.patch \
 	05-newlib-newlib-libc-include-machine-setjmp-h.patch \
 	06-newlib-newlib-libc-machine-i386-i386mach-h.patch \
-	07-newlib-newlib-libm-machine-i386-i386mach-h.patch
+	07-newlib-newlib-libm-machine-i386-i386mach-h.patch \
+	08-new-newlib-libc-include-inttypes-h.patch
 
 # Files to link into newlib's source tree (relative to $(srcdir)/addon)
 addon = \
@@ -161,6 +162,8 @@ if ARCH_X86_64
   #
   #   ../newlib/libc-routines.a(lib_a-strcpy.o):(.eh_frame+0x20): 
   #         relocation truncated to fit: R_X86_64_32 against `.text'
+  #
+  # See, e.g., http://forge.csail.mit.edu/pipermail/mitgcm-support/2005-October/003505.html
   EXTRA_CFLAGS = -fPIC
 else
   EXTRA_CFLAGS =
