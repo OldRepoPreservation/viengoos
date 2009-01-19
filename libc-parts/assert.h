@@ -24,7 +24,25 @@
 
 #include <hurd/stddef.h>
 
-#define build_assert(__expr) (void) (sizeof (char[(__expr)? 1 : -1]))
+/* The build assert functions are taken from gnulib's
+   http://git.sv.gnu.org/gitweb/?p=gnulib.git;a=blob_plain;f=lib/verify.h
+   .  */
+# ifdef __cplusplus
+template <int w>
+  struct build_assert_type__ { unsigned int build_assert_error_if_negative_size__: w; };
+#  define build_assert_true(R)				\
+  (!!sizeof (build_assert_type__<(R) ? 1 : -1>))
+# else
+#  define build_assert_true(R)						\
+  (!!sizeof								\
+   (struct { unsigned int build_assert_error_if_negative_size__		\
+     : (R) ? 1 : -1;							\
+   }))
+# endif
+
+# define build_assert(R)						\
+  extern int (* build_assert_function__ (void)) [build_assert_true (R)]
+
 
 #if defined(_L4_TEST_ENVIRONMENT) || defined(_ENABLE_TESTS)
 # include_next <assert.h>

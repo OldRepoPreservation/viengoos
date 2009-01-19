@@ -1,3 +1,7 @@
+2009-01-19  Neal H. Walfield  <neal@gnu.org>
+
+	* assert.h (build_assert): Use gnulib's version.
+
 2009-01-18  Neal H. Walfield  <neal@gnu.org>
 
 	* inttypes.h: New file.
